@@ -1,5 +1,5 @@
 # Custom Podcasts
-![Starlette](https://www.starlette.io/) based (service API) application for your own podcasts
+[Starlette](https://www.starlette.io/) based (service API) application for your own podcasts
 
 Develop state: in progress...
 
