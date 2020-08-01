@@ -81,6 +81,7 @@ S3_DEFAULT_PODCAST_IMAGE = os.path.join(
 SENDGRID_API_KEY = config("SENDGRID_API_KEY")
 SENDGRID_API_VERSION = "v3"
 EMAIL_FROM = config("EMAIL_FROM", default="").strip("'\"")
+INVITE_LINK_EXPIRES_IN = 3 * 24 * 3600  # 3 day
 
 RESULT_FILE_EXT = "mp3"
 

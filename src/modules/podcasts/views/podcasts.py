@@ -4,15 +4,17 @@ from starlette import status
 from common.views import BaseHTTPEndpoint
 from modules.podcasts.models import Podcast
 from modules.podcasts.serializers import (
-    PodcastCreateSerializer,
-    PodcastListSerializer,
-    PodcastDetailsSerializer,
+    PodcastCreateModel,
+    PodcastListModel,
+    PodcastDetailsModel,
+    PodcastUpdateModel,
 )
 
 
 class PodcastListCreateAPIView(BaseHTTPEndpoint):
-    model = PodcastCreateSerializer
-    response_serializer_class = PodcastListSerializer
+    db_model = Podcast
+    model = PodcastCreateModel
+    model_response = PodcastListModel
 
     async def get(self, request):
         podcasts = await Podcast.query.order_by(Podcast.created_at).gino.all()
@@ -21,13 +23,16 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
     async def post(self, request):
         podcast_data = await self._validate(request)
         pub_id = uuid.uuid4().hex
-        # TODO: replace to normal podcast creation
         podcast = await Podcast.create(name=podcast_data.name, publish_id=pub_id, created_by_id=1)
         return self._response(podcast, status_code=status.HTTP_201_CREATED)
 
+        # TODO: replace to normal podcast creation
+
 
 class PodcastRUDAPIView(BaseHTTPEndpoint):
-    response_serializer_class = PodcastDetailsSerializer
+    db_model = Podcast
+    model = PodcastUpdateModel
+    model_response = PodcastDetailsModel
 
     async def get(self, request):
         podcast_id = request.path_params['podcast_id']

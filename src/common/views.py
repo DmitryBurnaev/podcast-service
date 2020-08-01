@@ -1,7 +1,7 @@
 import json
 from typing import Type, Union, Iterable, Any
 
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
 from pydantic.json import pydantic_encoder
 from starlette import status
 from starlette.endpoints import HTTPEndpoint
@@ -9,7 +9,6 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from common.excpetions import InvalidParameterError
-from common.serializers import Serializer
 from common.typing import DBModel
 from modules.auth.backend import LoginRequiredAuthBackend
 
@@ -39,13 +38,10 @@ class JSONResponseNew(JSONResponse):
 # TODO: pydantic validation
 
 class BaseHTTPEndpoint(HTTPEndpoint):
-    model: DBModel = NotImplemented
-    serializer_class: Type[Serializer] = NotImplemented
+    db_model: DBModel = NotImplemented
+    model: Type[BaseModel] = NotImplemented
+    model_response: Type[BaseModel] = NotImplemented
     auth_backend = LoginRequiredAuthBackend
-
-    @property
-    def response_serializer_class(self) -> Type[Serializer]:
-        return self.serializer_class
 
     async def dispatch(self) -> None:
         request = Request(self.scope, receive=self.receive)
@@ -62,7 +58,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         # TODO: extend logic?!
         request_body = await request.json()
         try:
-            res = self.serializer_class(**request_body)
+            res = self.model(**request_body)
         except ValidationError as e:
             print(e.json())
             raise InvalidParameterError(details=e.json())
@@ -71,17 +67,18 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
     def _response(
         self,
-        orm_obj: Union[DBModel, Iterable[DBModel]] = None,
+        instance: Union[DBModel, Iterable[DBModel]] = None,
         data: Any = None,
         status_code: int = status.HTTP_200_OK
     ) -> JSONResponse:
         """ Shortcut for returning JSON-response  """
 
         response_data = {}
-        if orm_obj is not None:
-            response_data = self.response_serializer_class.from_orm(orm_obj)
+        response_model = self.model_response or self.model
+        if instance is not None:
+            response_data = response_model.from_orm(instance)
 
-        if data is not None:
-            response_data = {**response_data, **data}
+        elif data is not None:
+            response_data = response_model(**data)
 
         return JSONResponseNew(response_data, status_code=status_code)

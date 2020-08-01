@@ -1,19 +1,22 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import NamedTuple
 
 from sqlalchemy import and_
 from starlette import status
 
 from common.excpetions import AuthenticationFailedError, InvalidParameterError
+from common.utils import send_email
 from common.views import BaseHTTPEndpoint
+from core import settings
+from core.database import db
 from modules.auth.hasher import PBKDF2PasswordHasher
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.serializers import (
-    JWTResponse,
-    SignInRequestSerializer,
-    SignUpRequestSerializer,
-    RefreshTokenRequestSerializer,
+    JWTResponseModel,
+    SignInModel,
+    SignUpModel,
+    RefreshTokenModel, UserInviteModel, UserInviteResponseModel,
 )
 from modules.auth.utils import encode_jwt, decode_jwt
 
@@ -21,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class JWTSessionMixin:
+    model_response = JWTResponseModel
 
     class TokenCollection(NamedTuple):
         refresh_token: str
@@ -61,8 +65,7 @@ class JWTSessionMixin:
 
 
 class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
-    serializer_class = SignInRequestSerializer
-    response_serializer_class = JWTResponse
+    model = SignInModel
     auth_backend = None
 
     async def post(self, request):
@@ -89,12 +92,11 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
 
 class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
-    serializer_class = SignUpRequestSerializer
-    response_serializer_class = JWTResponse
+    model = SignUpModel
     auth_backend = None
 
     async def post(self, request):
-        cleaned_data: SignUpRequestSerializer = await self._validate(request)
+        cleaned_data: SignUpModel = await self._validate(request)
         user = await User.create(
             email=cleaned_data.email,
             password=User.make_password(cleaned_data.password_1),
@@ -102,8 +104,8 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         token_collection = await self._update_session(user)
         return self._response(data=token_collection._asdict())
 
-    async def _validate(self, request) -> serializer_class:
-        serializer: SignUpRequestSerializer = await super()._validate(request)
+    async def _validate(self, request) -> SignUpModel:
+        serializer: SignUpModel = await super()._validate(request)
         if serializer.password_1 != serializer.password_2:
             raise InvalidParameterError("Passwords should be equal")
 
@@ -137,7 +139,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
 class SignOutAPIView(BaseHTTPEndpoint):
 
-    async def post(self, request):
+    async def get(self, request):
         user = request.user
         logger.info("Log out for user %s", user)
         user_session = await UserSession.query.where(
@@ -156,12 +158,11 @@ class SignOutAPIView(BaseHTTPEndpoint):
 
 
 class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
-    serializer_class = RefreshTokenRequestSerializer
-    response_serializer_class = JWTResponse
+    model = RefreshTokenModel
     auth_backend = None
 
     async def post(self, request):
-        cleaned_data: RefreshTokenRequestSerializer = await self._validate(request)
+        cleaned_data: RefreshTokenModel = await self._validate(request)
         token_payload = decode_jwt(cleaned_data.refresh_token)
         user_id = token_payload.get("user_id")
         token_type = token_payload.get("token_type")
@@ -191,3 +192,54 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
         token_collection = await self._update_session(user)
         return self._response(data=token_collection._asdict())
+
+
+class InviteUserAPIView(BaseHTTPEndpoint):
+    """ Invite user (by email) to podcast-service """
+
+    db_model = User
+    model = UserInviteModel
+    model_response = UserInviteResponseModel
+
+    async def post(self, request):
+        cleaned_data = await self._validate(request)
+        email = cleaned_data.email
+        token = UserInvite.generate_token()
+        expired_at = datetime.utcnow() + timedelta(seconds=settings.INVITE_LINK_EXPIRES_IN)
+        logger.info("INVITE: create for %s (expired %s) token [%s]", email, expired_at, token)
+
+        async with db.transaction():
+            user_invite = await UserInvite.create(
+                email=email,
+                token=token,
+                expired_at=expired_at,
+                created_by_id=request.user.id,
+            )
+            logger.info("Invite object %r created. Sending message...", user_invite)
+            await self._send_email(user_invite)
+
+        return self._response(user_invite, status_code=status.HTTP_201_CREATED)
+
+    @staticmethod
+    async def _send_email(user_invite: UserInvite):
+        link = f"{settings.SITE_URL}/sign-up/?t={user_invite.token}"
+        body = (
+            f"<p>Hello! :) You have been invited to {settings.SITE_URL}</p>"
+            f"<p>Please follow the link </p>"
+            f"<p><a href={link}>{link}</a></p>"
+        )
+        await send_email(
+            recipient_email=user_invite.email,
+            subject=f"Welcome to {settings.SITE_URL}",
+            html_content=body.strip(),
+        )
+
+    async def _validate(self, request) -> model:
+        cleaned_data = await super()._validate(request)
+        email_exists = await UserInvite.query.where(
+            UserInvite.email == cleaned_data.email
+        ).gino.first()
+        if email_exists:
+            raise InvalidParameterError("User with this email already exists")
+
+        return cleaned_data

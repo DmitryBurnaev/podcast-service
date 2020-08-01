@@ -6,17 +6,12 @@ from pydantic.main import BaseModel
 from common.typing import DBModel
 
 
-class Serializer(BaseModel):
-    """ Alias for `pydantic.main.BaseModel` """
-    ...
-
-
-class ModelSerializer(BaseModel):
+class ModelFromORM(BaseModel):
     """ Shortcut for ORM-based pydantic models (ex.: serializing data for response) """
 
     @classmethod
     def from_orm(cls, obj: Union[DBModel, List[DBModel]]) -> Union[BaseModel, List[BaseModel]]:
-        """ Return single instance or list of `ModelSerializer` """
+        """ Return single instance or list of `ModelFromORM` """
 
         if isinstance(obj, collections.Iterable):
             return [cls.from_orm(item) for item in obj]

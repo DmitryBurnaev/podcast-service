@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime
 
 from sqlalchemy import and_
@@ -44,6 +45,7 @@ class User(db.Model):
 
 class UserInvite(db.Model):
     __tablename__ = "auth_invites"
+    TOKEN_MAX_LENGTH = 32
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("auth_users.id"), unique=True)
@@ -56,6 +58,10 @@ class UserInvite(db.Model):
 
     def __repr__(self):
         return f"<UserInvite #{self.id} {self.token}>"
+
+    @classmethod
+    def generate_token(cls):
+        return secrets.token_urlsafe()[: cls.TOKEN_MAX_LENGTH]
 
 
 class UserSession(db.Model):

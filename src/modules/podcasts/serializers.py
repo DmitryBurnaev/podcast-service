@@ -1,20 +1,27 @@
 import datetime
 from typing import Optional
 
-from common.serializers import Serializer, ModelSerializer
+from pydantic import BaseModel
+
+from common.serializers import ModelFromORM
 
 
-class PodcastCreateSerializer(Serializer):
+class PodcastCreateModel(BaseModel):
     name: str
 
 
-class PodcastListSerializer(ModelSerializer):
+class PodcastUpdateModel(BaseModel):
+    name: str
+    description: str
+
+
+class PodcastListModel(ModelFromORM):
     id: int
     name: str
     created_at: datetime.datetime
 
 
-class PodcastDetailsSerializer(ModelSerializer):
+class PodcastDetailsModel(ModelFromORM):
     id: int
     name: str
     created_at: datetime.datetime
