@@ -1,22 +1,25 @@
 import logging
+import uuid
 from datetime import datetime, timedelta
-from typing import NamedTuple
+from typing import NamedTuple, Tuple
 
 from sqlalchemy import and_
 from starlette import status
 
-from common.excpetions import AuthenticationFailedError, InvalidParameterError
+from common.exceptions import AuthenticationFailedError, InvalidParameterError
 from common.utils import send_email
 from common.views import BaseHTTPEndpoint
 from core import settings
 from core.database import db
-from modules.auth.hasher import PBKDF2PasswordHasher
+from modules.auth.backend import AdminRequiredAuthBackend
+from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.serializers import (
     JWTResponseModel,
     SignInModel,
     SignUpModel,
-    RefreshTokenModel, UserInviteModel, UserInviteResponseModel,
+    RefreshTokenModel, UserInviteModel, UserInviteResponseModel, ResetPasswordModel,
+    ResetPasswordResponseModel,
 )
 from modules.auth.utils import encode_jwt, decode_jwt
 
@@ -166,15 +169,14 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         token_payload = decode_jwt(cleaned_data.refresh_token)
         user_id = token_payload.get("user_id")
         token_type = token_payload.get("token_type")
+        # TODO: move to `_validate` method
         if not user_id:
             raise InvalidParameterError("Refresh token doesn't contain 'user_id'")
 
         if token_type != "refresh":
             raise InvalidParameterError("Refresh token has invalid token-type")
 
-        user = await User.query.where(
-            and_(User.id == user_id, User.is_active.is_(True))
-        ).gino.first()
+        user = await User.get_active(user_id)
         if not user:
             raise AuthenticationFailedError("Active user not found")
 
@@ -236,10 +238,123 @@ class InviteUserAPIView(BaseHTTPEndpoint):
 
     async def _validate(self, request) -> model:
         cleaned_data = await super()._validate(request)
-        email_exists = await UserInvite.query.where(
-            UserInvite.email == cleaned_data.email
-        ).gino.first()
+        email_exists = await UserInvite.async_get(email=cleaned_data.email)
         if email_exists:
-            raise InvalidParameterError("User with this email already exists")
+            raise InvalidParameterError(f"User with email=[{cleaned_data.email}] already exists")
 
         return cleaned_data
+
+
+class ResetPasswordAPIView(BaseHTTPEndpoint):
+    """ Remove current user from session """
+
+    db_model = User
+    model = ResetPasswordModel
+    model_response = ResetPasswordResponseModel
+    auth_backend = AdminRequiredAuthBackend
+
+    async def post(self, request):
+        user = await self._validate(request)
+        token = self._generate_token(user)
+        await self._send_email(user, token)
+        return self._response(data={"user_id": user.id, "token": token})
+
+    async def _validate(self, request) -> User:
+        cleaned_data = await super()._validate(request)
+        user = await User.async_get(email=cleaned_data.email)
+        if not user:
+            raise InvalidParameterError(f"User with email=[{cleaned_data.email}] not found")
+
+        return user
+
+    @staticmethod
+    async def _send_email(user: User, token: str):
+        link = f"{settings.SITE_URL}/change-password/?t={token}"
+        body = (
+            f"<p>You can reset your password for {settings.SITE_URL}</p>"
+            f"<p>Please follow the link </p>"
+            f"<p><a href={link}>{link}</a></p>"
+        )
+        await send_email(
+            recipient_email=user.email,
+            subject=f"Welcome back to {settings.SITE_URL}",
+            html_content=body.strip(),
+        )
+
+    @staticmethod
+    def _generate_token(user: User) -> str:
+        payload = {
+            "user_id": user.id,
+            "email": user.email,
+            "jti": f"token-{uuid.uuid4()}",  # JWT ID
+            "slt": get_salt(),
+        }
+        token, _ = encode_jwt(payload, expires_in=settings.RESET_PASSWORD_LINK_EXPIRES_IN)
+        return token
+
+
+#
+# class ChangePasswordView(BaseHTTPEndpoint):
+#     """ Create new user in db """
+#
+#     template_name = "auth/change_password.html"
+#     model_class = User
+#     validator = Validator(
+#         {
+#             "password_1": {"type": "string", "minlength": 6, "maxlength": 32, "required": True},
+#             "password_2": {"type": "string", "minlength": 6, "maxlength": 32, "required": True},
+#             "token": {"type": "string", "empty": False, "required": True},
+#         }
+#     )
+#
+#     @anonymous_required
+#     @aiohttp_jinja2.template(template_name)
+#     async def get(self):
+#         token = self.request.query.get("t", "")
+#         try:
+#             user = await self.authenticate_user(self.request.app.objects, token)
+#         except AuthenticationFailedError as error:
+#             logger.error(f"We couldn't recognize recover password token: {error}")
+#             add_message(self.request, "Provided token is missed or incorrect", kind="danger")
+#             return {}
+#
+#         return {"token": token, "email": user.email}
+#
+#     @json_response
+#     @anonymous_required
+#     @errors_api_wrapped
+#     async def post(self):
+#         """ Check is email unique and create new User """
+#         cleaned_data = await self._validate()
+#         password_1 = cleaned_data["password_1"]
+#         password_2 = cleaned_data["password_2"]
+#         jwt_token = cleaned_data["token"]
+#         self._password_match(password_1, password_2)
+#
+#         user = await self.authenticate_user(self.db_objects, jwt_token)
+#         user.password = User.make_password(password_1)
+#         await user.async_update(self.db_objects)
+#         self._login(user)
+#         return {"redirect_url": self._get_url("index")}, http.HTTPStatus.OK
+#
+#     @staticmethod
+#     async def authenticate_user(db_objects, jwt_token) -> User:
+#         logger.info("Logging via JWT auth. Got token: %s", jwt_token)
+#
+#         try:
+#             jwt_payload = decode_jwt(jwt_token)
+#         except PyJWTError as err:
+#             msg = _("Invalid token header. Token could not be decoded as JWT.")
+#             logger.exception("Bad jwt token: %s", err)
+#             raise AuthenticationFailedError(details=msg)
+#
+#         user_id = str(jwt_payload.get("user_id", 0))
+#         try:
+#             assert user_id.isdigit()
+#             user = await User.async_get(db_objects, id=jwt_payload["user_id"], is_active=True)
+#         except (AssertionError, User.DoesNotExist):
+#             raise AuthenticationFailedError(
+#                 details=f"Active user #{user_id} not found or token is invalid."
+#             )
+#
+#         return user

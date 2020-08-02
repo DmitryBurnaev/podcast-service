@@ -11,8 +11,11 @@ class EmailField:
     max_length = 128
     regex = "^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
 
-    def __call__(self, *args, **kwargs):
-        return Field(max_length=self.max_length, regex=self.regex)
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+    def __call__(self):
+        return Field(max_length=self.max_length, regex=self.regex, **self.kwargs)
 
 
 class SignInModel(BaseModel):
@@ -46,3 +49,12 @@ class UserInviteResponseModel(ModelFromORM):
     expired_at: datetime.datetime
     created_at: datetime.datetime
     created_by_id: int
+
+
+class ResetPasswordModel(BaseModel):
+    email: str = EmailField(required=True)
+
+
+class ResetPasswordResponseModel(BaseModel):
+    id: int
+    email: str = EmailField(required=True)

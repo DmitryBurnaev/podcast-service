@@ -6,20 +6,20 @@ from jose import jwt
 from core import settings
 
 
-def encode_jwt(payload, refresh=False) -> Tuple[str, datetime]:
+def encode_jwt(payload, refresh=False, expires_in: int = None) -> Tuple[str, datetime]:
     now_time = datetime.utcnow()
     if refresh:
-        expired_delta = settings.JWT_EXPIRATION_REFRESH
+        expires_in = settings.JWT_REFRESH_EXPIRES_IN
         payload["token_type"] = "refresh"
     else:
-        expired_delta = settings.JWT_EXPIRATION
+        expires_in = expires_in or settings.JWT_EXPIRES_IN
         payload["token_type"] = "access"
 
-    expired_at = now_time + timedelta(seconds=expired_delta)
+    expired_at = now_time + timedelta(seconds=expires_in)
     payload["exp"] = expired_at
-    payload["exp_iso"] = expired_at.isoformat()
+    payload["exp_iso"] = expires_in.isoformat()
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
-    return token, expired_at
+    return token, expires_in
 
 
 def decode_jwt(encoded_jwt: str) -> dict:

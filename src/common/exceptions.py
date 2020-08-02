@@ -20,17 +20,17 @@ class AuthenticationRequiredError(BaseApplicationError):
 
 class PermissionDeniedError(BaseApplicationError):
     status_code = 403
-    message = "You don't have permission to perform this action"
+    message = "You don't have permission to perform this action."
 
 
 class InviteTokenInvalidationError(BaseApplicationError):
     status_code = 401
-    message = "Requested token is expired or does not exist"
+    message = "Requested token is expired or does not exist."
 
 
 class InvalidParameterError(BaseApplicationError):
     status_code = 400
-    message = "Input data is invalid"
+    message = "Requested data is not valid."
 
 
 class Forbidden(BaseApplicationError):
@@ -44,7 +44,7 @@ class YoutubeFetchError(Exception):
 
 class SendRequestError(BaseApplicationError):
     status_code = 503
-    message = "Got unexpected error for sending request"
+    message = "Got unexpected error for sending request."
     request_url = ""
     response_status = None
 

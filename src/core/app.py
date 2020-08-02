@@ -5,13 +5,12 @@ from starlette.applications import Starlette
 from core import settings
 from core.database import db
 from core.routes import routes
-from common.utils import http_exception
-from common.excpetions import BaseApplicationError
+from common.utils import custom_exception_handler
 
 logger = logging.getLogger(__name__)
 
 exception_handlers = {
-    BaseApplicationError: http_exception
+    Exception: custom_exception_handler
 }
 
 

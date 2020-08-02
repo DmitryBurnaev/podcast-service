@@ -8,7 +8,7 @@ from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from common.excpetions import InvalidParameterError
+from common.exceptions import InvalidParameterError
 from common.typing import DBModel
 from modules.auth.backend import LoginRequiredAuthBackend
 

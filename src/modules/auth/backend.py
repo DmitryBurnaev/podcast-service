@@ -2,7 +2,7 @@ import logging
 
 from jose import JWTError
 
-from common.excpetions import (
+from common.exceptions import (
     AuthenticationFailedError,
     AuthenticationRequiredError,
     PermissionDeniedError

@@ -3,11 +3,12 @@ from datetime import datetime
 
 from sqlalchemy import and_
 
+from common.models import BaseModel
 from core.database import db
 from modules.auth.hasher import PBKDF2PasswordHasher
 
 
-class User(db.Model):
+class User(BaseModel):
     __tablename__ = "auth_users"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -38,12 +39,10 @@ class User(db.Model):
 
     @classmethod
     async def get_active(cls, user_id: int) -> "User":
-        return await User.query.where(
-            and_(User.id == user_id, User.is_active.is_(True))
-        ).gino.first()
+        return await cls.async_get(user_id=user_id, is_active=True)
 
 
-class UserInvite(db.Model):
+class UserInvite(BaseModel):
     __tablename__ = "auth_invites"
     TOKEN_MAX_LENGTH = 32
 

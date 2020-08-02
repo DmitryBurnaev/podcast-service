@@ -62,10 +62,9 @@ TMP_RSS_PATH = tempfile.mkdtemp(prefix="podcast_rss__")
 TMP_IMAGE_PATH = tempfile.mkdtemp(prefix="podcast_images__")
 TEMPLATE_PATH = BASE_DIR / "templates"
 
-JWT_EXPIRATION = 5 * 60  # 5 min
-JWT_EXPIRATION_REFRESH = 30 * 24 * 3600  # 30 days
+JWT_EXPIRES_IN = config("JWT_EXPIRES_IN", default=(5 * 60))   # 5 min
+JWT_REFRESH_EXPIRES_IN = 30 * 24 * 3600  # 30 days
 JWT_ALGORITHM = "HS512"  # see https://pyjwt.readthedocs.io/en/latest/algorithms.html for details
-RESET_PASSWORD_LINK_EXP = 3 * 60 * 60  # 3 hours
 
 S3_STORAGE_URL = config("S3_STORAGE_URL")
 S3_AWS_ACCESS_KEY_ID = config("S3_AWS_ACCESS_KEY_ID")
@@ -82,6 +81,7 @@ SENDGRID_API_KEY = config("SENDGRID_API_KEY")
 SENDGRID_API_VERSION = "v3"
 EMAIL_FROM = config("EMAIL_FROM", default="").strip("'\"")
 INVITE_LINK_EXPIRES_IN = 3 * 24 * 3600  # 3 day
+RESET_PASSWORD_LINK_EXPIRES_IN = 3 * 3600  # 3 hours
 
 RESULT_FILE_EXT = "mp3"
 
