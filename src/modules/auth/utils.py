@@ -17,9 +17,9 @@ def encode_jwt(payload, refresh=False, expires_in: int = None) -> Tuple[str, dat
 
     expired_at = now_time + timedelta(seconds=expires_in)
     payload["exp"] = expired_at
-    payload["exp_iso"] = expires_in.isoformat()
+    payload["exp_iso"] = expired_at.isoformat()
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
-    return token, expires_in
+    return token, expired_at
 
 
 def decode_jwt(encoded_jwt: str) -> dict:

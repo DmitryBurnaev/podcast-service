@@ -8,6 +8,10 @@ class BaseApplicationError(Exception):
         self.details = details or self.details
 
 
+class UnexpectedError(BaseApplicationError):
+    message = "Something unexpected happened"
+
+
 class AuthenticationFailedError(BaseApplicationError):
     status_code = 401
     message = "Authentication credentials are invalid"
@@ -49,6 +53,6 @@ class SendRequestError(BaseApplicationError):
     response_status = None
 
     def __init__(self, message: str, details: str, request_url: str, response_status: int):
-        super().__init__(message, details)
+        super().__init__(details, message)
         self.response_status = response_status
         self.request_url = request_url

@@ -1,8 +1,6 @@
 import secrets
 from datetime import datetime
 
-from sqlalchemy import and_
-
 from common.models import BaseModel
 from core.database import db
 from modules.auth.hasher import PBKDF2PasswordHasher
@@ -39,7 +37,7 @@ class User(BaseModel):
 
     @classmethod
     async def get_active(cls, user_id: int) -> "User":
-        return await cls.async_get(user_id=user_id, is_active=True)
+        return await cls.async_get(id=user_id, is_active=True)
 
 
 class UserInvite(BaseModel):
@@ -63,7 +61,7 @@ class UserInvite(BaseModel):
         return secrets.token_urlsafe()[: cls.TOKEN_MAX_LENGTH]
 
 
-class UserSession(db.Model):
+class UserSession(BaseModel):
     __tablename__ = "auth_sessions"
 
     id = db.Column(db.Integer, primary_key=True)

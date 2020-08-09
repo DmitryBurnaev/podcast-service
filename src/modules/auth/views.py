@@ -6,11 +6,11 @@ from typing import NamedTuple, Tuple
 from sqlalchemy import and_
 from starlette import status
 
+from common.db_utils import db_transaction
 from common.exceptions import AuthenticationFailedError, InvalidParameterError
 from common.utils import send_email
 from common.views import BaseHTTPEndpoint
 from core import settings
-from core.database import db
 from modules.auth.backend import AdminRequiredAuthBackend
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.models import User, UserSession, UserInvite
@@ -19,7 +19,7 @@ from modules.auth.serializers import (
     SignInModel,
     SignUpModel,
     RefreshTokenModel, UserInviteModel, UserInviteResponseModel, ResetPasswordModel,
-    ResetPasswordResponseModel,
+    ResetPasswordResponseModel, ChangePasswordModel, UserResponseModel,
 )
 from modules.auth.utils import encode_jwt, decode_jwt
 
@@ -47,9 +47,7 @@ class JWTSessionMixin:
 
     async def _update_session(self, user: User) -> TokenCollection:
         token_collection = self._get_tokens(user)
-        user_session = await UserSession.query.where(
-            UserSession.user_id == user.id
-        ).gino.first()
+        user_session = await UserSession.async_get(user_id=user.id)
         if user_session:
             await user_session.update(
                 refresh_token=token_collection.refresh_token,
@@ -98,6 +96,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     model = SignUpModel
     auth_backend = None
 
+    @db_transaction
     async def post(self, request):
         cleaned_data: SignUpModel = await self._validate(request)
         user = await User.create(
@@ -145,12 +144,7 @@ class SignOutAPIView(BaseHTTPEndpoint):
     async def get(self, request):
         user = request.user
         logger.info("Log out for user %s", user)
-        user_session = await UserSession.query.where(
-            and_(
-                UserSession.user_id == user.id,
-                UserSession.is_active.is_(False)
-            )
-        ).first()
+        user_session = await UserSession.async_get(user_id=user.id, is_active=True)
         if user_session:
             logger.info("Session %s exists and active. It will be updated.", user_session)
             await user_session.update(is_active=False).apply()
@@ -164,36 +158,36 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     model = RefreshTokenModel
     auth_backend = None
 
+    @db_transaction
     async def post(self, request):
-        cleaned_data: RefreshTokenModel = await self._validate(request)
-        token_payload = decode_jwt(cleaned_data.refresh_token)
-        user_id = token_payload.get("user_id")
-        token_type = token_payload.get("token_type")
-        # TODO: move to `_validate` method
-        if not user_id:
-            raise InvalidParameterError("Refresh token doesn't contain 'user_id'")
-
-        if token_type != "refresh":
-            raise InvalidParameterError("Refresh token has invalid token-type")
+        user_id, refresh_token = await self._validate(request)
 
         user = await User.get_active(user_id)
         if not user:
             raise AuthenticationFailedError("Active user not found")
 
-        user_session: UserSession = await UserSession.query.where(
-            and_(
-                UserSession.user_id == user_id,
-                UserSession.is_active.is_(True)
-            )
-        ).gino.first()
+        user_session = await UserSession.async_get(user_id=user_id, is_active=True)
         if not user_session:
             raise AuthenticationFailedError("There is not active session for user")
 
-        if user_session.refresh_token != cleaned_data.refresh_token:
+        if user_session.refresh_token != refresh_token:
             raise AuthenticationFailedError("Refresh token is not active for user session")
 
         token_collection = await self._update_session(user)
         return self._response(data=token_collection._asdict())
+
+    async def _validate(self, request) -> Tuple[int, str]:
+        cleaned_data = await super()._validate(request)
+        token_payload = decode_jwt(cleaned_data.refresh_token)
+        user_id = token_payload.get("user_id")
+        if not user_id:
+            raise InvalidParameterError("Refresh token doesn't contain 'user_id'")
+
+        token_type = token_payload.get("token_type")
+        if token_type != "refresh":
+            raise InvalidParameterError("Refresh token has invalid token-type")
+
+        return user_id, cleaned_data.refresh_token
 
 
 class InviteUserAPIView(BaseHTTPEndpoint):
@@ -203,23 +197,23 @@ class InviteUserAPIView(BaseHTTPEndpoint):
     model = UserInviteModel
     model_response = UserInviteResponseModel
 
+    @db_transaction
     async def post(self, request):
         cleaned_data = await self._validate(request)
         email = cleaned_data.email
         token = UserInvite.generate_token()
         expired_at = datetime.utcnow() + timedelta(seconds=settings.INVITE_LINK_EXPIRES_IN)
+
         logger.info("INVITE: create for %s (expired %s) token [%s]", email, expired_at, token)
+        user_invite = await UserInvite.create(
+            email=email,
+            token=token,
+            expired_at=expired_at,
+            created_by_id=request.user.id,
+        )
 
-        async with db.transaction():
-            user_invite = await UserInvite.create(
-                email=email,
-                token=token,
-                expired_at=expired_at,
-                created_by_id=request.user.id,
-            )
-            logger.info("Invite object %r created. Sending message...", user_invite)
-            await self._send_email(user_invite)
-
+        logger.info("Invite object %r created. Sending message...", user_invite)
+        await self._send_email(user_invite)
         return self._response(user_invite, status_code=status.HTTP_201_CREATED)
 
     @staticmethod
@@ -253,11 +247,12 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
     model_response = ResetPasswordResponseModel
     auth_backend = AdminRequiredAuthBackend
 
+    @db_transaction
     async def post(self, request):
         user = await self._validate(request)
         token = self._generate_token(user)
         await self._send_email(user, token)
-        return self._response(data={"user_id": user.id, "token": token})
+        return self._response(data={"user_id": user.id, "email": user.email, "token": token})
 
     async def _validate(self, request) -> User:
         cleaned_data = await super()._validate(request)
@@ -293,68 +288,34 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
         return token
 
 
-#
-# class ChangePasswordView(BaseHTTPEndpoint):
-#     """ Create new user in db """
-#
-#     template_name = "auth/change_password.html"
-#     model_class = User
-#     validator = Validator(
-#         {
-#             "password_1": {"type": "string", "minlength": 6, "maxlength": 32, "required": True},
-#             "password_2": {"type": "string", "minlength": 6, "maxlength": 32, "required": True},
-#             "token": {"type": "string", "empty": False, "required": True},
-#         }
-#     )
-#
-#     @anonymous_required
-#     @aiohttp_jinja2.template(template_name)
-#     async def get(self):
-#         token = self.request.query.get("t", "")
-#         try:
-#             user = await self.authenticate_user(self.request.app.objects, token)
-#         except AuthenticationFailedError as error:
-#             logger.error(f"We couldn't recognize recover password token: {error}")
-#             add_message(self.request, "Provided token is missed or incorrect", kind="danger")
-#             return {}
-#
-#         return {"token": token, "email": user.email}
-#
-#     @json_response
-#     @anonymous_required
-#     @errors_api_wrapped
-#     async def post(self):
-#         """ Check is email unique and create new User """
-#         cleaned_data = await self._validate()
-#         password_1 = cleaned_data["password_1"]
-#         password_2 = cleaned_data["password_2"]
-#         jwt_token = cleaned_data["token"]
-#         self._password_match(password_1, password_2)
-#
-#         user = await self.authenticate_user(self.db_objects, jwt_token)
-#         user.password = User.make_password(password_1)
-#         await user.async_update(self.db_objects)
-#         self._login(user)
-#         return {"redirect_url": self._get_url("index")}, http.HTTPStatus.OK
-#
-#     @staticmethod
-#     async def authenticate_user(db_objects, jwt_token) -> User:
-#         logger.info("Logging via JWT auth. Got token: %s", jwt_token)
-#
-#         try:
-#             jwt_payload = decode_jwt(jwt_token)
-#         except PyJWTError as err:
-#             msg = _("Invalid token header. Token could not be decoded as JWT.")
-#             logger.exception("Bad jwt token: %s", err)
-#             raise AuthenticationFailedError(details=msg)
-#
-#         user_id = str(jwt_payload.get("user_id", 0))
-#         try:
-#             assert user_id.isdigit()
-#             user = await User.async_get(db_objects, id=jwt_payload["user_id"], is_active=True)
-#         except (AssertionError, User.DoesNotExist):
-#             raise AuthenticationFailedError(
-#                 details=f"Active user #{user_id} not found or token is invalid."
-#             )
-#
-#         return user
+class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
+    """ Create new user in db """
+
+    db_model = User
+    model = ChangePasswordModel
+    model_response = JWTResponseModel
+
+    @db_transaction
+    async def post(self, request):
+        """ Check is email unique and create new User """
+        cleaned_data = await self._validate(request)
+        new_password = User.make_password(cleaned_data.password_1)
+        await request.user.update(password=new_password).apply()
+
+        token_collection = await self._update_session(request.user)
+        return self._response(data=token_collection._asdict())
+
+    async def _validate(self, request) -> ChangePasswordModel:
+        model: ChangePasswordModel = await super()._validate(request)
+        if model.password_1 != model.password_2:
+            raise InvalidParameterError("Passwords should be equal")
+
+        return model
+
+
+class ProfileApiView(BaseHTTPEndpoint):
+    """ Simple retrieves profile information (for authenticated user) """
+    model_response = UserResponseModel
+
+    async def get(self, request):
+        return self._response(request.user)

@@ -62,7 +62,7 @@ TMP_RSS_PATH = tempfile.mkdtemp(prefix="podcast_rss__")
 TMP_IMAGE_PATH = tempfile.mkdtemp(prefix="podcast_images__")
 TEMPLATE_PATH = BASE_DIR / "templates"
 
-JWT_EXPIRES_IN = config("JWT_EXPIRES_IN", default=(5 * 60))   # 5 min
+JWT_EXPIRES_IN = config("JWT_EXPIRES_IN", default=(5 * 60), cast=int)   # 5 min
 JWT_REFRESH_EXPIRES_IN = 30 * 24 * 3600  # 30 days
 JWT_ALGORITHM = "HS512"  # see https://pyjwt.readthedocs.io/en/latest/algorithms.html for details
 

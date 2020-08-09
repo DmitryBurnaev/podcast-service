@@ -5,9 +5,8 @@ import httpx
 from starlette import status
 from starlette.responses import JSONResponse
 
-from common import exceptions
 from core import settings
-from common.exceptions import SendRequestError, BaseApplicationError
+from common.exceptions import SendRequestError
 
 
 def get_logger(name: str = None):
@@ -22,8 +21,6 @@ def status_is_success(code):
 
 def status_is_server_error(code):
     return 500 <= code <= 600
-
-
 
 
 async def send_email(recipient_email: str, subject: str, html_content: str):
@@ -43,21 +40,15 @@ async def send_email(recipient_email: str, subject: str, html_content: str):
         response = await client.post(request_url, json=request_data, headers=request_header)
         status_code = response.status_code
         if not status_is_success(status_code):
-            response_text = await response.json()
+            response_text = response.json()
             raise SendRequestError(
-                f"Couldn't send email to {recipient_email}",
-                f"Got status code: {status_code}; response text: {response_text}",
+                message=f"Couldn't send email to {recipient_email}",
+                details=f"Got status code: {status_code}; response text: {response_text}",
                 response_status=status_code,
                 request_url=request_url,
             )
         else:
             request_logger.info("Email sent to %s. Status code: %s", recipient_email, status_code)
-
-#
-# async def http_exception(request, exc):
-#     # TODO: logging
-#
-#     return JSONResponse({"error": exc.message, "details": exc.details}, status_code=exc.status_code)
 
 
 def log_message(exc, error_data, level=logging.ERROR):
@@ -77,20 +68,9 @@ def custom_exception_handler(request, exc):
     Response will be format by our format: {"error": "text", "detail": details}
     """
 
-    default_error_message = "Something went wrong"
-    default_error_details = f"Raised Error: {exc.__class__.__name__}"
-
-    if isinstance(exc, BaseApplicationError):
-        error_message = exc.message or default_error_details
-        response_data = {"error": error_message, "details": exc.details}
-        status_code = getattr(exc, "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    else:
-        response_data = {
-            "error": default_error_message,
-            "details": f"{default_error_details} [{exc}]",
-        }
-        status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    error_message = exc.message or f"Raised Error: {exc.__class__.__name__}"
+    response_data = {"error": error_message, "details": exc.details}
+    status_code = getattr(exc, "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     log_level = logging.ERROR if status_is_server_error(status_code) else logging.WARNING
     log_message(exc, response_data, log_level)

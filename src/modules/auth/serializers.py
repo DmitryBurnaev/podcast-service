@@ -56,5 +56,18 @@ class ResetPasswordModel(BaseModel):
 
 
 class ResetPasswordResponseModel(BaseModel):
-    id: int
+    user_id: int
     email: str = EmailField(required=True)
+    token: str
+
+
+class ChangePasswordModel(BaseModel):
+    password_1: str = Field(min_length=3, max_length=32)
+    password_2: str = Field(min_length=3, max_length=32)
+
+
+class UserResponseModel(ModelFromORM):
+    id: int
+    email: str
+    is_active: bool
+    is_superuser: bool

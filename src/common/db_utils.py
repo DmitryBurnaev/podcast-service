@@ -101,3 +101,11 @@ class EnumTypeColumn(db.Column):
 
         impl = impl or cls.impl
         return db.Column(ChoiceType(enum_class, impl=impl), *args, **kwargs)
+
+
+def db_transaction(func):
+    async def wrapped(*args, **kwargs):
+        async with db.transaction():
+            return await func(*args, **kwargs)
+
+    return wrapped
