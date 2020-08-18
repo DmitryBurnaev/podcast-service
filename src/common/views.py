@@ -6,10 +6,16 @@ from pydantic import ValidationError, BaseModel
 from pydantic.json import pydantic_encoder
 from starlette import status
 from starlette.endpoints import HTTPEndpoint
+from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from common.exceptions import InvalidParameterError, BaseApplicationError, UnexpectedError
+from common.exceptions import (
+    InvalidParameterError,
+    BaseApplicationError,
+    UnexpectedError,
+    HttpError
+)
 from common.typing import DBModel
 from modules.auth.backend import LoginRequiredAuthBackend
 
@@ -41,7 +47,6 @@ class JSONResponseNew(JSONResponse):
 # TODO: pydantic validation
 
 class BaseHTTPEndpoint(HTTPEndpoint):
-    db_model: DBModel = NotImplemented
     model: Type[BaseModel] = NotImplemented
     model_response: Type[BaseModel] = NotImplemented
     auth_backend = LoginRequiredAuthBackend
@@ -56,10 +61,12 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         try:
             response = await handler(request)
-        except BaseApplicationError:
-            raise
+        except BaseApplicationError as err:
+            raise err
+        except HTTPException as err:
+            raise HttpError(err.detail, status_code=err.status_code)
         except Exception as err:
-            error_details = f"{type(err).__name__}: {err}"
+            error_details = repr(err)
             logger.exception("Unexpected error handled: %s", error_details)
             raise UnexpectedError(error_details)
 

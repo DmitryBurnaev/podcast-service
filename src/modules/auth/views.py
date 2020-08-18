@@ -6,28 +6,22 @@ from typing import NamedTuple, Tuple
 from sqlalchemy import and_
 from starlette import status
 
+from core import settings
 from common.db_utils import db_transaction
 from common.exceptions import AuthenticationFailedError, InvalidParameterError
 from common.utils import send_email
 from common.views import BaseHTTPEndpoint
-from core import settings
 from modules.auth.backend import AdminRequiredAuthBackend
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.models import User, UserSession, UserInvite
-from modules.auth.serializers import (
-    JWTResponseModel,
-    SignInModel,
-    SignUpModel,
-    RefreshTokenModel, UserInviteModel, UserInviteResponseModel, ResetPasswordModel,
-    ResetPasswordResponseModel, ChangePasswordModel, UserResponseModel,
-)
+from modules.auth import serializers
 from modules.auth.utils import encode_jwt, decode_jwt
 
 logger = logging.getLogger(__name__)
 
 
 class JWTSessionMixin:
-    model_response = JWTResponseModel
+    model_response = serializers.JWTResponseModel
 
     class TokenCollection(NamedTuple):
         refresh_token: str
@@ -66,7 +60,7 @@ class JWTSessionMixin:
 
 
 class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
-    model = SignInModel
+    model = serializers.SignInModel
     auth_backend = None
 
     async def post(self, request):
@@ -93,12 +87,12 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
 
 class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
-    model = SignUpModel
+    model = serializers.SignUpModel
     auth_backend = None
 
     @db_transaction
     async def post(self, request):
-        cleaned_data: SignUpModel = await self._validate(request)
+        cleaned_data = await self._validate(request)
         user = await User.create(
             email=cleaned_data.email,
             password=User.make_password(cleaned_data.password_1),
@@ -106,8 +100,8 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         token_collection = await self._update_session(user)
         return self._response(data=token_collection._asdict())
 
-    async def _validate(self, request) -> SignUpModel:
-        serializer: SignUpModel = await super()._validate(request)
+    async def _validate(self, request) -> serializers.SignUpModel:
+        serializer = await super()._validate(request)
         if serializer.password_1 != serializer.password_2:
             raise InvalidParameterError("Passwords should be equal")
 
@@ -155,7 +149,7 @@ class SignOutAPIView(BaseHTTPEndpoint):
 
 
 class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
-    model = RefreshTokenModel
+    model = serializers.RefreshTokenModel
     auth_backend = None
 
     @db_transaction
@@ -193,9 +187,8 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 class InviteUserAPIView(BaseHTTPEndpoint):
     """ Invite user (by email) to podcast-service """
 
-    db_model = User
-    model = UserInviteModel
-    model_response = UserInviteResponseModel
+    model = serializers.UserInviteModel
+    model_response = serializers.UserInviteResponseModel
 
     @db_transaction
     async def post(self, request):
@@ -242,9 +235,8 @@ class InviteUserAPIView(BaseHTTPEndpoint):
 class ResetPasswordAPIView(BaseHTTPEndpoint):
     """ Remove current user from session """
 
-    db_model = User
-    model = ResetPasswordModel
-    model_response = ResetPasswordResponseModel
+    model = serializers.ResetPasswordModel
+    model_response = serializers.ResetPasswordResponseModel
     auth_backend = AdminRequiredAuthBackend
 
     @db_transaction
@@ -291,9 +283,8 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
 class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     """ Create new user in db """
 
-    db_model = User
-    model = ChangePasswordModel
-    model_response = JWTResponseModel
+    model = serializers.ChangePasswordModel
+    model_response = serializers.JWTResponseModel
 
     @db_transaction
     async def post(self, request):
@@ -305,8 +296,8 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         token_collection = await self._update_session(request.user)
         return self._response(data=token_collection._asdict())
 
-    async def _validate(self, request) -> ChangePasswordModel:
-        model: ChangePasswordModel = await super()._validate(request)
+    async def _validate(self, request) -> serializers.ChangePasswordModel:
+        model = await super()._validate(request)
         if model.password_1 != model.password_2:
             raise InvalidParameterError("Passwords should be equal")
 
@@ -315,7 +306,7 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
 class ProfileApiView(BaseHTTPEndpoint):
     """ Simple retrieves profile information (for authenticated user) """
-    model_response = UserResponseModel
+    model_response = serializers.UserResponseModel
 
     async def get(self, request):
         return self._response(request.user)

@@ -3,13 +3,18 @@ class BaseApplicationError(Exception):
     details = None
     status_code = 500
 
-    def __init__(self, details=None,  message=None):
+    def __init__(self, details=None,  message=None, status_code=None):
         self.message = message or self.message
         self.details = details or self.details
+        self.status_code = status_code or self.status_code
 
 
 class UnexpectedError(BaseApplicationError):
     message = "Something unexpected happened"
+
+
+class HttpError(BaseApplicationError):
+    message = "Some HTTP error"
 
 
 class AuthenticationFailedError(BaseApplicationError):

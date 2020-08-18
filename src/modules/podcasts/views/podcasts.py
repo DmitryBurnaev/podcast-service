@@ -1,6 +1,6 @@
-import uuid
 from starlette import status
 
+from common.db_utils import db_transaction
 from common.views import BaseHTTPEndpoint
 from modules.podcasts.models import Podcast
 from modules.podcasts.serializers import (
@@ -12,7 +12,6 @@ from modules.podcasts.serializers import (
 
 
 class PodcastListCreateAPIView(BaseHTTPEndpoint):
-    db_model = Podcast
     model = PodcastCreateModel
     model_response = PodcastListModel
 
@@ -20,17 +19,19 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
         podcasts = await Podcast.query.order_by(Podcast.created_at).gino.all()
         return self._response(podcasts)
 
+    @db_transaction
     async def post(self, request):
-        podcast_data = await self._validate(request)
-        pub_id = uuid.uuid4().hex
-        podcast = await Podcast.create(name=podcast_data.name, publish_id=pub_id, created_by_id=1)
+        podcast_data: PodcastCreateModel = await self._validate(request)
+        podcast = await Podcast.create(
+            name=podcast_data.name,
+            publish_id=Podcast.generate_publish_id(),
+            description=podcast_data.description,
+            created_by_id=request.user.id
+        )
         return self._response(podcast, status_code=status.HTTP_201_CREATED)
-
-        # TODO: replace to normal podcast creation
 
 
 class PodcastRUDAPIView(BaseHTTPEndpoint):
-    db_model = Podcast
     model = PodcastUpdateModel
     model_response = PodcastDetailsModel
 
@@ -39,6 +40,15 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         podcast = await Podcast.get_or_404(podcast_id)
         return self._response(podcast)
 
+    @db_transaction
+    async def patch(self, request):
+        podcast_data: PodcastUpdateModel = await self._validate(request)
+        podcast_id = request.path_params['podcast_id']
+        podcast = await Podcast.async_get(id=podcast_id)
+        await podcast.update(**podcast_data.dict()).apply()
+        return self._response(podcast)
+
+    @db_transaction
     async def delete(self, request):
         podcast_id = int(request.path_params['podcast_id'])
         podcast = await Podcast.get_or_404(podcast_id)

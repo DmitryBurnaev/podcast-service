@@ -5,14 +5,14 @@ from hashlib import md5
 from urllib.parse import urljoin
 from xml.sax.saxutils import escape
 
-from common.db_utils import EnumTypeColumn
 from core import settings
 from core.database import db
-
+from common.db_utils import EnumTypeColumn
+from common.models import BaseModel
 from common.i18n import get_text_translation as _
 
 
-class Podcast(db.Model):
+class Podcast(BaseModel):
     """ Simple model for saving podcast in DB """
 
     __tablename__ = "podcast_podcasts"
@@ -56,7 +56,7 @@ class Podcast(db.Model):
         return md5(uuid.uuid4().hex.encode("utf-8")).hexdigest()[::2]
 
 
-class Episode(db.Model):
+class Episode(BaseModel):
     """ Simple model for saving episodes in DB """
     __tablename__ = "podcast_episodes"
 
