@@ -32,6 +32,11 @@ class PermissionDeniedError(BaseApplicationError):
     message = "You don't have permission to perform this action."
 
 
+class NotFoundError(BaseApplicationError):
+    status_code = 404
+    message = "Requested object not found."
+
+
 class InviteTokenInvalidationError(BaseApplicationError):
     status_code = 401
     message = "Requested token is expired or does not exist."
@@ -42,12 +47,17 @@ class InvalidParameterError(BaseApplicationError):
     message = "Requested data is not valid."
 
 
+class InvalidResponseError(BaseApplicationError):
+    status_code = 500
+    message = "Response data couldn't be serialized."
+
+
 class Forbidden(BaseApplicationError):
     status_code = 403
     message = "You don't have permission to perform this action"
 
 
-class YoutubeFetchError(Exception):
+class YoutubeFetchError(BaseApplicationError):
     ...
 
 

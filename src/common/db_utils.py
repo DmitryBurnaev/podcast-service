@@ -109,3 +109,11 @@ def db_transaction(func):
             return await func(*args, **kwargs)
 
     return wrapped
+
+
+def db_transaction_sync(func):
+    def wrapped(*args, **kwargs):
+        with db.transaction():
+            return func(*args, **kwargs)
+
+    return wrapped

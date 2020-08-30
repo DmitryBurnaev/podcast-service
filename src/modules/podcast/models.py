@@ -58,6 +58,7 @@ class Podcast(BaseModel):
 
 class Episode(BaseModel):
     """ Simple model for saving episodes in DB """
+
     __tablename__ = "podcast_episodes"
 
     class Status(enum.Enum):
@@ -87,7 +88,7 @@ class Episode(BaseModel):
     created_by_id = db.Column(db.Integer, db.ForeignKey("auth_users.id"), index=True)
 
     class Meta:
-        order_by = ("-published_at",)
+        order_by = ("-created_at",)
         db_table = "podcast_episodes"
 
     def __str__(self):
@@ -96,13 +97,9 @@ class Episode(BaseModel):
     @classmethod
     async def get_in_progress(cls, user_id):
         """ Return downloading episodes """
-        return await (
-            Episode.query.where(
-                Episode.status.in_(Episode.PROGRESS_STATUSES),
-                Episode.created_by_id == user_id
-            ).order_by(
-                Episode.created_at.desc()
-            )
+        return await cls.async_filter(
+            status__in=Episode.PROGRESS_STATUSES,
+            created_by_id=user_id
         )
 
     @property
