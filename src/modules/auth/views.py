@@ -3,14 +3,18 @@ import uuid
 from datetime import datetime, timedelta
 from typing import NamedTuple, Tuple
 
+from marshmallow import validate, Schema
 from sqlalchemy import and_
 from starlette import status
+from starlette.responses import JSONResponse
+from webargs import fields
+from webargs_starlette import parser
 
 from core import settings
 from common.db_utils import db_transaction
 from common.exceptions import AuthenticationFailedError, InvalidParameterError
 from common.utils import send_email
-from common.views import BaseHTTPEndpoint
+from common.views import BaseHTTPEndpoint, JSONResponseNew
 from modules.auth.backend import AdminRequiredAuthBackend
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.models import User, UserSession, UserInvite
@@ -59,15 +63,37 @@ class JWTSessionMixin:
         return token_collection
 
 
+# class
+class TokenSchema(Schema):
+    access_token = fields.Str(required=True)
+    refresh_token = fields.Str(required=True)
+
+
 class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     model = serializers.SignInModel
     auth_backend = None
+    request_schema = {"email": fields.Email(required=True), "password": fields.Str(required=True)}
+    response_schema = {
+        "access_token": fields.Str(required=True),
+        "refresh_token": fields.Str(required=True)
+    }
 
     async def post(self, request):
-        cleaned_data = await self._validate(request)
-        user = await self.authenticate(cleaned_data.email, cleaned_data.password)
+        cleaned_data = await parser.parse(self.request_schema, request)
+        # cleaned_data = await self._validate(request)
+        user = await self.authenticate(cleaned_data["email"], cleaned_data["password"])
         token_collection = await self._update_session(user)
-        return self._response(data=token_collection._asdict())
+        schema = TokenSchema()
+        return JSONResponse(schema.dump(token_collection))
+
+        # return self._response(data=token_collection._asdict())
+
+    # async def post(self, request):
+    #     # cleaned_data = await parser.parse(self.request_schema, request)
+    #     cleaned_data = await self._validate(request)
+    #     user = await self.authenticate(cleaned_data.email, cleaned_data.password)
+    #     token_collection = await self._update_session(user)
+    #     return self._response(data=token_collection._asdict())
 
     @staticmethod
     async def authenticate(email, password):

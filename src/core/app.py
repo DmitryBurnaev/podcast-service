@@ -1,6 +1,7 @@
 import logging
 
 from starlette.applications import Starlette
+from webargs_starlette import WebargsHTTPException
 
 from core import settings
 from core.database import db
@@ -12,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 exception_handlers = {
-    BaseApplicationError: custom_exception_handler
+    BaseApplicationError: custom_exception_handler,
+    WebargsHTTPException: custom_exception_handler,
 }
 
 

@@ -62,17 +62,17 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         if self.auth_backend:
             backend = self.auth_backend()
             self.scope["user"] = await backend.authenticate(self.request)
-
-        try:
-            response = await handler(self.request)
-        except BaseApplicationError as err:
-            raise err
-        except HTTPException as err:
-            raise HttpError(err.detail, status_code=err.status_code)
-        except Exception as err:
-            error_details = repr(err)
-            logger.exception("Unexpected error handled: %s", error_details)
-            raise UnexpectedError(error_details)
+        response = await handler(self.request)
+        # try:
+        #     response = await handler(self.request)
+        # except BaseApplicationError as err:
+        #     raise err
+        # except HTTPException as err:
+        #     raise HttpError(err.detail, status_code=err.status_code)
+        # except Exception as err:
+        #     error_details = repr(err)
+        #     logger.exception("Unexpected error handled: %s", error_details)
+        #     raise UnexpectedError(error_details)
 
         await response(self.scope, self.receive, self.send)
 

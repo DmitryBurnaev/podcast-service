@@ -4,9 +4,10 @@ import logging.config
 import httpx
 from starlette import status
 from starlette.responses import JSONResponse
+from webargs_starlette import WebargsHTTPException
 
 from core import settings
-from common.exceptions import SendRequestError
+from common.exceptions import SendRequestError, BaseApplicationError
 
 
 def get_logger(name: str = None):
@@ -67,11 +68,19 @@ def custom_exception_handler(request, exc):
     Returns the response that should be used for any given exception.
     Response will be format by our format: {"error": "text", "detail": details}
     """
-
-    error_message = exc.message or f"Raised Error: {exc.__class__.__name__}"
-    response_data = {"error": error_message, "details": exc.details}
+    error_message = f"Something went wrong!"
+    error_details = f"Raised Error: {exc.__class__.__name__}"
     status_code = getattr(exc, "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    if isinstance(exc, BaseApplicationError):
+        error_message = exc.message
+        error_details = exc.details
+    elif isinstance(exc, WebargsHTTPException):
+        error_message = "Requested data is not valid"
+        error_details = exc.messages.get("json") or exc.messages
+        status_code = status.HTTP_400_BAD_REQUEST
+
+    response_data = {"error": error_message, "details": error_details}
     log_level = logging.ERROR if status_is_server_error(status_code) else logging.WARNING
     log_message(exc, response_data, log_level)
     return JSONResponse(response_data, status_code=status_code)
