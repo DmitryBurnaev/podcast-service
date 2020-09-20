@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 class EpisodeListCreateAPIView(BaseHTTPEndpoint):
-    model = EpisodeCreateModel
-    model_response = EpisodeListModel
+    schema_request = EpisodeCreateModel
+    schema_response = EpisodeListModel
 
     async def get(self, request):
         podcast_id = request.path_params['podcast_id']
@@ -30,7 +30,7 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
     @db_transaction
     async def post(self, request):
         podcast_id = request.path_params['podcast_id']
-        podcast = await self.get_object(podcast_id, db_model=Podcast)
+        podcast = await self._get_object(podcast_id, db_model=Podcast)
         episode_data: EpisodeCreateModel = await self._validate(request)
         episode_creator = EpisodeCreator(
             podcast_id=podcast_id,
@@ -49,26 +49,26 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
 
 class EpisodeRUDAPIView(BaseHTTPEndpoint):
     db_model = Episode
-    model = EpisodeUpdateModel
-    model_response = EpisodeDetailsModel
+    schema_request = EpisodeUpdateModel
+    schema_response = EpisodeDetailsModel
 
     async def get(self, request):
         episode_id = request.path_params['episode_id']
-        episode = await self.get_object(episode_id)
+        episode = await self._get_object(episode_id)
         return self._response(episode)
 
     @db_transaction
     async def patch(self, request):
         episode_id = request.path_params['episode_id']
         episode_data: EpisodeUpdateModel = await self._validate(request)
-        episode = await self.get_object(episode_id)
+        episode = await self._get_object(episode_id)
         await episode.update(**episode_data.dict()).apply()
         return self._response(episode)
 
     @db_transaction
     async def delete(self, request):
         episode_id = request.path_params['episode_id']
-        episode = await self.get_object(episode_id)
+        episode = await self._get_object(episode_id)
         await episode.delete()
         # TODO: remove episode from the cloud
         return self._response(None, status_code=status.HTTP_204_NO_CONTENT)

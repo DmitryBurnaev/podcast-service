@@ -3,29 +3,25 @@ import uuid
 from datetime import datetime, timedelta
 from typing import NamedTuple, Tuple
 
-from marshmallow import validate, Schema
 from sqlalchemy import and_
 from starlette import status
-from starlette.responses import JSONResponse
-from webargs import fields
-from webargs_starlette import parser
 
 from core import settings
 from common.db_utils import db_transaction
 from common.exceptions import AuthenticationFailedError, InvalidParameterError
 from common.utils import send_email
-from common.views import BaseHTTPEndpoint, JSONResponseNew
+from common.views import BaseHTTPEndpoint
 from modules.auth.backend import AdminRequiredAuthBackend
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.models import User, UserSession, UserInvite
-from modules.auth import serializers
 from modules.auth.utils import encode_jwt, decode_jwt
+from modules.auth.schemas import *
 
 logger = logging.getLogger(__name__)
 
 
 class JWTSessionMixin:
-    model_response = serializers.JWTResponseModel
+    schema_response = JWTResponseSchema
 
     class TokenCollection(NamedTuple):
         refresh_token: str
@@ -63,37 +59,15 @@ class JWTSessionMixin:
         return token_collection
 
 
-# class
-class TokenSchema(Schema):
-    access_token = fields.Str(required=True)
-    refresh_token = fields.Str(required=True)
-
-
 class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
-    model = serializers.SignInModel
+    schema_request = SignInSchema
     auth_backend = None
-    request_schema = {"email": fields.Email(required=True), "password": fields.Str(required=True)}
-    response_schema = {
-        "access_token": fields.Str(required=True),
-        "refresh_token": fields.Str(required=True)
-    }
 
     async def post(self, request):
-        cleaned_data = await parser.parse(self.request_schema, request)
-        # cleaned_data = await self._validate(request)
+        cleaned_data = await self._validate(request)
         user = await self.authenticate(cleaned_data["email"], cleaned_data["password"])
         token_collection = await self._update_session(user)
-        schema = TokenSchema()
-        return JSONResponse(schema.dump(token_collection))
-
-        # return self._response(data=token_collection._asdict())
-
-    # async def post(self, request):
-    #     # cleaned_data = await parser.parse(self.request_schema, request)
-    #     cleaned_data = await self._validate(request)
-    #     user = await self.authenticate(cleaned_data.email, cleaned_data.password)
-    #     token_collection = await self._update_session(user)
-    #     return self._response(data=token_collection._asdict())
+        return self._response(token_collection)
 
     @staticmethod
     async def authenticate(email, password):
@@ -113,26 +87,24 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
 
 class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
-    model = serializers.SignUpModel
+    schema_request = SignUpSchema
     auth_backend = None
 
     @db_transaction
     async def post(self, request):
         cleaned_data = await self._validate(request)
         user = await User.create(
-            email=cleaned_data.email,
-            password=User.make_password(cleaned_data.password_1),
+            email=cleaned_data["email"],
+            password=User.make_password(cleaned_data["password_1"]),
         )
         token_collection = await self._update_session(user)
         return self._response(data=token_collection._asdict())
 
-    async def _validate(self, request) -> serializers.SignUpModel:
-        serializer = await super()._validate(request)
-        if serializer.password_1 != serializer.password_2:
-            raise InvalidParameterError("Passwords should be equal")
+    async def _validate(self, request, partial: bool = False) -> dict:
+        cleaned_data = await super()._validate(request)
 
-        invite_token = serializer.invite_token
-        email = serializer.email
+        invite_token = cleaned_data["invite_token"]
+        email = cleaned_data["email"]
         user_invite = await self._get_user_invite(invite_token)
         if not user_invite:
             details = "Invitation link is expired or unavailable"
@@ -142,7 +114,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         if await User.query.where(and_(User.email == email)).gino.scalar():
             raise InvalidParameterError(details=f"User with email '{email}' already exists")
 
-        return serializer
+        return cleaned_data
 
     @staticmethod
     async def _get_user_invite(invite_token: str) -> UserInvite:
@@ -175,7 +147,7 @@ class SignOutAPIView(BaseHTTPEndpoint):
 
 
 class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
-    model = serializers.RefreshTokenModel
+    schema_request = RefreshTokenSchema
     auth_backend = None
 
     @db_transaction
@@ -196,9 +168,9 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         token_collection = await self._update_session(user)
         return self._response(data=token_collection._asdict())
 
-    async def _validate(self, request) -> Tuple[int, str]:
+    async def _validate(self, request, partial: bool = False) -> Tuple[int, str]:
         cleaned_data = await super()._validate(request)
-        token_payload = decode_jwt(cleaned_data.refresh_token)
+        token_payload = decode_jwt(cleaned_data["refresh_token"])
         user_id = token_payload.get("user_id")
         if not user_id:
             raise InvalidParameterError("Refresh token doesn't contain 'user_id'")
@@ -207,19 +179,19 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         if token_type != "refresh":
             raise InvalidParameterError("Refresh token has invalid token-type")
 
-        return user_id, cleaned_data.refresh_token
+        return user_id, cleaned_data["refresh_token"]
 
 
 class InviteUserAPIView(BaseHTTPEndpoint):
     """ Invite user (by email) to podcast-service """
 
-    model = serializers.UserInviteModel
-    model_response = serializers.UserInviteResponseModel
+    schema_request = UserInviteRequestSchema
+    schema_response = UserInviteResponseSchema
 
     @db_transaction
     async def post(self, request):
         cleaned_data = await self._validate(request)
-        email = cleaned_data.email
+        email = cleaned_data["email"]
         token = UserInvite.generate_token()
         expired_at = datetime.utcnow() + timedelta(seconds=settings.INVITE_LINK_EXPIRES_IN)
 
@@ -249,11 +221,11 @@ class InviteUserAPIView(BaseHTTPEndpoint):
             html_content=body.strip(),
         )
 
-    async def _validate(self, request) -> model:
+    async def _validate(self, request, partial: bool = False) -> dict:
         cleaned_data = await super()._validate(request)
-        email_exists = await UserInvite.async_get(email=cleaned_data.email)
+        email_exists = await UserInvite.async_get(email=cleaned_data["email"])
         if email_exists:
-            raise InvalidParameterError(f"User with email=[{cleaned_data.email}] already exists")
+            raise InvalidParameterError(f"User with email=[{cleaned_data['email']}] already exists")
 
         return cleaned_data
 
@@ -261,8 +233,8 @@ class InviteUserAPIView(BaseHTTPEndpoint):
 class ResetPasswordAPIView(BaseHTTPEndpoint):
     """ Remove current user from session """
 
-    model = serializers.ResetPasswordModel
-    model_response = serializers.ResetPasswordResponseModel
+    schema_request = ResetPasswordRequestSchema
+    schema_response = ResetPasswordResponseSchema
     auth_backend = AdminRequiredAuthBackend
 
     @db_transaction
@@ -272,11 +244,11 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
         await self._send_email(user, token)
         return self._response(data={"user_id": user.id, "email": user.email, "token": token})
 
-    async def _validate(self, request) -> User:
+    async def _validate(self, request, partial: bool = False) -> User:
         cleaned_data = await super()._validate(request)
-        user = await User.async_get(email=cleaned_data.email)
+        user = await User.async_get(email=cleaned_data["email"])
         if not user:
-            raise InvalidParameterError(f"User with email=[{cleaned_data.email}] not found")
+            raise InvalidParameterError(f"User with email=[{cleaned_data['email']}] not found")
 
         return user
 
@@ -309,30 +281,23 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
 class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     """ Create new user in db """
 
-    model = serializers.ChangePasswordModel
-    model_response = serializers.JWTResponseModel
+    schema_request = ChangePasswordSchema
 
     @db_transaction
     async def post(self, request):
         """ Check is email unique and create new User """
         cleaned_data = await self._validate(request)
-        new_password = User.make_password(cleaned_data.password_1)
+        new_password = User.make_password(cleaned_data["password_1"])
         await request.user.update(password=new_password).apply()
 
         token_collection = await self._update_session(request.user)
         return self._response(data=token_collection._asdict())
 
-    async def _validate(self, request) -> serializers.ChangePasswordModel:
-        model = await super()._validate(request)
-        if model.password_1 != model.password_2:
-            raise InvalidParameterError("Passwords should be equal")
-
-        return model
-
 
 class ProfileApiView(BaseHTTPEndpoint):
     """ Simple retrieves profile information (for authenticated user) """
-    model_response = serializers.UserResponseModel
+
+    schema_response = UserResponseSchema
 
     async def get(self, request):
         return self._response(request.user)

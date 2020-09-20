@@ -6,7 +6,7 @@ from core.database import db
 
 
 class BaseModel(db.Model):
-    """ Base model with db Meta """
+    """ Base schema_request with db Meta """
 
     class Meta:
         order_by = ("id",)

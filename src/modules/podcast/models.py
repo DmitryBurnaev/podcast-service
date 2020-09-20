@@ -13,7 +13,7 @@ from common.i18n import get_text_translation as _
 
 
 class Podcast(BaseModel):
-    """ Simple model for saving podcast in DB """
+    """ Simple schema_request for saving podcast in DB """
 
     __tablename__ = "podcast_podcasts"
 
@@ -57,7 +57,7 @@ class Podcast(BaseModel):
 
 
 class Episode(BaseModel):
-    """ Simple model for saving episodes in DB """
+    """ Simple schema_request for saving episodes in DB """
 
     __tablename__ = "podcast_episodes"
 

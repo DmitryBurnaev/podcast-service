@@ -15,7 +15,7 @@ config = Config(PROJECT_ROOT_DIR / ".env")
 
 APP_HOST = config("APP_HOST", default="0.0.0.0")
 APP_PORT = config("APP_PORT", default="8000")
-APP_DEBUG = config("APP_DEBUG", default="", cast=bool)
+APP_DEBUG = config("APP_DEBUG", cast=bool, default=False)
 
 SECRET_KEY = config("SECRET_KEY", default="podcast-project-secret")
 
