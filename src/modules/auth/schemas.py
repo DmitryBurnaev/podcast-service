@@ -16,8 +16,6 @@ __all__ = [
     "UserResponseSchema",
 ]
 
-from modules.auth.models import User
-
 
 class TwoPasswordsMixin:
 
