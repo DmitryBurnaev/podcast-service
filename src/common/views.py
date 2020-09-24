@@ -8,7 +8,7 @@ from marshmallow import Schema, ValidationError
 from starlette import status
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 from webargs_starlette import parser, WebargsHTTPException
 
 from common.exceptions import (
@@ -22,19 +22,6 @@ from core.database import db
 from modules.auth.backend import LoginRequiredAuthBackend
 
 logger = logging.getLogger(__name__)
-
-#
-# class JSONResponseNew(JSONResponse):
-#
-#     def render(self, content: Any) -> bytes:
-#         return json.dumps(
-#             content,
-#             ensure_ascii=False,
-#             allow_nan=False,
-#             indent=None,
-#             separators=(",", ":"),
-#             cls=PydanticJSONEncoder
-#         ).encode("utf-8")
 
 
 class BaseHTTPEndpoint(HTTPEndpoint):
@@ -79,7 +66,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         schema_kwargs = {}
         if partial:
-            schema_kwargs["partial"] = (field for field in self.schema_request.cls_fields)
+            schema_kwargs["partial"] = [field for field in self.schema_request().fields]
 
         schema = self.schema_request(**schema_kwargs)
         try:
@@ -94,14 +81,20 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         instance: Union[DBModel, Iterable[DBModel]] = None,
         data: Any = None,
         status_code: int = status.HTTP_200_OK
-    ) -> JSONResponse:
+    ) -> Response:
         """ Shortcut for returning JSON-response  """
+        if data or instance:
+            schema_kwargs = {}
+            if isinstance(instance, Iterable):
+                schema_kwargs["many"] = True
 
-        response_data = self.schema_response().dump(instance or data)
-        return JSONResponse(response_data, status_code=status_code)
+            response_data = self.schema_response(**schema_kwargs).dump(instance or data)
+            return JSONResponse(response_data, status_code=status_code)
 
-    async def _run_task(self, task, *args, **kwargs):
-        loop = asyncio.get_running_loop()
-        logger.info(f"RUN task {task}")
+        return Response(status_code=status_code)
+
+    # async def _run_task(self, task, *args, **kwargs):
+    #     loop = asyncio.get_running_loop()
+    #     logger.info(f"RUN task {task}")
         # handler = partial(self.request.app.rq_queue.enqueue, task, *args, **kwargs)
         # await loop.run_in_executor(None, handler)

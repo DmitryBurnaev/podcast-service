@@ -18,7 +18,7 @@ __all__ = [
 class PodcastCreateUpdateSchema(Schema):
     name = fields.Str(required=True, validate=validate.Length(min=1, max=256))
     description = fields.Str()
-    download_automatically = fields.Bool(required=False, default=True)
+    download_automatically = fields.Bool(default=True)
 
 
 class PodcastListSchema(Schema):

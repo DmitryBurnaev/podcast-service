@@ -49,4 +49,4 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         podcast_id = int(request.path_params['podcast_id'])
         podcast = await self._get_object(podcast_id)
         await podcast.delete()
-        return self._response(data={"id": podcast.id})
+        return self._response(status_code=status.HTTP_204_NO_CONTENT)
