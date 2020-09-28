@@ -63,6 +63,6 @@ class EpisodeDetailsSchema(Schema):
     remote_url = fields.URL()
     image_url = fields.URL()
     file_size = fields.Int()
-    description = fields.Str
+    description = fields.Str()
     created_at = fields.DateTime(required=True)
     published_at = fields.DateTime(required=True, allow_none=True)

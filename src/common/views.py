@@ -1,10 +1,7 @@
-import asyncio
-import json
 import logging
 from typing import Type, Union, Iterable, Any
 
 from marshmallow import Schema, ValidationError
-# import
 from starlette import status
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
@@ -83,18 +80,21 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         status_code: int = status.HTTP_200_OK
     ) -> Response:
         """ Shortcut for returning JSON-response  """
-        if data or instance:
+
+        response_instance = instance if (instance is not None) else data
+
+        if response_instance is not None:
             schema_kwargs = {}
-            if isinstance(instance, Iterable):
+            if isinstance(response_instance, Iterable):
                 schema_kwargs["many"] = True
 
-            response_data = self.schema_response(**schema_kwargs).dump(instance or data)
+            response_data = self.schema_response(**schema_kwargs).dump(response_instance)
             return JSONResponse(response_data, status_code=status_code)
 
         return Response(status_code=status_code)
 
-    # async def _run_task(self, task, *args, **kwargs):
-    #     loop = asyncio.get_running_loop()
-    #     logger.info(f"RUN task {task}")
+    async def _run_task(self, task, *args, **kwargs):
+        # loop = asyncio.get_running_loop()
+        logger.info(f"RUN task {task}")
         # handler = partial(self.request.app.rq_queue.enqueue, task, *args, **kwargs)
         # await loop.run_in_executor(None, handler)

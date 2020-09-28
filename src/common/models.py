@@ -22,6 +22,8 @@ class BaseModel(db.Model):
                 filters.append((getattr(cls, field) > filter_value))
             elif criteria == "lt":
                 filters.append((getattr(cls, field) < filter_value))
+            elif criteria == "is":
+                filters.append((getattr(cls, field).is_(filter_value)))
             else:
                 raise NotImplementedError(f"Unexpected criteria: {criteria}")
 

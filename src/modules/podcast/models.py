@@ -68,6 +68,9 @@ class Episode(BaseModel):
         ARCHIVED = "archived"
         ERROR = "error"
 
+        def __str__(self):
+            return self.value
+
     PROGRESS_STATUSES = (Status.DOWNLOADING, Status.ERROR)
 
     id = db.Column(db.Integer, primary_key=True)

@@ -1,7 +1,8 @@
 import logging
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import NamedTuple, Tuple
+from typing import Tuple
 
 from sqlalchemy import and_
 from starlette import status
@@ -20,19 +21,22 @@ from modules.auth.schemas import *
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class TokenCollection():
+    refresh_token: str
+    refresh_token_expired_at: str
+    access_token: str
+    access_token_expired_at: str
+
+
 class JWTSessionMixin:
     schema_response = JWTResponseSchema
 
-    class TokenCollection(NamedTuple):
-        refresh_token: str
-        refresh_token_expired_at: str
-        access_token: str
-        access_token_expired_at: str
-
-    def _get_tokens(self, user: User) -> TokenCollection:
+    @staticmethod
+    def _get_tokens(user: User) -> TokenCollection:
         refresh_token, refresh_token_expired_at = encode_jwt({"user_id": user.id}, refresh=True)
         access_token, access_token_expired_at = encode_jwt({"user_id": user.id})
-        return self.TokenCollection(**{
+        return TokenCollection(**{
             "refresh_token": refresh_token,
             "refresh_token_expired_at": refresh_token_expired_at,
             "access_token": access_token,
@@ -71,9 +75,7 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
     @staticmethod
     async def authenticate(email, password):
-        user = await User.query.where(
-            and_(User.email == email, User.is_active.is_(True))
-        ).gino.first()
+        user = await User.async_get(email=email, is_active__is=True)
         if not user:
             logger.info("Not found user with email [%s]", email)
             raise AuthenticationFailedError("Not found user with provided email.")
@@ -98,7 +100,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
             password=User.make_password(cleaned_data["password_1"]),
         )
         token_collection = await self._update_session(user)
-        return self._response(data=token_collection._asdict())
+        return self._response(token_collection)
 
     async def _validate(self, request, partial: bool = False) -> dict:
         cleaned_data = await super()._validate(request)
@@ -166,7 +168,7 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
             raise AuthenticationFailedError("Refresh token is not active for user session")
 
         token_collection = await self._update_session(user)
-        return self._response(data=token_collection._asdict())
+        return self._response(token_collection)
 
     async def _validate(self, request, partial: bool = False) -> Tuple[int, str]:
         cleaned_data = await super()._validate(request)
@@ -291,7 +293,7 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         await request.user.update(password=new_password).apply()
 
         token_collection = await self._update_session(request.user)
-        return self._response(data=token_collection._asdict())
+        return self._response(token_collection)
 
 
 class ProfileApiView(BaseHTTPEndpoint):
