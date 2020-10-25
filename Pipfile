@@ -12,7 +12,7 @@ gino = {version = "==1.0", extras = ["starlette"]}
 python-jose = "3.1.0"
 alembic = "==1.4.2"
 python-dotenv = "==0.13.0"
-uvicorn = "==0.11.5"
+uvicorn = "==0.12.2"
 gunicorn = "==20.0.4"
 httpx = "==0.13.3"
 aioredis = "==1.3.1"
