@@ -3,11 +3,12 @@ import re
 from collections import Iterable
 
 from common.exceptions import YoutubeFetchError, InvalidParameterError
+from common.utils import get_logger
 from modules.podcast.models import Episode
 from modules.podcast.utils import get_file_name
 from modules.youtube.utils import get_youtube_info, get_video_id
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class EpisodeCreator:

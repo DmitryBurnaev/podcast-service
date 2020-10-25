@@ -52,10 +52,12 @@ DATABASE_DSN = config(
         database=DATABASE["database"],
     ),
 )
-# raise ValueError(DATABASE_DSN)
 
 REDIS_HOST = config("REDIS_HOST", default="localhost")
 REDIS_PORT = config("REDIS_PORT", default=6379)
+REDIS_CON = (REDIS_HOST, REDIS_PORT)
+RQ_QUEUE_NAME = config("RQ_QUEUE_NAME", default="youtube_downloads")
+
 
 TMP_AUDIO_PATH = tempfile.mkdtemp(prefix="podcast_audio__")
 TMP_RSS_PATH = tempfile.mkdtemp(prefix="podcast_rss__")
@@ -97,7 +99,6 @@ FFMPEG_TIMEOUT = 2 * 60 * 60  # 2 hours
 
 SENTRY_DSN = config("SENTRY_DSN")
 LOG_LEVEL = config("LOG_LEVEL", default="INFO")
-
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

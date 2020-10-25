@@ -1,3 +1,4 @@
+import asyncio
 import os
 from typing import Optional
 
@@ -5,6 +6,7 @@ from common.db_utils import db_transaction_sync
 from core import settings
 from common.storage import StorageS3
 from common.utils import get_logger
+from core.database import db
 from modules.podcast.models import Episode, Podcast
 from modules.youtube.exceptions import YoutubeException
 from modules.youtube import utils as youtube_utils
@@ -139,11 +141,25 @@ def download_episode(youtube_link: str, episode_id: int):
 
 def generate_rss(podcast_id: int) -> Optional[str]:
     """ Allows to download and recreate specific rss (by requested podcast.publish_id) """
+    # TODO: move to decorator or class method
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(
+        db.set_bind(
+            db.config["dsn"],
+            echo=db.config["echo"],
+            min_size=db.config["min_size"],
+            max_size=db.config["max_size"],
+            ssl=db.config["ssl"],
+            loop=loop,
+            **db.config["kwargs"],
+        )
+    )
 
-    podcast = Podcast.get_by_id(podcast_id)
+    podcast = Podcast.get(id=podcast_id)
+
     logger.info("START rss generation for %s", podcast)
 
-    src_file = podcast_utils.render_rss_to_file(podcast_id)
+    src_file = podcast_utils.render_rss_to_file(podcast)
     filename = os.path.basename(src_file)
     storage = StorageS3()
     result_url = storage.upload_file(src_file, filename, remote_path=settings.S3_BUCKET_RSS_PATH)
@@ -151,8 +167,7 @@ def generate_rss(podcast_id: int) -> Optional[str]:
         logger.error("Couldn't upload RSS file to storage. SKIP")
         exit(1)
 
-    podcast.rss_link = result_url
-    podcast.save()
+    loop.run_until_complete(podcast.update(rss_link=result_url).apply())
     logger.info("RSS file uploaded, podcast record updated")
 
     if not settings.TEST_MODE:
@@ -161,6 +176,7 @@ def generate_rss(podcast_id: int) -> Optional[str]:
         src_file = None
 
     logger.info("FINISH generation")
+    loop.close()
     return src_file
 
 

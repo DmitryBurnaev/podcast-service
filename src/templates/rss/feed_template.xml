@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:media="http://search.yahoo.com/mrss/" version="2.0">
+    <channel>
+        <title>{{ podcast.name }}</title>
+        <link>https://pycoders.com/</link>
+        <language>ru</language>
+        <copyright>Creative Commons - Attribution, Noncommercial, No Derivative Works 3.0 License.</copyright>
+        <description>{{ podcast.description }}</description>
+        <itunes:image href="{{ podcast.safe_image_url }}"/>
+        <itunes:author>{{ podcast.name }}</itunes:author>
+        <itunes:summary>Custom created episodes</itunes:summary>
+
+        <media:copyright>Creative Commons - Attribution, Noncommercial, No Derivative Works 3.0 License.</media:copyright>
+        <media:thumbnail url="{{ podcast.safe_image_url }}"/>
+        <media:keywords>audio</media:keywords>
+        <media:category scheme="http://www.itunes.com/dtds/podcast-1.0.dtd">Technology</media:category>
+        {% for episode in episodes %}
+            <item>
+                <title>{{ episode.title }}</title>
+                <description>{{ episode.description }}</description>
+                <link>{{ episode.watch_url }}</link>
+                <guid>{{ episode.watch_url }}</guid>
+                <pubDate>{{ episode.published_at.strftime('%a, %d %b %Y %H:%M:%S %Z') }}</pubDate>
+                <enclosure url="{{ episode.remote_url }}" type="{{ episode.content_type }}" length="{{ episode.file_size }}"/>
+                <author>{{ episode.author }}</author>
+                <media:content url="{{ episode.remote_url }}" fileSize="{{ episode.file_size }}" type="{{ episode.content_type }}"/>
+            </item>
+        {% endfor %}
+        <media:credit role="author">PodcastOwner</media:credit>
+        <media:rating>nonadult</media:rating>
+        <media:description type="plain">{{ podcast.description }}</media:description>
+    </channel>
+</rss>

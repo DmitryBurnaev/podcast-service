@@ -3,9 +3,10 @@ import hashlib
 import hmac
 import secrets
 import string
-import logging
 
-logger = logging.getLogger(__name__)
+from common.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_salt(length=12) -> str:

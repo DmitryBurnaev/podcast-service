@@ -1,5 +1,3 @@
-import logging
-
 from jose import JWTError
 
 from common.exceptions import (
@@ -7,10 +5,11 @@ from common.exceptions import (
     AuthenticationRequiredError,
     PermissionDeniedError
 )
+from common.utils import get_logger
 from modules.auth.models import User
 from modules.auth.utils import decode_jwt
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class BaseAuthJWTBackend:

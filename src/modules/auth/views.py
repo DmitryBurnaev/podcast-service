@@ -10,7 +10,7 @@ from starlette import status
 from core import settings
 from common.db_utils import db_transaction
 from common.exceptions import AuthenticationFailedError, InvalidParameterError
-from common.utils import send_email
+from common.utils import send_email, get_logger
 from common.views import BaseHTTPEndpoint
 from modules.auth.backend import AdminRequiredAuthBackend
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
@@ -18,7 +18,7 @@ from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.utils import encode_jwt, decode_jwt
 from modules.auth.schemas import *
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

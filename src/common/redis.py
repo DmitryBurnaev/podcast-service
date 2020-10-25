@@ -1,16 +1,17 @@
 import asyncio
 import json
 import os
-import logging
 from functools import partial
 from typing import Iterable, Any, Dict, Union, List
 
 import redis
 
+from common.utils import get_logger
+
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = os.getenv("REDIS_PORT", "6379")
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class RedisClient:
