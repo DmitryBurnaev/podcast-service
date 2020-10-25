@@ -5,11 +5,11 @@ from functools import partial
 import youtube_dl
 
 from common.exceptions import InvalidParameterError
-from common.utils import cut_string
+from common.utils import cut_string, get_logger
 from common.views import BaseHTTPEndpoint
 from modules.podcast.schemas import PlayListRequestSchema, PlayListResponseSchema
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class PlayListAPIView(BaseHTTPEndpoint):

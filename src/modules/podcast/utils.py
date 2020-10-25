@@ -1,3 +1,4 @@
+import asyncio
 import enum
 import os
 import uuid
@@ -27,15 +28,15 @@ class EpisodeStatuses(str, enum.Enum):
     finished = "finished"
 
 
-def render_rss_to_file(podcast_id: int) -> str:
+def render_rss_to_file(podcast: Podcast) -> str:
     """ Generate rss for Podcast and Episodes marked as "published" """
 
-    logger.info(f"Podcast #{podcast_id}: RSS generation has been started.")
-    podcast = Podcast.get_by_id(podcast_id)
+    logger.info(f"Podcast #{podcast.id}: RSS generation has been started.")
 
-    # noinspection PyComparisonWithNone
-    episodes = podcast.get_episodes(podcast.created_by).where(
-        Episode.status == Episode.STATUS_PUBLISHED, Episode.published_at != None,  # noqa: E711
+    episodes = Episode.filter(
+        podcast_id=podcast.id,
+        status=Episode.Status.PUBLISHED,
+        published_at__ne=None
     )
     context = {"episodes": episodes, "settings": settings}
     with open(os.path.join(settings.TEMPLATE_PATH, "rss", "feed_template.xml")) as fh:
@@ -47,7 +48,7 @@ def render_rss_to_file(podcast_id: int) -> str:
         result_rss = template.render(podcast=podcast, **context)
         fh.write(result_rss)
 
-    logger.info(f"Podcast #{podcast_id}: RSS generation has been finished.")
+    logger.info(f"Podcast #{podcast.id}: RSS generation has been finished.")
     return rss_filename
 
 

@@ -9,9 +9,10 @@ from urllib.parse import urljoin
 import boto3
 import botocore
 
+from common.utils import get_logger
 from core import settings
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class StorageS3:

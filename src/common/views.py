@@ -1,4 +1,5 @@
-import logging
+import asyncio
+from functools import partial
 from typing import Type, Union, Iterable, Any
 
 from marshmallow import Schema, ValidationError
@@ -15,14 +16,16 @@ from common.exceptions import (
     NotFoundError,
 )
 from common.typing import DBModel
+from common.utils import get_logger
 from core.database import db
 from modules.auth.backend import LoginRequiredAuthBackend
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class BaseHTTPEndpoint(HTTPEndpoint):
     request: Request = None
+    app = None
     db_model: DBModel = NotImplemented
     auth_backend = LoginRequiredAuthBackend
     schema_request: Type[Schema] = NotImplemented
@@ -30,16 +33,20 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
     async def dispatch(self) -> None:
         self.request = Request(self.scope, receive=self.receive)
-        handler_name = "get" if self.request.method == "HEAD" else self.request.method.lower()
-        handler = getattr(self, handler_name, self.method_not_allowed)
+        self.app = self.scope.get("app")
+
         if self.auth_backend:
             backend = self.auth_backend()
             self.scope["user"] = await backend.authenticate(self.request)
 
+        handler_name = "get" if self.request.method == "HEAD" else self.request.method.lower()
+        handler = getattr(self, handler_name, self.method_not_allowed)
         try:
             response = await handler(self.request)
+
         except (BaseApplicationError, WebargsHTTPException) as err:
             raise err
+
         except Exception as err:
             error_details = repr(err)
             logger.exception("Unexpected error handled: %s", error_details)
@@ -94,8 +101,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         return Response(status_code=status_code)
 
     async def _run_task(self, task, *args, **kwargs):
-        # loop = asyncio.get_running_loop()
-        # TODO: implement run RQ tasks logic
         logger.info(f"RUN task {task}")
-        # handler = partial(self.request.app.rq_queue.enqueue, task, *args, **kwargs)
-        # await loop.run_in_executor(None, handler)
+        loop = asyncio.get_running_loop()
+        handler = partial(self.app.rq_queue.enqueue, task, *args, **kwargs)
+        await loop.run_in_executor(None, handler)

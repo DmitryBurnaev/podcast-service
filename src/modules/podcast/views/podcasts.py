@@ -57,10 +57,9 @@ class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):
     """ Allows to start RSS generation task """
 
     db_model = Podcast
-    schema_request = PodcastCreateUpdateSchema
-    schema_response = PodcastDetailsSchema
 
     async def put(self, request):
         podcast_id = request.path_params['podcast_id']
         podcast = await self._get_object(podcast_id)
         await self._run_task(generate_rss, podcast.id)
+        return self._response(status_code=status.HTTP_204_NO_CONTENT)

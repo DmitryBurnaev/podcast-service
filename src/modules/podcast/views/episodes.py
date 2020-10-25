@@ -4,6 +4,7 @@ from starlette import status
 
 from common.db_utils import db_transaction
 from common.storage import StorageS3
+from common.utils import get_logger
 from common.views import BaseHTTPEndpoint
 from modules.podcast import tasks
 from modules.podcast.episodes import EpisodeCreator
@@ -11,7 +12,7 @@ from modules.podcast.models import Episode, Podcast
 from modules.podcast.schemas import *
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class EpisodeListCreateAPIView(BaseHTTPEndpoint):
