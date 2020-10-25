@@ -10,7 +10,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(BASE_DIR, "src"))
 
 from core import settings           # noqa
-from modules.podcasts import models # noqa
+from modules.podcast import models # noqa
 from modules.auth import models     # noqa
 from core.database import db        # noqa
 

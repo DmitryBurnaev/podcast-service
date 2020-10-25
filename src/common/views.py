@@ -1,87 +1,101 @@
-import json
+import logging
 from typing import Type, Union, Iterable, Any
 
-from pydantic import ValidationError
-from pydantic.json import pydantic_encoder
+from marshmallow import Schema, ValidationError
 from starlette import status
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
+from webargs_starlette import parser, WebargsHTTPException
 
-from common.excpetions import InvalidParameterError
-from common.serializers import Serializer
+from common.exceptions import (
+    InvalidParameterError,
+    BaseApplicationError,
+    UnexpectedError,
+    NotFoundError,
+)
 from common.typing import DBModel
+from core.database import db
 from modules.auth.backend import LoginRequiredAuthBackend
 
+logger = logging.getLogger(__name__)
 
-class PydanticJSONEncoder(json.JSONEncoder):
-    """
-    JSONEncoder subclass that knows how to encode date/time, decimal types, and
-    UUIDs.
-    """
-    def default(self, o):
-        return pydantic_encoder(o)
-
-
-class JSONResponseNew(JSONResponse):
-
-    def render(self, content: Any) -> bytes:
-        return json.dumps(
-            content,
-            ensure_ascii=False,
-            allow_nan=False,
-            indent=None,
-            separators=(",", ":"),
-            cls=PydanticJSONEncoder
-        ).encode("utf-8")
-
-
-# TODO: pydantic validation
 
 class BaseHTTPEndpoint(HTTPEndpoint):
-    model: DBModel = NotImplemented
-    serializer_class: Type[Serializer] = NotImplemented
+    request: Request = None
+    db_model: DBModel = NotImplemented
     auth_backend = LoginRequiredAuthBackend
-
-    @property
-    def response_serializer_class(self) -> Type[Serializer]:
-        return self.serializer_class
+    schema_request: Type[Schema] = NotImplemented
+    schema_response: Type[Schema] = NotImplemented
 
     async def dispatch(self) -> None:
-        request = Request(self.scope, receive=self.receive)
-        handler_name = "get" if request.method == "HEAD" else request.method.lower()
+        self.request = Request(self.scope, receive=self.receive)
+        handler_name = "get" if self.request.method == "HEAD" else self.request.method.lower()
         handler = getattr(self, handler_name, self.method_not_allowed)
         if self.auth_backend:
             backend = self.auth_backend()
-            self.scope["user"] = await backend.authenticate(request)
+            self.scope["user"] = await backend.authenticate(self.request)
 
-        response = await handler(request)
+        try:
+            response = await handler(self.request)
+        except (BaseApplicationError, WebargsHTTPException) as err:
+            raise err
+        except Exception as err:
+            error_details = repr(err)
+            logger.exception("Unexpected error handled: %s", error_details)
+            raise UnexpectedError(error_details)
+
         await response(self.scope, self.receive, self.send)
 
-    async def _validate(self, request) -> model:
-        # TODO: extend logic?!
-        request_body = await request.json()
-        try:
-            res = self.serializer_class(**request_body)
-        except ValidationError as e:
-            print(e.json())
-            raise InvalidParameterError(details=e.json())
+    async def _get_object(self, instance_id, db_model: DBModel = None, **filter_kwargs) -> db.Model:
+        db_model = db_model or self.db_model
+        instance = await db_model.async_get(
+            id=instance_id, created_by_id=self.request.user.id, **filter_kwargs
+        )
+        if not instance:
+            raise NotFoundError(
+                f"{db_model.__name__} #{instance_id} does not exist or belongs to another user"
+            )
 
-        return res
+        return instance
+
+    async def _validate(self, request, partial: bool = False, location: str = None) -> dict:
+
+        schema_kwargs = {}
+        if partial:
+            schema_kwargs["partial"] = [field for field in self.schema_request().fields]
+
+        schema = self.schema_request(**schema_kwargs)
+        try:
+            cleaned_data = await parser.parse(schema, request, location=location)
+        except ValidationError as e:
+            raise InvalidParameterError(details=e.data)
+
+        return cleaned_data
 
     def _response(
         self,
-        orm_obj: Union[DBModel, Iterable[DBModel]] = None,
+        instance: Union[DBModel, Iterable[DBModel]] = None,
         data: Any = None,
         status_code: int = status.HTTP_200_OK
-    ) -> JSONResponse:
+    ) -> Response:
         """ Shortcut for returning JSON-response  """
 
-        response_data = {}
-        if orm_obj is not None:
-            response_data = self.response_serializer_class.from_orm(orm_obj)
+        response_instance = instance if (instance is not None) else data
 
-        if data is not None:
-            response_data = {**response_data, **data}
+        if response_instance is not None:
+            schema_kwargs = {}
+            if isinstance(response_instance, Iterable) and not isinstance(response_instance, dict):
+                schema_kwargs["many"] = True
 
-        return JSONResponseNew(response_data, status_code=status_code)
+            response_data = self.schema_response(**schema_kwargs).dump(response_instance)
+            return JSONResponse(response_data, status_code=status_code)
+
+        return Response(status_code=status_code)
+
+    async def _run_task(self, task, *args, **kwargs):
+        # loop = asyncio.get_running_loop()
+        # TODO: implement run RQ tasks logic
+        logger.info(f"RUN task {task}")
+        # handler = partial(self.request.app.rq_queue.enqueue, task, *args, **kwargs)
+        # await loop.run_in_executor(None, handler)

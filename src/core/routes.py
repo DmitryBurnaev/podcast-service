@@ -1,13 +1,9 @@
-from starlette.routing import Route, Mount
+from starlette.routing import Mount
 
-from modules.podcasts.views.podcasts import PodcastListCreateAPIView, PodcastRUDAPIView
 from modules.auth.routes import routes as auth_routes
+from modules.podcast.routes import routes as podcast_routes
 
 routes = [
-    Mount('/api', routes=[
-            Route("/podcasts/", PodcastListCreateAPIView),
-            Route("/podcasts/{podcast_id:int}/", PodcastRUDAPIView),
-        ] + auth_routes
-    )
+    Mount('/api', routes=(auth_routes + podcast_routes))
 ]
 

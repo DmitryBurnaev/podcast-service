@@ -2,7 +2,7 @@ import logging
 
 from jose import JWTError
 
-from common.excpetions import (
+from common.exceptions import (
     AuthenticationFailedError,
     AuthenticationRequiredError,
     PermissionDeniedError
@@ -32,8 +32,7 @@ class BaseAuthJWTBackend:
 
         return await self._authenticate_user(jwt_token=auth[1])
 
-    @staticmethod
-    async def _authenticate_user(jwt_token):
+    async def _authenticate_user(self, jwt_token):
         logger.info("Logging via JWT auth. Got token: %s", jwt_token)
         try:
             jwt_payload = decode_jwt(jwt_token)
@@ -58,8 +57,8 @@ class LoginRequiredAuthBackend(BaseAuthJWTBackend):
 
 class AdminRequiredAuthBackend(BaseAuthJWTBackend):
 
-    @staticmethod
-    async def _authenticate_user(jwt_token):
+    # @staticmethod
+    async def _authenticate_user(self, jwt_token):
         user = await super()._authenticate_user(jwt_token)
         if not user.is_superuser:
             raise PermissionDeniedError("You don't have an admin privileges.")

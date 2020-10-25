@@ -1,12 +1,15 @@
 from starlette.routing import Route, Mount
-
-from modules.auth.views import SignInAPIView, SignUpAPIView, SignOutAPIView, RefreshTokenAPIView
+from modules.auth import views
 
 routes = [
     Mount('/auth', routes=[
-        Route("/sign-in/", SignInAPIView),
-        Route("/sign-up/", SignUpAPIView),
-        Route("/sign-out/", SignOutAPIView),
-        Route("/refresh-token/", RefreshTokenAPIView),
+        Route("/me/", views.ProfileApiView),
+        Route("/sign-in/", views.SignInAPIView),
+        Route("/sign-up/", views.SignUpAPIView),
+        Route("/sign-out/", views.SignOutAPIView),
+        Route("/refresh-token/", views.RefreshTokenAPIView),
+        Route("/invite-user/", views.InviteUserAPIView),
+        Route("/reset-password/", views.ResetPasswordAPIView),
+        Route("/change-password/", views.ChangePasswordAPIView),
     ])
 ]

@@ -5,15 +5,15 @@ from hashlib import md5
 from urllib.parse import urljoin
 from xml.sax.saxutils import escape
 
-from common.db_utils import EnumTypeColumn
 from core import settings
 from core.database import db
-
+from common.db_utils import EnumTypeColumn
+from common.models import BaseModel
 from common.i18n import get_text_translation as _
 
 
-class Podcast(db.Model):
-    """ Simple model for saving podcast in DB """
+class Podcast(BaseModel):
+    """ Simple schema_request for saving podcast in DB """
 
     __tablename__ = "podcast_podcasts"
 
@@ -56,8 +56,9 @@ class Podcast(db.Model):
         return md5(uuid.uuid4().hex.encode("utf-8")).hexdigest()[::2]
 
 
-class Episode(db.Model):
-    """ Simple model for saving episodes in DB """
+class Episode(BaseModel):
+    """ Simple schema_request for saving episodes in DB """
+
     __tablename__ = "podcast_episodes"
 
     class Status(enum.Enum):
@@ -66,6 +67,9 @@ class Episode(db.Model):
         PUBLISHED = "published"
         ARCHIVED = "archived"
         ERROR = "error"
+
+        def __str__(self):
+            return self.value
 
     PROGRESS_STATUSES = (Status.DOWNLOADING, Status.ERROR)
 
@@ -87,7 +91,7 @@ class Episode(db.Model):
     created_by_id = db.Column(db.Integer, db.ForeignKey("auth_users.id"), index=True)
 
     class Meta:
-        order_by = ("-published_at",)
+        order_by = ("-created_at",)
         db_table = "podcast_episodes"
 
     def __str__(self):
@@ -96,13 +100,9 @@ class Episode(db.Model):
     @classmethod
     async def get_in_progress(cls, user_id):
         """ Return downloading episodes """
-        return await (
-            Episode.query.where(
-                Episode.status.in_(Episode.PROGRESS_STATUSES),
-                Episode.created_by_id == user_id
-            ).order_by(
-                Episode.created_at.desc()
-            )
+        return await cls.async_filter(
+            status__in=Episode.PROGRESS_STATUSES,
+            created_by_id=user_id
         )
 
     @property

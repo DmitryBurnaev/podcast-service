@@ -1,12 +1,12 @@
+import secrets
 from datetime import datetime
 
-from sqlalchemy import and_
-
+from common.models import BaseModel
 from core.database import db
 from modules.auth.hasher import PBKDF2PasswordHasher
 
 
-class User(db.Model):
+class User(BaseModel):
     __tablename__ = "auth_users"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -37,13 +37,12 @@ class User(db.Model):
 
     @classmethod
     async def get_active(cls, user_id: int) -> "User":
-        return await User.query.where(
-            and_(User.id == user_id, User.is_active.is_(True))
-        ).gino.first()
+        return await cls.async_get(id=user_id, is_active=True)
 
 
-class UserInvite(db.Model):
+class UserInvite(BaseModel):
     __tablename__ = "auth_invites"
+    TOKEN_MAX_LENGTH = 32
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("auth_users.id"), unique=True)
@@ -57,8 +56,12 @@ class UserInvite(db.Model):
     def __repr__(self):
         return f"<UserInvite #{self.id} {self.token}>"
 
+    @classmethod
+    def generate_token(cls):
+        return secrets.token_urlsafe()[: cls.TOKEN_MAX_LENGTH]
 
-class UserSession(db.Model):
+
+class UserSession(BaseModel):
     __tablename__ = "auth_sessions"
 
     id = db.Column(db.Integer, primary_key=True)
