@@ -2,6 +2,7 @@ from starlette import status
 
 from common.db_utils import db_transaction
 from common.views import BaseHTTPEndpoint
+from modules.podcast.tasks import generate_rss
 from modules.podcast.models import Podcast
 from modules.podcast.schemas import *
 
@@ -50,3 +51,16 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         podcast = await self._get_object(podcast_id)
         await podcast.delete()
         return self._response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):
+    """ Allows to start RSS generation task """
+
+    db_model = Podcast
+    schema_request = PodcastCreateUpdateSchema
+    schema_response = PodcastDetailsSchema
+
+    async def put(self, request):
+        podcast_id = request.path_params['podcast_id']
+        podcast = await self._get_object(podcast_id)
+        await self._run_task(generate_rss, podcast.id)

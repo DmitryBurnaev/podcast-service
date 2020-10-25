@@ -12,6 +12,9 @@ __all__ = [
     "EpisodeCreateSchema",
     "EpisodeDetailsSchema",
     "EpisodeUpdateSchema",
+    "PlayListRequestSchema",
+    "PlayListResponseSchema",
+    "ProgressResponseSchema",
 ]
 
 
@@ -66,3 +69,35 @@ class EpisodeDetailsSchema(Schema):
     description = fields.Str()
     created_at = fields.DateTime(required=True)
     published_at = fields.DateTime(required=True, allow_none=True)
+
+
+class PlayListRequestSchema(Schema):
+    url = fields.URL()
+
+
+class PlayListEntitySchema(Schema):
+    id = fields.Str()
+    title = fields.Str()
+    description = fields.Str()
+    thumbnail_url = fields.URL()
+    url = fields.URL()
+
+
+class PlayListResponseSchema(Schema):
+    id = fields.Str()
+    title = fields.Str()
+    entries = fields.Nested(PlayListEntitySchema, many=True)
+
+
+class ProgressResponseSchema(Schema):
+    status = fields.Str()
+    episode_id = fields.Str()
+    episode_title = fields.Str()
+    podcast_id = fields.Str()
+    completed = fields.Float()
+    current_file_size = fields.Int()
+    current_file_size__mb = fields.Str()
+    total_file_size = fields.Int()
+    total_file_size__mb = fields.Str()
+    podcast_publish_id = fields.Str()
+    status_display = fields.Str()

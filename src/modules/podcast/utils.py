@@ -83,6 +83,7 @@ async def check_state(episodes: Iterable[Episode]) -> list:
     current_states = await redis_client.async_get_many(file_names, pkey="event_key")
     result = []
     for episode in episodes:
+        print(episode)
         file_name = episode.file_name
         if not file_name:
             logger.warning(f"Episode {episode} does not contain filename")

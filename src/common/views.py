@@ -59,7 +59,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         return instance
 
-    async def _validate(self, request, partial: bool = False) -> dict:
+    async def _validate(self, request, partial: bool = False, location: str = None) -> dict:
 
         schema_kwargs = {}
         if partial:
@@ -67,7 +67,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         schema = self.schema_request(**schema_kwargs)
         try:
-            cleaned_data = await parser.parse(schema, request)
+            cleaned_data = await parser.parse(schema, request, location=location)
         except ValidationError as e:
             raise InvalidParameterError(details=e.data)
 
@@ -85,7 +85,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         if response_instance is not None:
             schema_kwargs = {}
-            if isinstance(response_instance, Iterable):
+            if isinstance(response_instance, Iterable) and not isinstance(response_instance, dict):
                 schema_kwargs["many"] = True
 
             response_data = self.schema_response(**schema_kwargs).dump(response_instance)
@@ -95,6 +95,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
     async def _run_task(self, task, *args, **kwargs):
         # loop = asyncio.get_running_loop()
+        # TODO: implement run RQ tasks logic
         logger.info(f"RUN task {task}")
         # handler = partial(self.request.app.rq_queue.enqueue, task, *args, **kwargs)
         # await loop.run_in_executor(None, handler)
