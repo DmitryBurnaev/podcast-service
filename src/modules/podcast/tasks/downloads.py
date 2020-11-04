@@ -119,7 +119,7 @@ class DownloadEpisode(RQTask):
         """ Allows to find unfinished downloading and remove file from the storage (S3) """
 
         if episode.status not in (Episode.Status.NEW, Episode.Status.DOWNLOADING):
-            logger.error(
+            logger.warning(
                 "[%s] Episode is %s but file-size seems not correct. "
                 "Removing not-correct file %s and reloading it from youtube.",
                 episode.source_id,
