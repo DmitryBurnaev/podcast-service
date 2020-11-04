@@ -59,9 +59,9 @@ REDIS_CON = (REDIS_HOST, REDIS_PORT)
 RQ_QUEUE_NAME = config("RQ_QUEUE_NAME", default="youtube_downloads")
 
 
-TMP_AUDIO_PATH = tempfile.mkdtemp(prefix="podcast_audio__")
-TMP_RSS_PATH = tempfile.mkdtemp(prefix="podcast_rss__")
-TMP_IMAGE_PATH = tempfile.mkdtemp(prefix="podcast_images__")
+TMP_AUDIO_PATH = Path(tempfile.mkdtemp(prefix="podcast_audio__"))
+TMP_RSS_PATH = Path(tempfile.mkdtemp(prefix="podcast_rss__"))
+TMP_IMAGE_PATH = Path(tempfile.mkdtemp(prefix="podcast_images__"))
 TEMPLATE_PATH = BASE_DIR / "templates"
 
 JWT_EXPIRES_IN = config("JWT_EXPIRES_IN", default=(5 * 60), cast=int)   # 5 min

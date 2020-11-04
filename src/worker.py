@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import sys
 
@@ -9,8 +8,6 @@ from sentry_sdk.integrations.logging import LoggingIntegration
 from sentry_sdk.integrations.rq import RqIntegration
 
 from core import settings
-from core.app import PodcastApp
-from core.database import db
 from common.utils import get_logger
 
 logger = get_logger("rq.worker")
@@ -20,7 +17,6 @@ def run_worker():
     """ Allows to run RQ worker for consuming background tasks (like downloading youtube tracks)
     """
 
-    # db.init_app(PodcastApp())
     if settings.SENTRY_DSN:
         sentry_logging = LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)
         sentry_sdk.init(settings.SENTRY_DSN, integrations=[RqIntegration(), sentry_logging])
