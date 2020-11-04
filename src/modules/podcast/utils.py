@@ -1,4 +1,3 @@
-import asyncio
 import enum
 import os
 import uuid
@@ -6,13 +5,11 @@ from functools import partial
 from pathlib import Path
 from typing import Union, Iterable, Optional
 
-from jinja2 import Template
-
 from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
 from common.utils import get_logger
-from modules.podcast.models import Podcast, Episode
+from modules.podcast.models import Episode
 
 logger = get_logger(__name__)
 
@@ -26,30 +23,6 @@ class EpisodeStatuses(str, enum.Enum):
     cover_uploading = "cover_uploading"
     error = "error"
     finished = "finished"
-
-
-def render_rss_to_file(podcast: Podcast) -> str:
-    """ Generate rss for Podcast and Episodes marked as "published" """
-
-    logger.info(f"Podcast #{podcast.id}: RSS generation has been started.")
-
-    episodes = Episode.filter(
-        podcast_id=podcast.id,
-        status=Episode.Status.PUBLISHED,
-        published_at__ne=None
-    )
-    context = {"episodes": episodes, "settings": settings}
-    with open(os.path.join(settings.TEMPLATE_PATH, "rss", "feed_template.xml")) as fh:
-        template = Template(fh.read())
-
-    rss_filename = os.path.join(settings.TMP_RSS_PATH, f"{podcast.publish_id}.xml")
-    logger.info(f"Podcast #{podcast.publish_id}: Generation new file rss [{rss_filename}]")
-    with open(rss_filename, "w") as fh:
-        result_rss = template.render(podcast=podcast, **context)
-        fh.write(result_rss)
-
-    logger.info(f"Podcast #{podcast.id}: RSS generation has been finished.")
-    return rss_filename
 
 
 def delete_file(filepath: Union[str, Path]):

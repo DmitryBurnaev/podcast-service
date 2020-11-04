@@ -1,23 +1,27 @@
 import argparse
 
-import worker
+import rq
 from redis import Redis
 
 from core import settings
-from modules.podcast import tasks
+from modules.podcast.tasks import *
 
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("task_name", choices=["regenerate_rss"])
+    task_map = {task_class.__name__: task_class for task_class in RQTask.get_subclasses()}
+
+    p.add_argument("task_name", choices=task_map.keys())
+    p.add_argument("--args", dest='task_args', required=False, nargs='+')
     args = p.parse_args()
-    print(f" ===== Run task {args.task_name} ===== ",)
-    rq_queue = worker.Queue(
-        name="youtube_downloads",
+    rq_queue = rq.Queue(
+        name=settings.RQ_QUEUE_NAME,
         connection=Redis(*settings.REDIS_CON),
         default_timeout=settings.RQ_DEFAULT_TIMEOUT,
     )
-    rq_queue.enqueue(getattr(tasks, args.task_name))
+    task = task_map[args.task_name]()
+    print(f" ===== Running task {task} | args: {args.task_args} ===== ",)
+    rq_queue.enqueue(task, *args.task_args)
 
 
 if __name__ == "__main__":

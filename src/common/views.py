@@ -19,6 +19,7 @@ from common.typing import DBModel
 from common.utils import get_logger
 from core.database import db
 from modules.auth.backend import LoginRequiredAuthBackend
+from modules.podcast.tasks.base import RQTask
 
 logger = get_logger(__name__)
 
@@ -100,8 +101,9 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         return Response(status_code=status_code)
 
-    async def _run_task(self, task, *args, **kwargs):
-        logger.info(f"RUN task {task}")
+    async def _run_task(self, task_class: Type[RQTask], *args, **kwargs):
+        logger.info(f"RUN task {task_class}")
         loop = asyncio.get_running_loop()
+        task = task_class()
         handler = partial(self.app.rq_queue.enqueue, task, *args, **kwargs)
         await loop.run_in_executor(None, handler)

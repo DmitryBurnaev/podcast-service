@@ -1,5 +1,3 @@
-import asyncio
-
 from gino import GinoEngine
 from sqlalchemy import and_
 from sqlalchemy.sql import Select
@@ -53,11 +51,6 @@ class BaseModel(db.Model):
         return await query.gino.first()
 
     @classmethod
-    def get(cls, **filter_kwargs):
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(cls.async_get(**filter_kwargs))
-
-    @classmethod
-    def filter(cls, **filter_kwargs):
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(cls.async_filter(**filter_kwargs))
+    async def async_update(cls, filter_kwargs: dict, update_data: dict) -> "GinoEngine.status":
+        query = cls.prepare_query(**filter_kwargs).values(**update_data).gino.status()
+        return await query.gino.all()
