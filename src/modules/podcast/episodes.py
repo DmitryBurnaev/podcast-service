@@ -1,4 +1,3 @@
-import logging
 import re
 from collections import Iterable
 
@@ -44,7 +43,7 @@ class EpisodeCreator:
             )
             return episode_in_podcast
 
-        episode_data = await self._get_episode_info(
+        episode_data = await self._get_episode_data(
             same_episode=last_same_episode,
             podcast_id=self.podcast_id,
             video_id=self.video_id,
@@ -57,7 +56,7 @@ class EpisodeCreator:
         res = self.http_link_regex.sub("[LINK]", value)
         return self.symbols_regex.sub("", res)
 
-    async def _get_episode_info(
+    async def _get_episode_data(
         self, same_episode: Episode, podcast_id: int, video_id: str, youtube_link: str
     ) -> dict:
         """
@@ -69,27 +68,14 @@ class EpisodeCreator:
         """
 
         if same_episode:
+            same_episode_data = same_episode.__dict__
             logger.info(
                 f"Episode for video {video_id} already exists: {same_episode}. "
                 f"Using for information about downloaded file."
             )
-            same_episode_data = same_episode.to_dict(
-                field_names=[
-                    "source_id",
-                    "watch_url",
-                    "title",
-                    "description",
-                    "image_url",
-                    "author",
-                    "length",
-                    "file_size",
-                    "file_name",
-                    "remote_url",
-                ]
-            )
         else:
-            logger.info(f"New episode for video {video_id} will be created.")
             same_episode_data = {}
+            logger.info(f"New episode for video {video_id} will be created.")
 
         youtube_info = await get_youtube_info(youtube_link)
 
@@ -106,13 +92,12 @@ class EpisodeCreator:
                 "file_name": same_episode_data.get("file_name") or get_file_name(video_id),
                 "remote_url": same_episode_data.get("remote_url"),
             }
-            message = "Episode was successfully created from the YouTube video."
-            logger.info(message)
-            logger.debug("New episode data = %s", new_episode_data)
+            logger.info("Episode was successfully created from the YouTube video.")
+
         elif same_episode:
-            message = "Episode will be copied from other episode with same video."
-            logger.info(message)
             new_episode_data = same_episode_data
+            logger.info("Episode will be copied from other episode with same video.")
+
         else:
             raise YoutubeFetchError
 

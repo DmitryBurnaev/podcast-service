@@ -1,5 +1,3 @@
-import logging
-
 from starlette import status
 
 from common.db_utils import db_transaction
@@ -37,9 +35,7 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
         episode = await episode_creator.create()
         if podcast.download_automatically:
             await episode.update(status=Episode.Status.DOWNLOADING).apply()
-            await self._run_task(
-                tasks.download_episode, youtube_link=episode.watch_url, episode_id=episode.id,
-            )
+            await self._run_task(tasks.DownloadEpisode, episode_id=episode.id)
 
         return self._response(episode, status_code=status.HTTP_201_CREATED)
 
@@ -95,14 +91,12 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
     schema_request = EpisodeUpdateSchema
     schema_response = EpisodeDetailsSchema
 
-    async def get(self, request):
+    async def put(self, request):
         episode_id = request.path_params['episode_id']
         episode = await self._get_object(episode_id)
 
         logger.info(f'Start download process for "{episode.watch_url}"')
-        episode.status = Episode.STATUS_DOWNLOADING
-        await episode.update(status=Episode.STATUS_DOWNLOADING).apply()
-        await self._run_task(
-            tasks.download_episode, youtube_link=episode.watch_url, episode_id=episode.id,
-        )
+        episode.status = Episode.Status.DOWNLOADING
+        await episode.update(status=episode.status).apply()
+        await self._run_task(tasks.DownloadEpisode, episode_id=episode.id)
         return self._response(episode)

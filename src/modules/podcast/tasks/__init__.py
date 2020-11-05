@@ -1,3 +1,3 @@
 from .base import RQTask
-from .downloads import *
+from .download import *
 from .rss import *

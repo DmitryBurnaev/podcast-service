@@ -1,5 +1,4 @@
 from core import settings
-from common.db_utils import db_transaction
 from common.storage import StorageS3
 from common.utils import get_logger
 from modules.podcast.models import Episode
@@ -36,7 +35,6 @@ class DownloadEpisode(RQTask):
 
         return code.value
 
-    @db_transaction
     async def perform_run(self, episode_id: int) -> FinishCode:
         """
         Main operation for downloading, performing and uploading audio to the storage.
@@ -161,10 +159,8 @@ class DownloadEpisode(RQTask):
         logger.info("Episodes with source #%s: updating rss for all podcast", source_id)
         affected_episodes = await Episode.async_filter(source_id=source_id)
         podcast_ids = [episode.podcast_id for episode in affected_episodes]
-        logger.info("Found podcast for rss updates: %s", podcast_ids)
-
-        for podcast_id in podcast_ids:
-            await GenerateRSS().run(podcast_id)
+        logger.info("Found podcasts for rss updates: %s", podcast_ids)
+        await GenerateRSS().run(*podcast_ids)
 
     @staticmethod
     async def _update_episodes(source_id: str, update_data: dict):
