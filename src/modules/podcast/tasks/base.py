@@ -35,7 +35,8 @@ class RQTask:
             **db.config["kwargs"],
         )
         try:
-            result = await self.run(*args, **kwargs)
+            async with db.transaction():
+                result = await self.run(*args, **kwargs)
         except Exception as err:
             result = FinishCode.ERROR
             logger.exception("Couldn't perform task %s | error %s (%s)", self.name, type(err), err)

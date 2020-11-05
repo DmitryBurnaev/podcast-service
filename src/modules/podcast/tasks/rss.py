@@ -1,7 +1,6 @@
 import asyncio
 import os
 from functools import partial
-from pprint import pformat
 
 from jinja2 import Template
 
@@ -27,21 +26,20 @@ class GenerateRSS(RQTask):
         self.storage = StorageS3()
         filter_kwargs = {"id__in": map(int, podcast_ids)} if podcast_ids else {}
         podcasts = await Podcast.async_filter(**filter_kwargs)
-        tasks = [asyncio.create_task(self._generate(podcast)) for podcast in podcasts]
-        results = await asyncio.gather(*tasks)
+        results = {}
+        for podcast in podcasts:
+            results.update(await self._generate(podcast))
 
-        podcast_results = {}
-        for result in results:
-            podcast_results.update(result)
+        logger.info("Regeneration results: \n%s", results)
 
-        logger.info("Regeneration results: \n%s", pformat(podcast_results, indent=4))
-
-        if FinishCode.ERROR in results:
+        if FinishCode.ERROR in results.values():
             return FinishCode.ERROR
 
         return FinishCode.OK
 
     async def _generate(self, podcast: Podcast) -> dict:
+        """ Render RSS and upload it """
+
         logger.info("START rss generation for %s", podcast)
         src_file = await self._render_rss_to_file(podcast)
         filename = os.path.basename(src_file)
