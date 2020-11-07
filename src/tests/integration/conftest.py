@@ -6,6 +6,8 @@ from unittest.mock import Mock
 from hashlib import blake2b
 
 import pytest
+from alembic.config import main
+from starlette.testclient import TestClient
 from youtube_dl import YoutubeDL
 
 from common.redis import RedisClient
@@ -90,3 +92,14 @@ def mocked_ffmpeg(monkeypatch) -> Mock:
     yield mocked_ffmpeg_function
     del mocked_ffmpeg_function
 
+
+@pytest.fixture(scope="session")
+def client():
+    from core.app import get_app
+
+    main(["--raiseerr", "upgrade", "head"])
+
+    with TestClient(get_app()) as client:
+        yield client
+
+    main(["--raiseerr", "downgrade", "base"])
