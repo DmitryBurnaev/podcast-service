@@ -1,7 +1,9 @@
+import asyncio
+import json
 import random
 import time
 import uuid
-from typing import Tuple
+from typing import Tuple, Union
 from unittest.mock import Mock
 from hashlib import blake2b
 
@@ -13,6 +15,7 @@ from youtube_dl import YoutubeDL
 from common.redis import RedisClient
 from common.storage import StorageS3
 from modules.auth.models import User
+from modules.auth.utils import encode_jwt
 from modules.podcast.models import Podcast
 from modules.youtube import utils as youtube_utils
 from .mocks import MockYoutube, MockRedisClient, MockS3Client
@@ -93,13 +96,47 @@ def mocked_ffmpeg(monkeypatch) -> Mock:
     del mocked_ffmpeg_function
 
 
+class PodcastTestClient(TestClient):
+
+    def login(self, user: User):
+        jwt, _ = encode_jwt({'user_id': user.id})
+        self.headers["Authorization"] = f"Bearer {jwt}"
+
+
+@pytest.fixture
+def user():
+    email, password = get_user_data()
+    loop = asyncio.get_event_loop()
+    return loop.run_until_complete(User.create(email=email, password=password))
+
+
+@pytest.fixture
+def podcast(user):
+    uid = uuid.uuid4().hex
+    loop = asyncio.get_event_loop()
+    return loop.run_until_complete(Podcast.create(
+        publish_id=uid[:32],
+        name=f"Podcast {uid}",
+        description=f"Description: {uid}",
+        rss_link=f"http://link-to-rss/{uid}",
+        image_url=f"http://link-to-image/{uid}",
+        created_by_id=user.id
+    ))
+
+
 @pytest.fixture(scope="session")
-def client():
+def client() -> PodcastTestClient:
     from core.app import get_app
 
     main(["--raiseerr", "upgrade", "head"])
 
-    with TestClient(get_app()) as client:
+    with PodcastTestClient(get_app()) as client:
+        # email, password = get_user_data()
+        # loop = asyncio.get_event_loop()
+        # user = loop.run_until_complete(User.create(email=email, password=password))
+        # user_ = user()
+        # jwt, _ = encode_jwt({'user_id': user.id})
+        # client.headers["Authorization"] = f"Bearer {jwt}"
         yield client
 
     main(["--raiseerr", "downgrade", "base"])

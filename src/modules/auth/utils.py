@@ -7,6 +7,8 @@ from core import settings
 
 
 def encode_jwt(payload, refresh=False, expires_in: int = None) -> Tuple[str, datetime]:
+    """ Allows to prepare JWT for auth engine """
+
     now_time = datetime.utcnow()
     if refresh:
         expires_in = settings.JWT_REFRESH_EXPIRES_IN

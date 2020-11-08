@@ -53,7 +53,7 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
     @db_transaction
     async def patch(self, request):
         episode_id = request.path_params['episode_id']
-        cleaned_data = await self._validate(request, partial=True)
+        cleaned_data = await self._validate(request, partial_=True)
         episode = await self._get_object(episode_id)
         await episode.update(**cleaned_data).apply()
         return self._response(episode)

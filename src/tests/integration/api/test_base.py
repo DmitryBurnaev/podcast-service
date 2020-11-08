@@ -1,3 +1,4 @@
+import datetime
 import json
 from typing import Union
 
@@ -6,13 +7,9 @@ from starlette.testclient import TestClient
 
 class BaseTestAPIView:
     url: str = NotImplemented
-    __headers: dict = dict()
 
-    def _login(self):
-        self.__headers["Authorization"] = "JWT:test-token"
-
-    def _logout(self):
-        del self.__headers["Authorization"]
+    def _create_user(self):
+        ...
 
     def _request(
         self,
@@ -34,7 +31,6 @@ class BaseTestAPIView:
         }
         method_handler = method_handler_map[method.lower()]
         kwargs = client_kwargs or {}
-        kwargs["headers"] = self.__headers
         if json_data:
             kwargs["data"] = json.dumps(json_data)
             kwargs["content_type"] = "application/json"

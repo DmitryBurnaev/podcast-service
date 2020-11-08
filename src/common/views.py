@@ -67,11 +67,11 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         return instance
 
-    async def _validate(self, request, partial: bool = False, location: str = None) -> dict:
+    async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
 
         schema_kwargs = {}
-        if partial:
-            schema_kwargs["partial"] = [field for field in self.schema_request().fields]
+        if partial_:
+            schema_kwargs["partial_"] = [field for field in self.schema_request().fields]
 
         schema = self.schema_request(**schema_kwargs)
         try:
