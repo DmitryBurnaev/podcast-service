@@ -39,7 +39,7 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
 
     @db_transaction
     async def patch(self, request):
-        cleaned_data = await self._validate(request, partial=True)
+        cleaned_data = await self._validate(request, partial_=True)
         podcast_id = request.path_params['podcast_id']
         podcast = await self._get_object(podcast_id)
         await podcast.update(**cleaned_data).apply()

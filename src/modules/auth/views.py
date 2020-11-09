@@ -102,7 +102,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         token_collection = await self._update_session(user)
         return self._response(token_collection)
 
-    async def _validate(self, request, partial: bool = False) -> dict:
+    async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
         cleaned_data = await super()._validate(request)
 
         invite_token = cleaned_data["invite_token"]
@@ -170,7 +170,7 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         token_collection = await self._update_session(user)
         return self._response(token_collection)
 
-    async def _validate(self, request, partial: bool = False) -> Tuple[int, str]:
+    async def _validate(self, request, partial_: bool = False, location: str = None) -> Tuple[int, str]:
         cleaned_data = await super()._validate(request)
         token_payload = decode_jwt(cleaned_data["refresh_token"])
         user_id = token_payload.get("user_id")
@@ -223,7 +223,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
             html_content=body.strip(),
         )
 
-    async def _validate(self, request, partial: bool = False) -> dict:
+    async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
         cleaned_data = await super()._validate(request)
         email_exists = await UserInvite.async_get(email=cleaned_data["email"])
         if email_exists:
@@ -246,7 +246,7 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
         await self._send_email(user, token)
         return self._response(data={"user_id": user.id, "email": user.email, "token": token})
 
-    async def _validate(self, request, partial: bool = False) -> User:
+    async def _validate(self, request, partial_: bool = False, location: str = None) -> User:
         cleaned_data = await super()._validate(request)
         user = await User.async_get(email=cleaned_data["email"])
         if not user:
