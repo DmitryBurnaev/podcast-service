@@ -4,12 +4,11 @@ from typing import Union
 
 from starlette.testclient import TestClient
 
+from tests.integration.conftest import create_user
+
 
 class BaseTestAPIView:
     url: str = NotImplemented
-
-    def _create_user(self):
-        ...
 
     def _request(
         self,

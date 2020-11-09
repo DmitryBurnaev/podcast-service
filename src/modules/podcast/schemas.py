@@ -5,7 +5,6 @@ from webargs import fields, validate
 
 
 __all__ = [
-    "PodcastListSchema",
     "PodcastDetailsSchema",
     "PodcastCreateUpdateSchema",
     "EpisodeListSchema",
@@ -22,13 +21,6 @@ class PodcastCreateUpdateSchema(Schema):
     name = fields.Str(required=True, validate=validate.Length(min=1, max=256))
     description = fields.Str()
     download_automatically = fields.Bool(default=True)
-
-
-class PodcastListSchema(Schema):
-    id = fields.Int(required=True)
-    name = fields.Str(required=True)
-    created_at = fields.DateTime(required=True)
-    image_url: Optional[str]
 
 
 class PodcastDetailsSchema(Schema):

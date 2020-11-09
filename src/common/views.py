@@ -71,7 +71,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         schema_kwargs = {}
         if partial_:
-            schema_kwargs["partial_"] = [field for field in self.schema_request().fields]
+            schema_kwargs["partial"] = [field for field in self.schema_request().fields]
 
         schema = self.schema_request(**schema_kwargs)
         try:

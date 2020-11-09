@@ -56,15 +56,6 @@ def episode_data(podcast: Podcast, user: User) -> dict:
 
 
 @pytest.fixture
-def podcast_data(user: User) -> dict:
-    return {
-        "publish_id": str(time.time()),
-        "name": f"podcast_{time.time()}",
-        "created_by_id": user.id,
-    }
-
-
-@pytest.fixture
 def mocked_youtube(monkeypatch) -> MockYoutube:
     mock_youtube = MockYoutube()
     monkeypatch.setattr(YoutubeDL, "__new__", lambda *_, **__: mock_youtube)  # noqa
@@ -103,25 +94,42 @@ class PodcastTestClient(TestClient):
         self.headers["Authorization"] = f"Bearer {jwt}"
 
 
-@pytest.fixture
-def user():
+def create_user():
     email, password = get_user_data()
     loop = asyncio.get_event_loop()
     return loop.run_until_complete(User.create(email=email, password=password))
 
 
-@pytest.fixture
-def podcast(user):
+def get_podcast_data():
     uid = uuid.uuid4().hex
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(Podcast.create(
-        publish_id=uid[:32],
-        name=f"Podcast {uid}",
-        description=f"Description: {uid}",
-        rss_link=f"http://link-to-rss/{uid}",
-        image_url=f"http://link-to-image/{uid}",
-        created_by_id=user.id
-    ))
+    return {
+        'publish_id': uid[:32],
+        'name': f"Podcast {uid}",
+        'description': f"Description: {uid}",
+        'rss_link': f"http://link-to-rss/{uid}",
+        'image_url': f"http://link-to-image/{uid}"
+    }
+
+
+@pytest.fixture
+def loop():
+    return asyncio.get_event_loop()
+
+
+@pytest.fixture
+def user():
+    return create_user()
+
+
+@pytest.fixture
+def podcast_data():
+    return get_podcast_data()
+
+
+@pytest.fixture
+def podcast(podcast_data, user, loop):
+    podcast_data["created_by_id"] = user.id
+    return loop.run_until_complete(Podcast.create(**podcast_data))
 
 
 @pytest.fixture(scope="session")
@@ -131,12 +139,6 @@ def client() -> PodcastTestClient:
     main(["--raiseerr", "upgrade", "head"])
 
     with PodcastTestClient(get_app()) as client:
-        # email, password = get_user_data()
-        # loop = asyncio.get_event_loop()
-        # user = loop.run_until_complete(User.create(email=email, password=password))
-        # user_ = user()
-        # jwt, _ = encode_jwt({'user_id': user.id})
-        # client.headers["Authorization"] = f"Bearer {jwt}"
         yield client
 
     main(["--raiseerr", "downgrade", "base"])
