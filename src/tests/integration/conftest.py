@@ -16,7 +16,7 @@ from common.redis import RedisClient
 from common.storage import StorageS3
 from modules.auth.models import User
 from modules.auth.utils import encode_jwt
-from modules.podcast.models import Podcast
+from modules.podcast.models import Podcast, Episode
 from modules.youtube import utils as youtube_utils
 from .mocks import MockYoutube, MockRedisClient, MockS3Client
 
@@ -35,12 +35,10 @@ def user_data() -> Tuple[str, str]:
     return get_user_data()
 
 
-@pytest.fixture
-def episode_data(podcast: Podcast, user: User) -> dict:
+def get_episode_data(podcast: Podcast = None, creator: User = None) -> dict:
     source_id = video_id()
     episode_data = {
         "source_id": source_id,
-        "podcast_id": podcast.id,
         "title": f"episode_{source_id}",
         "watch_url": f"fixture_url_{source_id}",
         "length": random.randint(1, 100),
@@ -48,10 +46,16 @@ def episode_data(podcast: Podcast, user: User) -> dict:
         "image_url": f"image_url_{source_id}",
         "file_name": f"file_name_{source_id}",
         "file_size": random.randint(1, 100),
-        "author_id": None,
+        "author": None,
         "status": "new",
-        "created_by_id": user.id,
     }
+
+    if podcast:
+        episode_data["podcast_id"] = podcast.id
+
+    if creator:
+        episode_data["created_by_id"] = creator.id
+
     return episode_data
 
 
@@ -127,9 +131,20 @@ def podcast_data():
 
 
 @pytest.fixture
+def episode_data():
+    return get_episode_data()
+
+
+@pytest.fixture
 def podcast(podcast_data, user, loop):
     podcast_data["created_by_id"] = user.id
     return loop.run_until_complete(Podcast.create(**podcast_data))
+
+
+@pytest.fixture
+def episode(podcast, user, loop) -> Episode:
+    episode_data = get_episode_data(podcast, creator=user)
+    return loop.run_until_complete(Episode.create(**episode_data))
 
 
 @pytest.fixture(scope="session")
