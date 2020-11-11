@@ -35,7 +35,7 @@ def _episode_details(episode: Episode):
         'file_size': episode.file_size,
         'description': episode.description,
         'created_at': episode.created_at.isoformat(),
-        'published_at': episode.published_at.isoformat(),
+        'published_at': episode.published_at.isoformat() if episode.published_at else None,
     }
 
 
@@ -48,3 +48,18 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         response = client.get(url)
         assert response.status_code == 200
         assert response.json() == [_episode_in_list(episode)]
+
+    def test_create__ok(self, client, podcast, episode, user, mocked_episode_creator):
+        mocked_episode_creator.async_create_mock.return_value = episode
+        client.login(user)
+        episode_data = {"youtube_link": "http://link.to.resource/"}
+        url = self.url.format(podcast_id=podcast.id)
+        response = client.post(url, json=episode_data)
+        assert response.status_code == 201
+        assert response.json() == _episode_in_list(episode)
+        # TODO: reformat mock class in order to support next assert
+        # mocked_episode_creator.target_class.__init__.assert_called_with(
+        #     podcast_id=podcast.id,
+        #     youtube_link=episode_data["youtube_link"],
+        #     user_id=user.id,
+        # )

@@ -3,7 +3,7 @@ import json
 import random
 import time
 import uuid
-from typing import Tuple, Union
+from typing import Tuple, Union, Type
 from unittest.mock import Mock
 from hashlib import blake2b
 
@@ -18,7 +18,31 @@ from modules.auth.models import User
 from modules.auth.utils import encode_jwt
 from modules.podcast.models import Podcast, Episode
 from modules.youtube import utils as youtube_utils
-from .mocks import MockYoutube, MockRedisClient, MockS3Client
+from .mocks import MockYoutube, MockRedisClient, MockS3Client, BaseMock, MockEpisodeCreator
+
+
+def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
+    """ Allows to mock any classes (is used as fixture)
+
+    # in conftest.py:
+    >>> @pytest.fixture  # noqa
+    >>> def mocked_vechicle(monkeypatch) -> MockVehicle:   # noqa
+    >>>     yield from mock_target_class(MockVehicle, monkeypatch)   # noqa
+
+    # in test.py:
+    >>> def test_something(mocked_sender):
+    >>>     mocked_vechicle.run.assert_called
+    >>>     mocked_vechicle.target_class.__init__.assert_called
+    """
+
+    mock_obj = mock_class()
+    monkeypatch.setattr(mock_class.target_class, "__init__", Mock(return_value=None))
+
+    for mock_method in mock_obj.get_mocks():
+        monkeypatch.setattr(mock_class.target_class, mock_method, getattr(mock_obj, mock_method))
+
+    yield mock_obj
+    del mock_obj
 
 
 def get_user_data() -> Tuple[str, str]:
@@ -61,26 +85,28 @@ def get_episode_data(podcast: Podcast = None, creator: User = None) -> dict:
 
 @pytest.fixture
 def mocked_youtube(monkeypatch) -> MockYoutube:
-    mock_youtube = MockYoutube()
-    monkeypatch.setattr(YoutubeDL, "__new__", lambda *_, **__: mock_youtube)  # noqa
-    yield mock_youtube
-    del mock_youtube
+    yield from mock_target_class(MockYoutube, monkeypatch)
 
 
 @pytest.fixture
 def mocked_redis(monkeypatch) -> MockRedisClient:
-    mock_redis_client = MockRedisClient()
-    monkeypatch.setattr(RedisClient, "__new__", lambda *_, **__: mock_redis_client)  # noqa
-    yield mock_redis_client
-    del mock_redis_client
+    yield from mock_target_class(MockRedisClient, monkeypatch)
 
 
 @pytest.fixture
 def mocked_s3(monkeypatch) -> MockS3Client:
-    mock_s3_client = MockS3Client()
-    monkeypatch.setattr(StorageS3, "__new__", lambda *_, **__: mock_s3_client)  # noqa
-    yield mock_s3_client
-    del mock_s3_client
+    yield from mock_target_class(MockS3Client, monkeypatch)
+
+
+@pytest.fixture
+def mocked_episode_creator(monkeypatch) -> MockEpisodeCreator:
+    mock_episode_creator = MockEpisodeCreator()
+    monkeypatch.setattr(mock_episode_creator.target_class, "__init__", Mock(return_value=None))
+    monkeypatch.setattr(
+        mock_episode_creator.target_class, "__new__", lambda *_, **__: mock_episode_creator
+    )
+    yield mock_episode_creator
+    del mock_episode_creator
 
 
 @pytest.fixture
