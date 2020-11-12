@@ -76,7 +76,7 @@ def custom_exception_handler(request, exc):
         error_message = exc.message
         error_details = exc.details
     elif isinstance(exc, WebargsHTTPException):
-        error_message = "Requested data is not valid"
+        error_message = "Requested data is not valid."
         error_details = exc.messages.get("json") or exc.messages
         status_code = status.HTTP_400_BAD_REQUEST
 

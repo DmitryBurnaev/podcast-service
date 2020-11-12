@@ -2,8 +2,38 @@ import time
 from hashlib import blake2b
 from unittest.mock import Mock
 
+from youtube_dl import YoutubeDL
 
-class MockYoutube:
+from common.redis import RedisClient
+from common.storage import StorageS3
+from modules.podcast.episodes import EpisodeCreator
+
+
+class BaseMock:
+    """ Base class for class mocking
+
+    # users class
+    >>> class Vehicle:
+    >>>    def run(self): ...
+
+    # mock class
+    >>> class MockVehicle(BaseMock):
+    >>>     target_class = Vehicle
+    >>>     def __init__(self):
+    >>>         self.run = Mock(return_value=None)  # noqa
+
+    """
+
+    @property
+    def target_class(self):
+        raise NotImplementedError
+
+    def get_mocks(self):
+        return [attr for attr, val in self.__dict__.items() if callable(val)]
+
+
+class MockYoutube(BaseMock):
+    target_class = YoutubeDL
     watch_url: str = None
     video_id: str = None
     description = "Test youtube video description"
@@ -39,7 +69,9 @@ class MockYoutube:
         }
 
 
-class MockRedisClient:
+class MockRedisClient(BaseMock):
+    target_class = RedisClient
+
     def __init__(self, content=None):
         self._content = content or {}
         self.get_many = Mock(return_value=self._content)
@@ -52,7 +84,8 @@ class MockRedisClient:
         return filename
 
 
-class MockS3Client:
+class MockS3Client(BaseMock):
+    target_class = StorageS3
     CODE_OK = 0
 
     def __init__(self):
@@ -67,3 +100,13 @@ class MockS3Client:
 
     async def delete_files_async(self, *args, **kwargs):
         self.delete_files_async_mock(*args, **kwargs)
+
+
+class MockEpisodeCreator(BaseMock):
+    target_class = EpisodeCreator
+
+    def __init__(self):
+        self.async_create_mock = Mock(return_value=None)
+
+    async def create(self, *args, **kwargs):
+        return self.async_create_mock(*args, **kwargs)

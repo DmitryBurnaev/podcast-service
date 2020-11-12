@@ -1,5 +1,3 @@
-from typing import Optional
-
 from marshmallow import Schema
 from webargs import fields, validate
 
@@ -32,13 +30,13 @@ class PodcastDetailsSchema(Schema):
 
 
 class EpisodeCreateSchema(Schema):
-    youtube_link = fields.URL()
+    youtube_link = fields.URL(required=True)
 
 
 class EpisodeUpdateSchema(Schema):
-    title = fields.Str()
+    title = fields.Str(validate=validate.Length(max=256))
     description = fields.Str()
-    author = fields.Str()
+    author = fields.Str(validate=validate.Length(max=256))
 
 
 class EpisodeListSchema(Schema):

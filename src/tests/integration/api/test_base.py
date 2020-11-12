@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import json
 from typing import Union
@@ -9,6 +10,11 @@ from tests.integration.conftest import create_user
 
 class BaseTestAPIView:
     url: str = NotImplemented
+
+    @staticmethod
+    def async_run(call):
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(call)
 
     def _request(
         self,
