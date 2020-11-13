@@ -46,3 +46,23 @@ class BaseTestAPIView:
         ), f"\n{response.status_code=} \n{response.content=} \n{url=} \n{kwargs=}"
 
         return response.json() if expected_json else response.content
+
+    @staticmethod
+    def assert_bad_request(response, error_details):
+        response_data = response.json()
+        assert response.status_code == 400
+        assert response_data["error"] == "Requested data is not valid."
+        for error_field, error_value in error_details.items():
+            assert error_field in response_data["details"]
+            assert error_value in response_data["details"][error_field]
+
+    @staticmethod
+    def assert_not_found(response, instance):
+        assert response.status_code == 404
+        assert response.json() == {
+            "error": "Requested object not found.",
+            "details": (
+                f"{instance.__class__.__name__} #{instance.id} "
+                f"does not exist or belongs to another user"
+            ),
+        }

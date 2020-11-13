@@ -18,7 +18,7 @@ from modules.auth.models import User
 from modules.auth.utils import encode_jwt
 from modules.podcast.models import Podcast, Episode
 from modules.youtube import utils as youtube_utils
-from .mocks import MockYoutube, MockRedisClient, MockS3Client, BaseMock, MockEpisodeCreator
+from .mocks import MockYoutube, MockRedisClient, MockS3Client, BaseMock, MockEpisodeCreator, MockRQQueue
 
 
 def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
@@ -100,13 +100,12 @@ def mocked_s3(monkeypatch) -> MockS3Client:
 
 @pytest.fixture
 def mocked_episode_creator(monkeypatch) -> MockEpisodeCreator:
-    mock_episode_creator = MockEpisodeCreator()
-    monkeypatch.setattr(mock_episode_creator.target_class, "__init__", Mock(return_value=None))
-    monkeypatch.setattr(
-        mock_episode_creator.target_class, "__new__", lambda *_, **__: mock_episode_creator
-    )
-    yield mock_episode_creator
-    del mock_episode_creator
+    yield from mock_target_class(MockEpisodeCreator, monkeypatch)
+
+
+@pytest.fixture
+def mocked_rq_queue(monkeypatch) -> MockRQQueue:
+    yield from mock_target_class(MockRQQueue, monkeypatch)
 
 
 @pytest.fixture

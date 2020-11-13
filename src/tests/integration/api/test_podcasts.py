@@ -1,6 +1,7 @@
 import pytest
 
 from modules.podcast.models import Podcast
+from modules.podcast.tasks import GenerateRSS
 from tests.integration.api.test_base import BaseTestAPIView
 from tests.integration.conftest import create_user, get_podcast_data
 
@@ -70,13 +71,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         self, client, user, invalid_data: dict, error_details: dict
     ):
         client.login(user)
-        response = client.post(self.url, json=invalid_data)
-        response_data = response.json()
-        assert response.status_code == 400
-        assert response_data["error"] == "Requested data is not valid."
-        for error_field, error_value in error_details.items():
-            assert error_field in response_data["details"]
-            assert error_value in response_data["details"][error_field]
+        self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
 
 
 class TestPodcastRUDAPIView(BaseTestAPIView):
@@ -92,12 +87,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
     def test_get__podcast_from_another_user__fail(self, client, podcast):
         client.login(create_user())
         url = self.url.format(id=podcast.id)
-        response = client.get(url)
-        assert response.status_code == 404
-        assert response.json() == {
-            "error": "Requested object not found.",
-            "details": f"Podcast #{podcast.id} does not exist or belongs to another user",
-        }
+        self.assert_not_found(client.get(url), podcast)
 
     def test_update__ok(self, client, podcast, user):
         client.login(user)
@@ -118,12 +108,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
     def test_update__podcast_from_another_user__fail(self, client, podcast):
         client.login(create_user())
         url = self.url.format(id=podcast.id)
-        response = client.patch(url, json={})
-        assert response.status_code == 404
-        assert response.json() == {
-            "error": "Requested object not found.",
-            "details": f"Podcast #{podcast.id} does not exist or belongs to another user",
-        }
+        self.assert_not_found(client.patch(url, json={}), podcast)
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_UPDATE_DATA)
     def test_update__invalid_request__fail(
@@ -131,13 +116,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
     ):
         client.login(user)
         url = self.url.format(id=podcast.id)
-        response = client.patch(url, json=invalid_data)
-        response_data = response.json()
-        assert response.status_code == 400
-        assert response_data["error"] == "Requested data is not valid."
-        for error_field, error_value in error_details.items():
-            assert error_field in response_data["details"]
-            assert error_value in response_data["details"][error_field]
+        self.assert_bad_request(client.patch(url, json=invalid_data), error_details)
 
     def test_delete__ok(self, client, podcast, user):
         client.login(user)
@@ -151,9 +130,20 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         user_2 = create_user()
         client.login(user_2)
         url = self.url.format(id=podcast.id)
-        response = client.delete(url)
-        assert response.status_code == 404
-        assert response.json() == {
-            "error": "Requested object not found.",
-            "details": f"Podcast #{podcast.id} does not exist or belongs to another user",
-        }
+        self.assert_not_found(client.delete(url), podcast)
+
+
+class TestPodcastGenerateRSSAPIView(BaseTestAPIView):
+    url = "/api/podcasts/{id}/generate_rss/"
+
+    def test_run_generation__ok(self, client, podcast, user, mocked_rq_queue):
+        client.login(user)
+        url = self.url.format(id=podcast.id)
+        response = client.put(url)
+        assert response.status_code == 204
+        mocked_rq_queue.enqueue.assert_called_with(GenerateRSS(), podcast.id)
+
+    def test_run_generation__podcast_from_another_user__fail(self, client, podcast, user):
+        client.login(create_user())
+        url = self.url.format(id=podcast.id)
+        self.assert_not_found(client.put(url), podcast)

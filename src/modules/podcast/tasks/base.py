@@ -25,6 +25,10 @@ class RQTask:
         finish_code = asyncio.run(self._perform_and_run(*args, **kwargs))
         logger.info(f"==== FINISHED task %s | code %s ====", self.name, finish_code)
 
+    def __eq__(self, other):
+        """ Can be used for test's simplify """
+        return isinstance(other, self.__class__) and self.__class__ == other.__class__
+
     async def _perform_and_run(self, *args, **kwargs):
         await db.set_bind(
             db.config["dsn"],

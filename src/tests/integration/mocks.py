@@ -1,7 +1,9 @@
+import asyncio
 import time
 from hashlib import blake2b
 from unittest.mock import Mock
 
+import rq
 from youtube_dl import YoutubeDL
 
 from common.redis import RedisClient
@@ -31,6 +33,12 @@ class BaseMock:
     def get_mocks(self):
         return [attr for attr, val in self.__dict__.items() if callable(val)]
 
+    @staticmethod
+    def async_return(result):
+        f = asyncio.Future()
+        f.set_result(result)
+        return f
+
 
 class MockYoutube(BaseMock):
     target_class = YoutubeDL
@@ -57,7 +65,7 @@ class MockYoutube(BaseMock):
         ...
 
     @property
-    def info(self, *args, **kwargs):
+    def info(self, *_, **__):
         return {
             "id": self.video_id,
             "title": self.title,
@@ -74,14 +82,7 @@ class MockRedisClient(BaseMock):
 
     def __init__(self, content=None):
         self._content = content or {}
-        self.get_many = Mock(return_value=self._content)
-
-    async def async_get_many(self, *_, **__):
-        return self.get_many()
-
-    @staticmethod
-    def get_key_by_filename(filename):
-        return filename
+        self.async_get_many = Mock(return_value=self.async_return(self._content))
 
 
 class MockS3Client(BaseMock):
@@ -93,20 +94,18 @@ class MockS3Client(BaseMock):
         self.delete_file = Mock(return_value=self.CODE_OK)
         self.get_file_size = Mock(return_value=0)
         self.get_file_info = Mock(return_value={})
-        self.delete_files_async_mock = Mock(return_value=self.CODE_OK)
-
-    def get_mocks(self):
-        return [attr for attr, val in self.__dict__.items() if callable(val)]
-
-    async def delete_files_async(self, *args, **kwargs):
-        self.delete_files_async_mock(*args, **kwargs)
+        self.delete_files_async = Mock(return_value=self.async_return(self.CODE_OK))
 
 
 class MockEpisodeCreator(BaseMock):
     target_class = EpisodeCreator
 
     def __init__(self):
-        self.async_create_mock = Mock(return_value=None)
+        self.create = Mock(return_value=self.async_return(None))
 
-    async def create(self, *args, **kwargs):
-        return self.async_create_mock(*args, **kwargs)
+
+class MockRQQueue(BaseMock):
+    target_class = rq.Queue
+
+    def __init__(self):
+        self.enqueue = Mock(return_value=None)
