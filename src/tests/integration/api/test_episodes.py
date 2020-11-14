@@ -1,5 +1,6 @@
 import pytest
 
+from common.exceptions import YoutubeFetchError
 from modules.podcast.models import Episode
 from modules.podcast.tasks import DownloadEpisode
 from tests.integration.api.test_base import BaseTestAPIView
@@ -66,6 +67,14 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
             user_id=user.id,
         )
         mocked_episode_creator.create.assert_called_once()
+
+    def test_create__youtube_error__fail(self, client, podcast, user, mocked_episode_creator):
+        mocked_episode_creator.create.side_effect = YoutubeFetchError("Oops")
+        client.login(user)
+        url = self.url.format(podcast_id=podcast.id)
+        response = client.post(url, json={"youtube_link": "http://link.to.resource/"})
+        assert response.status_code == 500
+        assert response.json() == {"error": "Something went wrong", "details": "Oops"}
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_CREATE_DATA)
     def test_create__invalid_request__fail(

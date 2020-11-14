@@ -14,6 +14,7 @@ from modules.podcast.models import Episode
 logger = get_logger(__name__)
 
 
+# TODO: use Episode.Status instead
 class EpisodeStatuses(str, enum.Enum):
     pending = "pending"
     episode_downloading = "episode_downloading"
