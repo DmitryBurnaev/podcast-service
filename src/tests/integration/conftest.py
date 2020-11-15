@@ -1,24 +1,27 @@
 import asyncio
-import json
 import random
 import time
 import uuid
-from typing import Tuple, Union, Type
+from typing import Tuple, Type
 from unittest.mock import Mock
 from hashlib import blake2b
 
 import pytest
 from alembic.config import main
 from starlette.testclient import TestClient
-from youtube_dl import YoutubeDL
 
-from common.redis import RedisClient
-from common.storage import StorageS3
 from modules.auth.models import User
 from modules.auth.utils import encode_jwt
 from modules.podcast.models import Podcast, Episode
 from modules.youtube import utils as youtube_utils
-from .mocks import MockYoutube, MockRedisClient, MockS3Client, BaseMock, MockEpisodeCreator, MockRQQueue
+from tests.integration.mocks import (
+    MockYoutube,
+    MockRedisClient,
+    MockS3Client,
+    BaseMock,
+    MockEpisodeCreator,
+    MockRQQueue
+)
 
 
 def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
@@ -129,14 +132,17 @@ def create_user():
     return loop.run_until_complete(User.create(email=email, password=password))
 
 
-def get_podcast_data():
+def get_podcast_data(**kwargs):
     uid = uuid.uuid4().hex
     return {
-        'publish_id': uid[:32],
-        'name': f"Podcast {uid}",
-        'description': f"Description: {uid}",
-        'rss_link': f"http://link-to-rss/{uid}",
-        'image_url': f"http://link-to-image/{uid}"
+        **{
+            'publish_id': uid[:32],
+            'name': f"Podcast {uid}",
+            'description': f"Description: {uid}",
+            'rss_link': f"http://link-to-rss/{uid}",
+            'image_url': f"http://link-to-image/{uid}"
+        },
+        **kwargs
     }
 
 

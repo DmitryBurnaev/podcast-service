@@ -44,11 +44,11 @@ def _episode_details(episode: Episode):
 
 
 class TestEpisodeListCreateAPIView(BaseTestAPIView):
-    url = "/api/podcasts/{podcast_id}/episodes/"
+    url = "/api/podcasts/{id}/episodes/"
 
     def test_get_list__ok(self, client, episode, user):
         client.login(user)
-        url = self.url.format(podcast_id=episode.podcast_id)
+        url = self.url.format(id=episode.podcast_id)
         response = client.get(url)
         assert response.status_code == 200
         assert response.json() == [_episode_in_list(episode)]
@@ -57,7 +57,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
         client.login(user)
         episode_data = {"youtube_link": "http://link.to.resource/"}
-        url = self.url.format(podcast_id=podcast.id)
+        url = self.url.format(id=podcast.id)
         response = client.post(url, json=episode_data)
         assert response.status_code == 201
         assert response.json() == _episode_in_list(episode)
@@ -71,7 +71,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
     def test_create__youtube_error__fail(self, client, podcast, user, mocked_episode_creator):
         mocked_episode_creator.create.side_effect = YoutubeFetchError("Oops")
         client.login(user)
-        url = self.url.format(podcast_id=podcast.id)
+        url = self.url.format(id=podcast.id)
         response = client.post(url, json={"youtube_link": "http://link.to.resource/"})
         assert response.status_code == 500
         assert response.json() == {"error": "Something went wrong", "details": "Oops"}
@@ -81,8 +81,14 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         self, client, podcast, user, invalid_data: dict, error_details: dict
     ):
         client.login(user)
-        url = self.url.format(podcast_id=podcast.id)
+        url = self.url.format(id=podcast.id)
         self.assert_bad_request(client.post(url, json=invalid_data), error_details)
+
+    def test_create__podcast_from_another_user__fail(self, client, podcast):
+        client.login(create_user())
+        url = self.url.format(id=podcast.id)
+        data = {"youtube_link": "http://link.to.resource/"}
+        self.assert_not_found(client.post(url, json=data), podcast)
 
 
 class TestEpisodeRUDAPIView(BaseTestAPIView):
