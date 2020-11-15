@@ -1,10 +1,10 @@
 import pytest
 
 from common.exceptions import YoutubeFetchError
-from modules.podcast.models import Episode
+from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks import DownloadEpisode
 from tests.integration.api.test_base import BaseTestAPIView
-from tests.integration.conftest import create_user
+from tests.integration.conftest import create_user, get_podcast_data
 
 INVALID_UPDATE_DATA = [
     [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],
@@ -148,6 +148,45 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         client.login(create_user())
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.delete(url), episode)
+
+    @pytest.mark.parametrize(
+        "same_episode_status, delete_called",
+        [
+            (Episode.Status.NEW, True),
+            (Episode.Status.PUBLISHED, False),
+            (Episode.Status.DOWNLOADING, False),
+        ]
+    )
+    def test_delete__same_episode_exists__ok(
+        self,
+        client,
+        podcast,
+        episode_data,
+        mocked_youtube,
+        mocked_s3,
+        same_episode_status,
+        delete_called,
+    ):
+        user_1 = create_user()
+        user_2 = create_user()
+
+        podcast_1 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user_1.id)))
+        podcast_2 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user_2.id)))
+        episode_data["created_by_id"] = user_1.id
+        episode_1 = self._create_episode(episode_data, podcast_1, status=same_episode_status)
+
+        episode_data["created_by_id"] = user_2.id
+        episode_2 = self._create_episode(episode_data, podcast_2, status=Episode.Status.NEW)
+
+        url = self.url.format(id=episode_2.id)
+        print(url)
+        response = client.delete(url)
+        assert response.status_code == 204, f"Delete API is not available: {response.text}"
+        assert self.async_run(Episode.async_get(id=episode_2.id)) is None
+        if delete_called:
+            mocked_s3.delete_files_async.assert_called_with([episode_2.file_name])
+        else:
+            assert not mocked_s3.delete_files_async.called
 
 
 class TestEpisodeDownloadAPIView(BaseTestAPIView):

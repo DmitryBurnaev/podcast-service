@@ -5,7 +5,8 @@ from typing import Union
 
 from starlette.testclient import TestClient
 
-from tests.integration.conftest import create_user
+from modules.podcast.models import Podcast, Episode
+from tests.integration.conftest import create_user, video_id
 
 
 class BaseTestAPIView:
@@ -47,6 +48,24 @@ class BaseTestAPIView:
 
         return response.json() if expected_json else response.content
 
+    def _create_episode(
+        self,
+        episode_data: dict,
+        podcast: Podcast,
+        status: Episode.Status = Episode.Status.NEW,
+        file_size: int = 0
+    ) -> Episode:
+
+        src_id = video_id()
+        episode_data.update({
+            "podcast_id": podcast.id,
+            "source_id": src_id,
+            "file_name": f"file_name_{src_id}.mp3",
+            "status": status,
+            "file_size": file_size,
+        })
+        return self.async_run(Episode.create(**episode_data))
+
     @staticmethod
     def assert_bad_request(response, error_details):
         response_data = response.json()
@@ -66,3 +85,4 @@ class BaseTestAPIView:
                 f"does not exist or belongs to another user"
             ),
         }
+

@@ -1,7 +1,7 @@
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.utils import EpisodeStatuses
 from tests.integration.api.test_base import BaseTestAPIView
-from tests.integration.conftest import video_id, create_user, get_podcast_data, get_episode_data
+from tests.integration.conftest import create_user, get_podcast_data, get_episode_data
 
 MB_1 = 1 * 1024 * 1024
 MB_2 = 2 * 1024 * 1024
@@ -25,23 +25,6 @@ def _progress(podcast: Podcast, episode: Episode, current_size: int, completed: 
 
 class TestProgressAPIView(BaseTestAPIView):
     url = "/api/progress/"
-
-    def _create_episode(
-        self,
-        episode_data: dict,
-        podcast: Podcast,
-        status: Episode.Status,
-        file_size: int
-    ) -> Episode:
-        src_id = video_id()
-        episode_data.update({
-            "podcast_id": podcast.id,
-            "source_id": src_id,
-            "file_name": f"file_name_{src_id}.mp3",
-            "status": status,
-            "file_size": file_size,
-        })
-        return self.async_run(Episode.create(**episode_data))
 
     def test_filter_by_status__ok(self, client, user, episode_data, mocked_redis):
         podcast_1 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user.id)))
