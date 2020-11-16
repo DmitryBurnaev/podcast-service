@@ -4,7 +4,7 @@ from common.exceptions import YoutubeFetchError
 from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks import DownloadEpisode
 from tests.integration.api.test_base import BaseTestAPIView
-from tests.integration.conftest import create_user, get_podcast_data
+from tests.integration.conftest import create_user, get_podcast_data, video_id
 
 INVALID_UPDATE_DATA = [
     [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],
@@ -167,19 +167,26 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         same_episode_status,
         delete_called,
     ):
+        source_id = video_id()
+
         user_1 = create_user()
         user_2 = create_user()
 
         podcast_1 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user_1.id)))
         podcast_2 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user_2.id)))
+
         episode_data["created_by_id"] = user_1.id
-        episode_1 = self._create_episode(episode_data, podcast_1, status=same_episode_status)
+        episode_1 = self._create_episode(
+            episode_data, podcast_1, status=same_episode_status, source_id=source_id
+        )
 
         episode_data["created_by_id"] = user_2.id
-        episode_2 = self._create_episode(episode_data, podcast_2, status=Episode.Status.NEW)
+        episode_2 = self._create_episode(
+            episode_data, podcast_2, status=Episode.Status.NEW, source_id=source_id
+        )
 
         url = self.url.format(id=episode_2.id)
-        print(url)
+        client.login(user_2)
         response = client.delete(url)
         assert response.status_code == 204, f"Delete API is not available: {response.text}"
         assert self.async_run(Episode.async_get(id=episode_2.id)) is None

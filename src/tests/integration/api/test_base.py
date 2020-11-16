@@ -1,12 +1,11 @@
 import asyncio
-import datetime
 import json
 from typing import Union
 
 from starlette.testclient import TestClient
 
 from modules.podcast.models import Podcast, Episode
-from tests.integration.conftest import create_user, video_id
+from tests.integration.conftest import video_id
 
 
 class BaseTestAPIView:
@@ -53,10 +52,11 @@ class BaseTestAPIView:
         episode_data: dict,
         podcast: Podcast,
         status: Episode.Status = Episode.Status.NEW,
-        file_size: int = 0
-    ) -> Episode:
+        file_size: int = 0,
+        source_id: str = None
 
-        src_id = video_id()
+    ) -> Episode:
+        src_id = source_id or video_id()
         episode_data.update({
             "podcast_id": podcast.id,
             "source_id": src_id,
