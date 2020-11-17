@@ -50,19 +50,20 @@ class MockYoutube(BaseMock):
     author = "Test author"
     length = 110
 
-    def __init__(self):
+    def __init__(self, params=None):
+        if params is None:
+            params = {}
+        self.params = {
+            # Default parameters
+            'nocheckcertificate': False,
+        }
+        self.params.update(params)
         self.video_id = blake2b(
             key=bytes(str(time.time()), encoding="utf-8"), digest_size=6
         ).hexdigest()[:11]
         self.watch_url = f"https://www.youtube.com/watch?v={self.video_id}"
         self.extract_info = Mock(return_value=self.info)
         self.download = Mock()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        ...
 
     @property
     def info(self, *_, **__):
