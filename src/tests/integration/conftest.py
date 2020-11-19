@@ -10,6 +10,7 @@ import pytest
 from alembic.config import main
 from starlette.testclient import TestClient
 
+from core import settings
 from modules.auth.models import User
 from modules.auth.utils import encode_jwt
 from modules.podcast.models import Podcast, Episode
@@ -178,13 +179,15 @@ def episode(podcast, user, loop) -> Episode:
     return loop.run_until_complete(Episode.create(**episode_data))
 
 
+@pytest.fixture(autouse=True, scope="session")
+def db_migration():
+    ini_path = settings.PROJECT_ROOT_DIR / "alembic.ini"
+    main(["--raiseerr", f"-c{ini_path}", "upgrade", "head"])
+
+
 @pytest.fixture(scope="session")
 def client() -> PodcastTestClient:
     from core.app import get_app
 
-    main(["--raiseerr", "upgrade", "head"])
-
     with PodcastTestClient(get_app()) as client:
         yield client
-
-    main(["--raiseerr", "downgrade", "base"])
