@@ -68,7 +68,7 @@ def get_episode_data(podcast: Podcast = None, creator: User = None) -> dict:
     episode_data = {
         "source_id": source_id,
         "title": f"episode_{source_id}",
-        "watch_url": f"fixture_url_{source_id}",
+        "watch_url": f"https://www.youtube.com/watch?v={source_id}",
         "length": random.randint(1, 100),
         "description": f"description_{source_id}",
         "image_url": f"image_url_{source_id}",
@@ -163,8 +163,8 @@ def podcast_data():
 
 
 @pytest.fixture
-def episode_data():
-    return get_episode_data()
+def episode_data(podcast):
+    return get_episode_data(podcast)
 
 
 @pytest.fixture
@@ -185,7 +185,7 @@ def db_migration():
     main(["--raiseerr", f"-c{ini_path}", "upgrade", "head"])
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(autouse=True, scope="session")
 def client() -> PodcastTestClient:
     from core.app import get_app
 

@@ -69,20 +69,22 @@ def download_audio(youtube_link: str, filename: str) -> str:
     return filename
 
 
-async def get_youtube_info(youtube_link: str) -> YoutubeInfo:
+async def get_youtube_info(youtube_link: str) -> Optional[YoutubeInfo]:
     """ Allows extract info about youtube video from Youtube webpage (powered by youtube_dl)"""
 
     logger.info(f"Started fetching data for {youtube_link}")
     loop = asyncio.get_running_loop()
+    youtube_info = None
 
     try:
         with youtube_dl.YoutubeDL({"logger": logger, "noplaylist": True}) as ydl:
-            extract_info = partial(ydl.extract_info, youtube_link, download=False)
-            youtube_details = await loop.run_in_executor(None, extract_info)
+            youtube_details = ydl.extract_info(youtube_link, download=False)
+            # extract_info = partial(ydl.extract_info, youtube_link, download=False)
+            # youtube_details = await loop.run_in_executor(None, extract_info)
 
     except Exception as error:
-        logger.exception(f"youtube.prefetch failed: {youtube_link} ({error})")
-        raise YoutubeExtractInfoError(error)
+        logger.exception(f"ydl.extract_info failed: {youtube_link} ({error})")
+        return None
 
     youtube_info = YoutubeInfo(
         title=youtube_details["title"],
