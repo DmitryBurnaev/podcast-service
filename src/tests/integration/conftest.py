@@ -3,6 +3,7 @@ import random
 import time
 import uuid
 from typing import Tuple, Type
+from unittest import mock
 from unittest.mock import Mock
 from hashlib import blake2b
 
@@ -16,7 +17,7 @@ from modules.auth.utils import encode_jwt
 from modules.podcast.models import Podcast, Episode
 from modules.youtube import utils as youtube_utils
 from tests.integration.mocks import (
-    MockYoutube,
+    MockYoutubeDL,
     MockRedisClient,
     MockS3Client,
     BaseMock,
@@ -40,12 +41,18 @@ def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
     """
 
     mock_obj = mock_class()
-    monkeypatch.setattr(mock_class.target_class, "__init__", Mock(return_value=None))
 
-    for mock_method in mock_obj.get_mocks():
-        monkeypatch.setattr(mock_class.target_class, mock_method, getattr(mock_obj, mock_method))
+    def init_method(target_obj=None, *args, **kwargs):
+        mock_obj.target_obj = target_obj
+        mock_obj.mock_init(*args, **kwargs)
 
-    yield mock_obj
+    with mock.patch.object(mock_class.target_class, "__init__", autospec=True) as init:
+        init.side_effect = init_method
+        for mock_method in mock_obj.get_mocks():
+            monkeypatch.setattr(mock_class.target_class, mock_method, getattr(mock_obj, mock_method))
+
+        yield mock_obj
+
     del mock_obj
 
 
@@ -88,8 +95,8 @@ def get_episode_data(podcast: Podcast = None, creator: User = None) -> dict:
 
 
 @pytest.fixture
-def mocked_youtube(monkeypatch) -> MockYoutube:
-    yield from mock_target_class(MockYoutube, monkeypatch)
+def mocked_youtube(monkeypatch) -> MockYoutubeDL:
+    yield from mock_target_class(MockYoutubeDL, monkeypatch)
 
 
 @pytest.fixture
@@ -107,7 +114,7 @@ def mocked_episode_creator(monkeypatch) -> MockEpisodeCreator:
     yield from mock_target_class(MockEpisodeCreator, monkeypatch)
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mocked_rq_queue(monkeypatch) -> MockRQQueue:
     yield from mock_target_class(MockRQQueue, monkeypatch)
 

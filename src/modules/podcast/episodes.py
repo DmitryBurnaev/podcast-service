@@ -1,11 +1,12 @@
 import re
 from collections import Iterable
 
-from common.exceptions import YoutubeFetchError, InvalidParameterError
 from common.utils import get_logger
+from common.exceptions import InvalidParameterError
 from modules.podcast.models import Episode
 from modules.podcast.utils import get_file_name
 from modules.youtube.utils import get_youtube_info, get_video_id
+from modules.youtube.exceptions import YoutubeFetchError
 
 logger = get_logger(__name__)
 
@@ -22,13 +23,19 @@ class EpisodeCreator:
         self.podcast_id = podcast_id
         self.user_id = user_id
         self.youtube_link = youtube_link
-        self.video_id = get_video_id(youtube_link)
-        if not self.video_id:
-            raise InvalidParameterError({"youtube_link": "Couldn't extract video_id from link"})
+        self.source_id = get_video_id(youtube_link)
+        if not self.source_id:
+            raise InvalidParameterError({"youtube_link": "Couldn't extract source_id from link"})
 
     async def create(self) -> Episode:
+        """
+        Allows to create new or return exists episode for current podcast
 
-        same_episodes: Iterable[Episode] = await Episode.async_filter(source_id=self.video_id)
+        :raise: `modules.youtube.exceptions.YoutubeFetchError`
+        :return: New <Episode> object
+        """
+
+        same_episodes: Iterable[Episode] = await Episode.async_filter(source_id=self.source_id)
         episode_in_podcast, last_same_episode = None, None
         for episode in same_episodes:
             last_same_episode = last_same_episode or episode
@@ -38,27 +45,19 @@ class EpisodeCreator:
 
         if episode_in_podcast:
             logger.info(
-                f"Episode for video [{self.video_id}] already exists for current "
+                f"Episode for video [{self.source_id}] already exists for current "
                 f"podcast {self.podcast_id}. Retrieving {episode_in_podcast}..."
             )
             return episode_in_podcast
 
-        episode_data = await self._get_episode_data(
-            same_episode=last_same_episode,
-            podcast_id=self.podcast_id,
-            video_id=self.video_id,
-            youtube_link=self.youtube_link,
-        )
-
+        episode_data = await self._get_episode_data(same_episode=last_same_episode)
         return await Episode.create(**episode_data)
 
     def _replace_special_symbols(self, value):
         res = self.http_link_regex.sub("[LINK]", value)
         return self.symbols_regex.sub("", res)
 
-    async def _get_episode_data(
-        self, same_episode: Episode, podcast_id: int, video_id: str, youtube_link: str
-    ) -> dict:
+    async def _get_episode_data(self, same_episode: Episode) -> dict:
         """
         Allows to get information for new episode.
         This info can be given from same episode (episode which has same source_id)
@@ -68,20 +67,18 @@ class EpisodeCreator:
         """
 
         if same_episode:
-            same_episode_data = same_episode.__dict__
-            logger.info(
-                f"Episode for video {video_id} already exists: {same_episode}. "
-                f"Using for information about downloaded file."
-            )
+            logger.info(f"Episode for video {self.source_id} already exists: {same_episode}.")
+            same_episode_data = same_episode.to_dict()
         else:
+            logger.info(f"New episode for video {self.source_id} will be created.")
             same_episode_data = {}
-            logger.info(f"New episode for video {video_id} will be created.")
 
-        youtube_info = await get_youtube_info(youtube_link)
+        extract_error, youtube_info = await get_youtube_info(self.youtube_link)
 
         if youtube_info:
+            logger.info("Episode will be created from the YouTube video.")
             new_episode_data = {
-                "source_id": video_id,
+                "source_id": self.source_id,
                 "watch_url": youtube_info.watch_url,
                 "title": self._replace_special_symbols(youtube_info.title),
                 "description": self._replace_special_symbols(youtube_info.description),
@@ -89,17 +86,17 @@ class EpisodeCreator:
                 "author": youtube_info.author,
                 "length": youtube_info.length,
                 "file_size": same_episode_data.get("file_size"),
-                "file_name": same_episode_data.get("file_name") or get_file_name(video_id),
+                "file_name": same_episode_data.get("file_name") or get_file_name(self.source_id),
                 "remote_url": same_episode_data.get("remote_url"),
             }
-            logger.info("Episode was successfully created from the YouTube video.")
 
         elif same_episode:
-            new_episode_data = same_episode_data
             logger.info("Episode will be copied from other episode with same video.")
+            same_episode_data.pop("id", None)
+            new_episode_data = same_episode_data
 
         else:
-            raise YoutubeFetchError
+            raise YoutubeFetchError(f"Extracting data for new Episode failed: {extract_error}")
 
-        new_episode_data.update({"podcast_id": podcast_id, "created_by_id": self.user_id})
+        new_episode_data.update({"podcast_id": self.podcast_id, "created_by_id": self.user_id})
         return new_episode_data

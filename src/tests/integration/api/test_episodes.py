@@ -1,6 +1,7 @@
 import pytest
 
-from common.exceptions import YoutubeFetchError
+from modules.youtube.exceptions import YoutubeFetchError
+from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks import DownloadEpisode
 from tests.integration.api.test_base import BaseTestAPIView
@@ -53,28 +54,40 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         assert response.status_code == 200
         assert response.json() == [_episode_in_list(episode)]
 
-    def test_create__ok(self, client, podcast, episode, user, mocked_episode_creator):
+    def test_create__ok(self, client, podcast, episode, episode_data, user, mocked_episode_creator):
         mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
         client.login(user)
-        episode_data = {"youtube_link": "http://link.to.resource/"}
+        episode_data = {"youtube_link": episode_data["watch_url"]}
         url = self.url.format(id=podcast.id)
         response = client.post(url, json=episode_data)
         assert response.status_code == 201
         assert response.json() == _episode_in_list(episode)
         mocked_episode_creator.target_class.__init__.assert_called_with(
+            mocked_episode_creator.target_obj,
             podcast_id=podcast.id,
             youtube_link=episode_data["youtube_link"],
             user_id=user.id,
         )
         mocked_episode_creator.create.assert_called_once()
 
-    def test_create__youtube_error__fail(self, client, podcast, user, mocked_episode_creator):
+    def test_create__start_downloading__ok(self, client, podcast, episode, episode_data, user, mocked_episode_creator, mocked_rq_queue):
+        mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
+        client.login(user)
+        url = self.url.format(id=podcast.id)
+        response = client.post(url, json={"youtube_link": episode_data["watch_url"]})
+        assert response.status_code == 201
+        mocked_rq_queue.enqueue.assert_called_with(tasks.DownloadEpisode(), episode_id=episode.id)
+
+    def test_create__youtube_error__fail(self, client, podcast, episode_data, user, mocked_episode_creator):
         mocked_episode_creator.create.side_effect = YoutubeFetchError("Oops")
         client.login(user)
         url = self.url.format(id=podcast.id)
-        response = client.post(url, json={"youtube_link": "http://link.to.resource/"})
+        response = client.post(url, json={"youtube_link": episode_data["watch_url"]})
         assert response.status_code == 500
-        assert response.json() == {"error": "Something went wrong", "details": "Oops"}
+        assert response.json() == {
+            "error": "We couldn't extract info about requested episode.",
+            "details": "Oops"
+        }
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_CREATE_DATA)
     def test_create__invalid_request__fail(
@@ -162,7 +175,6 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         client,
         podcast,
         episode_data,
-        # mocked_youtube,
         mocked_s3,
         same_episode_status,
         delete_called,
@@ -176,7 +188,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         podcast_2 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user_2.id)))
 
         episode_data["created_by_id"] = user_1.id
-        episode_1 = self._create_episode(
+        _ = self._create_episode(
             episode_data, podcast_1, status=same_episode_status, source_id=source_id
         )
 

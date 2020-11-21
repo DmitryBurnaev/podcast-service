@@ -1,4 +1,7 @@
-from common.exceptions import YoutubeFetchError
+import pytest
+from youtube_dl.utils import ExtractorError
+
+from modules.youtube.exceptions import YoutubeFetchError
 from modules.podcast.episodes import EpisodeCreator
 from modules.podcast.models import Podcast, Episode
 from tests.integration.api.test_base import BaseTestAPIView
@@ -60,7 +63,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.length == 123
 
     def test_create__same_episode__extract_failed__ok(self, podcast, episode, user, mocked_youtube):
-        mocked_youtube.extract_info.side_effect = YoutubeFetchError("Something went wrong here")
+        mocked_youtube.extract_info.side_effect = ExtractorError("Something went wrong here")
         new_podcast = self.async_run(Podcast.create(**get_podcast_data()))
         episode_creator = EpisodeCreator(
             podcast_id=new_podcast.id,
@@ -72,3 +75,16 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.id != episode.id
         assert new_episode.source_id == episode.source_id
         assert new_episode.watch_url == episode.watch_url
+
+    def test_create__extract_failed__fail(self, podcast, episode_data, user, mocked_youtube):
+        ydl_error = ExtractorError("Something went wrong here", video_id=episode_data["source_id"])
+        mocked_youtube.extract_info.side_effect = ydl_error
+        episode_creator = EpisodeCreator(
+            podcast_id=podcast.id,
+            youtube_link=episode_data["watch_url"],
+            user_id=user.id,
+        )
+        with pytest.raises(YoutubeFetchError) as error:
+            self.async_run(episode_creator.create())
+
+        assert error.value.details == f"Extracting data for new Episode failed: {ydl_error}"

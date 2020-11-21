@@ -57,10 +57,6 @@ class Forbidden(BaseApplicationError):
     message = "You don't have permission to perform this action"
 
 
-class YoutubeFetchError(BaseApplicationError):
-    ...
-
-
 class SendRequestError(BaseApplicationError):
     status_code = 503
     message = "Got unexpected error for sending request."
