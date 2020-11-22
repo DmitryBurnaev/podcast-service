@@ -1,6 +1,10 @@
 import asyncio
+import os
+import shutil
+import tempfile
 import time
 from hashlib import blake2b
+from pathlib import Path
 from unittest.mock import Mock
 
 import rq
@@ -25,7 +29,7 @@ class BaseMock:
     >>>         self.run = Mock(return_value=None)  # noqa
 
     """
-
+    CODE_OK = 0
     target_obj = None
 
     @property
@@ -47,41 +51,26 @@ class BaseMock:
 
 class MockYoutubeDL(BaseMock):
     target_class = YoutubeDL
-    # watch_url: str = None
-    # video_id: str = None
-    description = "Test youtube video description"
-    thumbnail_url = "http://path.to-image.com"
-    title = "Test youtube video"
-    author = "Test author"
-    length = 110
-    params = {}
 
     def __init__(self, *_, **__):
         self.video_id = self.get_video_id()
         self.watch_url = f"https://www.youtube.com/watch?v={self.video_id}"
         self.download = Mock()
-        # self.__init__ = Mock(side_effect=self.youtube_dl_init)
-        # self.__enter__ = Mock(return_value=self)
-        # self.__exit__ = Mock(side_effect=lambda *_, **__: ...)
         self.extract_info = Mock(return_value=self.info)
 
     def mock_init(self, *args, **kwargs):
         self.target_obj.params = {}
 
-    # @staticmethod
-    # def youtube_dl_init(youtube_dl_obj, *args, **kwargs):
-    #     youtube_dl_obj.params = {}
-
     @property
     def info(self, *_, **__):
         return {
             "id": self.video_id,
-            "title": self.title,
+            "title": "Test youtube video",
             "description": "Test youtube video description",
             "webpage_url": self.watch_url,
-            "thumbnail": self.thumbnail_url,
-            "uploader": self.author,
-            "duration": self.length,
+            "thumbnail": "http://path.to-image.com",
+            "uploader": "Test author",
+            "duration": 110,
         }
 
     @staticmethod
@@ -100,14 +89,19 @@ class MockRedisClient(BaseMock):
 
 class MockS3Client(BaseMock):
     target_class = StorageS3
-    CODE_OK = 0
+    tmp_upload_dir = Path(tempfile.mkdtemp(prefix="uploaded__"))
 
     def __init__(self):
-        self.upload_file = Mock(return_value="http://test.com/uploaded")
         self.delete_file = Mock(return_value=self.CODE_OK)
         self.get_file_size = Mock(return_value=0)
         self.get_file_info = Mock(return_value={})
         self.delete_files_async = Mock(return_value=self.async_return(self.CODE_OK))
+        self.upload_file = Mock(side_effect=self.upload_file_mock)
+
+    def upload_file_mock(self, src_path, *_, **__):
+        target_path = self.tmp_upload_dir / os.path.basename(src_path)
+        shutil.copy(src_path, target_path)
+        return target_path
 
 
 class MockEpisodeCreator(BaseMock):

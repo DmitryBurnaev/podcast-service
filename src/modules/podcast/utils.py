@@ -142,7 +142,9 @@ def upload_episode(filename: str, src_path: str = None) -> Optional[str]:
     logger.info("Upload for %s started.", filename)
     storage = StorageS3()
     result_url = storage.upload_file(
-        src_path, filename, callback=partial(upload_process_hook, filename)
+        src_path=src_path,
+        dst_path=settings.S3_BUCKET_AUDIO_PATH,
+        callback=partial(upload_process_hook, filename)
     )
     if not result_url:
         logger.warning("Couldn't upload file to S3 storage. SKIP")

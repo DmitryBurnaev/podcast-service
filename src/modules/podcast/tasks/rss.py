@@ -1,13 +1,10 @@
-import asyncio
 import os
-from functools import partial
 
 from jinja2 import Template
 
 from core import settings
 from common.storage import StorageS3
 from common.utils import get_logger
-from modules.podcast import utils as podcast_utils
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks.base import RQTask, FinishCode
 
@@ -21,7 +18,7 @@ class GenerateRSS(RQTask):
     storage: StorageS3 = None
 
     async def run(self, *podcast_ids: int) -> FinishCode:
-        """ Run engine for generation and upload RSS to the cloud (S3) """
+        """ Run process for generation and upload RSS to the cloud (S3) """
 
         self.storage = StorageS3()
         filter_kwargs = {"id__in": map(int, podcast_ids)} if podcast_ids else {}
@@ -41,25 +38,16 @@ class GenerateRSS(RQTask):
         """ Render RSS and upload it """
 
         logger.info("START rss generation for %s", podcast)
-        src_file = await self._render_rss_to_file(podcast)
-        filename = os.path.basename(src_file)
+        result_path = await self._render_rss_to_file(podcast)
 
-        loop = asyncio.get_running_loop()
-        upload = partial(
-            self.storage.upload_file, src_file, filename, remote_path=settings.S3_BUCKET_RSS_PATH
-        )
-        result_url = await loop.run_in_executor(None, upload)
+        result_url = self.storage.upload_file(result_path, dst_path=settings.S3_BUCKET_RSS_PATH)
 
         if not result_url:
             logger.error("Couldn't upload RSS file to storage. SKIP")
             return {podcast.id: FinishCode.ERROR}
 
-        await podcast.update(rss_link=result_url).apply()
+        await podcast.update(rss_link=str(result_url)).apply()
         logger.info("RSS file uploaded, podcast record updated")
-
-        if not settings.TEST_MODE:
-            logger.info("Removing file [%s]", src_file)
-            podcast_utils.delete_file(filepath=src_file)
 
         logger.info("FINISH generation for %s | URL: %s", podcast, podcast.rss_link)
         return {podcast.id: FinishCode.OK}

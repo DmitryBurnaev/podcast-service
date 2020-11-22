@@ -20,10 +20,11 @@ class RQTask:
         """ We need to override this method to implement main task logic """
         raise NotImplementedError
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> FinishCode:
         logger.info(f"==== STARTED task %s ====", self.name)
         finish_code = asyncio.run(self._perform_and_run(*args, **kwargs))
         logger.info(f"==== FINISHED task %s | code %s ====", self.name, finish_code)
+        return finish_code
 
     def __eq__(self, other):
         """ Can be used for test's simplify """

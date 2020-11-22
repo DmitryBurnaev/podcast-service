@@ -22,7 +22,7 @@ from tests.integration.mocks import (
     MockS3Client,
     BaseMock,
     MockEpisodeCreator,
-    MockRQQueue
+    MockRQQueue,
 )
 
 
@@ -147,7 +147,6 @@ def get_podcast_data(**kwargs):
             'publish_id': uid[:32],
             'name': f"Podcast {uid}",
             'description': f"Description: {uid}",
-            'rss_link': f"http://link-to-rss/{uid}",
             'image_url': f"http://link-to-image/{uid}"
         },
         **kwargs
