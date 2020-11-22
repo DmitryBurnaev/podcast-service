@@ -14,6 +14,7 @@ from modules.podcast.models import Episode
 logger = get_logger(__name__)
 
 
+# TODO: may be we can use Episode.Status instead...
 class EpisodeStatuses(str, enum.Enum):
     pending = "pending"
     episode_downloading = "episode_downloading"
@@ -23,6 +24,9 @@ class EpisodeStatuses(str, enum.Enum):
     cover_uploading = "cover_uploading"
     error = "error"
     finished = "finished"
+
+    def __str__(self):
+        return self.value
 
 
 def delete_file(filepath: Union[str, Path]):
@@ -57,7 +61,6 @@ async def check_state(episodes: Iterable[Episode]) -> list:
     current_states = await redis_client.async_get_many(file_names, pkey="event_key")
     result = []
     for episode in episodes:
-        print(episode)
         file_name = episode.file_name
         if not file_name:
             logger.warning(f"Episode {episode} does not contain filename")
@@ -67,16 +70,12 @@ async def check_state(episodes: Iterable[Episode]) -> list:
         current_state = current_states.get(event_key)
         if current_state:
             current_file_size = current_state["processed_bytes"]
-            current_file_size_mb = round(current_file_size / 1024 / 1024, 2)
             total_file_size = current_state["total_bytes"]
-            total_file_size_mb = round(total_file_size / 1024 / 1024, 2)
-            completed = int((100 * current_file_size) / total_file_size)
+            completed = round((current_file_size / total_file_size) * 100, 2)
             status = current_state["status"]
         else:
             current_file_size = 0
-            current_file_size_mb = 0
             total_file_size = 0
-            total_file_size_mb = 0
             completed = 0
             status = EpisodeStatuses.pending
 
@@ -88,9 +87,7 @@ async def check_state(episodes: Iterable[Episode]) -> list:
                 "podcast_id": episode.podcast_id,
                 "completed": completed,
                 "current_file_size": current_file_size,
-                "current_file_size__mb": current_file_size_mb,
                 "total_file_size": total_file_size,
-                "total_file_size__mb": total_file_size_mb,
             }
         )
 
@@ -145,7 +142,9 @@ def upload_episode(filename: str, src_path: str = None) -> Optional[str]:
     logger.info("Upload for %s started.", filename)
     storage = StorageS3()
     result_url = storage.upload_file(
-        src_path, filename, callback=partial(upload_process_hook, filename)
+        src_path=src_path,
+        dst_path=settings.S3_BUCKET_AUDIO_PATH,
+        callback=partial(upload_process_hook, filename)
     )
     if not result_url:
         logger.warning("Couldn't upload file to S3 storage. SKIP")

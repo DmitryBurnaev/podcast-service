@@ -81,13 +81,11 @@ class PlayListResponseSchema(Schema):
 
 class ProgressResponseSchema(Schema):
     status = fields.Str()
-    episode_id = fields.Str()
+    status_display = fields.Str()
+    episode_id = fields.Int()
     episode_title = fields.Str()
-    podcast_id = fields.Str()
+    podcast_id = fields.Int()
     completed = fields.Float()
     current_file_size = fields.Int()
-    current_file_size__mb = fields.Str()
     total_file_size = fields.Int()
-    total_file_size__mb = fields.Str()
     podcast_publish_id = fields.Str()
-    status_display = fields.Str()

@@ -65,24 +65,12 @@ class StorageS3:
 
         return self.CODE_OK, response
 
-    def head_file(
-        self, filename: str, remote_path: str = settings.S3_BUCKET_AUDIO_PATH
-    ) -> Optional[dict]:
-        dst_path = os.path.join(remote_path, filename)
-        code, result = self.__call(self.s3.head_object, Key=dst_path, Bucket=self.BUCKET_NAME)
-        return result
-
-    def upload_file(
-        self,
-        src_path: str,
-        filename: str,
-        callback: Callable = None,
-        remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
-    ) -> Optional[str]:
+    def upload_file(self, src_path: str, dst_path: str, callback: Callable = None) -> Optional[str]:
         """ Upload file to S3 storage """
 
         mimetype, _ = mimetypes.guess_type(src_path)
-        dst_path = os.path.join(remote_path, filename)
+        filename = os.path.basename(src_path)
+        dst_path = os.path.join(dst_path, filename)
         code, result = self.__call(
             self.s3.upload_file,
             Filename=src_path,

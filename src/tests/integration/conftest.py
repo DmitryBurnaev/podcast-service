@@ -1,24 +1,29 @@
 import asyncio
-import json
 import random
 import time
 import uuid
-from typing import Tuple, Union, Type
+from typing import Tuple, Type
+from unittest import mock
 from unittest.mock import Mock
 from hashlib import blake2b
 
 import pytest
 from alembic.config import main
 from starlette.testclient import TestClient
-from youtube_dl import YoutubeDL
 
-from common.redis import RedisClient
-from common.storage import StorageS3
+from core import settings
 from modules.auth.models import User
 from modules.auth.utils import encode_jwt
 from modules.podcast.models import Podcast, Episode
 from modules.youtube import utils as youtube_utils
-from .mocks import MockYoutube, MockRedisClient, MockS3Client, BaseMock, MockEpisodeCreator
+from tests.integration.mocks import (
+    MockYoutubeDL,
+    MockRedisClient,
+    MockS3Client,
+    BaseMock,
+    MockEpisodeCreator,
+    MockRQQueue,
+)
 
 
 def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
@@ -36,12 +41,18 @@ def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
     """
 
     mock_obj = mock_class()
-    monkeypatch.setattr(mock_class.target_class, "__init__", Mock(return_value=None))
 
-    for mock_method in mock_obj.get_mocks():
-        monkeypatch.setattr(mock_class.target_class, mock_method, getattr(mock_obj, mock_method))
+    def init_method(target_obj=None, *args, **kwargs):
+        mock_obj.target_obj = target_obj
+        mock_obj.mock_init(*args, **kwargs)
 
-    yield mock_obj
+    with mock.patch.object(mock_class.target_class, "__init__", autospec=True) as init:
+        init.side_effect = init_method
+        for mock_method in mock_obj.get_mocks():
+            monkeypatch.setattr(mock_class.target_class, mock_method, getattr(mock_obj, mock_method))
+
+        yield mock_obj
+
     del mock_obj
 
 
@@ -64,7 +75,7 @@ def get_episode_data(podcast: Podcast = None, creator: User = None) -> dict:
     episode_data = {
         "source_id": source_id,
         "title": f"episode_{source_id}",
-        "watch_url": f"fixture_url_{source_id}",
+        "watch_url": f"https://www.youtube.com/watch?v={source_id}",
         "length": random.randint(1, 100),
         "description": f"description_{source_id}",
         "image_url": f"image_url_{source_id}",
@@ -84,8 +95,8 @@ def get_episode_data(podcast: Podcast = None, creator: User = None) -> dict:
 
 
 @pytest.fixture
-def mocked_youtube(monkeypatch) -> MockYoutube:
-    yield from mock_target_class(MockYoutube, monkeypatch)
+def mocked_youtube(monkeypatch) -> MockYoutubeDL:
+    yield from mock_target_class(MockYoutubeDL, monkeypatch)
 
 
 @pytest.fixture
@@ -100,13 +111,12 @@ def mocked_s3(monkeypatch) -> MockS3Client:
 
 @pytest.fixture
 def mocked_episode_creator(monkeypatch) -> MockEpisodeCreator:
-    mock_episode_creator = MockEpisodeCreator()
-    monkeypatch.setattr(mock_episode_creator.target_class, "__init__", Mock(return_value=None))
-    monkeypatch.setattr(
-        mock_episode_creator.target_class, "__new__", lambda *_, **__: mock_episode_creator
-    )
-    yield mock_episode_creator
-    del mock_episode_creator
+    yield from mock_target_class(MockEpisodeCreator, monkeypatch)
+
+
+@pytest.fixture(autouse=True)
+def mocked_rq_queue(monkeypatch) -> MockRQQueue:
+    yield from mock_target_class(MockRQQueue, monkeypatch)
 
 
 @pytest.fixture
@@ -130,14 +140,16 @@ def create_user():
     return loop.run_until_complete(User.create(email=email, password=password))
 
 
-def get_podcast_data():
+def get_podcast_data(**kwargs):
     uid = uuid.uuid4().hex
     return {
-        'publish_id': uid[:32],
-        'name': f"Podcast {uid}",
-        'description': f"Description: {uid}",
-        'rss_link': f"http://link-to-rss/{uid}",
-        'image_url': f"http://link-to-image/{uid}"
+        **{
+            'publish_id': uid[:32],
+            'name': f"Podcast {uid}",
+            'description': f"Description: {uid}",
+            'image_url': f"http://link-to-image/{uid}"
+        },
+        **kwargs
     }
 
 
@@ -157,8 +169,8 @@ def podcast_data():
 
 
 @pytest.fixture
-def episode_data():
-    return get_episode_data()
+def episode_data(podcast):
+    return get_episode_data(podcast)
 
 
 @pytest.fixture
@@ -173,13 +185,15 @@ def episode(podcast, user, loop) -> Episode:
     return loop.run_until_complete(Episode.create(**episode_data))
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(autouse=True, scope="session")
+def db_migration():
+    ini_path = settings.PROJECT_ROOT_DIR / "alembic.ini"
+    main(["--raiseerr", f"-c{ini_path}", "upgrade", "head"])
+
+
+@pytest.fixture(autouse=True, scope="session")
 def client() -> PodcastTestClient:
     from core.app import get_app
 
-    main(["--raiseerr", "upgrade", "head"])
-
     with PodcastTestClient(get_app()) as client:
         yield client
-
-    main(["--raiseerr", "downgrade", "base"])

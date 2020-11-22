@@ -1,10 +1,11 @@
+from youtube_dl.utils import YoutubeDLError
+
 from core import settings
 from common.storage import StorageS3
 from common.utils import get_logger
 from modules.podcast.models import Episode
 from modules.podcast.tasks.base import RQTask, FinishCode
 from modules.podcast.tasks.rss import GenerateRSS
-from modules.youtube.exceptions import YoutubeException
 from modules.youtube import utils as youtube_utils
 from modules.podcast import utils as podcast_utils
 
@@ -97,10 +98,10 @@ class DownloadEpisode(RQTask):
 
         try:
             result_filename = youtube_utils.download_audio(episode.watch_url, episode.file_name)
-        except YoutubeException as error:
+        except YoutubeDLError as error:
             logger.exception(
                 "=== [%s] Downloading FAILED: Could not download track: %s. "
-                "All episodes will be rolled back to NEW state",
+                "All episodes will be rolled back to the NEW state",
                 episode.source_id,
                 error,
             )

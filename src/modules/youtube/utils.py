@@ -3,12 +3,13 @@ import os
 import re
 import subprocess
 from functools import partial
-from typing import Optional, NamedTuple
+from typing import Optional, NamedTuple, Union, Tuple
 
 import youtube_dl
+from youtube_dl.utils import YoutubeDLError
 
 from core import settings
-from modules.youtube.exceptions import YoutubeExtractInfoError, FFMPegPreparationError
+from modules.youtube.exceptions import FFMPegPreparationError
 from modules.podcast.utils import get_file_size, episode_process_hook, EpisodeStatuses
 from common.utils import get_logger
 
@@ -69,8 +70,8 @@ def download_audio(youtube_link: str, filename: str) -> str:
     return filename
 
 
-async def get_youtube_info(youtube_link: str) -> YoutubeInfo:
-    """ Allows extract info about youtube video from Youtube webpage (powered by youtube_dl)"""
+async def get_youtube_info(youtube_link: str) -> Tuple[str, Optional[YoutubeInfo]]:
+    """ Allows extract info about youtube video from Youtube webpage (powered by youtube_dl) """
 
     logger.info(f"Started fetching data for {youtube_link}")
     loop = asyncio.get_running_loop()
@@ -80,9 +81,9 @@ async def get_youtube_info(youtube_link: str) -> YoutubeInfo:
             extract_info = partial(ydl.extract_info, youtube_link, download=False)
             youtube_details = await loop.run_in_executor(None, extract_info)
 
-    except Exception as error:
-        logger.exception(f"youtube.prefetch failed: {youtube_link} ({error})")
-        raise YoutubeExtractInfoError(error)
+    except YoutubeDLError as error:
+        logger.exception(f"ydl.extract_info failed: {youtube_link} ({error})")
+        return str(error), None
 
     youtube_info = YoutubeInfo(
         title=youtube_details["title"],
@@ -93,7 +94,7 @@ async def get_youtube_info(youtube_link: str) -> YoutubeInfo:
         author=youtube_details["uploader"],
         length=youtube_details["duration"],
     )
-    return youtube_info
+    return "OK", youtube_info
 
 
 def ffmpeg_preparation(filename: str):

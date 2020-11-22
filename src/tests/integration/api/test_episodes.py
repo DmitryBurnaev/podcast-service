@@ -1,8 +1,11 @@
 import pytest
 
-from modules.podcast.models import Episode
+from modules.youtube.exceptions import YoutubeFetchError
+from modules.podcast import tasks
+from modules.podcast.models import Episode, Podcast
+from modules.podcast.tasks import DownloadEpisode
 from tests.integration.api.test_base import BaseTestAPIView
-from tests.integration.conftest import create_user
+from tests.integration.conftest import create_user, get_podcast_data, video_id
 
 INVALID_UPDATE_DATA = [
     [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],
@@ -42,44 +45,63 @@ def _episode_details(episode: Episode):
 
 
 class TestEpisodeListCreateAPIView(BaseTestAPIView):
-    url = "/api/podcasts/{podcast_id}/episodes/"
+    url = "/api/podcasts/{id}/episodes/"
 
     def test_get_list__ok(self, client, episode, user):
         client.login(user)
-        url = self.url.format(podcast_id=episode.podcast_id)
+        url = self.url.format(id=episode.podcast_id)
         response = client.get(url)
         assert response.status_code == 200
         assert response.json() == [_episode_in_list(episode)]
 
-    def test_create__ok(self, client, podcast, episode, user, mocked_episode_creator):
-        mocked_episode_creator.async_create_mock.return_value = episode
+    def test_create__ok(self, client, podcast, episode, episode_data, user, mocked_episode_creator):
+        mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
         client.login(user)
-        episode_data = {"youtube_link": "http://link.to.resource/"}
-        url = self.url.format(podcast_id=podcast.id)
+        episode_data = {"youtube_link": episode_data["watch_url"]}
+        url = self.url.format(id=podcast.id)
         response = client.post(url, json=episode_data)
         assert response.status_code == 201
         assert response.json() == _episode_in_list(episode)
-        # TODO: reformat mock class in order to support next assert
-        # mocked_episode_creator.target_class.__init__.assert_called_with(
-        #     podcast_id=podcast.id,
-        #     youtube_link=episode_data["youtube_link"],
-        #     user_id=user.id,
-        # )
+        mocked_episode_creator.target_class.__init__.assert_called_with(
+            mocked_episode_creator.target_obj,
+            podcast_id=podcast.id,
+            youtube_link=episode_data["youtube_link"],
+            user_id=user.id,
+        )
+        mocked_episode_creator.create.assert_called_once()
+
+    def test_create__start_downloading__ok(self, client, podcast, episode, episode_data, user, mocked_episode_creator, mocked_rq_queue):
+        mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
+        client.login(user)
+        url = self.url.format(id=podcast.id)
+        response = client.post(url, json={"youtube_link": episode_data["watch_url"]})
+        assert response.status_code == 201
+        mocked_rq_queue.enqueue.assert_called_with(tasks.DownloadEpisode(), episode_id=episode.id)
+
+    def test_create__youtube_error__fail(self, client, podcast, episode_data, user, mocked_episode_creator):
+        mocked_episode_creator.create.side_effect = YoutubeFetchError("Oops")
+        client.login(user)
+        url = self.url.format(id=podcast.id)
+        response = client.post(url, json={"youtube_link": episode_data["watch_url"]})
+        assert response.status_code == 500
+        assert response.json() == {
+            "error": "We couldn't extract info about requested episode.",
+            "details": "Oops"
+        }
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_CREATE_DATA)
     def test_create__invalid_request__fail(
         self, client, podcast, user, invalid_data: dict, error_details: dict
     ):
         client.login(user)
-        url = self.url.format(podcast_id=podcast.id)
-        response = client.post(url, json=invalid_data)
-        response_data = response.json()
-        # TODO: move to base class test as common code
-        assert response.status_code == 400
-        assert response_data["error"] == "Requested data is not valid."
-        for error_field, error_value in error_details.items():
-            assert error_field in response_data["details"]
-            assert error_value in response_data["details"][error_field]
+        url = self.url.format(id=podcast.id)
+        self.assert_bad_request(client.post(url, json=invalid_data), error_details)
+
+    def test_create__podcast_from_another_user__fail(self, client, podcast):
+        client.login(create_user())
+        url = self.url.format(id=podcast.id)
+        data = {"youtube_link": "http://link.to.resource/"}
+        self.assert_not_found(client.post(url, json=data), podcast)
 
 
 class TestEpisodeRUDAPIView(BaseTestAPIView):
@@ -95,12 +117,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
     def test_get_details__episode_from_another_user__fail(self, client, episode, user):
         client.login(create_user())
         url = self.url.format(id=episode.id)
-        response = client.get(url)
-        assert response.status_code == 404
-        assert response.json() == {
-            "error": "Requested object not found.",
-            "details": f"Episode #{episode.id} does not exist or belongs to another user",
-        }
+        self.assert_not_found(client.get(url), episode)
 
     def test_update__ok(self, client, episode, user):
         client.login(user)
@@ -125,40 +142,85 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
     ):
         client.login(user)
         url = self.url.format(id=episode.id)
-        response = client.patch(url, json=invalid_data)
-        response_data = response.json()
-        # TODO: move as common code's fragment
-        assert response.status_code == 400
-        assert response_data["error"] == "Requested data is not valid."
-        for error_field, error_value in error_details.items():
-            assert error_field in response_data["details"]
-            assert error_value in response_data["details"][error_field]
+        self.assert_bad_request(client.patch(url, json=invalid_data), error_details)
 
     def test_update__episode_from_another_user__fail(self, client, episode):
         client.login(create_user())
         url = self.url.format(id=episode.id)
-        response = client.patch(url, json={})
-        assert response.status_code == 404
-        assert response.json() == {
-            "error": "Requested object not found.",
-            "details": f"Episode #{episode.id} does not exist or belongs to another user",
-        }
+        self.assert_not_found(client.patch(url, json={}), episode)
 
-    def test_delete__ok(self, client, episode, user):
+    def test_delete__ok(self, client, episode, user, mocked_s3):
         client.login(user)
         url = self.url.format(id=episode.id)
         response = client.delete(url)
         assert response.status_code == 204
-        episode = self.async_run(Episode.async_get(id=episode.id))
-        assert episode is None
+        assert self.async_run(Episode.async_get(id=episode.id)) is None
+        mocked_s3.delete_files_async.assert_called_with([episode.file_name])
 
     def test_delete__episode_from_another_user__fail(self, client, episode, user):
-        user_2 = create_user()
-        client.login(user_2)
+        client.login(create_user())
         url = self.url.format(id=episode.id)
+        self.assert_not_found(client.delete(url), episode)
+
+    @pytest.mark.parametrize(
+        "same_episode_status, delete_called",
+        [
+            (Episode.Status.NEW, True),
+            (Episode.Status.PUBLISHED, False),
+            (Episode.Status.DOWNLOADING, False),
+        ]
+    )
+    def test_delete__same_episode_exists__ok(
+        self,
+        client,
+        podcast,
+        episode_data,
+        mocked_s3,
+        same_episode_status,
+        delete_called,
+    ):
+        source_id = video_id()
+
+        user_1 = create_user()
+        user_2 = create_user()
+
+        podcast_1 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user_1.id)))
+        podcast_2 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user_2.id)))
+
+        episode_data["created_by_id"] = user_1.id
+        _ = self._create_episode(
+            episode_data, podcast_1, status=same_episode_status, source_id=source_id
+        )
+
+        episode_data["created_by_id"] = user_2.id
+        episode_2 = self._create_episode(
+            episode_data, podcast_2, status=Episode.Status.NEW, source_id=source_id
+        )
+
+        url = self.url.format(id=episode_2.id)
+        client.login(user_2)
         response = client.delete(url)
-        assert response.status_code == 404
-        assert response.json() == {
-            "error": "Requested object not found.",
-            "details": f"Episode #{episode.id} does not exist or belongs to another user",
-        }
+        assert response.status_code == 204, f"Delete API is not available: {response.text}"
+        assert self.async_run(Episode.async_get(id=episode_2.id)) is None
+        if delete_called:
+            mocked_s3.delete_files_async.assert_called_with([episode_2.file_name])
+        else:
+            assert not mocked_s3.delete_files_async.called
+
+
+class TestEpisodeDownloadAPIView(BaseTestAPIView):
+    url = "/api/episodes/{id}/download/"
+
+    def test_download__ok(self, client, episode, user, mocked_rq_queue):
+        client.login(user)
+        url = self.url.format(id=episode.id)
+        response = client.put(url)
+        episode = self.async_run(Episode.async_get(id=episode.id))
+        assert response.status_code == 200
+        assert response.json() == _episode_details(episode)
+        mocked_rq_queue.enqueue.assert_called_with(DownloadEpisode(), episode_id=episode.id)
+
+    def test_download__episode_from_another_user__fail(self, client, episode, user):
+        client.login(create_user())
+        url = self.url.format(id=episode.id)
+        self.assert_not_found(client.put(url), episode)
