@@ -32,7 +32,7 @@ class TestGenerateRSSTask(BaseTestCase):
         episode_podcast_2 = self.async_run(Episode.create(**episode_data))
 
         expected_file_path = mocked_s3.tmp_upload_dir / f"{podcast_1.publish_id}.xml"
-        generate_rss_task = tasks.GenerateRSS()
+        generate_rss_task = tasks.GenerateRSSTask()
         self.async_run(generate_rss_task.run(podcast_1.id))
 
         assert os.path.exists(expected_file_path), f"File {expected_file_path} didn't uploaded"
@@ -53,7 +53,7 @@ class TestGenerateRSSTask(BaseTestCase):
         podcast_1 = self.async_run(Podcast.create(**get_podcast_data()))
         podcast_2 = self.async_run(Podcast.create(**get_podcast_data()))
 
-        generate_rss_task = tasks.GenerateRSS()
+        generate_rss_task = tasks.GenerateRSSTask()
         self.async_run(generate_rss_task.run(podcast_1.id, podcast_2.id))
 
         for podcast in [podcast_1, podcast_2]:

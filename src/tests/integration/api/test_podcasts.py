@@ -1,7 +1,7 @@
 import pytest
 
 from modules.podcast.models import Podcast
-from modules.podcast.tasks import GenerateRSS
+from modules.podcast.tasks import GenerateRSSTask
 from tests.integration.api.test_base import BaseTestAPIView
 from tests.integration.conftest import create_user, get_podcast_data
 
@@ -141,7 +141,7 @@ class TestPodcastGenerateRSSAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         response = client.put(url)
         assert response.status_code == 204
-        mocked_rq_queue.enqueue.assert_called_with(GenerateRSS(), podcast.id)
+        mocked_rq_queue.enqueue.assert_called_with(GenerateRSSTask(), podcast.id)
 
     def test_run_generation__podcast_from_another_user__fail(self, client, podcast, user):
         client.login(create_user())

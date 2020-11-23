@@ -9,10 +9,10 @@ from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks.base import RQTask, FinishCode
 
 logger = get_logger(__name__)
-__all__ = ["GenerateRSS"]
+__all__ = ["GenerateRSSTask"]
 
 
-class GenerateRSS(RQTask):
+class GenerateRSSTask(RQTask):
     """ Allows to recreate and upload RSS for specific podcast or for all of exists """
 
     storage: StorageS3 = None

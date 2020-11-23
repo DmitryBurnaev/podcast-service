@@ -13,6 +13,7 @@ from youtube_dl import YoutubeDL
 from common.redis import RedisClient
 from common.storage import StorageS3
 from modules.podcast.episodes import EpisodeCreator
+from modules.podcast.tasks import GenerateRSSTask
 
 
 class BaseMock:
@@ -101,7 +102,7 @@ class MockS3Client(BaseMock):
     def upload_file_mock(self, src_path, *_, **__):
         target_path = self.tmp_upload_dir / os.path.basename(src_path)
         shutil.copy(src_path, target_path)
-        return target_path
+        return str(target_path)
 
 
 class MockEpisodeCreator(BaseMock):
@@ -116,3 +117,10 @@ class MockRQQueue(BaseMock):
 
     def __init__(self):
         self.enqueue = Mock(return_value=None)
+
+
+class MockGenerateRSS(BaseMock):
+    target_class = GenerateRSSTask
+
+    def __init__(self):
+        self.run = Mock(return_value=self.async_return(self.CODE_OK))

@@ -4,7 +4,7 @@ from common.db_utils import db_transaction
 from common.views import BaseHTTPEndpoint
 from modules.podcast.models import Podcast
 from modules.podcast.schemas import *
-from modules.podcast.tasks.rss import GenerateRSS
+from modules.podcast.tasks.rss import GenerateRSSTask
 
 
 class PodcastListCreateAPIView(BaseHTTPEndpoint):
@@ -61,5 +61,5 @@ class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):
     async def put(self, request):
         podcast_id = request.path_params['podcast_id']
         podcast = await self._get_object(podcast_id)
-        await self._run_task(GenerateRSS, podcast.id)
+        await self._run_task(GenerateRSSTask, podcast.id)
         return self._response(status_code=status.HTTP_204_NO_CONTENT)
