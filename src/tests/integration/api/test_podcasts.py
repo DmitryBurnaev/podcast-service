@@ -3,7 +3,7 @@ import pytest
 from modules.podcast.models import Podcast
 from modules.podcast.tasks import GenerateRSSTask
 from tests.integration.api.test_base import BaseTestAPIView
-from tests.integration.conftest import create_user, get_podcast_data
+from tests.integration.helpers import create_user, get_podcast_data
 
 INVALID_UPDATE_DATA = [
     [{"name": "name" * 100}, {"name": "Length must be between 1 and 256."}],

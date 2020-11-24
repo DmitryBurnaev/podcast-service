@@ -1,7 +1,7 @@
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.utils import EpisodeStatuses
 from tests.integration.api.test_base import BaseTestAPIView
-from tests.integration.conftest import create_user, get_podcast_data, get_episode_data
+from tests.integration.helpers import get_episode_data, create_user, get_podcast_data
 
 MB_1 = 1 * 1024 * 1024
 MB_2 = 2 * 1024 * 1024

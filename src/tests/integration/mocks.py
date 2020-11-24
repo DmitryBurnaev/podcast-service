@@ -2,8 +2,6 @@ import asyncio
 import os
 import shutil
 import tempfile
-import time
-from hashlib import blake2b
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -54,7 +52,8 @@ class MockYoutubeDL(BaseMock):
     target_class = YoutubeDL
 
     def __init__(self, *_, **__):
-        self.video_id = self.get_video_id()
+        from tests.integration.helpers import get_video_id
+        self.video_id = get_video_id()
         self.watch_url = f"https://www.youtube.com/watch?v={self.video_id}"
         self.download = Mock()
         self.extract_info = Mock(return_value=self.info)
@@ -73,11 +72,6 @@ class MockYoutubeDL(BaseMock):
             "uploader": "Test author",
             "duration": 110,
         }
-
-    @staticmethod
-    def get_video_id():
-        blake_bytes = blake2b(key=bytes(str(time.time()), encoding="utf-8"), digest_size=6)
-        return blake_bytes.hexdigest()[:11]
 
 
 class MockRedisClient(BaseMock):

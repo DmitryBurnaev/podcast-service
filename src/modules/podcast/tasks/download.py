@@ -107,7 +107,7 @@ class DownloadEpisodeTask(RQTask):
             )
             await Episode.async_update(
                 filter_kwargs={'source_id': episode.source_id},
-                update_data={'status': Episode.STATUS_NEW},
+                update_data={'status': Episode.Status.NEW},
             )
             raise DownloadingInterrupted(code=FinishCode.ERROR)
 
@@ -159,7 +159,7 @@ class DownloadEpisodeTask(RQTask):
 
         logger.info("Episodes with source #%s: updating rss for all podcast", source_id)
         affected_episodes = await Episode.async_filter(source_id=source_id)
-        podcast_ids = [episode.podcast_id for episode in affected_episodes]
+        podcast_ids = sorted([episode.podcast_id for episode in affected_episodes])
         logger.info("Found podcasts for rss updates: %s", podcast_ids)
         await GenerateRSSTask().run(*podcast_ids)
 

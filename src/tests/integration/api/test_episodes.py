@@ -5,7 +5,7 @@ from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks import DownloadEpisodeTask
 from tests.integration.api.test_base import BaseTestAPIView
-from tests.integration.conftest import create_user, get_podcast_data, video_id
+from tests.integration.helpers import get_video_id, create_user, get_podcast_data
 
 INVALID_UPDATE_DATA = [
     [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],
@@ -179,7 +179,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         same_episode_status,
         delete_called,
     ):
-        source_id = video_id()
+        source_id = get_video_id()
 
         user_1 = create_user()
         user_2 = create_user()
