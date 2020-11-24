@@ -14,20 +14,20 @@ class TestGenerateRSSTask(BaseTestCase):
         podcast_1: Podcast = self.async_run(Podcast.create(**get_podcast_data()))
         podcast_2: Podcast = self.async_run(Podcast.create(**get_podcast_data()))
 
-        episode_data = get_episode_data(podcast_1, user)
+        episode_data = get_episode_data(podcast_1, creator=user)
         episode_data["status"] = Episode.Status.NEW
         episode_new = self.async_run(Episode.create(**episode_data))
 
-        episode_data = get_episode_data(podcast_1, user)
+        episode_data = get_episode_data(podcast_1, creator=user)
         episode_data["status"] = Episode.Status.DOWNLOADING
         episode_downloading = self.async_run(Episode.create(**episode_data))
 
-        episode_data = get_episode_data(podcast_1, user)
+        episode_data = get_episode_data(podcast_1, creator=user)
         episode_data["status"] = Episode.Status.PUBLISHED
         episode_data["published_at"] = datetime.now()
         episode_published = self.async_run(Episode.create(**episode_data))
 
-        episode_data = get_episode_data(podcast_2, user)
+        episode_data = get_episode_data(podcast_2, creator=user)
         episode_data["status"] = Episode.Status.PUBLISHED
         episode_podcast_2 = self.async_run(Episode.create(**episode_data))
 

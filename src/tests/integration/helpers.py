@@ -61,7 +61,7 @@ def get_video_id() -> str:
     return blake2b(key=bytes(str(time.time()), encoding="utf-8"), digest_size=6).hexdigest()[:11]
 
 
-def get_episode_data(podcast: Podcast = None, creator: User = None) -> dict:
+def get_episode_data(podcast: Podcast = None, status: str = None, creator: User = None) -> dict:
     source_id = get_video_id()
     episode_data = {
         "source_id": source_id,
@@ -73,7 +73,7 @@ def get_episode_data(podcast: Podcast = None, creator: User = None) -> dict:
         "file_name": f"file_name_{source_id}",
         "file_size": random.randint(1, 100),
         "author": None,
-        "status": "new",
+        "status": status or "new",
     }
 
     if podcast:
