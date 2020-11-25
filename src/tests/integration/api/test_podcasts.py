@@ -1,5 +1,6 @@
 import pytest
 
+from core import settings
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks import GenerateRSSTask
 from tests.integration.api.test_base import BaseTestAPIView
@@ -118,13 +119,15 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         self.assert_bad_request(client.patch(url, json=invalid_data), error_details)
 
-    def test_delete__ok(self, client, podcast, user):
+    def test_delete__ok(self, client, podcast, user, mocked_s3):
         client.login(user)
         url = self.url.format(id=podcast.id)
         response = client.delete(url)
         assert response.status_code == 204
-        podcast = self.async_run(Podcast.async_get(id=podcast.id))
-        assert podcast is None
+        assert self.async_run(Podcast.async_get(id=podcast.id))  is None
+        mocked_s3.delete_files_async.assert_called_with(
+            [f"{podcast.publish_id}.xml"], remote_path=settings.S3_BUCKET_RSS_PATH
+        )
 
     def test_delete__podcast_from_another_user__fail(self, client, podcast, user):
         user_2 = create_user()
