@@ -39,10 +39,14 @@ class PBKDF2PasswordHasher:
 
     def verify(self, password: str, encoded: str) -> bool:
         """Check if the given password is correct."""
-        algorithm, iterations, salt, _ = encoded.split("$", 3)
+        try:
+            algorithm, iterations, salt, _ = encoded.split("$", 3)
+        except ValueError as err:
+            logger.warning("Encoded password has incompatible format: %s", err)
+            return False
 
         if not algorithm == self.algorithm:
-            logger.debug("Algorithm mismatch!: %s != %s", algorithm, self.algorithm)
+            logger.warning("Algorithm mismatch!: %s != %s", algorithm, self.algorithm)
             return False
 
         encoded_2 = self.encode(password, salt)

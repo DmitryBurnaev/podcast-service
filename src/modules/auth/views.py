@@ -1,4 +1,3 @@
-import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -74,7 +73,7 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         return self._response(token_collection)
 
     @staticmethod
-    async def authenticate(email, password):
+    async def authenticate(email: str, password: str) -> User:
         user = await User.async_get(email=email, is_active__is=True)
         if not user:
             logger.info("Not found user with email [%s]", email)
