@@ -1,4 +1,6 @@
 import asyncio
+import uuid
+from datetime import datetime, timedelta
 from typing import Tuple
 from unittest.mock import Mock
 
@@ -6,6 +8,7 @@ import pytest
 from alembic.config import main
 
 from core import settings
+from modules.auth.models import UserInvite
 from modules.podcast.models import Podcast, Episode
 from modules.youtube import utils as youtube_utils
 from tests.integration.helpers import get_user_data, get_episode_data, create_user, \
@@ -108,3 +111,14 @@ def episode(podcast, user, loop) -> Episode:
     episode_data = get_episode_data(podcast, creator=user)
     return loop.run_until_complete(Episode.create(**episode_data))
 
+
+@pytest.fixture
+def user_invite(user, loop):
+    return loop.run_until_complete(
+        UserInvite.create(
+            email=f"user_{uuid.uuid4().hex[:10]}@test.com",
+            token=f"{uuid.uuid4().hex}",
+            expired_at=datetime.utcnow() + timedelta(days=1),
+            created_by_id=user.id,
+        )
+    )

@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Tuple
 
-from sqlalchemy import and_
 from starlette import status
 
 from core import settings
@@ -94,42 +93,43 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     @db_transaction
     async def post(self, request):
         cleaned_data = await self._validate(request)
+        user_invite: UserInvite = cleaned_data["user_invite"]
         user = await User.create(
             email=cleaned_data["email"],
             password=User.make_password(cleaned_data["password_1"]),
         )
+        await UserInvite.async_update(
+            filter_kwargs={"id": user_invite.id,},
+            update_data={"is_applied": True, "user_id": user.id}
+        )
         token_collection = await self._update_session(user)
-        return self._response(token_collection)
+        return self._response(token_collection, status_code=status.HTTP_201_CREATED)
 
     async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
         cleaned_data = await super()._validate(request)
-
-        invite_token = cleaned_data["invite_token"]
         email = cleaned_data["email"]
-        user_invite = await self._get_user_invite(invite_token)
-        if not user_invite:
-            details = "Invitation link is expired or unavailable"
-            logger.error("Couldn't signup user token: %s | details: %s", invite_token, details)
-            raise InvalidParameterError(details=details)
 
-        if await User.query.where(and_(User.email == email)).gino.scalar():
+        if await User.async_get(email=email):
             raise InvalidParameterError(details=f"User with email '{email}' already exists")
 
-        return cleaned_data
-
-    @staticmethod
-    async def _get_user_invite(invite_token: str) -> UserInvite:
-        user_invite = await UserInvite.query.where(
-            and_(
-                UserInvite.token == invite_token,
-                UserInvite.is_applied.is_(False),
-                UserInvite.expired_at > datetime.utcnow()
-            )
-        ).gino.first()
+        user_invite = await UserInvite.async_get(
+            token=cleaned_data["invite_token"],
+            is_applied__is=False,
+            expired_at__gt=datetime.utcnow()
+        )
         if not user_invite:
-            logger.error(f"Couldn't get UserInvite invite_token={invite_token}.")
+            details = "Invitation link is expired or unavailable"
+            logger.error(
+                "Couldn't signup user token: %s | details: %s",
+                cleaned_data["invite_token"], details
+            )
+            raise InvalidParameterError(details=details)
 
-        return user_invite
+        if email != user_invite.email:
+            raise InvalidParameterError(details="Email does not match with your invitation.")
+
+        cleaned_data["user_invite"] = user_invite
+        return cleaned_data
 
 
 class SignOutAPIView(BaseHTTPEndpoint):

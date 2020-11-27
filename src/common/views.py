@@ -76,6 +76,9 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         schema = self.schema_request(**schema_kwargs)
         try:
             cleaned_data = await parser.parse(schema, request, location=location)
+            if hasattr(schema, "is_valid"):
+                schema.is_valid(cleaned_data)
+
         except ValidationError as e:
             raise InvalidParameterError(details=e.data)
 
