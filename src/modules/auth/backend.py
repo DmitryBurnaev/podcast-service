@@ -1,4 +1,5 @@
 from jose import JWTError
+from starlette.requests import Request
 
 from common.exceptions import (
     AuthenticationFailedError,
@@ -16,7 +17,7 @@ class BaseAuthJWTBackend:
 
     keyword = "Bearer"
 
-    async def authenticate(self, request):
+    async def authenticate(self, request: Request):
         auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
         if not auth_header:
             raise AuthenticationRequiredError("Invalid token header. No credentials provided.")
@@ -31,7 +32,7 @@ class BaseAuthJWTBackend:
 
         return await self._authenticate_user(jwt_token=auth[1])
 
-    async def _authenticate_user(self, jwt_token):
+    async def _authenticate_user(self, jwt_token: str):
         logger.info("Logging via JWT auth. Got token: %s", jwt_token)
         try:
             jwt_payload = decode_jwt(jwt_token)

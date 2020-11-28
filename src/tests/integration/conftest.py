@@ -113,7 +113,7 @@ def episode(podcast, user, loop) -> Episode:
 
 
 @pytest.fixture
-def user_invite(user, loop):
+def user_invite(user, loop) -> UserInvite:
     return loop.run_until_complete(
         UserInvite.create(
             email=f"user_{uuid.uuid4().hex[:10]}@test.com",

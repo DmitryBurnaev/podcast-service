@@ -15,6 +15,7 @@ from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.utils import encode_jwt, decode_jwt
 from modules.auth.schemas import *
+from modules.podcast.models import Podcast
 
 logger = get_logger(__name__)
 
@@ -48,7 +49,8 @@ class JWTSessionMixin:
             await user_session.update(
                 refresh_token=token_collection.refresh_token,
                 expired_at=token_collection.refresh_token_expired_at,
-                last_login=datetime.utcnow()
+                last_login=datetime.utcnow(),
+                is_active=True,
             ).apply()
 
         else:
@@ -75,8 +77,8 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     async def authenticate(email: str, password: str) -> User:
         user = await User.async_get(email=email, is_active__is=True)
         if not user:
-            logger.info("Not found user with email [%s]", email)
-            raise AuthenticationFailedError("Not found user with provided email.")
+            logger.info("Not found active user with email [%s]", email)
+            raise AuthenticationFailedError("Not found active user with provided email.")
 
         hasher = PBKDF2PasswordHasher()
         if not hasher.verify(password, encoded=user.password):
@@ -99,9 +101,10 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
             password=User.make_password(cleaned_data["password_1"]),
         )
         await UserInvite.async_update(
-            filter_kwargs={"id": user_invite.id,},
+            filter_kwargs={"id": user_invite.id},
             update_data={"is_applied": True, "user_id": user.id}
         )
+        await Podcast.create_first_podcast(user.id)
         token_collection = await self._update_session(user)
         return self._response(token_collection, status_code=status.HTTP_201_CREATED)
 
@@ -142,7 +145,7 @@ class SignOutAPIView(BaseHTTPEndpoint):
             logger.info("Session %s exists and active. It will be updated.", user_session)
             await user_session.update(is_active=False).apply()
         else:
-            logger.info("Not found active sessions for user %s. Skip.", user)
+            logger.info("Not found active sessions for user %s. Skip sign-out.", user)
 
         return self._response(status_code=status.HTTP_204_NO_CONTENT)
 
