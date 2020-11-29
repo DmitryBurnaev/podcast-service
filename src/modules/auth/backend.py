@@ -25,7 +25,7 @@ class BaseAuthJWTBackend:
         auth = auth_header.split()
         if len(auth) != 2:
             logger.warning("Trying to authenticate with header %s", auth_header)
-            raise AuthenticationFailedError("Invalid token header. Token should be format as JWT")
+            raise AuthenticationFailedError("Invalid token header. Token should be format as JWT.")
 
         if auth[0] != self.keyword:
             raise AuthenticationFailedError("Invalid token header. Keyword mismatch.")
