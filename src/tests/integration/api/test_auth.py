@@ -4,10 +4,12 @@ from datetime import datetime, timedelta
 import pytest
 from requests import Response
 
+from core import settings
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.utils import decode_jwt
 from modules.podcast.models import Podcast
 from tests.integration.api.test_base import BaseTestAPIView
+from tests.integration.helpers import async_run
 
 INVALID_SIGN_IN_DATA = [
     [{"email": "fake-email"}, {"email": "Not a valid email address."}],
@@ -19,12 +21,15 @@ INVALID_SIGN_IN_DATA = [
 ]
 
 INVALID_SIGN_UP_DATA = [
-    [{}, {
-        'email': 'Missing data for required field.',
-        'password_1': 'Missing data for required field.',
-        'password_2': 'Missing data for required field.',
-        'invite_token': 'Missing data for required field.',
-    }],
+    [
+        {},
+        {
+            'email': 'Missing data for required field.',
+            'password_1': 'Missing data for required field.',
+            'password_2': 'Missing data for required field.',
+            'invite_token': 'Missing data for required field.',
+        }
+    ],
     [
         {"email": ("user_" * 30 + "@t.com")},
         {"email": "Longer than maximum length 128."},
@@ -46,6 +51,10 @@ INVALID_SIGN_UP_DATA = [
         {"invite_token": "token"},
         {"invite_token": "Length must be between 10 and 32."},
     ],
+]
+INVALID_INVITE_DATA = [
+    [{"email": "fake-email"}, {"email": "Not a valid email address."}],
+    [{}, {'email': 'Missing data for required field.'}]
 ]
 
 
@@ -254,3 +263,75 @@ class TestSignOutAPIView(BaseTestAPIView):
         client.login(user)
         response = client.get(self.url)
         assert response.status_code == 204
+
+
+class TestUserInviteApiView(BaseTestAPIView):
+    url = "/api/auth/invite-user/"
+
+    def setup_method(self):
+        self.email = f"user_{uuid.uuid4().hex[:10]}@test.com"
+
+    def test_invite__ok(self, client, user, mocked_auth_send):
+        client.login(user)
+        response = client.post(self.url, json={"email": self.email})
+        assert response.status_code == 201
+
+        user_invite: UserInvite = async_run(UserInvite.async_get(email=self.email))
+        assert user_invite is not None
+        assert response.json() == {
+            "id": user_invite.id,
+            "token": user_invite.token,
+            "email": user_invite.email,
+            "created_by_id": user.id,
+            "created_at": user_invite.created_at.isoformat(),
+            "expired_at": user_invite.expired_at.isoformat(),
+        }
+
+        link = f"{settings.SITE_URL}/sign-up/?t={user_invite.token}"
+        expected_body = (
+            f"<p>Hello! :) You have been invited to {settings.SITE_URL}</p>"
+            f"<p>Please follow the link </p>"
+            f"<p><a href={link}>{link}</a></p>"
+        )
+        mocked_auth_send.assert_called_once_with(
+            recipient_email=self.email,
+            subject=f"Welcome to {settings.SITE_URL}",
+            html_content=expected_body,
+        )
+
+    @pytest.mark.parametrize("invalid_data, error_details", INVALID_INVITE_DATA)
+    def test_invite__invalid_request__fail(self, client, user, invalid_data: dict, error_details: dict):
+        client.login(user)
+        self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
+
+    def test_invite__unauth__fail(self, client):
+        client.logout()
+        self.assert_unauth(client.post(self.url, json={"email": self.email}))
+
+    def test_invite__user_already_exists__fail(self, client, user):
+        client.login(user)
+        response = client.post(self.url, json={"email": user.email})
+        assert response.status_code == 400
+        assert response.json() == {
+            "error": "Requested data is not valid.",
+            "details": f"User with email=[{user.email}] already exists."
+        }
+
+    def test_invite__invite_already_exist__updated__ok(self, client, user, mocked_auth_send):
+        old_token = UserInvite.generate_token()
+        old_expired_at = datetime.utcnow()
+        user_invite = async_run(
+            UserInvite.create(
+                email=self.email, token=old_token, expired_at=old_expired_at, created_by_id=user.id,
+            )
+        )
+
+        client.login(user)
+        client.post(self.url, json={"email": self.email})
+        updated_user_invite: UserInvite = async_run(UserInvite.async_get(email=self.email))
+
+        assert updated_user_invite is not None
+        assert updated_user_invite.id == user_invite.id
+        assert updated_user_invite.token != user_invite.token
+        assert updated_user_invite.expired_at != user_invite.expired_at
+        assert mocked_auth_send.called

@@ -24,6 +24,7 @@ rq = "==1.4.2"
 
 [dev-packages]
 pytest = "==5.4.3"
+asynctest = "==0.13.0"
 requests = "==2.23.0"
 coverage = "==5.1"
 black = "==19.10b0"

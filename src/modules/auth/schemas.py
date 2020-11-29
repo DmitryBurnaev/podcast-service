@@ -57,6 +57,7 @@ class UserInviteRequestSchema(Schema):
 
 
 class UserInviteResponseSchema(Schema):
+    id = fields.Int()
     email = fields.Email(required=True)
     token = fields.Str(required=True)
     expired_at = fields.DateTime(required=True)

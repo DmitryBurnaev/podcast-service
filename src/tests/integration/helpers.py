@@ -21,6 +21,9 @@ class PodcastTestClient(TestClient):
         jwt, _ = encode_jwt({'user_id': user.id})
         self.headers["Authorization"] = f"Bearer {jwt}"
 
+    def logout(self):
+        del self.headers["Authorization"]
+
 
 def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
     """ Allows to mock any classes (is used as fixture)

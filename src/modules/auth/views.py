@@ -199,13 +199,18 @@ class InviteUserAPIView(BaseHTTPEndpoint):
         token = UserInvite.generate_token()
         expired_at = datetime.utcnow() + timedelta(seconds=settings.INVITE_LINK_EXPIRES_IN)
 
-        logger.info("INVITE: create for %s (expired %s) token [%s]", email, expired_at, token)
-        user_invite = await UserInvite.create(
-            email=email,
-            token=token,
-            expired_at=expired_at,
-            created_by_id=request.user.id,
-        )
+        if user_invite := await UserInvite.async_get(email=email):
+            logger.info("INVITE: update for %s (expired %s) token [%s]", email, expired_at, token)
+            await user_invite.update(token=token, expired_at=expired_at).apply()
+
+        else:
+            logger.info("INVITE: create for %s (expired %s) token [%s]", email, expired_at, token)
+            user_invite = await UserInvite.create(
+                email=email,
+                token=token,
+                expired_at=expired_at,
+                created_by_id=request.user.id,
+            )
 
         logger.info("Invite object %r created. Sending message...", user_invite)
         await self._send_email(user_invite)
@@ -227,9 +232,8 @@ class InviteUserAPIView(BaseHTTPEndpoint):
 
     async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
         cleaned_data = await super()._validate(request)
-        email_exists = await UserInvite.async_get(email=cleaned_data["email"])
-        if email_exists:
-            raise InvalidParameterError(f"User with email=[{cleaned_data['email']}] already exists")
+        if exists_user := await User.async_get(email=cleaned_data["email"]):
+            raise InvalidParameterError(f"User with email=[{exists_user.email}] already exists.")
 
         return cleaned_data
 
