@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from functools import partial
 
 import youtube_dl
@@ -24,13 +23,13 @@ class PlayListAPIView(BaseHTTPEndpoint):
         playlist_url = cleaned_data.get("url")
         loop = asyncio.get_running_loop()
 
-        # TODO: use GoogleAPI instead of this solution (probably, it will be more faster)
+        # TODO: use GoogleAPI instead of this solution (probably, it will be much faster)
         with youtube_dl.YoutubeDL({"logger": logger, "noplaylist": False}) as ydl:
             extract_info = partial(ydl.extract_info, playlist_url, download=False)
             youtube_details = await loop.run_in_executor(None, extract_info)
 
         yt_content_type = youtube_details.get("_type")
-        if not yt_content_type == "playlist":
+        if yt_content_type != "playlist":
             logger.warning("Unknown type of returned youtube details: %s", yt_content_type)
             logger.debug("Returned info: {%s}", youtube_details)
             raise InvalidParameterError(
