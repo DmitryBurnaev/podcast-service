@@ -22,7 +22,7 @@ class PodcastTestClient(TestClient):
         self.headers["Authorization"] = f"Bearer {jwt}"
 
     def logout(self):
-        del self.headers["Authorization"]
+        self.headers.pop("Authorization", None)
 
 
 def mock_target_class(mock_class: Type[BaseMock], monkeypatch):

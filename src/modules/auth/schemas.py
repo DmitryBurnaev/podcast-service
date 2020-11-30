@@ -76,6 +76,7 @@ class ResetPasswordResponseSchema(Schema):
 
 
 class ChangePasswordSchema(TwoPasswordsMixin, Schema):
+    token = fields.Str(required=True, validate=validate.Length(min=1))
     password_1 = fields.Str(required=True, validate=validate.Length(min=2, max=32))
     password_2 = fields.Str(required=True, validate=validate.Length(min=2, max=32))
 

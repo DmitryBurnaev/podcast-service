@@ -10,7 +10,7 @@ from common.db_utils import db_transaction
 from common.exceptions import AuthenticationFailedError, InvalidParameterError
 from common.utils import send_email, get_logger
 from common.views import BaseHTTPEndpoint
-from modules.auth.backend import AdminRequiredAuthBackend
+from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.utils import encode_jwt, decode_jwt
@@ -290,15 +290,17 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     """ Create new user in db """
 
     schema_request = ChangePasswordSchema
+    auth_backend = None
 
     @db_transaction
     async def post(self, request):
         """ Check is email unique and create new User """
         cleaned_data = await self._validate(request)
+        user = await LoginRequiredAuthBackend().authenticate_user(cleaned_data["token"])
         new_password = User.make_password(cleaned_data["password_1"])
-        await request.user.update(password=new_password).apply()
+        await user.update(password=new_password).apply()
 
-        token_collection = await self._update_session(request.user)
+        token_collection = await self._update_session(user)
         return self._response(token_collection)
 
 

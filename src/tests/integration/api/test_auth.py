@@ -6,7 +6,7 @@ from requests import Response
 
 from core import settings
 from modules.auth.models import User, UserSession, UserInvite
-from modules.auth.utils import decode_jwt
+from modules.auth.utils import decode_jwt, encode_jwt
 from modules.podcast.models import Podcast
 from tests.integration.api.test_base import BaseTestAPIView
 from tests.integration.helpers import async_run
@@ -55,6 +55,18 @@ INVALID_SIGN_UP_DATA = [
 INVALID_INVITE_DATA = [
     [{"email": "fake-email"}, {"email": "Not a valid email address."}],
     [{}, {'email': 'Missing data for required field.'}]
+]
+INVALID_CHANGE_PASSWORD_DATA = [
+    [{"password_1": "123456", "token": "t"}, {"password_2": "Missing data for required field."}],
+    [{"password_1": "foo", "password_2": "foo"}, {"token": "Missing data for required field."}],
+    [
+        {"password_1": "header", "password_2": "footer", "token": "t"},
+        {"password_1": "Passwords must be equal", "password_2": "Passwords must be equal"},
+    ],
+    [
+        {"password_1": "header", "password_2": "footer", "token": ""},
+        {"token": "Shorter than minimum length 1."},
+    ],
 ]
 
 
@@ -300,7 +312,7 @@ class TestUserInviteApiView(BaseTestAPIView):
         )
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_INVITE_DATA)
-    def test_invite__invalid_request__fail(self, client, user, invalid_data: dict, error_details: dict):
+    def test_invalid_request__fail(self, client, user, invalid_data: dict, error_details: dict):
         client.login(user)
         self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
 
@@ -317,7 +329,7 @@ class TestUserInviteApiView(BaseTestAPIView):
             "details": f"User with email=[{user.email}] already exists."
         }
 
-    def test_invite__invite_already_exist__updated__ok(self, client, user, mocked_auth_send):
+    def test_invite__user_already_invited__update_invite__ok(self, client, user, mocked_auth_send):
         old_token = UserInvite.generate_token()
         old_expired_at = datetime.utcnow()
         user_invite = async_run(
@@ -335,3 +347,119 @@ class TestUserInviteApiView(BaseTestAPIView):
         assert updated_user_invite.token != user_invite.token
         assert updated_user_invite.expired_at != user_invite.expired_at
         assert mocked_auth_send.called
+
+
+class TestResetPasswordAPIView(BaseTestAPIView):
+    url = "/api/auth/reset-password/"
+
+    def setup_method(self):
+        self.email = f"user_{uuid.uuid4().hex[:10]}@test.com"
+
+    def test_reset_password__ok(self, client, user, mocked_auth_send):
+        request_user = user
+        async_run(request_user.update(is_superuser=True).apply())
+        target_user = self.async_run(User.create(email=self.email, password="password"))
+
+        client.login(user)
+        response = client.post(self.url, json={"email": target_user.email})
+        response_data = response.json()
+        token = response_data.get("token")
+
+        assert response.status_code == 200
+        assert response_data["user_id"] == target_user.id
+        assert token is not None, response_data
+        assert decode_jwt(response_data["token"])["user_id"] == target_user.id
+
+        link = f"{settings.SITE_URL}/change-password/?t={token}"
+        expected_body = (
+            f"<p>You can reset your password for {settings.SITE_URL}</p>"
+            f"<p>Please follow the link </p>"
+            f"<p><a href={link}>{link}</a></p>"
+        )
+        mocked_auth_send.assert_called_once_with(
+            recipient_email=target_user.email,
+            subject=f"Welcome back to {settings.SITE_URL}",
+            html_content=expected_body,
+        )
+
+    def test_reset_password__unauth__fail(self, client):
+        client.logout()
+        self.assert_unauth(client.post(self.url, json={"email": self.email}))
+
+    def test_reset_password__user_is_not_superuser__fail(self, client, user):
+        client.login(user)
+        response = client.post(self.url, json={"email": user.email})
+        assert response.status_code == 403
+        assert response.json() == {
+            "error": "You don't have permission to perform this action.",
+            "details": "You don't have an admin privileges.",
+        }
+
+
+class TestChangePasswordAPIView(BaseTestAPIView):
+    url = "/api/auth/change-password/"
+    new_password = "new123456"
+
+    def _assert_fail_response(self, client, token) -> dict:
+        request_data = {
+            "token": token,
+            "password_1": self.new_password,
+            "password_2": self.new_password,
+        }
+        client.logout()
+        response = client.post(self.url, json=request_data)
+        assert response.status_code == 401
+        return response.json()
+
+    def test_change_password__ok(self, client, user):
+        token, _ = encode_jwt({"user_id": user.id})
+        request_data = {
+            "token": token,
+            "password_1": self.new_password,
+            "password_2": self.new_password,
+        }
+        client.logout()
+        response = client.post(self.url, json=request_data)
+        assert response.status_code == 200
+        assert_tokens(response, user)
+
+        user = async_run(User.async_get(id=user.id))
+        assert user.verify_password(self.new_password)
+
+    @pytest.mark.parametrize("invalid_data, error_details", INVALID_CHANGE_PASSWORD_DATA)
+    def test_invalid_request__fail(self, client, invalid_data: dict, error_details: dict):
+        client.logout()
+        self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
+
+    def test_token_expired__fail(self, client, user):
+        token, _ = encode_jwt({"user_id": user.id}, expires_in=-10)
+        response_data = self._assert_fail_response(client, token)
+        assert response_data == {
+            "error": "Authentication credentials are invalid",
+            "details": "Token could not be decoded: Signature has expired.",
+        }
+
+    def test_token_invalid__fail(self, client, user):
+        response_data = self._assert_fail_response(client, "fake-jwt")
+        assert response_data == {
+            "error": "Authentication credentials are invalid",
+            "details": "Token could not be decoded: Not enough segments",
+        }
+
+    def test_user_inactive__fail(self, client, user):
+        async_run(user.update(is_active=False).apply())
+        token, _ = encode_jwt({"user_id": user.id})
+        response_data = self._assert_fail_response(client, token)
+        assert response_data == {
+            "error": "Authentication credentials are invalid",
+            "details": f"Couldn't found active user with id={user.id}",
+        }
+
+    def test_user_does_not_exist__fail(self, client, user):
+        user_id = 0
+        token, _ = encode_jwt({"user_id": user_id})
+        response_data = self._assert_fail_response(client, token)
+        assert response_data == {
+            "error": "Authentication credentials are invalid",
+            "details": f"Couldn't found active user with id={user_id}",
+        }
