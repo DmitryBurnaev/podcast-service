@@ -69,6 +69,7 @@ class MockYoutubeDL(BaseMock):
             "description": "Test youtube video description",
             "webpage_url": self.watch_url,
             "thumbnail": "http://path.to-image.com",
+            "thumbnails": [{"url": "http://path.to-image.com"}],
             "uploader": "Test author",
             "duration": 110,
         }

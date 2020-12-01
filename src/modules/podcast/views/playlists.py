@@ -26,7 +26,10 @@ class PlayListAPIView(BaseHTTPEndpoint):
         # TODO: use GoogleAPI instead of this solution (probably, it will be much faster)
         with youtube_dl.YoutubeDL({"logger": logger, "noplaylist": False}) as ydl:
             extract_info = partial(ydl.extract_info, playlist_url, download=False)
-            youtube_details = await loop.run_in_executor(None, extract_info)
+            try:
+                youtube_details = await loop.run_in_executor(None, extract_info)
+            except youtube_dl.utils.DownloadError as err:
+                raise InvalidParameterError(f"Couldn't extract playlist: {err}")
 
         yt_content_type = youtube_details.get("_type")
         if yt_content_type != "playlist":
