@@ -75,7 +75,9 @@ class Episode(BaseModel):
 
     id = db.Column(db.Integer, primary_key=True)
     source_id = db.Column(db.String(length=32), index=True, nullable=False)
-    podcast_id = db.Column(db.Integer, db.ForeignKey("podcast_podcasts.id"), index=True)
+    podcast_id = db.Column(
+        db.Integer, db.ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True
+    )
     title = db.Column(db.String(length=256), nullable=False)
     watch_url = db.Column(db.String(length=128))
     remote_url = db.Column(db.String(length=128))

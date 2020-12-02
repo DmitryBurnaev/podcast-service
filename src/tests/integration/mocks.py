@@ -2,8 +2,6 @@ import asyncio
 import os
 import shutil
 import tempfile
-import time
-from hashlib import blake2b
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -13,6 +11,7 @@ from youtube_dl import YoutubeDL
 from common.redis import RedisClient
 from common.storage import StorageS3
 from modules.podcast.episodes import EpisodeCreator
+from modules.podcast.tasks import GenerateRSSTask
 
 
 class BaseMock:
@@ -53,7 +52,8 @@ class MockYoutubeDL(BaseMock):
     target_class = YoutubeDL
 
     def __init__(self, *_, **__):
-        self.video_id = self.get_video_id()
+        from tests.integration.helpers import get_video_id
+        self.video_id = get_video_id()
         self.watch_url = f"https://www.youtube.com/watch?v={self.video_id}"
         self.download = Mock()
         self.extract_info = Mock(return_value=self.info)
@@ -69,14 +69,10 @@ class MockYoutubeDL(BaseMock):
             "description": "Test youtube video description",
             "webpage_url": self.watch_url,
             "thumbnail": "http://path.to-image.com",
+            "thumbnails": [{"url": "http://path.to-image.com"}],
             "uploader": "Test author",
             "duration": 110,
         }
-
-    @staticmethod
-    def get_video_id():
-        blake_bytes = blake2b(key=bytes(str(time.time()), encoding="utf-8"), digest_size=6)
-        return blake_bytes.hexdigest()[:11]
 
 
 class MockRedisClient(BaseMock):
@@ -101,7 +97,7 @@ class MockS3Client(BaseMock):
     def upload_file_mock(self, src_path, *_, **__):
         target_path = self.tmp_upload_dir / os.path.basename(src_path)
         shutil.copy(src_path, target_path)
-        return target_path
+        return str(target_path)
 
 
 class MockEpisodeCreator(BaseMock):
@@ -116,3 +112,10 @@ class MockRQQueue(BaseMock):
 
     def __init__(self):
         self.enqueue = Mock(return_value=None)
+
+
+class MockGenerateRSS(BaseMock):
+    target_class = GenerateRSSTask
+
+    def __init__(self):
+        self.run = Mock(return_value=self.async_return(self.CODE_OK))

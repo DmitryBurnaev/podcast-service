@@ -1,7 +1,7 @@
 import asyncio
 
 from modules.podcast.models import Podcast, Episode
-from tests.integration.conftest import video_id
+from tests.integration.helpers import get_video_id
 
 
 class BaseTestCase:
@@ -20,7 +20,7 @@ class BaseTestCase:
         source_id: str = None
 
     ) -> Episode:
-        src_id = source_id or video_id()
+        src_id = source_id or get_video_id()
         episode_data.update({
             "podcast_id": podcast.id,
             "source_id": src_id,
@@ -54,3 +54,10 @@ class BaseTestAPIView(BaseTestCase):
             ),
         }
 
+    @staticmethod
+    def assert_unauth(response):
+        assert response.status_code == 401
+        assert response.json() == {
+            'error': 'Authentication is required',
+            'details': 'Invalid token header. No credentials provided.',
+        }

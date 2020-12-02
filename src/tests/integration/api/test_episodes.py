@@ -3,9 +3,9 @@ import pytest
 from modules.youtube.exceptions import YoutubeFetchError
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
-from modules.podcast.tasks import DownloadEpisode
+from modules.podcast.tasks import DownloadEpisodeTask
 from tests.integration.api.test_base import BaseTestAPIView
-from tests.integration.conftest import create_user, get_podcast_data, video_id
+from tests.integration.helpers import get_video_id, create_user, get_podcast_data
 
 INVALID_UPDATE_DATA = [
     [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],
@@ -76,7 +76,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         response = client.post(url, json={"youtube_link": episode_data["watch_url"]})
         assert response.status_code == 201
-        mocked_rq_queue.enqueue.assert_called_with(tasks.DownloadEpisode(), episode_id=episode.id)
+        mocked_rq_queue.enqueue.assert_called_with(tasks.DownloadEpisodeTask(), episode_id=episode.id)
 
     def test_create__youtube_error__fail(self, client, podcast, episode_data, user, mocked_episode_creator):
         mocked_episode_creator.create.side_effect = YoutubeFetchError("Oops")
@@ -179,7 +179,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         same_episode_status,
         delete_called,
     ):
-        source_id = video_id()
+        source_id = get_video_id()
 
         user_1 = create_user()
         user_2 = create_user()
@@ -218,7 +218,7 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
         episode = self.async_run(Episode.async_get(id=episode.id))
         assert response.status_code == 200
         assert response.json() == _episode_details(episode)
-        mocked_rq_queue.enqueue.assert_called_with(DownloadEpisode(), episode_id=episode.id)
+        mocked_rq_queue.enqueue.assert_called_with(DownloadEpisodeTask(), episode_id=episode.id)
 
     def test_download__episode_from_another_user__fail(self, client, episode, user):
         client.login(create_user())

@@ -1,10 +1,8 @@
-import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Tuple
 
-from sqlalchemy import and_
 from starlette import status
 
 from core import settings
@@ -12,11 +10,12 @@ from common.db_utils import db_transaction
 from common.exceptions import AuthenticationFailedError, InvalidParameterError
 from common.utils import send_email, get_logger
 from common.views import BaseHTTPEndpoint
-from modules.auth.backend import AdminRequiredAuthBackend
+from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.utils import encode_jwt, decode_jwt
 from modules.auth.schemas import *
+from modules.podcast.models import Podcast
 
 logger = get_logger(__name__)
 
@@ -50,7 +49,8 @@ class JWTSessionMixin:
             await user_session.update(
                 refresh_token=token_collection.refresh_token,
                 expired_at=token_collection.refresh_token_expired_at,
-                last_login=datetime.utcnow()
+                last_login=datetime.utcnow(),
+                is_active=True,
             ).apply()
 
         else:
@@ -74,11 +74,11 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         return self._response(token_collection)
 
     @staticmethod
-    async def authenticate(email, password):
+    async def authenticate(email: str, password: str) -> User:
         user = await User.async_get(email=email, is_active__is=True)
         if not user:
-            logger.info("Not found user with email [%s]", email)
-            raise AuthenticationFailedError("Not found user with provided email.")
+            logger.info("Not found active user with email [%s]", email)
+            raise AuthenticationFailedError("Not found active user with provided email.")
 
         hasher = PBKDF2PasswordHasher()
         if not hasher.verify(password, encoded=user.password):
@@ -95,42 +95,44 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     @db_transaction
     async def post(self, request):
         cleaned_data = await self._validate(request)
+        user_invite: UserInvite = cleaned_data["user_invite"]
         user = await User.create(
             email=cleaned_data["email"],
             password=User.make_password(cleaned_data["password_1"]),
         )
+        await UserInvite.async_update(
+            filter_kwargs={"id": user_invite.id},
+            update_data={"is_applied": True, "user_id": user.id}
+        )
+        await Podcast.create_first_podcast(user.id)
         token_collection = await self._update_session(user)
-        return self._response(token_collection)
+        return self._response(token_collection, status_code=status.HTTP_201_CREATED)
 
     async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
         cleaned_data = await super()._validate(request)
-
-        invite_token = cleaned_data["invite_token"]
         email = cleaned_data["email"]
-        user_invite = await self._get_user_invite(invite_token)
-        if not user_invite:
-            details = "Invitation link is expired or unavailable"
-            logger.error("Couldn't signup user token: %s | details: %s", invite_token, details)
-            raise InvalidParameterError(details=details)
 
-        if await User.query.where(and_(User.email == email)).gino.scalar():
+        if await User.async_get(email=email):
             raise InvalidParameterError(details=f"User with email '{email}' already exists")
 
-        return cleaned_data
-
-    @staticmethod
-    async def _get_user_invite(invite_token: str) -> UserInvite:
-        user_invite = await UserInvite.query.where(
-            and_(
-                UserInvite.token == invite_token,
-                UserInvite.is_applied.is_(False),
-                UserInvite.expired_at > datetime.utcnow()
-            )
-        ).gino.first()
+        user_invite = await UserInvite.async_get(
+            token=cleaned_data["invite_token"],
+            is_applied__is=False,
+            expired_at__gt=datetime.utcnow()
+        )
         if not user_invite:
-            logger.error(f"Couldn't get UserInvite invite_token={invite_token}.")
+            details = "Invitation link is expired or unavailable"
+            logger.error(
+                "Couldn't signup user token: %s | details: %s",
+                cleaned_data["invite_token"], details
+            )
+            raise InvalidParameterError(details=details)
 
-        return user_invite
+        if email != user_invite.email:
+            raise InvalidParameterError(details="Email does not match with your invitation.")
+
+        cleaned_data["user_invite"] = user_invite
+        return cleaned_data
 
 
 class SignOutAPIView(BaseHTTPEndpoint):
@@ -143,7 +145,7 @@ class SignOutAPIView(BaseHTTPEndpoint):
             logger.info("Session %s exists and active. It will be updated.", user_session)
             await user_session.update(is_active=False).apply()
         else:
-            logger.info("Not found active sessions for user %s. Skip.", user)
+            logger.info("Not found active sessions for user %s. Skip sign-out.", user)
 
         return self._response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -197,13 +199,18 @@ class InviteUserAPIView(BaseHTTPEndpoint):
         token = UserInvite.generate_token()
         expired_at = datetime.utcnow() + timedelta(seconds=settings.INVITE_LINK_EXPIRES_IN)
 
-        logger.info("INVITE: create for %s (expired %s) token [%s]", email, expired_at, token)
-        user_invite = await UserInvite.create(
-            email=email,
-            token=token,
-            expired_at=expired_at,
-            created_by_id=request.user.id,
-        )
+        if user_invite := await UserInvite.async_get(email=email):
+            logger.info("INVITE: update for %s (expired %s) token [%s]", email, expired_at, token)
+            await user_invite.update(token=token, expired_at=expired_at).apply()
+
+        else:
+            logger.info("INVITE: create for %s (expired %s) token [%s]", email, expired_at, token)
+            user_invite = await UserInvite.create(
+                email=email,
+                token=token,
+                expired_at=expired_at,
+                created_by_id=request.user.id,
+            )
 
         logger.info("Invite object %r created. Sending message...", user_invite)
         await self._send_email(user_invite)
@@ -225,9 +232,8 @@ class InviteUserAPIView(BaseHTTPEndpoint):
 
     async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
         cleaned_data = await super()._validate(request)
-        email_exists = await UserInvite.async_get(email=cleaned_data["email"])
-        if email_exists:
-            raise InvalidParameterError(f"User with email=[{cleaned_data['email']}] already exists")
+        if exists_user := await User.async_get(email=cleaned_data["email"]):
+            raise InvalidParameterError(f"User with email=[{exists_user.email}] already exists.")
 
         return cleaned_data
 
@@ -284,15 +290,17 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     """ Create new user in db """
 
     schema_request = ChangePasswordSchema
+    auth_backend = None
 
     @db_transaction
     async def post(self, request):
         """ Check is email unique and create new User """
         cleaned_data = await self._validate(request)
+        user = await LoginRequiredAuthBackend().authenticate_user(cleaned_data["token"])
         new_password = User.make_password(cleaned_data["password_1"])
-        await request.user.update(password=new_password).apply()
+        await user.update(password=new_password).apply()
 
-        token_collection = await self._update_session(request.user)
+        token_collection = await self._update_session(user)
         return self._response(token_collection)
 
 

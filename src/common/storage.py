@@ -12,7 +12,8 @@ import botocore
 from common.utils import get_logger
 from core import settings
 
-logger = get_logger(__name__)
+# logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class StorageS3:
@@ -55,7 +56,7 @@ class StorageS3:
                 error_log_level,
                 "Couldn't execute request (%s) to S3: ClientError %s",
                 handler.__name__,
-                error,
+                str(error),
             )
             return self.CODE_CLIENT_ERROR, None
 

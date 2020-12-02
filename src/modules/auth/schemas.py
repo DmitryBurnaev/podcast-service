@@ -19,9 +19,11 @@ __all__ = [
 
 class TwoPasswordsMixin:
 
-    def validate(self, data: typing.Mapping, *args, **kwargs) -> typing.Mapping:
+    @staticmethod
+    def is_valid(data: typing.Mapping) -> typing.Mapping:
         if data["password_1"] != data["password_2"]:
-            raise ValidationError("Passwords should be equal")
+            msg = "Passwords must be equal"
+            raise ValidationError(msg, data={"password_1": msg, "password_2": msg})
 
         return data
 
@@ -32,16 +34,10 @@ class SignInSchema(Schema):
 
 
 class SignUpSchema(TwoPasswordsMixin, Schema):
-    email = fields.Email(required=True)
+    email = fields.Email(required=True, validate=validate.Length(max=128))
     password_1 = fields.Str(required=True, validate=validate.Length(min=2, max=32))
     password_2 = fields.Str(required=True, validate=validate.Length(min=2, max=32))
-    invite_token = fields.Str(required=True)
-
-    def validate(self, data: typing.Mapping, *args, **kwargs) -> typing.Mapping:
-        if data["password_1"] != data["password_2"]:
-            raise ValidationError("Passwords should be equal")
-
-        return data
+    invite_token = fields.Str(required=True, validate=validate.Length(min=10, max=32))
 
 
 class RefreshTokenSchema(Schema):
@@ -61,6 +57,7 @@ class UserInviteRequestSchema(Schema):
 
 
 class UserInviteResponseSchema(Schema):
+    id = fields.Int()
     email = fields.Email(required=True)
     token = fields.Str(required=True)
     expired_at = fields.DateTime(required=True)
@@ -79,6 +76,7 @@ class ResetPasswordResponseSchema(Schema):
 
 
 class ChangePasswordSchema(TwoPasswordsMixin, Schema):
+    token = fields.Str(required=True, validate=validate.Length(min=1))
     password_1 = fields.Str(required=True, validate=validate.Length(min=2, max=32))
     password_2 = fields.Str(required=True, validate=validate.Length(min=2, max=32))
 
@@ -88,9 +86,3 @@ class UserResponseSchema(Schema):
     email = fields.Email(required=True)
     is_active = fields.Bool(required=True)
     is_superuser = fields.Bool(required=True)
-
-#
-# class UserResponseSchema(SQLAlchemyAutoSchema):
-#     class Meta:
-#         model = User
-#         load_instance = True

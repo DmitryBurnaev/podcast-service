@@ -5,13 +5,13 @@ from common.storage import StorageS3
 from common.utils import get_logger
 from modules.podcast.models import Episode
 from modules.podcast.tasks.base import RQTask, FinishCode
-from modules.podcast.tasks.rss import GenerateRSS
+from modules.podcast.tasks.rss import GenerateRSSTask
 from modules.youtube import utils as youtube_utils
 from modules.podcast import utils as podcast_utils
 
 logger = get_logger(__name__)
 status = Episode.Status
-__all__ = ["DownloadEpisode"]
+__all__ = ["DownloadEpisodeTask"]
 
 
 class DownloadingInterrupted(Exception):
@@ -20,7 +20,7 @@ class DownloadingInterrupted(Exception):
         self.message = message
 
 
-class DownloadEpisode(RQTask):
+class DownloadEpisodeTask(RQTask):
     """ Allows to download youtube video and recreate specific rss (by requested episode_id) """
 
     storage: StorageS3 = None
@@ -107,7 +107,7 @@ class DownloadEpisode(RQTask):
             )
             await Episode.async_update(
                 filter_kwargs={'source_id': episode.source_id},
-                update_data={'status': Episode.STATUS_NEW},
+                update_data={'status': Episode.Status.NEW},
             )
             raise DownloadingInterrupted(code=FinishCode.ERROR)
 
@@ -159,9 +159,9 @@ class DownloadEpisode(RQTask):
 
         logger.info("Episodes with source #%s: updating rss for all podcast", source_id)
         affected_episodes = await Episode.async_filter(source_id=source_id)
-        podcast_ids = [episode.podcast_id for episode in affected_episodes]
+        podcast_ids = sorted([episode.podcast_id for episode in affected_episodes])
         logger.info("Found podcasts for rss updates: %s", podcast_ids)
-        await GenerateRSS().run(*podcast_ids)
+        await GenerateRSSTask().run(*podcast_ids)
 
     @staticmethod
     async def _update_episodes(source_id: str, update_data: dict):

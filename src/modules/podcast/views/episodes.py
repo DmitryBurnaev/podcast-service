@@ -35,7 +35,7 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
         episode = await episode_creator.create()
         if podcast.download_automatically:
             await episode.update(status=Episode.Status.DOWNLOADING).apply()
-            await self._run_task(tasks.DownloadEpisode, episode_id=episode.id)
+            await self._run_task(tasks.DownloadEpisodeTask, episode_id=episode.id)
 
         return self._response(episode, status_code=status.HTTP_201_CREATED)
 
@@ -98,5 +98,5 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
         logger.info(f'Start download process for "{episode.watch_url}"')
         episode.status = Episode.Status.DOWNLOADING
         await episode.update(status=episode.status).apply()
-        await self._run_task(tasks.DownloadEpisode, episode_id=episode.id)
+        await self._run_task(tasks.DownloadEpisodeTask, episode_id=episode.id)
         return self._response(episode)

@@ -1,4 +1,5 @@
 from jose import JWTError
+from starlette.requests import Request
 
 from common.exceptions import (
     AuthenticationFailedError,
@@ -16,7 +17,7 @@ class BaseAuthJWTBackend:
 
     keyword = "Bearer"
 
-    async def authenticate(self, request):
+    async def authenticate(self, request: Request):
         auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
         if not auth_header:
             raise AuthenticationRequiredError("Invalid token header. No credentials provided.")
@@ -24,14 +25,14 @@ class BaseAuthJWTBackend:
         auth = auth_header.split()
         if len(auth) != 2:
             logger.warning("Trying to authenticate with header %s", auth_header)
-            raise AuthenticationFailedError("Invalid token header. Token should be format as JWT")
+            raise AuthenticationFailedError("Invalid token header. Token should be format as JWT.")
 
         if auth[0] != self.keyword:
             raise AuthenticationFailedError("Invalid token header. Keyword mismatch.")
 
-        return await self._authenticate_user(jwt_token=auth[1])
+        return await self.authenticate_user(jwt_token=auth[1])
 
-    async def _authenticate_user(self, jwt_token):
+    async def authenticate_user(self, jwt_token: str):
         logger.info("Logging via JWT auth. Got token: %s", jwt_token)
         try:
             jwt_payload = decode_jwt(jwt_token)
@@ -56,9 +57,8 @@ class LoginRequiredAuthBackend(BaseAuthJWTBackend):
 
 class AdminRequiredAuthBackend(BaseAuthJWTBackend):
 
-    # @staticmethod
-    async def _authenticate_user(self, jwt_token):
-        user = await super()._authenticate_user(jwt_token)
+    async def authenticate_user(self, jwt_token):
+        user = await super().authenticate_user(jwt_token)
         if not user.is_superuser:
             raise PermissionDeniedError("You don't have an admin privileges.")
 
