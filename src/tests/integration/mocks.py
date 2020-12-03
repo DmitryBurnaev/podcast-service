@@ -2,6 +2,7 @@ import asyncio
 import os
 import shutil
 import tempfile
+from argparse import ArgumentParser
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -119,3 +120,11 @@ class MockGenerateRSS(BaseMock):
 
     def __init__(self):
         self.run = Mock(return_value=self.async_return(self.CODE_OK))
+
+
+class MockArgumentParser(BaseMock):
+    target_class = ArgumentParser
+
+    def __init__(self):
+        self.parse_args = Mock()
+        self.add_argument = Mock()
