@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import secrets
 import string
+from typing import Tuple
 
 from common.utils import get_logger
 
@@ -37,20 +38,22 @@ class PBKDF2PasswordHasher:
         hash_ = base64.b64encode(hash_).decode("ascii").strip()
         return "%s$%d$%s$%s" % (self.algorithm, self.iterations, salt, hash_)
 
-    def verify(self, password: str, encoded: str) -> bool:
+    def verify(self, password: str, encoded: str) -> Tuple[bool, str]:
         """Check if the given password is correct."""
         try:
             algorithm, iterations, salt, _ = encoded.split("$", 3)
         except ValueError as err:
-            logger.warning("Encoded password has incompatible format: %s", err)
-            return False
+            err_message = f"Encoded password has incompatible format: {err}"
+            logger.warning(err_message)
+            return False, err_message
 
-        if not algorithm == self.algorithm:
-            logger.warning("Algorithm mismatch!: %s != %s", algorithm, self.algorithm)
-            return False
+        if algorithm != self.algorithm:
+            err_message = f"Algorithm mismatch!: {algorithm} != {self.algorithm}"
+            logger.warning(err_message)
+            return False, err_message
 
         encoded_2 = self.encode(password, salt)
-        return hmac.compare_digest(encoded, encoded_2)
+        return hmac.compare_digest(encoded, encoded_2), ""
 
     def _pbkdf2(self, password: str, salt: str) -> bytes:
         """Return the hash of password using pbkdf2."""

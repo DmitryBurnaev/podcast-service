@@ -25,7 +25,8 @@ class User(BaseModel):
 
     def verify_password(self, raw_password: str):
         hasher = PBKDF2PasswordHasher()
-        return hasher.verify(raw_password, encoded=str(self.password))
+        verified, _ = hasher.verify(raw_password, encoded=str(self.password))
+        return verified
 
     @property
     def is_authenticated(self) -> bool:

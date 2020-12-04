@@ -3,6 +3,7 @@ from datetime import datetime
 
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
+from modules.podcast.tasks.base import FinishCode
 from tests.api.test_base import BaseTestCase
 from tests.helpers import get_episode_data, get_podcast_data
 
@@ -33,7 +34,8 @@ class TestGenerateRSSTask(BaseTestCase):
 
         expected_file_path = mocked_s3.tmp_upload_dir / f"{podcast_1.publish_id}.xml"
         generate_rss_task = tasks.GenerateRSSTask()
-        self.async_run(generate_rss_task.run(podcast_1.id))
+        result_code = self.async_run(generate_rss_task.run(podcast_1.id))
+        assert result_code == FinishCode.OK
 
         assert os.path.exists(expected_file_path), f"File {expected_file_path} didn't uploaded"
         with open(expected_file_path) as file:
@@ -54,8 +56,19 @@ class TestGenerateRSSTask(BaseTestCase):
         podcast_2 = self.async_run(Podcast.create(**get_podcast_data()))
 
         generate_rss_task = tasks.GenerateRSSTask()
-        self.async_run(generate_rss_task.run(podcast_1.id, podcast_2.id))
+        result_code = self.async_run(generate_rss_task.run(podcast_1.id, podcast_2.id))
+        assert result_code == FinishCode.OK
 
         for podcast in [podcast_1, podcast_2]:
             expected_file_path = mocked_s3.tmp_upload_dir / f"{podcast.publish_id}.xml"
             assert os.path.exists(expected_file_path), f"File {expected_file_path} didn't uploaded"
+
+    def test_generate__upload_failed__fail(self, podcast, mocked_s3):
+        mocked_s3.upload_file.side_effect = lambda *_, **__: ""
+
+        generate_rss_task = tasks.GenerateRSSTask()
+        result_code = self.async_run(generate_rss_task.run(podcast.id))
+        assert result_code == FinishCode.ERROR
+
+        podcast_1 = self.async_run(Podcast.async_get(id=podcast.id))
+        assert podcast_1.rss_link is None

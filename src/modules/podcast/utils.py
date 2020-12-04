@@ -148,7 +148,7 @@ def upload_episode(filename: str, src_path: str = None) -> Optional[str]:
     )
     if not result_url:
         logger.warning("Couldn't upload file to S3 storage. SKIP")
-        episode_process_hook(status=EpisodeStatuses.error, filename=filename)
+        episode_process_hook(filename=filename, status=EpisodeStatuses.error, processed_bytes=0)
         return
 
     logger.info("Great! uploading for %s was done!", filename)

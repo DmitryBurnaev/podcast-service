@@ -81,8 +81,9 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
             raise AuthenticationFailedError("Not found active user with provided email.")
 
         hasher = PBKDF2PasswordHasher()
-        if not hasher.verify(password, encoded=user.password):
-            logger.error("Password didn't verify with encoded version (email: [%s])", email)
+        verified, error_msg = hasher.verify(password, encoded=user.password)
+        if not verified:
+            logger.error("Password didn't verify: email: %s | err: %s", email, error_msg)
             raise AuthenticationFailedError("Email or password is invalid.")
 
         return user

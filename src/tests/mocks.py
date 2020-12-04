@@ -83,6 +83,8 @@ class MockRedisClient(BaseMock):
     def __init__(self, content=None):
         self._content = content or {}
         self.async_get_many = Mock(return_value=self.async_return(self._content))
+        self.get = Mock()
+        self.set = Mock()
 
 
 class MockS3Client(BaseMock):
