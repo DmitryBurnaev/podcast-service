@@ -3,8 +3,8 @@ from datetime import datetime
 
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
-from tests.integration.api.test_base import BaseTestCase
-from tests.integration.helpers import get_episode_data, get_podcast_data
+from tests.api.test_base import BaseTestCase
+from tests.helpers import get_episode_data, get_podcast_data
 
 
 class TestGenerateRSSTask(BaseTestCase):

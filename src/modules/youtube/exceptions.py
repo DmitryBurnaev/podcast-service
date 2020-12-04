@@ -2,7 +2,7 @@ from common.exceptions import BaseApplicationError
 
 
 class FFMPegPreparationError(BaseApplicationError):
-    pass
+    message = "We couldn't prepare file by ffmpeg"
 
 
 class YoutubeFetchError(BaseApplicationError):

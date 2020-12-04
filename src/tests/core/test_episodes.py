@@ -4,8 +4,8 @@ from youtube_dl.utils import ExtractorError
 from modules.youtube.exceptions import YoutubeFetchError
 from modules.podcast.episodes import EpisodeCreator
 from modules.podcast.models import Podcast, Episode
-from tests.integration.api.test_base import BaseTestAPIView
-from tests.integration.helpers import get_podcast_data
+from tests.api.test_base import BaseTestAPIView
+from tests.helpers import get_podcast_data
 
 
 class TestEpisodeCreator(BaseTestAPIView):

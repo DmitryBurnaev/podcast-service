@@ -8,8 +8,8 @@ from core import settings
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.utils import decode_jwt, encode_jwt
 from modules.podcast.models import Podcast
-from tests.integration.api.test_base import BaseTestAPIView
-from tests.integration.helpers import async_run
+from tests.api.test_base import BaseTestAPIView
+from tests.helpers import async_run
 
 INVALID_SIGN_IN_DATA = [
     [{"email": "fake-email"}, {"email": "Not a valid email address."}],

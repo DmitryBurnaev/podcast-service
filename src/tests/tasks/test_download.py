@@ -4,8 +4,8 @@ from core import settings
 from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks import DownloadEpisodeTask
 from modules.podcast.tasks.base import FinishCode
-from tests.integration.api.test_base import BaseTestCase
-from tests.integration.helpers import get_podcast_data
+from tests.api.test_base import BaseTestCase
+from tests.helpers import get_podcast_data
 
 
 class TestDownloadEpisodeTask(BaseTestCase):

@@ -1,6 +1,6 @@
 import youtube_dl
 
-from tests.integration.api.test_base import BaseTestAPIView
+from tests.api.test_base import BaseTestAPIView
 
 
 class TestPodcastListCreateAPIView(BaseTestAPIView):

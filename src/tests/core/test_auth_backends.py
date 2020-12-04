@@ -9,7 +9,7 @@ from common.exceptions import (
 from modules.auth.backend import BaseAuthJWTBackend, AdminRequiredAuthBackend
 from modules.auth.models import User
 from modules.auth.utils import encode_jwt
-from tests.integration.helpers import async_run
+from tests.helpers import async_run
 
 
 class TestBackendAuth:

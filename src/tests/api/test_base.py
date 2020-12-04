@@ -1,7 +1,7 @@
 import asyncio
 
 from modules.podcast.models import Podcast, Episode
-from tests.integration.helpers import get_video_id
+from tests.helpers import get_video_id
 
 
 class BaseTestCase:

@@ -1,6 +1,7 @@
 import asyncio
 import os
 import shutil
+import subprocess
 import tempfile
 from argparse import ArgumentParser
 from pathlib import Path
@@ -53,7 +54,7 @@ class MockYoutubeDL(BaseMock):
     target_class = YoutubeDL
 
     def __init__(self, *_, **__):
-        from tests.integration.helpers import get_video_id
+        from tests.helpers import get_video_id
         self.video_id = get_video_id()
         self.watch_url = f"https://www.youtube.com/watch?v={self.video_id}"
         self.download = Mock()
@@ -128,3 +129,10 @@ class MockArgumentParser(BaseMock):
     def __init__(self):
         self.parse_args = Mock()
         self.add_argument = Mock()
+
+
+class MockPopen(BaseMock):
+    target_class = subprocess.Popen
+
+    def __init__(self):
+        self.communicate = Mock(return_value=("Output", ""))

@@ -2,7 +2,7 @@ import asyncio
 
 from modules.podcast.tasks import RQTask
 from modules.podcast.tasks.base import FinishCode
-from tests.integration.api.test_base import BaseTestCase
+from tests.api.test_base import BaseTestCase
 
 
 class TaskForTest(RQTask):
