@@ -1,0 +1,14 @@
+[run]
+source = src/
+omit =
+    *__init__.py
+    src/tests/*
+    src/asgi.py
+    src/worker.py
+
+[report]
+omit =
+    *__init__.py
+    src/tests/*
+    src/asgi.py
+    src/worker.py

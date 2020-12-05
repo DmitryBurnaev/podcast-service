@@ -13,7 +13,7 @@ from common.views import BaseHTTPEndpoint
 from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.models import User, UserSession, UserInvite
-from modules.auth.utils import encode_jwt, decode_jwt
+from modules.auth.utils import encode_jwt
 from modules.auth.schemas import *
 from modules.podcast.models import Podcast
 
@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 
 @dataclass
-class TokenCollection():
+class TokenCollection:
     refresh_token: str
     refresh_token_expired_at: str
     access_token: str
@@ -157,34 +157,28 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
     @db_transaction
     async def post(self, request):
-        user_id, refresh_token = await self._validate(request)
+        user, refresh_token = await self._validate(request)
 
-        user = await User.get_active(user_id)
-        if not user:
-            raise AuthenticationFailedError("Active user not found")
-
-        user_session = await UserSession.async_get(user_id=user_id, is_active=True)
+        user_session = await UserSession.async_get(user_id=user.id, is_active=True)
         if not user_session:
-            raise AuthenticationFailedError("There is not active session for user")
+            raise AuthenticationFailedError("There is not active session for user.")
 
         if user_session.refresh_token != refresh_token:
-            raise AuthenticationFailedError("Refresh token is not active for user session")
+            raise AuthenticationFailedError("Refresh token is not active for user session.")
 
         token_collection = await self._update_session(user)
         return self._response(token_collection)
 
-    async def _validate(self, request, partial_: bool = False, location: str = None) -> Tuple[int, str]:
+    async def _validate(self, request, *args, **kwargs) -> Tuple[User, str]:
         cleaned_data = await super()._validate(request)
-        token_payload = decode_jwt(cleaned_data["refresh_token"])
-        user_id = token_payload.get("user_id")
-        if not user_id:
-            raise InvalidParameterError("Refresh token doesn't contain 'user_id'")
+        refresh_token = cleaned_data["refresh_token"]
+        user, jwt_payload = await LoginRequiredAuthBackend().authenticate_user(refresh_token)
 
-        token_type = token_payload.get("token_type")
+        token_type = jwt_payload.get("token_type")
         if token_type != "refresh":
-            raise InvalidParameterError("Refresh token has invalid token-type")
+            raise InvalidParameterError("Refresh token has invalid token-type.")
 
-        return user_id, cleaned_data["refresh_token"]
+        return user, refresh_token
 
 
 class InviteUserAPIView(BaseHTTPEndpoint):
@@ -257,7 +251,7 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
         cleaned_data = await super()._validate(request)
         user = await User.async_get(email=cleaned_data["email"])
         if not user:
-            raise InvalidParameterError(f"User with email=[{cleaned_data['email']}] not found")
+            raise InvalidParameterError(f"User with email=[{cleaned_data['email']}] not found.")
 
         return user
 
@@ -297,7 +291,7 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     async def post(self, request):
         """ Check is email unique and create new User """
         cleaned_data = await self._validate(request)
-        user = await LoginRequiredAuthBackend().authenticate_user(cleaned_data["token"])
+        user, _ = await LoginRequiredAuthBackend().authenticate_user(cleaned_data["token"])
         new_password = User.make_password(cleaned_data["password_1"])
         await user.update(password=new_password).apply()
 

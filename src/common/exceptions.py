@@ -10,21 +10,21 @@ class BaseApplicationError(Exception):
 
 
 class UnexpectedError(BaseApplicationError):
-    message = "Something unexpected happened"
+    message = "Something unexpected happened."
 
 
 class HttpError(BaseApplicationError):
-    message = "Some HTTP error"
+    message = "Some HTTP error happened."
 
 
 class AuthenticationFailedError(BaseApplicationError):
     status_code = 401
-    message = "Authentication credentials are invalid"
+    message = "Authentication credentials are invalid."
 
 
 class AuthenticationRequiredError(BaseApplicationError):
     status_code = 401
-    message = "Authentication is required"
+    message = "Authentication is required."
 
 
 class PermissionDeniedError(BaseApplicationError):
