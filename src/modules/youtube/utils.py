@@ -2,8 +2,9 @@ import asyncio
 import os
 import re
 import subprocess
+from contextlib import suppress
 from functools import partial
-from typing import Optional, NamedTuple, Union, Tuple
+from typing import Optional, NamedTuple, Tuple
 
 import youtube_dl
 from youtube_dl.utils import YoutubeDLError
@@ -113,19 +114,20 @@ def ffmpeg_preparation(filename: str):
     tmp_filename = os.path.join(settings.TMP_AUDIO_PATH, f"tmp_{filename}")
     proc = subprocess.Popen(["ffmpeg", "-i", src_path, "-strict", "-2", "-y", tmp_filename])
     outs, errs = proc.communicate(timeout=settings.FFMPEG_TIMEOUT)
-    if outs:
-        logger.info(outs)
     if errs:
-        logger.error(errs)
         episode_process_hook(status=EpisodeStatuses.error, filename=filename)
+        with suppress(IOError):
+            os.remove(tmp_filename)
+        raise FFMPegPreparationError(f"FFMPEG failed with errors: {errs}")
+
+    logger.info("FFMPEG results for file %s: \n %s", filename, outs)
 
     try:
         os.remove(src_path)
         os.rename(tmp_filename, src_path)
     except IOError as err:
-        logger.exception("Failed to rename/remove tmp file after ffmpeg preparation")
         episode_process_hook(status=EpisodeStatuses.error, filename=filename)
-        raise FFMPegPreparationError(err)
+        raise FFMPegPreparationError(f"Failed to rename/remove tmp file: {err}")
 
     total_file_size = get_file_size(src_path)
     episode_process_hook(

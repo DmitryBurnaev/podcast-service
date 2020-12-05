@@ -5,22 +5,30 @@ from typing import Tuple
 from unittest.mock import Mock, patch
 
 import pytest
+from core import settings
 from alembic.config import main
 from asynctest import CoroutineMock
 
-from core import settings
 from modules.auth.models import UserInvite
 from modules.podcast.models import Podcast, Episode
 from modules.youtube import utils as youtube_utils
-from tests.integration.helpers import get_user_data, get_episode_data, create_user, \
-    get_podcast_data, PodcastTestClient, mock_target_class
-from tests.integration.mocks import (
+from tests.helpers import (
+    PodcastTestClient,
+    get_user_data,
+    get_episode_data,
+    create_user,
+    get_podcast_data,
+    mock_target_class,
+)
+from tests.mocks import (
     MockYoutubeDL,
     MockRedisClient,
     MockS3Client,
     MockEpisodeCreator,
     MockRQQueue,
     MockGenerateRSS,
+    MockArgumentParser,
+    MockPopen,
 )
 
 
@@ -66,6 +74,16 @@ def mocked_rq_queue(monkeypatch) -> MockRQQueue:
 @pytest.fixture
 def mocked_generate_rss_task(monkeypatch) -> MockGenerateRSS:
     yield from mock_target_class(MockGenerateRSS, monkeypatch)
+
+
+@pytest.fixture
+def mocked_arg_parser(monkeypatch) -> MockArgumentParser:
+    yield from mock_target_class(MockArgumentParser, monkeypatch)
+
+
+@pytest.fixture
+def mocked_popen(monkeypatch) -> MockPopen:
+    yield from mock_target_class(MockPopen, monkeypatch)
 
 
 @pytest.fixture

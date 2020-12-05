@@ -1,7 +1,11 @@
 import asyncio
+from typing import Union
 
+from requests import Response
+
+from common.models import BaseModel
 from modules.podcast.models import Podcast, Episode
-from tests.integration.helpers import get_video_id
+from tests.helpers import get_video_id
 
 
 class BaseTestCase:
@@ -35,7 +39,7 @@ class BaseTestAPIView(BaseTestCase):
     url: str = NotImplemented
 
     @staticmethod
-    def assert_bad_request(response, error_details):
+    def assert_bad_request(response: Response, error_details: dict):
         response_data = response.json()
         assert response.status_code == 400
         assert response_data["error"] == "Requested data is not valid."
@@ -44,7 +48,7 @@ class BaseTestAPIView(BaseTestCase):
             assert error_value in response_data["details"][error_field]
 
     @staticmethod
-    def assert_not_found(response, instance):
+    def assert_not_found(response: Response, instance: BaseModel):
         assert response.status_code == 404
         assert response.json() == {
             "error": "Requested object not found.",
@@ -55,9 +59,20 @@ class BaseTestAPIView(BaseTestCase):
         }
 
     @staticmethod
-    def assert_unauth(response):
+    def assert_unauth(response: Response):
         assert response.status_code == 401
         assert response.json() == {
-            'error': 'Authentication is required',
+            'error': 'Authentication is required.',
             'details': 'Invalid token header. No credentials provided.',
+        }
+
+    @staticmethod
+    def assert_auth_invalid(response: Union[Response, dict], details: str):
+        if isinstance(response, Response):
+            assert response.status_code == 401
+            response = response.json()
+
+        assert response == {
+            'error': "Authentication credentials are invalid.",
+            'details': details,
         }

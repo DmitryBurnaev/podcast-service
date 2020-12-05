@@ -1,7 +1,9 @@
 import asyncio
 import os
 import shutil
+import subprocess
 import tempfile
+from argparse import ArgumentParser
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -52,7 +54,7 @@ class MockYoutubeDL(BaseMock):
     target_class = YoutubeDL
 
     def __init__(self, *_, **__):
-        from tests.integration.helpers import get_video_id
+        from tests.helpers import get_video_id
         self.video_id = get_video_id()
         self.watch_url = f"https://www.youtube.com/watch?v={self.video_id}"
         self.download = Mock()
@@ -81,6 +83,8 @@ class MockRedisClient(BaseMock):
     def __init__(self, content=None):
         self._content = content or {}
         self.async_get_many = Mock(return_value=self.async_return(self._content))
+        self.get = Mock()
+        self.set = Mock()
 
 
 class MockS3Client(BaseMock):
@@ -119,3 +123,18 @@ class MockGenerateRSS(BaseMock):
 
     def __init__(self):
         self.run = Mock(return_value=self.async_return(self.CODE_OK))
+
+
+class MockArgumentParser(BaseMock):
+    target_class = ArgumentParser
+
+    def __init__(self):
+        self.parse_args = Mock()
+        self.add_argument = Mock()
+
+
+class MockPopen(BaseMock):
+    target_class = subprocess.Popen
+
+    def __init__(self):
+        self.communicate = Mock(return_value=("Output", ""))

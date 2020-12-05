@@ -4,8 +4,8 @@ from modules.youtube.exceptions import YoutubeFetchError
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks import DownloadEpisodeTask
-from tests.integration.api.test_base import BaseTestAPIView
-from tests.integration.helpers import get_video_id, create_user, get_podcast_data
+from tests.api.test_base import BaseTestAPIView
+from tests.helpers import get_video_id, create_user, get_podcast_data
 
 INVALID_UPDATE_DATA = [
     [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],

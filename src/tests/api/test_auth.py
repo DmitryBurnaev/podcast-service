@@ -8,8 +8,8 @@ from core import settings
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.utils import decode_jwt, encode_jwt
 from modules.podcast.models import Podcast
-from tests.integration.api.test_base import BaseTestAPIView
-from tests.integration.helpers import async_run
+from tests.api.test_base import BaseTestAPIView
+from tests.helpers import async_run
 
 INVALID_SIGN_IN_DATA = [
     [{"email": "fake-email"}, {"email": "Not a valid email address."}],
@@ -159,11 +159,15 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         assert user_session.expired_at > old_expired_at
         assert user_session.is_active is True
 
+    def test_sign_in__password_mismatch__fail(self, client):
+        response = client.post(self.url, json={"email": self.email, "password": "fake-password"})
+        self.assert_auth_invalid(response, "Email or password is invalid.")
+
     def test_sign_in__user_not_found__fail(self, client):
         response = client.post(self.url, json={"email": "fake@t.ru", "password": self.raw_password})
         assert response.status_code == 401
         assert response.json() == {
-            'error': 'Authentication credentials are invalid',
+            'error': 'Authentication credentials are invalid.',
             'details': 'Not found active user with provided email.'
         }
 
@@ -176,7 +180,7 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         response = client.post(self.url, json={"email": self.email, "password": self.raw_password})
         assert response.status_code == 401
         assert response.json() == {
-            'error': 'Authentication credentials are invalid',
+            'error': 'Authentication credentials are invalid.',
             'details': 'Not found active user with provided email.'
         }
 
@@ -386,6 +390,18 @@ class TestResetPasswordAPIView(BaseTestAPIView):
         client.logout()
         self.assert_unauth(client.post(self.url, json={"email": self.email}))
 
+    def test_reset_password__user_not_found__fail(self, client, user, mocked_auth_send):
+        request_user = user
+        async_run(request_user.update(is_superuser=True).apply())
+
+        client.login(request_user)
+        response = client.post(self.url, json={"email": "fake-email@test.com"})
+        assert response.status_code == 400
+        assert response.json() == {
+            "error": "Requested data is not valid.",
+            "details": f"User with email=[fake-email@test.com] not found."
+        }
+
     def test_reset_password__user_is_not_superuser__fail(self, client, user):
         client.login(user)
         response = client.post(self.url, json={"email": user.email})
@@ -400,7 +416,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
     url = "/api/auth/change-password/"
     new_password = "new123456"
 
-    def _assert_fail_response(self, client, token) -> dict:
+    def _assert_fail_response(self, client, token: str) -> dict:
         request_data = {
             "token": token,
             "password_1": self.new_password,
@@ -434,32 +450,87 @@ class TestChangePasswordAPIView(BaseTestAPIView):
     def test_token_expired__fail(self, client, user):
         token, _ = encode_jwt({"user_id": user.id}, expires_in=-10)
         response_data = self._assert_fail_response(client, token)
-        assert response_data == {
-            "error": "Authentication credentials are invalid",
-            "details": "Token could not be decoded: Signature has expired.",
-        }
+        self.assert_auth_invalid(
+            response_data, "Token could not be decoded: Signature has expired."
+        )
 
     def test_token_invalid__fail(self, client, user):
         response_data = self._assert_fail_response(client, "fake-jwt")
-        assert response_data == {
-            "error": "Authentication credentials are invalid",
-            "details": "Token could not be decoded: Not enough segments",
-        }
+        self.assert_auth_invalid(response_data, "Token could not be decoded: Not enough segments")
 
     def test_user_inactive__fail(self, client, user):
         async_run(user.update(is_active=False).apply())
         token, _ = encode_jwt({"user_id": user.id})
         response_data = self._assert_fail_response(client, token)
-        assert response_data == {
-            "error": "Authentication credentials are invalid",
-            "details": f"Couldn't found active user with id={user.id}",
-        }
+        self.assert_auth_invalid(response_data,  f"Couldn't found active user with id={user.id}.")
 
     def test_user_does_not_exist__fail(self, client, user):
         user_id = 0
         token, _ = encode_jwt({"user_id": user_id})
         response_data = self._assert_fail_response(client, token)
-        assert response_data == {
-            "error": "Authentication credentials are invalid",
-            "details": f"Couldn't found active user with id={user_id}",
+        self.assert_auth_invalid(response_data, f"Couldn't found active user with id={user_id}.")
+
+
+class TestRefreshTokenAPIView(BaseTestAPIView):
+    url = "/api/auth/refresh-token/"
+
+    INVALID_REFRESH_TOKEN_DATA = [
+        [{}, {'refresh_token': 'Missing data for required field.'}],
+        [{"refresh_token": ""}, {"refresh_token": "Length must be between 10 and 256."}],
+    ]
+
+    @staticmethod
+    def _prepare_token(user: User, is_active=True, refresh=True) -> UserSession:
+        refresh_token, _ = encode_jwt({"user_id": user.id}, refresh=refresh)
+        user_session = async_run(
+            UserSession.create(
+                user_id=user.id,
+                is_active=is_active,
+                refresh_token=refresh_token,
+                expired_at=datetime.utcnow(),
+            )
+        )
+        return user_session
+
+    def test_refresh_token__ok(self, client, user):
+        user_session = self._prepare_token(user)
+        client.logout()
+        response = client.post(self.url, json={"refresh_token": user_session.refresh_token})
+        assert response.status_code == 200
+        assert_tokens(response, user)
+
+    def test_refresh_token__user_inactive__fail(self, client, user):
+        user_session = self._prepare_token(user)
+        async_run(user.update(is_active=False).apply())
+        response = client.post(self.url, json={"refresh_token": user_session.refresh_token})
+        self.assert_auth_invalid(response, f"Couldn't found active user with id={user.id}.")
+
+    def test_refresh_token__session_inactive__fail(self, client, user):
+        session = self._prepare_token(user, is_active=False)
+        response = client.post(self.url, json={"refresh_token": session.refresh_token})
+        self.assert_auth_invalid(response, "There is not active session for user.")
+
+    def test_refresh_token__token_not_refresh__fail(self, client, user):
+        session = self._prepare_token(user, is_active=True, refresh=False)
+        response = client.post(self.url, json={"refresh_token": session.refresh_token})
+        assert response.status_code == 400
+        assert response.json() == {
+            "error": "Requested data is not valid.",
+            "details": "Refresh token has invalid token-type.",
         }
+
+    def test_refresh_token__token_mismatch__fail(self, client, user):
+        user_session = self._prepare_token(user, is_active=True)
+        refresh_token = user_session.refresh_token
+        async_run(user_session.update(refresh_token="fake-token").apply())
+        response = client.post(self.url, json={"refresh_token": refresh_token})
+        self.assert_auth_invalid(response, "Refresh token is not active for user session.")
+
+    def test_refresh_token__fake_jwt__fail(self, client, user):
+        response = client.post(self.url, json={"refresh_token": "fake-jwt-token"})
+        self.assert_auth_invalid(response, "Token could not be decoded: Not enough segments")
+
+    @pytest.mark.parametrize("invalid_data, error_details", INVALID_REFRESH_TOKEN_DATA)
+    def test_invalid_request__fail(self, client, invalid_data: dict, error_details: dict):
+        client.logout()
+        self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)

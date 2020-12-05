@@ -12,7 +12,7 @@ from starlette.testclient import TestClient
 from modules.auth.utils import encode_jwt
 from modules.auth.models import User
 from modules.podcast.models import Podcast
-from tests.integration.mocks import BaseMock
+from tests.mocks import BaseMock
 
 
 class PodcastTestClient(TestClient):

@@ -9,7 +9,7 @@ import botocore.exceptions
 from common.storage import StorageS3
 from core import settings
 
-from tests.integration.helpers import async_run
+from tests.helpers import async_run
 
 
 class MockedClient:

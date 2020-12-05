@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from jose import JWTError
 from starlette.requests import Request
 
@@ -30,9 +32,12 @@ class BaseAuthJWTBackend:
         if auth[0] != self.keyword:
             raise AuthenticationFailedError("Invalid token header. Keyword mismatch.")
 
-        return await self.authenticate_user(jwt_token=auth[1])
+        user, _ = await self.authenticate_user(jwt_token=auth[1])
+        return user
 
-    async def authenticate_user(self, jwt_token: str):
+    async def authenticate_user(self, jwt_token: str) -> Tuple[User, dict]:
+        """ Allows to find active user by jwt_token """
+
         logger.info("Logging via JWT auth. Got token: %s", jwt_token)
         try:
             jwt_payload = decode_jwt(jwt_token)
@@ -44,11 +49,11 @@ class BaseAuthJWTBackend:
         user_id = jwt_payload.get("user_id")
         user = await User.get_active(user_id)
         if not user:
-            msg = "Couldn't found active user with id=%s"
+            msg = "Couldn't found active user with id=%s."
             logger.warning(msg, user_id)
             raise AuthenticationFailedError(details=(msg % (user_id,)))
 
-        return user
+        return user, jwt_payload
 
 
 class LoginRequiredAuthBackend(BaseAuthJWTBackend):
@@ -58,8 +63,8 @@ class LoginRequiredAuthBackend(BaseAuthJWTBackend):
 class AdminRequiredAuthBackend(BaseAuthJWTBackend):
 
     async def authenticate_user(self, jwt_token):
-        user = await super().authenticate_user(jwt_token)
+        user, jwt_payload = await super().authenticate_user(jwt_token)
         if not user.is_superuser:
             raise PermissionDeniedError("You don't have an admin privileges.")
 
-        return user
+        return user, jwt_payload

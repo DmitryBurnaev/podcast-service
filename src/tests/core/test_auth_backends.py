@@ -9,7 +9,7 @@ from common.exceptions import (
 from modules.auth.backend import BaseAuthJWTBackend, AdminRequiredAuthBackend
 from modules.auth.models import User
 from modules.auth.utils import encode_jwt
-from tests.integration.helpers import async_run
+from tests.helpers import async_run
 
 
 class TestBackendAuth:
@@ -66,7 +66,7 @@ class TestBackendAuth:
         with pytest.raises(AuthenticationFailedError) as err:
             async_run(BaseAuthJWTBackend().authenticate(request))
 
-        assert err.value.details == f"Couldn't found active user with id={user.id}"
+        assert err.value.details == f"Couldn't found active user with id={user.id}."
 
     def test_check_auth__admin_required__ok(self, client, user):
         async_run(user.update(is_superuser=True).apply())
