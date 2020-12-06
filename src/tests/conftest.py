@@ -2,12 +2,11 @@ import asyncio
 import uuid
 from datetime import datetime, timedelta
 from typing import Tuple
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
 from core import settings
 from alembic.config import main
-from asynctest import CoroutineMock
 
 from modules.auth.models import UserInvite
 from modules.podcast.models import Podcast, Episode
@@ -95,10 +94,12 @@ def mocked_ffmpeg(monkeypatch) -> Mock:
 
 
 @pytest.fixture
-def mocked_auth_send() -> Mock:
-    patcher = patch("modules.auth.views.send_email", new=CoroutineMock())
+def mocked_auth_send() -> AsyncMock:
+    mocked_send_email = AsyncMock()
+    patcher = patch("modules.auth.views.send_email", new=mocked_send_email)
     patcher.start()
-    yield patcher.new
+    yield mocked_send_email
+    del mocked_send_email
     patcher.stop()
 
 

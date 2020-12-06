@@ -309,7 +309,7 @@ class TestUserInviteApiView(BaseTestAPIView):
             f"<p>Please follow the link </p>"
             f"<p><a href={link}>{link}</a></p>"
         )
-        mocked_auth_send.assert_called_once_with(
+        mocked_auth_send.assert_awaited_once_with(
             recipient_email=self.email,
             subject=f"Welcome to {settings.SITE_URL}",
             html_content=expected_body,
@@ -350,7 +350,7 @@ class TestUserInviteApiView(BaseTestAPIView):
         assert updated_user_invite.id == user_invite.id
         assert updated_user_invite.token != user_invite.token
         assert updated_user_invite.expired_at != user_invite.expired_at
-        assert mocked_auth_send.called
+        assert mocked_auth_send.assert_awaited_once
 
 
 class TestResetPasswordAPIView(BaseTestAPIView):
@@ -380,7 +380,7 @@ class TestResetPasswordAPIView(BaseTestAPIView):
             f"<p>Please follow the link </p>"
             f"<p><a href={link}>{link}</a></p>"
         )
-        mocked_auth_send.assert_called_once_with(
+        mocked_auth_send.assert_awaited_once_with(
             recipient_email=target_user.email,
             subject=f"Welcome back to {settings.SITE_URL}",
             html_content=expected_body,

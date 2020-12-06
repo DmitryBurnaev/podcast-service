@@ -1,5 +1,5 @@
 import re
-from collections import Iterable
+from collections.abc import Iterable
 
 from common.utils import get_logger
 from common.exceptions import InvalidParameterError
