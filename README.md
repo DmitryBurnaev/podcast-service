@@ -1,7 +1,6 @@
 # Podcasts Service
-[Starlette](https://www.starlette.io/) based (service API) application for your own podcasts
-which are downloaded from other resources (from Youtube for example)
-This project will provide backend (API service) and is positioned as an updated version of [podcast application](https://github.com/DmitryBurnaev/podcast).
+Backend Service which can be used for creation a custom podcasts (sets of episodes) based on fetched public media resources.<br/>
+This project provides a backend (API service) and is positioned as an updated version of [podcast application](https://github.com/DmitryBurnaev/podcast).
 
 ![GitHub Pipenv locked Python version](https://img.shields.io/github/pipenv/locked/python-version/DmitryBurnaev/podcast-service)
 
@@ -23,6 +22,13 @@ If you have any sounds (or youtube videos as example) which you want to listen l
 Created podcast (with prepared episodes) will have a direct link (to RSS feed), which can be used for adding your podcast to same podcast application (`Add by URL`) <br />
 Adding and downloading each new episodes will refresh RSS-feed and your APP will be able to get them.
 
+#### Tech Stack
++ python 3.9
++ [Starlette](https://www.starlette.io/) 
++ RQ (background tasks)
++ youtube-dl (download tracks from youtube)
++ redis (key-value storage + RQ)
+
 #### Tech details
 Technically project contains from 3 parts:
 
@@ -41,12 +47,6 @@ Technically project contains from 3 parts:
   + generate RSS feed file (xml) with episodes (by specification https://cyber.harvard.edu/rss/rss.html)  
 
 
-##### Stack of technology
-+ python 3.9
-+ starlette
-+ RQ (background tasks)
-+ youtube-dl (download tracks from youtube)
-+ redis (key-value storage + RQ)
 
 ### Install Project
 
