@@ -88,7 +88,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         self,
         instance: Union[DBModel, Iterable[DBModel]] = None,
         data: Any = None,
-        status_code: int = status.HTTP_200_OK
+        status_code: int = status.HTTP_200_OK,
     ) -> Response:
         """ Shortcut for returning JSON-response  """
 

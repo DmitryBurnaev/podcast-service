@@ -68,7 +68,7 @@ def custom_exception_handler(request, exc):
     Returns the response that should be used for any given exception.
     Response will be format by our format: {"error": "text", "detail": details}
     """
-    error_message = f"Something went wrong!"
+    error_message = "Something went wrong!"
     error_details = f"Raised Error: {exc.__class__.__name__}"
     status_code = getattr(exc, "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR)
 

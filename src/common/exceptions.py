@@ -3,7 +3,7 @@ class BaseApplicationError(Exception):
     details = None
     status_code = 500
 
-    def __init__(self, details=None,  message=None, status_code=None):
+    def __init__(self, details=None, message=None, status_code=None):
         self.message = message or self.message
         self.details = details or self.details
         self.status_code = status_code or self.status_code

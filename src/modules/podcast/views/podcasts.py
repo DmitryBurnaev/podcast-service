@@ -29,7 +29,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
             name=cleaned_data["name"],
             publish_id=Podcast.generate_publish_id(),
             description=cleaned_data["description"],
-            created_by_id=request.user.id
+            created_by_id=request.user.id,
         )
         return self._response(podcast, status_code=status.HTTP_201_CREATED)
 
@@ -64,14 +64,12 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
     @staticmethod
     async def _delete_files(podcast: Podcast, episodes: List[Episode]):
         podcast_file_names = {
-            episode.file_name
-            for episode in episodes
-            if episode.status == Episode.Status.PUBLISHED
+            episode.file_name for episode in episodes if episode.status == Episode.Status.PUBLISHED
         }
         same_file_episodes = await Episode.async_filter(
             podcast_id__ne=podcast.id,
             file_name__in=podcast_file_names,
-            status=Episode.Status.PUBLISHED
+            status=Episode.Status.PUBLISHED,
         )
         exist_file_names = {episode.file_name for episode in same_file_episodes or []}
 

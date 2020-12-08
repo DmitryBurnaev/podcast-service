@@ -9,7 +9,6 @@ from tests.helpers import get_podcast_data
 
 
 class TestEpisodeCreator(BaseTestAPIView):
-
     def test_create__ok(self, podcast, user, mocked_youtube):
         source_id = mocked_youtube.video_id
         watch_url = f"https://www.youtube.com/watch?v={source_id}"
@@ -35,7 +34,9 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.source_id == episode.source_id
         assert new_episode.watch_url == episode.watch_url
 
-    def test_create__same_episode_in_other_podcast__ok(self, podcast, episode, user, mocked_youtube):
+    def test_create__same_episode_in_other_podcast__ok(
+        self, podcast, episode, user, mocked_youtube
+    ):
         mocked_youtube.extract_info.return_value = {
             "id": episode.source_id,
             "title": "Updated title",

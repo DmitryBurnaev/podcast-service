@@ -103,10 +103,13 @@ def upload_process_hook(filename: str, chunk: int):
 
 
 def episode_process_hook(
-    status: str, filename: str, total_bytes: int = 0, processed_bytes: int = None, chunk: int = 0,
+    status: str,
+    filename: str,
+    total_bytes: int = 0,
+    processed_bytes: int = None,
+    chunk: int = 0,
 ):
-    """ Allows to handle processes of performing episode's file.
-    """
+    """Allows to handle processes of performing episode's file."""
     redis_client = RedisClient()
     filename = os.path.basename(filename)
     event_key = redis_client.get_key_by_filename(filename)
@@ -144,7 +147,7 @@ def upload_episode(filename: str, src_path: str = None) -> Optional[str]:
     result_url = storage.upload_file(
         src_path=src_path,
         dst_path=settings.S3_BUCKET_AUDIO_PATH,
-        callback=partial(upload_process_hook, filename)
+        callback=partial(upload_process_hook, filename),
     )
     if not result_url:
         logger.warning("Couldn't upload file to S3 storage. SKIP")

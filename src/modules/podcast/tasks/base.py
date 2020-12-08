@@ -21,9 +21,9 @@ class RQTask:
         raise NotImplementedError
 
     def __call__(self, *args, **kwargs) -> FinishCode:
-        logger.info(f"==== STARTED task %s ====", self.name)
+        logger.info("==== STARTED task %s ====", self.name)
         finish_code = asyncio.run(self._perform_and_run(*args, **kwargs))
-        logger.info(f"==== FINISHED task %s | code %s ====", self.name, finish_code)
+        logger.info("==== FINISHED task %s | code %s ====", self.name, finish_code)
         return finish_code
 
     def __eq__(self, other):

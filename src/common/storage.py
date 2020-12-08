@@ -12,8 +12,7 @@ import botocore
 from common.utils import get_logger
 from core import settings
 
-# logger = get_logger(__name__)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class StorageS3:
@@ -46,9 +45,7 @@ class StorageS3:
         self, handler: Callable, error_log_level=logging.ERROR, **handler_kwargs
     ) -> Tuple[int, Optional[dict]]:
         try:
-            logger.info(
-                "Executing request (%s) to S3 kwargs: %s", handler.__name__, handler_kwargs,
-            )
+            logger.info("Executing request (%s) to S3 kwargs: %s", handler.__name__, handler_kwargs)
             response = handler(**handler_kwargs)
 
         except botocore.exceptions.ClientError as error:
@@ -137,5 +134,10 @@ class StorageS3:
             dst_path = os.path.join(remote_path, filename)
             await loop.run_in_executor(
                 None,
-                partial(self.__call, self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME,),
+                partial(
+                    self.__call,
+                    self.s3.delete_object,
+                    Key=dst_path,
+                    Bucket=self.BUCKET_NAME,
+                ),
             )

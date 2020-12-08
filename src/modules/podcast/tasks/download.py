@@ -31,7 +31,7 @@ class DownloadEpisodeTask(RQTask):
         try:
             code = await self.perform_run(int(episode_id))
         except DownloadingInterrupted as error:
-            logger.warning(f"Episode downloading was interrupted with code: %i", error.code)
+            logger.warning("Episode downloading was interrupted with code: %i", error.code)
             return error.code.value
 
         return code.value
@@ -46,7 +46,9 @@ class DownloadEpisodeTask(RQTask):
         episode = await Episode.async_get(id=episode_id)
         logger.info(
             "=== [%s] START downloading process URL: %s FILENAME: %s ===",
-            episode.source_id, episode.watch_url, episode.file_name,
+            episode.source_id,
+            episode.watch_url,
+            episode.file_name,
         )
         await self._check_is_needed(episode)
         await self._remove_unfinished(episode)
@@ -62,7 +64,7 @@ class DownloadEpisodeTask(RQTask):
                 "status": status.PUBLISHED,
                 "file_size": self.storage.get_file_size(result_filename),
                 "published_at": episode.created_at,
-            }
+            },
         )
         await self._update_all_rss(episode.source_id)
 
@@ -86,7 +88,7 @@ class DownloadEpisodeTask(RQTask):
                     "status": status.PUBLISHED,
                     "file_size": stored_file_size,
                     "published_at": episode.created_at,
-                }
+                },
             )
             await self._update_all_rss(episode.source_id)
             raise DownloadingInterrupted(code=FinishCode.SKIP)
@@ -149,7 +151,7 @@ class DownloadEpisodeTask(RQTask):
 
         await self._update_episodes(
             episode.source_id,
-            update_data={"file_name": result_filename, "remote_url": remote_url}
+            update_data={"file_name": result_filename, "remote_url": remote_url},
         )
         logger.info("=== [%s] UPLOADING was done === ", episode.source_id)
 

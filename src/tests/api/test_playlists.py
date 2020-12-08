@@ -11,7 +11,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
             "_type": "playlist",
             "id": "pl1234",
             "title": "Playlist pl1234",
-            "entries": [mocked_youtube.info]
+            "entries": [mocked_youtube.info],
         }
         client.login(user)
         response = client.get(self.url, data={"url": mocked_youtube.watch_url})
@@ -27,7 +27,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
                     "thumbnail_url": mocked_youtube.info["thumbnails"][0]["url"],
                     "url": mocked_youtube.info["webpage_url"],
                 }
-            ]
+            ],
         }
 
     def test_retrieve__invalid_playlist_link__fail(self, client, user, mocked_youtube):
@@ -37,7 +37,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         assert response.status_code == 400
         assert response.json() == {
             "error": "Requested data is not valid.",
-            "details": "It seems like incorrect playlist. yt_content_type='video'"
+            "details": "It seems like incorrect playlist. yt_content_type='video'",
         }
 
     def test_retrieve__unsupported_url__fail(self, client, user, mocked_youtube):
@@ -48,5 +48,5 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         assert response.status_code == 400
         assert response.json() == {
             "error": "Requested data is not valid.",
-            "details": f"Couldn't extract playlist: {err_msg}"
+            "details": f"Couldn't extract playlist: {err_msg}",
         }

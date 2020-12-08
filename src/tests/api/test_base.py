@@ -9,7 +9,6 @@ from tests.helpers import get_video_id
 
 
 class BaseTestCase:
-
     @staticmethod
     def async_run(call):
         loop = asyncio.get_event_loop()
@@ -21,17 +20,18 @@ class BaseTestCase:
         podcast: Podcast,
         status: Episode.Status = Episode.Status.NEW,
         file_size: int = 0,
-        source_id: str = None
-
+        source_id: str = None,
     ) -> Episode:
         src_id = source_id or get_video_id()
-        episode_data.update({
-            "podcast_id": podcast.id,
-            "source_id": src_id,
-            "file_name": f"file_name_{src_id}.mp3",
-            "status": status,
-            "file_size": file_size,
-        })
+        episode_data.update(
+            {
+                "podcast_id": podcast.id,
+                "source_id": src_id,
+                "file_name": f"file_name_{src_id}.mp3",
+                "status": status,
+                "file_size": file_size,
+            }
+        )
         return self.async_run(Episode.create(**episode_data))
 
 

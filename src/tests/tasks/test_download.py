@@ -13,7 +13,6 @@ from tests.helpers import get_podcast_data
 
 
 class TestDownloadEpisodeTask(BaseTestCase):
-
     @staticmethod
     def assert_called_with(mock_callable, *args, **kwargs):
         assert mock_callable.called
@@ -24,12 +23,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
             assert mock_call_args.kwargs[key] == value
 
     def test_download_episode__ok(
-        self,
-        episode,
-        mocked_youtube,
-        mocked_ffmpeg,
-        mocked_s3,
-        mocked_generate_rss_task
+        self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task
     ):
         file_path = settings.TMP_AUDIO_PATH / episode.file_name
         with open(file_path, "wb") as file:
@@ -58,18 +52,20 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_youtube,
         mocked_ffmpeg,
         mocked_s3,
-        mocked_generate_rss_task
+        mocked_generate_rss_task,
     ):
         podcast_1 = self.async_run(Podcast.create(**get_podcast_data()))
         podcast_2 = self.async_run(Podcast.create(**get_podcast_data()))
 
-        episode_data.update({
-            "status": "published",
-            "source_id": mocked_youtube.video_id,
-            "watch_url": mocked_youtube.watch_url,
-            "file_size": 1024,
-            "podcast_id": podcast_1.id
-        })
+        episode_data.update(
+            {
+                "status": "published",
+                "source_id": mocked_youtube.video_id,
+                "watch_url": mocked_youtube.watch_url,
+                "file_size": 1024,
+                "podcast_id": podcast_1.id,
+            }
+        )
         self.async_run(Episode.create(**episode_data))
 
         episode_data["status"] = "new"
@@ -89,20 +85,17 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode_2.published_at == episode_2.created_at
 
     def test_download_episode__file_bad_size__ignore(
-        self,
-        episode_data,
-        mocked_youtube,
-        mocked_ffmpeg,
-        mocked_s3,
-        mocked_generate_rss_task
+        self, episode_data, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task
     ):
 
-        episode_data.update({
-            "status": "published",
-            "source_id": mocked_youtube.video_id,
-            "watch_url": mocked_youtube.watch_url,
-            "file_size": 1024,
-        })
+        episode_data.update(
+            {
+                "status": "published",
+                "source_id": mocked_youtube.video_id,
+                "watch_url": mocked_youtube.watch_url,
+                "file_size": 1024,
+            }
+        )
         episode = self.async_run(Episode.create(**episode_data))
 
         file_path = settings.TMP_AUDIO_PATH / episode.file_name
@@ -128,12 +121,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.published_at == episode.created_at
 
     def test_download_episode__downloading_failed__roll_back_changes__ok(
-        self,
-        episode,
-        mocked_youtube,
-        mocked_ffmpeg,
-        mocked_s3,
-        mocked_generate_rss_task
+        self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task
     ):
         file_path = settings.TMP_AUDIO_PATH / episode.file_name
         with open(file_path, "wb") as file:
@@ -153,12 +141,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.published_at is None
 
     def test_download_episode__upload_to_s3_failed__fail(
-        self,
-        episode,
-        mocked_youtube,
-        mocked_ffmpeg,
-        mocked_s3,
-        mocked_generate_rss_task
+        self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task
     ):
         file_path = settings.TMP_AUDIO_PATH / episode.file_name
         with open(file_path, "wb") as file:

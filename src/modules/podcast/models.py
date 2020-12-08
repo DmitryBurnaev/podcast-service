@@ -102,10 +102,7 @@ class Episode(BaseModel):
     @classmethod
     async def get_in_progress(cls, user_id):
         """ Return downloading episodes """
-        return await cls.async_filter(
-            status__in=Episode.PROGRESS_STATUSES,
-            created_by_id=user_id
-        )
+        return await cls.async_filter(status__in=Episode.PROGRESS_STATUSES, created_by_id=user_id)
 
     @property
     def safe_image_url(self) -> str:

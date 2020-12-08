@@ -56,7 +56,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
     def test_create__ok(self, client, user, podcast_data):
         podcast_data = {
             "name": podcast_data["name"],
-            "description": podcast_data["description"]
+            "description": podcast_data["description"],
         }
         client.login(user)
         response = client.post(self.url, json=podcast_data)
@@ -124,7 +124,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         response = client.delete(url)
         assert response.status_code == 204
-        assert self.async_run(Podcast.async_get(id=podcast.id))  is None
+        assert self.async_run(Podcast.async_get(id=podcast.id)) is None
         mocked_s3.delete_files_async.assert_called_with(
             [f"{podcast.publish_id}.xml"], remote_path=settings.S3_BUCKET_RSS_PATH
         )

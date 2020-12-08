@@ -51,4 +51,3 @@ class PlayListAPIView(BaseHTTPEndpoint):
         ]
         res = {"id": youtube_details["id"], "title": youtube_details["title"], "entries": entries}
         return self._response(res)
-

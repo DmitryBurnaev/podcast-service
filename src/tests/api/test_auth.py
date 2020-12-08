@@ -14,10 +14,13 @@ from tests.helpers import async_run
 INVALID_SIGN_IN_DATA = [
     [{"email": "fake-email"}, {"email": "Not a valid email address."}],
     [{"password": ""}, {"password": "Length must be between 2 and 32."}],
-    [{}, {
-        'email': 'Missing data for required field.',
-        'password': 'Missing data for required field.'
-    }],
+    [
+        {},
+        {
+            'email': 'Missing data for required field.',
+            'password': 'Missing data for required field.',
+        },
+    ],
 ]
 
 INVALID_SIGN_UP_DATA = [
@@ -28,7 +31,7 @@ INVALID_SIGN_UP_DATA = [
             'password_1': 'Missing data for required field.',
             'password_2': 'Missing data for required field.',
             'invite_token': 'Missing data for required field.',
-        }
+        },
     ],
     [
         {"email": ("user_" * 30 + "@t.com")},
@@ -43,7 +46,7 @@ INVALID_SIGN_UP_DATA = [
             "email": "test@test.com",
             "invite_token": uuid.uuid4().hex,
             "password_1": "Head",
-            "password_2": "Foo"
+            "password_2": "Foo",
         },
         {"password_1": "Passwords must be equal", "password_2": "Passwords must be equal"},
     ],
@@ -54,7 +57,7 @@ INVALID_SIGN_UP_DATA = [
 ]
 INVALID_INVITE_DATA = [
     [{"email": "fake-email"}, {"email": "Not a valid email address."}],
-    [{}, {'email': 'Missing data for required field.'}]
+    [{}, {'email': 'Missing data for required field.'}],
 ]
 INVALID_CHANGE_PASSWORD_DATA = [
     [{"password_1": "123456", "token": "t"}, {"password_2": "Missing data for required field."}],
@@ -104,7 +107,7 @@ class TestAuthMeAPIView(BaseTestAPIView):
             'id': user.id,
             'email': user.email,
             'is_active': True,
-            'is_superuser': user.is_superuser
+            'is_superuser': user.is_superuser,
         }
 
 
@@ -146,7 +149,7 @@ class TestAuthSignInAPIView(BaseTestAPIView):
                 user_id=self.user.id,
                 is_active=False,
                 refresh_token="refresh_token",
-                expired_at=old_expired_at
+                expired_at=old_expired_at,
             )
         )
         response = client.post(self.url, json={"email": self.email, "password": self.raw_password})
@@ -168,7 +171,7 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         assert response.status_code == 401
         assert response.json() == {
             'error': 'Authentication credentials are invalid.',
-            'details': 'Not found active user with provided email.'
+            'details': 'Not found active user with provided email.',
         }
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_SIGN_IN_DATA)
@@ -181,7 +184,7 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         assert response.status_code == 401
         assert response.json() == {
             'error': 'Authentication credentials are invalid.',
-            'details': 'Not found active user with provided email.'
+            'details': 'Not found active user with provided email.',
         }
 
 
@@ -226,14 +229,17 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
         assert response.status_code == 400
         assert response.json() == {
             "error": "Requested data is not valid.",
-            "details": f"User with email '{user_email}' already exists"
+            "details": f"User with email '{user_email}' already exists",
         }
 
-    @pytest.mark.parametrize("token_update_data", [
-        {"token": f"outdated-token-{uuid.uuid4().hex[:10]}"},
-        {"expired_at": datetime.utcnow() - timedelta(hours=1)},
-        {"is_applied": True}
-    ])
+    @pytest.mark.parametrize(
+        "token_update_data",
+        [
+            {"token": f"outdated-token-{uuid.uuid4().hex[:10]}"},
+            {"expired_at": datetime.utcnow() - timedelta(hours=1)},
+            {"is_applied": True},
+        ],
+    )
     def test_sign_up__token_problems__fail(self, client, user_invite, token_update_data):
         request_data = self._sign_up_data(user_invite)
         self.async_run(user_invite.update(**token_update_data).apply())
@@ -242,7 +248,7 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
         assert response.status_code == 400
         assert response.json() == {
             "error": "Requested data is not valid.",
-            "details": "Invitation link is expired or unavailable"
+            "details": "Invitation link is expired or unavailable",
         }
 
     def test_sign_up__email_mismatch_with_token__fail(self, client, user_invite):
@@ -253,7 +259,7 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
         assert response.status_code == 400
         assert response.json() == {
             "error": "Requested data is not valid.",
-            "details": "Email does not match with your invitation."
+            "details": "Email does not match with your invitation.",
         }
 
 
@@ -265,7 +271,7 @@ class TestSignOutAPIView(BaseTestAPIView):
             UserSession.create(
                 user_id=user.id,
                 refresh_token="refresh_token",
-                expired_at=datetime.now() + timedelta(hours=1)
+                expired_at=datetime.now() + timedelta(hours=1),
             )
         )
         client.login(user)
@@ -330,7 +336,7 @@ class TestUserInviteApiView(BaseTestAPIView):
         assert response.status_code == 400
         assert response.json() == {
             "error": "Requested data is not valid.",
-            "details": f"User with email=[{user.email}] already exists."
+            "details": f"User with email=[{user.email}] already exists.",
         }
 
     def test_invite__user_already_invited__update_invite__ok(self, client, user, mocked_auth_send):
@@ -338,7 +344,10 @@ class TestUserInviteApiView(BaseTestAPIView):
         old_expired_at = datetime.utcnow()
         user_invite = async_run(
             UserInvite.create(
-                email=self.email, token=old_token, expired_at=old_expired_at, created_by_id=user.id,
+                email=self.email,
+                token=old_token,
+                expired_at=old_expired_at,
+                created_by_id=user.id,
             )
         )
 
@@ -399,7 +408,7 @@ class TestResetPasswordAPIView(BaseTestAPIView):
         assert response.status_code == 400
         assert response.json() == {
             "error": "Requested data is not valid.",
-            "details": f"User with email=[fake-email@test.com] not found."
+            "details": "User with email=[fake-email@test.com] not found.",
         }
 
     def test_reset_password__user_is_not_superuser__fail(self, client, user):
@@ -462,7 +471,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         async_run(user.update(is_active=False).apply())
         token, _ = encode_jwt({"user_id": user.id})
         response_data = self._assert_fail_response(client, token)
-        self.assert_auth_invalid(response_data,  f"Couldn't found active user with id={user.id}.")
+        self.assert_auth_invalid(response_data, f"Couldn't found active user with id={user.id}.")
 
     def test_user_does_not_exist__fail(self, client, user):
         user_id = 0

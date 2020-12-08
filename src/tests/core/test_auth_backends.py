@@ -13,14 +13,10 @@ from tests.helpers import async_run
 
 
 class TestBackendAuth:
-
     @staticmethod
     def _prepare_request(user: User):
         jwt, _ = encode_jwt({'user_id': user.id})
-        scope = {
-            "type": "http",
-            "headers": [(b"authorization", f"Bearer {jwt}".encode("latin-1"))]
-        }
+        scope = {"type": "http", "headers": [(b"authorization", f"Bearer {jwt}".encode("latin-1"))]}
         return Request(scope)
 
     def test_check_auth__ok(self, client, user):
@@ -34,24 +30,24 @@ class TestBackendAuth:
             (
                 (b"auth", "JWT"),
                 AuthenticationRequiredError,
-                "Invalid token header. No credentials provided."
+                "Invalid token header. No credentials provided.",
             ),
             (
                 (b"authorization", b"JWT"),
                 AuthenticationFailedError,
-                "Invalid token header. Token should be format as JWT."
+                "Invalid token header. Token should be format as JWT.",
             ),
             (
                 (b"authorization", b"FakeKeyword JWT"),
                 AuthenticationFailedError,
-                "Invalid token header. Keyword mismatch."
+                "Invalid token header. Keyword mismatch.",
             ),
             (
                 (b"authorization", b"Bearer fake-jwt-token"),
                 AuthenticationFailedError,
-                "Token could not be decoded: Not enough segments"
+                "Token could not be decoded: Not enough segments",
             ),
-        ]
+        ],
     )
     def test_invalid_token__fail(self, client, user, auth_header, auth_exception, err_details):
         request = Request(scope={"type": "http", "headers": [auth_header]})

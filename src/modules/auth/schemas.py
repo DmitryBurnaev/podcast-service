@@ -18,7 +18,6 @@ __all__ = [
 
 
 class TwoPasswordsMixin:
-
     @staticmethod
     def is_valid(data: typing.Mapping) -> typing.Mapping:
         if data["password_1"] != data["password_2"]:

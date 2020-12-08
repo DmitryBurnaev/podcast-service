@@ -6,7 +6,6 @@ from tests.api.test_base import BaseTestCase
 
 
 class TaskForTest(RQTask):
-
     def __call__(self, *args, **kwargs) -> FinishCode:
         """ Base __call__ closes event loop (tests needed for running one) """
         loop = asyncio.get_event_loop()
@@ -21,7 +20,6 @@ class TaskForTest(RQTask):
 
 
 class TestRunTask(BaseTestCase):
-
     def test_run__ok(self):
         task = TaskForTest()
         assert task() == FinishCode.OK

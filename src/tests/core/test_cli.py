@@ -12,13 +12,12 @@ class RunTaskParams(NamedTuple):
 
 
 class TestCLIRunTask:
-
     @pytest.mark.parametrize(
         "task_name, task_args, task_class",
         [
             ["GenerateRSSTask", ["1", "2"], GenerateRSSTask],
             ["DownloadEpisodeTask", ["123"], DownloadEpisodeTask],
-        ]
+        ],
     )
     def test_run_task__ok(
         self,
@@ -26,7 +25,7 @@ class TestCLIRunTask:
         mocked_rq_queue,
         task_name: str,
         task_args: List[str],
-        task_class: Type[RQTask]
+        task_class: Type[RQTask],
     ):
         mocked_arg_parser.parse_args.return_value = RunTaskParams(task_name, task_args)
         run_task.main()

@@ -10,7 +10,6 @@ from modules.youtube.utils import ffmpeg_preparation
 
 
 class TestFFMPEG:
-
     def setup_method(self):
         self.filename = "episode_123.mp3"
         self.src_path = os.path.join(settings.TMP_AUDIO_PATH, self.filename)
@@ -41,10 +40,10 @@ class TestFFMPEG:
 
         mocked_popen.target_class.__init__.assert_called_with(
             mocked_popen.target_obj,
-            ["ffmpeg", "-i", self.src_path, "-strict", "-2", "-y", self.tmp_filename]
+            ["ffmpeg", "-i", self.src_path, "-strict", "-2", "-y", self.tmp_filename],
         )
 
-        assert not os.path.exists(self.tmp_filename), f"TMP file wasn't removed: {self.tmp_filename}"
+        assert not os.path.exists(self.tmp_filename), f"File wasn't removed: {self.tmp_filename}"
         mocked_popen.communicate.assert_called_with(timeout=settings.FFMPEG_TIMEOUT)
         self.assert_hooks_calls(
             mocked_process_hook,
@@ -53,7 +52,7 @@ class TestFFMPEG:
                 filename=self.filename,
                 total_bytes=len(b"data"),
                 processed_bytes=len(b"data"),
-            )
+            ),
         )
 
     @patch("modules.youtube.utils.episode_process_hook")
@@ -62,11 +61,11 @@ class TestFFMPEG:
         with pytest.raises(FFMPegPreparationError) as err:
             ffmpeg_preparation(self.filename)
 
-        assert not os.path.exists(self.tmp_filename), f"TMP file wasn't removed: {self.tmp_filename}"
-        assert err.value.details == f"FFMPEG failed with errors: FFMPEG oops"
+        assert not os.path.exists(self.tmp_filename), f"File wasn't removed: {self.tmp_filename}"
+        assert err.value.details == "FFMPEG failed with errors: FFMPEG oops"
         self.assert_hooks_calls(
             mocked_process_hook,
-            finish_call=dict(status=EpisodeStatuses.error, filename=self.filename)
+            finish_call=dict(status=EpisodeStatuses.error, filename=self.filename),
         )
 
     @patch("modules.youtube.utils.episode_process_hook")
@@ -81,5 +80,5 @@ class TestFFMPEG:
         assert err.value.details == f"Failed to rename/remove tmp file: [Errno 2] {msg}"
         self.assert_hooks_calls(
             mocked_process_hook,
-            finish_call=dict(status=EpisodeStatuses.error, filename=self.filename)
+            finish_call=dict(status=EpisodeStatuses.error, filename=self.filename),
         )

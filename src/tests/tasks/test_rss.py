@@ -9,7 +9,6 @@ from tests.helpers import get_episode_data, get_podcast_data
 
 
 class TestGenerateRSSTask(BaseTestCase):
-
     def test_generate__single_podcast__ok(self, user, mocked_s3):
 
         podcast_1: Podcast = self.async_run(Podcast.create(**get_podcast_data()))

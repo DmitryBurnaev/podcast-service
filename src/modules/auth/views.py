@@ -35,12 +35,14 @@ class JWTSessionMixin:
     def _get_tokens(user: User) -> TokenCollection:
         refresh_token, refresh_token_expired_at = encode_jwt({"user_id": user.id}, refresh=True)
         access_token, access_token_expired_at = encode_jwt({"user_id": user.id})
-        return TokenCollection(**{
-            "refresh_token": refresh_token,
-            "refresh_token_expired_at": refresh_token_expired_at,
-            "access_token": access_token,
-            "access_token_expired_at": access_token_expired_at,
-        })
+        return TokenCollection(
+            **{
+                "refresh_token": refresh_token,
+                "refresh_token_expired_at": refresh_token_expired_at,
+                "access_token": access_token,
+                "access_token_expired_at": access_token_expired_at,
+            }
+        )
 
     async def _update_session(self, user: User) -> TokenCollection:
         token_collection = self._get_tokens(user)
@@ -57,7 +59,7 @@ class JWTSessionMixin:
             await UserSession.create(
                 user_id=user.id,
                 refresh_token=token_collection.refresh_token,
-                expired_at=token_collection.refresh_token_expired_at
+                expired_at=token_collection.refresh_token_expired_at,
             )
 
         return token_collection
@@ -103,7 +105,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         )
         await UserInvite.async_update(
             filter_kwargs={"id": user_invite.id},
-            update_data={"is_applied": True, "user_id": user.id}
+            update_data={"is_applied": True, "user_id": user.id},
         )
         await Podcast.create_first_podcast(user.id)
         token_collection = await self._update_session(user)
@@ -119,13 +121,14 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         user_invite = await UserInvite.async_get(
             token=cleaned_data["invite_token"],
             is_applied__is=False,
-            expired_at__gt=datetime.utcnow()
+            expired_at__gt=datetime.utcnow(),
         )
         if not user_invite:
             details = "Invitation link is expired or unavailable"
             logger.error(
                 "Couldn't signup user token: %s | details: %s",
-                cleaned_data["invite_token"], details
+                cleaned_data["invite_token"],
+                details,
             )
             raise InvalidParameterError(details=details)
 
@@ -137,7 +140,6 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
 
 class SignOutAPIView(BaseHTTPEndpoint):
-
     async def get(self, request):
         user = request.user
         logger.info("Log out for user %s", user)

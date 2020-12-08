@@ -6,7 +6,7 @@ from starlette.requests import Request
 from common.exceptions import (
     AuthenticationFailedError,
     AuthenticationRequiredError,
-    PermissionDeniedError
+    PermissionDeniedError,
 )
 from common.utils import get_logger
 from modules.auth.models import User
@@ -61,7 +61,6 @@ class LoginRequiredAuthBackend(BaseAuthJWTBackend):
 
 
 class AdminRequiredAuthBackend(BaseAuthJWTBackend):
-
     async def authenticate_user(self, jwt_token):
         user, jwt_payload = await super().authenticate_user(jwt_token)
         if not user.is_superuser:

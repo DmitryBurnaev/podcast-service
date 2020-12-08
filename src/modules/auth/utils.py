@@ -27,6 +27,4 @@ def encode_jwt(payload, refresh=False, expires_in: int = None) -> Tuple[str, dat
 def decode_jwt(encoded_jwt: str) -> dict:
     """ Allows to decode received JWT token to payload """
 
-    return jwt.decode(
-        encoded_jwt, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
-    )
+    return jwt.decode(encoded_jwt, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])

@@ -17,7 +17,7 @@ from modules.podcast.tasks import GenerateRSSTask
 
 
 class BaseMock:
-    """ Base class for class mocking
+    """Base class for class mocking
 
     # users class
     >>> class Vehicle:
@@ -30,6 +30,7 @@ class BaseMock:
     >>>         self.run = Mock(return_value=None)  # noqa
 
     """
+
     CODE_OK = 0
     target_obj = None
 
@@ -55,6 +56,7 @@ class MockYoutubeDL(BaseMock):
 
     def __init__(self, *_, **__):
         from tests.helpers import get_video_id
+
         self.video_id = get_video_id()
         self.watch_url = f"https://www.youtube.com/watch?v={self.video_id}"
         self.download = Mock()

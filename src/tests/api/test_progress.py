@@ -33,26 +33,29 @@ class TestProgressAPIView(BaseTestAPIView):
         episode_data["created_by_id"] = user.id
         p1_episode_new = self._create_episode(episode_data, podcast_1, STATUS.NEW, MB_1)
         p1_episode_down = self._create_episode(episode_data, podcast_1, STATUS.DOWNLOADING, MB_2)
-        p2_episode_new = self._create_episode(episode_data, podcast_2, STATUS.NEW, MB_1)
         p2_episode_down = self._create_episode(episode_data, podcast_2, STATUS.DOWNLOADING, MB_4)
+        # p2_episode_new
+        self._create_episode(episode_data, podcast_2, STATUS.NEW, MB_1)
 
-        mocked_redis.async_get_many.return_value = mocked_redis.async_return({
-            p1_episode_new.file_name.partition(".")[0]: {
-                "status": EpisodeStatuses.pending,
-                "processed_bytes": 0,
-                "total_bytes": MB_1,
-            },
-            p1_episode_down.file_name.partition(".")[0]: {
-                "status": EpisodeStatuses.episode_downloading,
-                "processed_bytes": MB_1,
-                "total_bytes": MB_2,
-            },
-            p2_episode_down.file_name.partition(".")[0]: {
-                "status": EpisodeStatuses.episode_downloading,
-                "processed_bytes": MB_1,
-                "total_bytes": MB_4,
-            },
-        })
+        mocked_redis.async_get_many.return_value = mocked_redis.async_return(
+            {
+                p1_episode_new.file_name.partition(".")[0]: {
+                    "status": EpisodeStatuses.pending,
+                    "processed_bytes": 0,
+                    "total_bytes": MB_1,
+                },
+                p1_episode_down.file_name.partition(".")[0]: {
+                    "status": EpisodeStatuses.episode_downloading,
+                    "processed_bytes": MB_1,
+                    "total_bytes": MB_2,
+                },
+                p2_episode_down.file_name.partition(".")[0]: {
+                    "status": EpisodeStatuses.episode_downloading,
+                    "processed_bytes": MB_1,
+                    "total_bytes": MB_4,
+                },
+            }
+        )
         client.login(user)
         response = client.get(self.url)
         assert response.status_code == 200, f"Progress API is not available: {response.json()}"
@@ -73,18 +76,20 @@ class TestProgressAPIView(BaseTestAPIView):
         p1_episode_down = self._create_episode(ep_data_1, podcast_1, STATUS.DOWNLOADING, MB_2)
         p2_episode_down = self._create_episode(ep_data_2, podcast_2, STATUS.DOWNLOADING, MB_4)
 
-        mocked_redis.async_get_many.return_value = mocked_redis.async_return({
-            p1_episode_down.file_name.partition(".")[0]: {
-                "status": EpisodeStatuses.episode_downloading,
-                "processed_bytes": MB_1,
-                "total_bytes": MB_2,
-            },
-            p2_episode_down.file_name.partition(".")[0]: {
-                "status": EpisodeStatuses.episode_downloading,
-                "processed_bytes": MB_1,
-                "total_bytes": MB_4,
-            },
-        })
+        mocked_redis.async_get_many.return_value = mocked_redis.async_return(
+            {
+                p1_episode_down.file_name.partition(".")[0]: {
+                    "status": EpisodeStatuses.episode_downloading,
+                    "processed_bytes": MB_1,
+                    "total_bytes": MB_2,
+                },
+                p2_episode_down.file_name.partition(".")[0]: {
+                    "status": EpisodeStatuses.episode_downloading,
+                    "processed_bytes": MB_1,
+                    "total_bytes": MB_4,
+                },
+            }
+        )
         client.login(user_1)
         response = client.get(self.url)
         assert response.status_code == 200, f"Progress API is not available: {response.json()}"

@@ -6,7 +6,6 @@ from hashlib import blake2b
 from typing import Tuple, Type
 from unittest import mock
 
-import pytest
 from starlette.testclient import TestClient
 
 from modules.auth.utils import encode_jwt
@@ -16,7 +15,6 @@ from tests.mocks import BaseMock
 
 
 class PodcastTestClient(TestClient):
-
     def login(self, user: User):
         jwt, _ = encode_jwt({'user_id': user.id})
         self.headers["Authorization"] = f"Bearer {jwt}"
@@ -26,12 +24,13 @@ class PodcastTestClient(TestClient):
 
 
 def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
-    """ Allows to mock any classes (is used as fixture)
+    """Allows to mock any classes (is used as fixture)
 
     # in conftest.py:
-    >>> @pytest.fixture  # noqa
-    >>> def mocked_vechicle(monkeypatch) -> MockVehicle:   # noqa
-    >>>     yield from mock_target_class(MockVehicle, monkeypatch)   # noqa
+    >>> import pytest
+    >>> @pytest.fixture
+    >>> def mocked_vechicle(monkeypatch) -> MockVehicle: # noqa
+    >>>     yield from mock_target_class(MockVehicle, monkeypatch) # noqa
 
     # in test.py:
     >>> def test_something(mocked_sender):
@@ -42,13 +41,16 @@ def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
     mock_obj = mock_class()
 
     def init_method(target_obj=None, *args, **kwargs):
+        nonlocal mock_obj
         mock_obj.target_obj = target_obj
         mock_obj.mock_init(*args, **kwargs)
 
     with mock.patch.object(mock_class.target_class, "__init__", autospec=True) as init:
         init.side_effect = init_method
         for mock_method in mock_obj.get_mocks():
-            monkeypatch.setattr(mock_class.target_class, mock_method, getattr(mock_obj, mock_method))
+            monkeypatch.setattr(
+                mock_class.target_class, mock_method, getattr(mock_obj, mock_method)
+            )
 
         yield mock_obj
 
@@ -101,9 +103,9 @@ def get_podcast_data(**kwargs):
             'publish_id': uid[:32],
             'name': f"Podcast {uid}",
             'description': f"Description: {uid}",
-            'image_url': f"http://link-to-image/{uid}"
+            'image_url': f"http://link-to-image/{uid}",
         },
-        **kwargs
+        **kwargs,
     }
 
 

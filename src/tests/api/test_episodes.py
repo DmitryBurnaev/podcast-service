@@ -22,7 +22,7 @@ def _episode_in_list(episode: Episode):
     return {
         "id": episode.id,
         'title': episode.title,
-        'image_url':  episode.image_url,
+        'image_url': episode.image_url,
         'created_at': episode.created_at.isoformat(),
     }
 
@@ -70,15 +70,21 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         )
         mocked_episode_creator.create.assert_called_once()
 
-    def test_create__start_downloading__ok(self, client, podcast, episode, episode_data, user, mocked_episode_creator, mocked_rq_queue):
+    def test_create__start_downloading__ok(
+        self, client, podcast, episode, episode_data, user, mocked_episode_creator, mocked_rq_queue
+    ):
         mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
         client.login(user)
         url = self.url.format(id=podcast.id)
         response = client.post(url, json={"youtube_link": episode_data["watch_url"]})
         assert response.status_code == 201
-        mocked_rq_queue.enqueue.assert_called_with(tasks.DownloadEpisodeTask(), episode_id=episode.id)
+        mocked_rq_queue.enqueue.assert_called_with(
+            tasks.DownloadEpisodeTask(), episode_id=episode.id
+        )
 
-    def test_create__youtube_error__fail(self, client, podcast, episode_data, user, mocked_episode_creator):
+    def test_create__youtube_error__fail(
+        self, client, podcast, episode_data, user, mocked_episode_creator
+    ):
         mocked_episode_creator.create.side_effect = YoutubeFetchError("Oops")
         client.login(user)
         url = self.url.format(id=podcast.id)
@@ -86,7 +92,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         assert response.status_code == 500
         assert response.json() == {
             "error": "We couldn't extract info about requested episode.",
-            "details": "Oops"
+            "details": "Oops",
         }
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_CREATE_DATA)
@@ -168,7 +174,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
             (Episode.Status.NEW, True),
             (Episode.Status.PUBLISHED, False),
             (Episode.Status.DOWNLOADING, False),
-        ]
+        ],
     )
     def test_delete__same_episode_exists__ok(
         self,
