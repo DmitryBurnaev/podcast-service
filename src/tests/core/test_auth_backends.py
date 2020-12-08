@@ -15,7 +15,7 @@ from tests.helpers import async_run
 class TestBackendAuth:
     @staticmethod
     def _prepare_request(user: User):
-        jwt, _ = encode_jwt({'user_id': user.id})
+        jwt, _ = encode_jwt({"user_id": user.id})
         scope = {"type": "http", "headers": [(b"authorization", f"Bearer {jwt}".encode("latin-1"))]}
         return Request(scope)
 

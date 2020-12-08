@@ -62,8 +62,8 @@ class BaseTestAPIView(BaseTestCase):
     def assert_unauth(response: Response):
         assert response.status_code == 401
         assert response.json() == {
-            'error': 'Authentication is required.',
-            'details': 'Invalid token header. No credentials provided.',
+            "error": "Authentication is required.",
+            "details": "Invalid token header. No credentials provided.",
         }
 
     @staticmethod
@@ -73,6 +73,6 @@ class BaseTestAPIView(BaseTestCase):
             response = response.json()
 
         assert response == {
-            'error': "Authentication credentials are invalid.",
-            'details': details,
+            "error": "Authentication credentials are invalid.",
+            "details": details,
         }

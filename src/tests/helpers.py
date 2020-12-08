@@ -16,7 +16,7 @@ from tests.mocks import BaseMock
 
 class PodcastTestClient(TestClient):
     def login(self, user: User):
-        jwt, _ = encode_jwt({'user_id': user.id})
+        jwt, _ = encode_jwt({"user_id": user.id})
         self.headers["Authorization"] = f"Bearer {jwt}"
 
     def logout(self):
@@ -100,10 +100,10 @@ def get_podcast_data(**kwargs):
     uid = uuid.uuid4().hex
     return {
         **{
-            'publish_id': uid[:32],
-            'name': f"Podcast {uid}",
-            'description': f"Description: {uid}",
-            'image_url': f"http://link-to-image/{uid}",
+            "publish_id": uid[:32],
+            "name": f"Podcast {uid}",
+            "description": f"Description: {uid}",
+            "image_url": f"http://link-to-image/{uid}",
         },
         **kwargs,
     }

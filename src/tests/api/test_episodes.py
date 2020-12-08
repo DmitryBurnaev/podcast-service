@@ -21,26 +21,26 @@ INVALID_CREATE_DATA = [
 def _episode_in_list(episode: Episode):
     return {
         "id": episode.id,
-        'title': episode.title,
-        'image_url': episode.image_url,
-        'created_at': episode.created_at.isoformat(),
+        "title": episode.title,
+        "image_url": episode.image_url,
+        "created_at": episode.created_at.isoformat(),
     }
 
 
 def _episode_details(episode: Episode):
     return {
         "id": episode.id,
-        'title': episode.title,
-        'author': episode.author,
-        'status': str(episode.status),
-        'length': episode.length,
-        'watch_url': episode.watch_url,
-        'remote_url': episode.remote_url,
-        'image_url': episode.image_url,
-        'file_size': episode.file_size,
-        'description': episode.description,
-        'created_at': episode.created_at.isoformat(),
-        'published_at': episode.published_at.isoformat() if episode.published_at else None,
+        "title": episode.title,
+        "author": episode.author,
+        "status": str(episode.status),
+        "length": episode.length,
+        "watch_url": episode.watch_url,
+        "remote_url": episode.remote_url,
+        "image_url": episode.image_url,
+        "file_size": episode.file_size,
+        "description": episode.description,
+        "created_at": episode.created_at.isoformat(),
+        "published_at": episode.published_at.isoformat() if episode.published_at else None,
     }
 
 

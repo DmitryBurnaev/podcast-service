@@ -108,8 +108,8 @@ class DownloadEpisodeTask(RQTask):
                 error,
             )
             await Episode.async_update(
-                filter_kwargs={'source_id': episode.source_id},
-                update_data={'status': Episode.Status.NEW},
+                filter_kwargs={"source_id": episode.source_id},
+                update_data={"status": Episode.Status.NEW},
             )
             raise DownloadingInterrupted(code=FinishCode.ERROR)
 

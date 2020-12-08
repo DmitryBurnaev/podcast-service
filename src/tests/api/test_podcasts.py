@@ -20,10 +20,10 @@ INVALID_CREATE_DATA = INVALID_UPDATE_DATA + [
 def _podcast(podcast):
     return {
         "id": podcast.id,
-        'name': podcast.name,
-        'description': podcast.description,
-        'image_url': podcast.image_url,
-        'created_at': podcast.created_at.isoformat(),
+        "name": podcast.name,
+        "description": podcast.description,
+        "image_url": podcast.image_url,
+        "created_at": podcast.created_at.isoformat(),
     }
 
 

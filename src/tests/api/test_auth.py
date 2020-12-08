@@ -17,8 +17,8 @@ INVALID_SIGN_IN_DATA = [
     [
         {},
         {
-            'email': 'Missing data for required field.',
-            'password': 'Missing data for required field.',
+            "email": "Missing data for required field.",
+            "password": "Missing data for required field.",
         },
     ],
 ]
@@ -27,10 +27,10 @@ INVALID_SIGN_UP_DATA = [
     [
         {},
         {
-            'email': 'Missing data for required field.',
-            'password_1': 'Missing data for required field.',
-            'password_2': 'Missing data for required field.',
-            'invite_token': 'Missing data for required field.',
+            "email": "Missing data for required field.",
+            "password_1": "Missing data for required field.",
+            "password_2": "Missing data for required field.",
+            "invite_token": "Missing data for required field.",
         },
     ],
     [
@@ -57,7 +57,7 @@ INVALID_SIGN_UP_DATA = [
 ]
 INVALID_INVITE_DATA = [
     [{"email": "fake-email"}, {"email": "Not a valid email address."}],
-    [{}, {'email': 'Missing data for required field.'}],
+    [{}, {"email": "Missing data for required field."}],
 ]
 INVALID_CHANGE_PASSWORD_DATA = [
     [{"password_1": "123456", "token": "t"}, {"password_2": "Missing data for required field."}],
@@ -85,13 +85,13 @@ def assert_tokens(response: Response, user: User):
     access_exp_dt = datetime.fromisoformat(decoded_access_token.pop("exp_iso"))
     assert access_exp_dt > datetime.utcnow()
     assert decoded_access_token.get("user_id") == user.id, decoded_access_token
-    assert decoded_access_token.get("token_type") == 'access', decoded_access_token
+    assert decoded_access_token.get("token_type") == "access", decoded_access_token
 
     decoded_refresh_token = decode_jwt(refresh_token)
     refresh_exp_dt = datetime.fromisoformat(decoded_refresh_token.pop("exp_iso"))
     assert refresh_exp_dt > datetime.utcnow()
     assert decoded_refresh_token.get("user_id") == user.id, decoded_refresh_token
-    assert decoded_refresh_token.get("token_type") == 'refresh', decoded_refresh_token
+    assert decoded_refresh_token.get("token_type") == "refresh", decoded_refresh_token
 
     assert refresh_exp_dt > access_exp_dt
 
@@ -104,10 +104,10 @@ class TestAuthMeAPIView(BaseTestAPIView):
         response = client.get(self.url)
         assert response.status_code == 200
         assert response.json() == {
-            'id': user.id,
-            'email': user.email,
-            'is_active': True,
-            'is_superuser': user.is_superuser,
+            "id": user.id,
+            "email": user.email,
+            "is_active": True,
+            "is_superuser": user.is_superuser,
         }
 
 
@@ -170,8 +170,8 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         response = client.post(self.url, json={"email": "fake@t.ru", "password": self.raw_password})
         assert response.status_code == 401
         assert response.json() == {
-            'error': 'Authentication credentials are invalid.',
-            'details': 'Not found active user with provided email.',
+            "error": "Authentication credentials are invalid.",
+            "details": "Not found active user with provided email.",
         }
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_SIGN_IN_DATA)
@@ -183,8 +183,8 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         response = client.post(self.url, json={"email": self.email, "password": self.raw_password})
         assert response.status_code == 401
         assert response.json() == {
-            'error': 'Authentication credentials are invalid.',
-            'details': 'Not found active user with provided email.',
+            "error": "Authentication credentials are invalid.",
+            "details": "Not found active user with provided email.",
         }
 
 
@@ -484,7 +484,7 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
     url = "/api/auth/refresh-token/"
 
     INVALID_REFRESH_TOKEN_DATA = [
-        [{}, {'refresh_token': 'Missing data for required field.'}],
+        [{}, {"refresh_token": "Missing data for required field."}],
         [{"refresh_token": ""}, {"refresh_token": "Length must be between 10 and 256."}],
     ]
 

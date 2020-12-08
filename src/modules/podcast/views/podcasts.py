@@ -40,21 +40,21 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
     schema_response = PodcastDetailsSchema
 
     async def get(self, request):
-        podcast_id = request.path_params['podcast_id']
+        podcast_id = request.path_params["podcast_id"]
         podcast = await self._get_object(podcast_id)
         return self._response(podcast)
 
     @db_transaction
     async def patch(self, request):
         cleaned_data = await self._validate(request, partial_=True)
-        podcast_id = request.path_params['podcast_id']
+        podcast_id = request.path_params["podcast_id"]
         podcast = await self._get_object(podcast_id)
         await podcast.update(**cleaned_data).apply()
         return self._response(podcast)
 
     @db_transaction
     async def delete(self, request):
-        podcast_id = int(request.path_params['podcast_id'])
+        podcast_id = int(request.path_params["podcast_id"])
         podcast = await self._get_object(podcast_id)
         episodes = await Episode.async_filter(podcast_id=podcast_id)
         await podcast.delete()
@@ -95,7 +95,7 @@ class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):
     db_model = Podcast
 
     async def put(self, request):
-        podcast_id = request.path_params['podcast_id']
+        podcast_id = request.path_params["podcast_id"]
         podcast = await self._get_object(podcast_id)
         await self._run_task(GenerateRSSTask, podcast.id)
         return self._response(status_code=status.HTTP_204_NO_CONTENT)

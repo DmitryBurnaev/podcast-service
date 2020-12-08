@@ -40,6 +40,6 @@ clean-pyc:
 	find . -name '.coverage' -exec rm -fr {} +
 
 lint:
-	pipenv run black . --exclude migrations --line-length 100 --skip-string-normalization
+	pipenv run black . --exclude migrations --line-length 100
 	pipenv run flake8
 	make clean-pyc

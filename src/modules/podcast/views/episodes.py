@@ -23,13 +23,13 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
     schema_response = EpisodeListSchema
 
     async def get(self, request):
-        podcast_id = request.path_params['podcast_id']
+        podcast_id = request.path_params["podcast_id"]
         episodes = await Episode.async_filter(podcast_id=podcast_id)
         return self._response(episodes)
 
     @db_transaction
     async def post(self, request):
-        podcast_id = request.path_params['podcast_id']
+        podcast_id = request.path_params["podcast_id"]
         podcast = await self._get_object(podcast_id, db_model=Podcast)
         cleaned_data = await self._validate(request)
         episode_creator = EpisodeCreator(
@@ -51,13 +51,13 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
     schema_response = EpisodeDetailsSchema
 
     async def get(self, request):
-        episode_id = request.path_params['episode_id']
+        episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
         return self._response(episode)
 
     @db_transaction
     async def patch(self, request):
-        episode_id = request.path_params['episode_id']
+        episode_id = request.path_params["episode_id"]
         cleaned_data = await self._validate(request, partial_=True)
         episode = await self._get_object(episode_id)
         await episode.update(**cleaned_data).apply()
@@ -65,7 +65,7 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
 
     @db_transaction
     async def delete(self, request):
-        episode_id = request.path_params['episode_id']
+        episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
         await episode.delete()
         await self._delete_file(episode)
@@ -97,7 +97,7 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
     schema_response = EpisodeDetailsSchema
 
     async def put(self, request):
-        episode_id = request.path_params['episode_id']
+        episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
 
         logger.info(f'Start download process for "{episode.watch_url}"')

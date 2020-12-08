@@ -3,7 +3,7 @@ from modules.auth import views
 
 routes = [
     Mount(
-        '/auth',
+        "/auth",
         routes=[
             Route("/me/", views.ProfileApiView),
             Route("/sign-in/", views.SignInAPIView),
