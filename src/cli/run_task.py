@@ -4,7 +4,7 @@ import rq
 from redis import Redis
 
 from core import settings
-from modules.podcast.tasks import *
+from modules.podcast.tasks import RQTask
 
 
 def main():

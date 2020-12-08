@@ -14,7 +14,18 @@ from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBack
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.utils import encode_jwt
-from modules.auth.schemas import *
+from modules.auth.schemas import (
+    JWTResponseSchema,
+    SignInSchema,
+    SignUpSchema,
+    RefreshTokenSchema,
+    UserResponseSchema,
+    ChangePasswordSchema,
+    UserInviteRequestSchema,
+    UserInviteResponseSchema,
+    ResetPasswordRequestSchema,
+    ResetPasswordResponseSchema,
+)
 from modules.podcast.models import Podcast
 
 logger = get_logger(__name__)

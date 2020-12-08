@@ -7,7 +7,12 @@ from common.views import BaseHTTPEndpoint
 from modules.podcast import tasks
 from modules.podcast.episodes import EpisodeCreator
 from modules.podcast.models import Episode, Podcast
-from modules.podcast.schemas import *
+from modules.podcast.schemas import (
+    EpisodeListSchema,
+    EpisodeCreateSchema,
+    EpisodeUpdateSchema,
+    EpisodeDetailsSchema,
+)
 
 
 logger = get_logger(__name__)
