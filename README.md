@@ -128,9 +128,9 @@ make lint
 | SITE_URL                  | Your URL address (is used for email links)        | http://podcast.st.com |
 | DB_HOST                   | PostgreSQL database host                          | 127.0.0.1             |
 | DB_PORT                   | PostgreSQL database port                          | 5432                  |
-| DB_NAME                   | PostgreSQL database name                          | polls                 |
-| DB_USERNAME               | PostgreSQL database username                      | polls                 |
-| DB_PASSWORD               | PostgreSQL database password                      | polls_asf2342         |
+| DB_NAME                   | PostgreSQL database name                          | podcast               |
+| DB_USERNAME               | PostgreSQL database username                      | podcast               |
+| DB_PASSWORD               | PostgreSQL database password                      | podcast_asf2342       |
 | S3_STORAGE_URL            | URL to S3-like file storage                       | https://storage.yandexcloud.net/ |
 | S3_ACCESS_KEY_ID          | Public key to S3 storage                          |                       |
 | S3_SECRET_ACCESS_KEY      | Secret key to S3 storage                          |                       |

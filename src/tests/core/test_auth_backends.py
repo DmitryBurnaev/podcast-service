@@ -72,14 +72,12 @@ class TestBackendAuth:
 
         assert err.value.details == f"Couldn't found active session for user #{user.id}."
 
-    @pytest.mark.parametrize(
-        "token_type", [TOKEN_TYPE_REFRESH, TOKEN_TYPE_RESET_PASSWORD]
-    )
+    @pytest.mark.parametrize("token_type", [TOKEN_TYPE_REFRESH, TOKEN_TYPE_RESET_PASSWORD])
     def test_check_auth__token_type_mismatch__fail(self, client, user, user_session, token_type):
         async_run(user_session.update(is_active=False).apply())
         token, _ = encode_jwt({"user_id": user.id}, token_type=token_type)
         with pytest.raises(AuthenticationFailedError) as err:
-            async_run(BaseAuthJWTBackend().authenticate_user(token, token_type='access'))
+            async_run(BaseAuthJWTBackend().authenticate_user(token, token_type="access"))
 
         assert err.value.details == f"Token type 'access' expected, got '{token_type}' instead."
 

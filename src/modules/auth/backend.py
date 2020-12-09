@@ -17,6 +17,7 @@ logger = get_logger(__name__)
 
 class BaseAuthJWTBackend:
     """ Core of authenticate system, based on JWT auth approach """
+
     keyword = "Bearer"
 
     async def authenticate(self, request: Request):
@@ -36,9 +37,7 @@ class BaseAuthJWTBackend:
         return user
 
     async def authenticate_user(
-            self,
-            jwt_token: str,
-            token_type: str = TOKEN_TYPE_ACCESS
+        self, jwt_token: str, token_type: str = TOKEN_TYPE_ACCESS
     ) -> Tuple[User, dict]:
         """ Allows to find active user by jwt_token """
 

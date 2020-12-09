@@ -40,7 +40,7 @@ class SignUpSchema(TwoPasswordsMixin, Schema):
 
 
 class RefreshTokenSchema(Schema):
-    refresh_token = fields.Str(required=True, validate=validate.Length(min=10, max=256))
+    refresh_token = fields.Str(required=True, validate=validate.Length(min=10, max=512))
 
 
 class JWTResponseSchema(Schema):

@@ -6,8 +6,13 @@ from requests import Response
 
 from core import settings
 from modules.auth.models import User, UserSession, UserInvite
-from modules.auth.utils import decode_jwt, encode_jwt, TOKEN_TYPE_RESET_PASSWORD, \
-    TOKEN_TYPE_REFRESH, TOKEN_TYPE_ACCESS
+from modules.auth.utils import (
+    decode_jwt,
+    encode_jwt,
+    TOKEN_TYPE_RESET_PASSWORD,
+    TOKEN_TYPE_REFRESH,
+    TOKEN_TYPE_ACCESS,
+)
 from modules.podcast.models import Podcast
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import async_run
@@ -430,7 +435,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         assert response.status_code == 401
         return response.json()
 
-    def test_change_password__ok(self, client, user):
+    def test_change_password__ok(self, client, user, user_session):
         token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
         request_data = {
             "token": token,
@@ -461,7 +466,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_REFRESH)
         response_data = self._assert_fail_response(client, token)
         self.assert_auth_invalid(
-            response_data, "Token could not be decoded: Signature has expired."
+            response_data, "Token type 'reset_password' expected, got 'refresh' instead."
         )
 
     def test_token_invalid__fail(self, client, user):
@@ -470,13 +475,13 @@ class TestChangePasswordAPIView(BaseTestAPIView):
 
     def test_user_inactive__fail(self, client, user):
         async_run(user.update(is_active=False).apply())
-        token, _ = encode_jwt({"user_id": user.id})
+        token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
         response_data = self._assert_fail_response(client, token)
         self.assert_auth_invalid(response_data, f"Couldn't found active user with id={user.id}.")
 
     def test_user_does_not_exist__fail(self, client, user):
         user_id = 0
-        token, _ = encode_jwt({"user_id": user_id})
+        token, _ = encode_jwt({"user_id": user_id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
         response_data = self._assert_fail_response(client, token)
         self.assert_auth_invalid(response_data, f"Couldn't found active user with id={user_id}.")
 
@@ -486,7 +491,7 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
 
     INVALID_REFRESH_TOKEN_DATA = [
         [{}, {"refresh_token": "Missing data for required field."}],
-        [{"refresh_token": ""}, {"refresh_token": "Length must be between 10 and 256."}],
+        [{"refresh_token": ""}, {"refresh_token": "Length must be between 10 and 512."}],
     ]
 
     @staticmethod
@@ -519,15 +524,17 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
     def test_refresh_token__session_inactive__fail(self, client, user):
         session = self._prepare_token(user, is_active=False)
         response = client.post(self.url, json={"refresh_token": session.refresh_token})
-        self.assert_auth_invalid(response, "There is not active session for user.")
+        self.assert_auth_invalid(response, f"Couldn't found active session for user #{user.id}.")
 
-    def test_refresh_token__token_not_refresh__fail(self, client, user):
-        session = self._prepare_token(user, is_active=True, refresh=False)
-        response = client.post(self.url, json={"refresh_token": session.refresh_token})
-        assert response.status_code == 400
+    @pytest.mark.parametrize("token_type", [TOKEN_TYPE_ACCESS, TOKEN_TYPE_RESET_PASSWORD])
+    def test_refresh_token__token_not_refresh__fail(self, client, user, token_type):
+        refresh_token, _ = encode_jwt({"user_id": user.id}, token_type=token_type)
+        print(refresh_token)
+        response = client.post(self.url, json={"refresh_token": refresh_token})
+        assert response.status_code == 401
         assert response.json() == {
-            "error": "Requested data is not valid.",
-            "details": "Refresh token has invalid token-type.",
+            "error": "Authentication credentials are invalid.",
+            "details": f"Token type 'refresh' expected, got '{token_type}' instead.",
         }
 
     def test_refresh_token__token_mismatch__fail(self, client, user):
