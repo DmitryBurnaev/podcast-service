@@ -6,7 +6,8 @@ from requests import Response
 
 from core import settings
 from modules.auth.models import User, UserSession, UserInvite
-from modules.auth.utils import decode_jwt, encode_jwt
+from modules.auth.utils import decode_jwt, encode_jwt, TOKEN_TYPE_RESET_PASSWORD, \
+    TOKEN_TYPE_REFRESH, TOKEN_TYPE_ACCESS
 from modules.podcast.models import Podcast
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import async_run
@@ -267,14 +268,7 @@ class TestSignOutAPIView(BaseTestAPIView):
     url = "/api/auth/sign-out/"
 
     def test_sign_out__ok(self, client, user):
-        user_session = self.async_run(
-            UserSession.create(
-                user_id=user.id,
-                refresh_token="refresh_token",
-                expired_at=datetime.now() + timedelta(hours=1),
-            )
-        )
-        client.login(user)
+        user_session = client.login(user)
         response = client.get(self.url)
         assert response.status_code == 204
 
@@ -437,7 +431,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         return response.json()
 
     def test_change_password__ok(self, client, user):
-        token, _ = encode_jwt({"user_id": user.id})
+        token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
         request_data = {
             "token": token,
             "password_1": self.new_password,
@@ -456,8 +450,15 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         client.logout()
         self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
 
-    def test_token_expired__fail(self, client, user):
+    def test__token_expired__fail(self, client, user):
         token, _ = encode_jwt({"user_id": user.id}, expires_in=-10)
+        response_data = self._assert_fail_response(client, token)
+        self.assert_auth_invalid(
+            response_data, "Token could not be decoded: Signature has expired."
+        )
+
+    def test__token_invalid_type__fail(self, client, user):
+        token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_REFRESH)
         response_data = self._assert_fail_response(client, token)
         self.assert_auth_invalid(
             response_data, "Token could not be decoded: Signature has expired."
@@ -490,7 +491,8 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
 
     @staticmethod
     def _prepare_token(user: User, is_active=True, refresh=True) -> UserSession:
-        refresh_token, _ = encode_jwt({"user_id": user.id}, refresh=refresh)
+        token_type = TOKEN_TYPE_REFRESH if refresh else TOKEN_TYPE_ACCESS
+        refresh_token, _ = encode_jwt({"user_id": user.id}, token_type=token_type)
         user_session = async_run(
             UserSession.create(
                 user_id=user.id,

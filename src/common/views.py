@@ -2,29 +2,33 @@ import asyncio
 from functools import partial
 from typing import Type, Union, Iterable, Any
 
-from marshmallow import Schema, ValidationError
 from starlette import status
-from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
+from starlette.endpoints import HTTPEndpoint
+from marshmallow import Schema, ValidationError
 from starlette.responses import JSONResponse, Response
 from webargs_starlette import parser, WebargsHTTPException
 
 from common.exceptions import (
-    InvalidParameterError,
-    BaseApplicationError,
-    UnexpectedError,
     NotFoundError,
+    UnexpectedError,
+    BaseApplicationError,
+    InvalidParameterError,
 )
+from core.database import db
 from common.typing import DBModel
 from common.utils import get_logger
-from core.database import db
-from modules.auth.backend import LoginRequiredAuthBackend
 from modules.podcast.tasks.base import RQTask
+from modules.auth.backend import LoginRequiredAuthBackend
 
 logger = get_logger(__name__)
 
 
 class BaseHTTPEndpoint(HTTPEndpoint):
+    """
+    Base View witch used as a base class for every API's endpoints
+    """
+
     request: Request = None
     app = None
     db_model: DBModel = NotImplemented
@@ -33,6 +37,11 @@ class BaseHTTPEndpoint(HTTPEndpoint):
     schema_response: Type[Schema] = NotImplemented
 
     async def dispatch(self) -> None:
+        """
+        This method is calling in every request.
+        So, we can use this one for customs authenticate and catch all exceptions
+        """
+
         self.request = Request(self.scope, receive=self.receive)
         self.app = self.scope.get("app")
 
@@ -42,12 +51,11 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         handler_name = "get" if self.request.method == "HEAD" else self.request.method.lower()
         handler = getattr(self, handler_name, self.method_not_allowed)
+
         try:
             response = await handler(self.request)
-
         except (BaseApplicationError, WebargsHTTPException) as err:
             raise err
-
         except Exception as err:
             error_details = repr(err)
             logger.exception("Unexpected error handled: %s", error_details)
@@ -56,10 +64,15 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         await response(self.scope, self.receive, self.send)
 
     async def _get_object(self, instance_id, db_model: DBModel = None, **filter_kwargs) -> db.Model:
+        """
+        Returns current object (only for logged-in or admin user) for CRUD API
+        """
+
         db_model = db_model or self.db_model
-        instance = await db_model.async_get(
-            id=instance_id, created_by_id=self.request.user.id, **filter_kwargs
-        )
+        if not self.request.user.is_superuser:
+            filter_kwargs["created_by_id"] = self.request.user.id
+
+        instance = await db_model.async_get(id=instance_id, **filter_kwargs)
         if not instance:
             raise NotFoundError(
                 f"{db_model.__name__} #{instance_id} does not exist or belongs to another user"
@@ -68,6 +81,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         return instance
 
     async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
+        """ Simple validation, based on marshmallow's schemas """
 
         schema_kwargs = {}
         if partial_:
@@ -90,7 +104,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         data: Any = None,
         status_code: int = status.HTTP_200_OK,
     ) -> Response:
-        """ Shortcut for returning JSON-response  """
+        """ Returns JSON-Response (with single instance or list of them) or empty Response """
 
         response_instance = instance if (instance is not None) else data
 
@@ -105,6 +119,8 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         return Response(status_code=status_code)
 
     async def _run_task(self, task_class: Type[RQTask], *args, **kwargs):
+        """ Enqueue RQ task """
+
         logger.info(f"RUN task {task_class}")
         loop = asyncio.get_running_loop()
         task = task_class()

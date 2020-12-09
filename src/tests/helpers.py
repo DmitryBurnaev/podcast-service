@@ -2,6 +2,7 @@ import asyncio
 import random
 import time
 import uuid
+from datetime import datetime, timedelta
 from hashlib import blake2b
 from typing import Tuple, Type
 from unittest import mock
@@ -9,15 +10,17 @@ from unittest import mock
 from starlette.testclient import TestClient
 
 from modules.auth.utils import encode_jwt
-from modules.auth.models import User
+from modules.auth.models import User, UserSession
 from modules.podcast.models import Podcast
 from tests.mocks import BaseMock
 
 
 class PodcastTestClient(TestClient):
     def login(self, user: User):
+        user_session = create_user_session(user)
         jwt, _ = encode_jwt({"user_id": user.id})
         self.headers["Authorization"] = f"Bearer {jwt}"
+        return user_session
 
     def logout(self):
         self.headers.pop("Authorization", None)
@@ -94,6 +97,20 @@ def create_user():
     email, password = get_user_data()
     loop = asyncio.get_event_loop()
     return loop.run_until_complete(User.create(email=email, password=password))
+
+
+def create_user_session(user):
+    loop = asyncio.get_event_loop()
+    return loop.run_until_complete(
+        UserSession.create(
+            user_id=user.id,
+            refresh_token="refresh-token",
+            is_active=True,
+            expired_at=datetime.utcnow() + timedelta(seconds=120),
+            created_at=datetime.utcnow(),
+            last_login=datetime.utcnow(),
+        )
+    )
 
 
 def get_podcast_data(**kwargs):

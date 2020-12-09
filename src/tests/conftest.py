@@ -17,7 +17,7 @@ from tests.helpers import (
     get_episode_data,
     create_user,
     get_podcast_data,
-    mock_target_class,
+    mock_target_class, create_user_session,
 )
 from tests.mocks import (
     MockYoutubeDL,
@@ -116,6 +116,11 @@ def loop():
 @pytest.fixture
 def user():
     return create_user()
+
+
+@pytest.fixture
+def user_session(user, loop):
+    return create_user_session(user)
 
 
 @pytest.fixture

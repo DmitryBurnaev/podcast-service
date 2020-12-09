@@ -53,6 +53,9 @@ async def send_email(recipient_email: str, subject: str, html_content: str):
 
 
 def log_message(exc, error_data, level=logging.ERROR):
+    """
+    Helps to log caught errors by exception handler
+    """
     logger = get_logger(__name__)
 
     error_details = {

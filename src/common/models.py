@@ -6,7 +6,7 @@ from core.database import db
 
 
 class BaseModel(db.Model):
-    """ Base schema_request with db Meta """
+    """ Base model for Gino (sqlalchemy) ORM """
 
     class Meta:
         order_by = ("id",)

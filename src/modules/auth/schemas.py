@@ -6,14 +6,14 @@ from webargs import fields, validate
 __all__ = [
     "SignInSchema",
     "SignUpSchema",
-    "RefreshTokenSchema",
     "JWTResponseSchema",
+    "UserResponseSchema",
+    "RefreshTokenSchema",
+    "ChangePasswordSchema",
     "UserInviteRequestSchema",
     "UserInviteResponseSchema",
     "ResetPasswordRequestSchema",
     "ResetPasswordResponseSchema",
-    "ChangePasswordSchema",
-    "UserResponseSchema",
 ]
 
 
