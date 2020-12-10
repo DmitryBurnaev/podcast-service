@@ -41,7 +41,7 @@ class BaseAuthJWTBackend:
     ) -> Tuple[User, dict]:
         """ Allows to find active user by jwt_token """
 
-        logger.info("Logging via JWT auth. Got token: %s", jwt_token)
+        logger.debug("Logging via JWT auth. Got token: %s", jwt_token)
         try:
             jwt_payload = decode_jwt(jwt_token)
         except JWTError as error:

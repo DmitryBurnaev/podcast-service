@@ -116,7 +116,12 @@ def ffmpeg_preparation(filename: str):
         processed_bytes=0,
     )
     tmp_filename = os.path.join(settings.TMP_AUDIO_PATH, f"tmp_{filename}")
-    proc = subprocess.Popen(["ffmpeg", "-i", src_path, "-strict", "-2", "-y", tmp_filename])
+    proc = subprocess.Popen(
+        ["ffmpeg", "-i", src_path, "-strict", "-2", "-y", tmp_filename],
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
     outs, errs = proc.communicate(timeout=settings.FFMPEG_TIMEOUT)
     if errs:
         episode_process_hook(status=EpisodeStatuses.error, filename=filename)
@@ -124,7 +129,7 @@ def ffmpeg_preparation(filename: str):
             os.remove(tmp_filename)
         raise FFMPegPreparationError(f"FFMPEG failed with errors: {errs}")
 
-    logger.info("FFMPEG results for file %s: \n %s", filename, outs)
+    logger.info("FFMPEG results for file %s:\n%s", filename, outs)
 
     try:
         os.remove(src_path)
