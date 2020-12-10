@@ -1,5 +1,3 @@
-from typing import List
-
 from starlette import status
 
 from core import settings
@@ -15,6 +13,8 @@ logger = get_logger(__name__)
 
 
 class PodcastListCreateAPIView(BaseHTTPEndpoint):
+    """ List and Create API for podcasts """
+
     schema_request = PodcastCreateUpdateSchema
     schema_response = PodcastDetailsSchema
 
@@ -35,6 +35,8 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
 
 
 class PodcastRUDAPIView(BaseHTTPEndpoint):
+    """ Retrieve, Update, Delete API for podcasts """
+
     db_model = Podcast
     schema_request = PodcastCreateUpdateSchema
     schema_response = PodcastDetailsSchema
@@ -62,7 +64,7 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         return self._response(status_code=status.HTTP_204_NO_CONTENT)
 
     @staticmethod
-    async def _delete_files(podcast: Podcast, episodes: List[Episode]):
+    async def _delete_files(podcast: Podcast, episodes: list[Episode]):
         podcast_file_names = {
             episode.file_name for episode in episodes if episode.status == Episode.Status.PUBLISHED
         }

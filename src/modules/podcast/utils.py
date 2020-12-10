@@ -129,6 +129,7 @@ def episode_process_hook(
         progress = "{0:.2%}".format(processed_bytes / total_bytes)
     else:
         progress = f"processed = {processed_bytes} | total = {total_bytes}"
+
     logger.debug("[%s] for %s: %s", status, filename, progress)
 
 

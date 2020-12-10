@@ -3,7 +3,7 @@ import logging
 import mimetypes
 import os
 from functools import partial
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Optional, Tuple
 from urllib.parse import urljoin
 
 import boto3
@@ -127,7 +127,7 @@ class StorageS3:
         return result
 
     async def delete_files_async(
-        self, filenames: List[str], remote_path: str = settings.S3_BUCKET_AUDIO_PATH
+        self, filenames: list[str], remote_path: str = settings.S3_BUCKET_AUDIO_PATH
     ):
         loop = asyncio.get_running_loop()
         for filename in filenames:

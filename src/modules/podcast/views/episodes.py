@@ -19,6 +19,8 @@ logger = get_logger(__name__)
 
 
 class EpisodeListCreateAPIView(BaseHTTPEndpoint):
+    """ List and Create (based on `EpisodeCreator` logic) API for episodes """
+
     schema_request = EpisodeCreateSchema
     schema_response = EpisodeListSchema
 
@@ -46,6 +48,8 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
 
 
 class EpisodeRUDAPIView(BaseHTTPEndpoint):
+    """ Retrieve, Update, Delete API for episodes """
+
     db_model = Episode
     schema_request = EpisodeUpdateSchema
     schema_response = EpisodeDetailsSchema
@@ -92,6 +96,8 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
 
 
 class EpisodeDownloadAPIView(BaseHTTPEndpoint):
+    """ RUN episode's downloading (enqueue background task in RQ) """
+
     db_model = Episode
     schema_request = EpisodeUpdateSchema
     schema_response = EpisodeDetailsSchema

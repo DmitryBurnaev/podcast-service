@@ -11,7 +11,7 @@ from starlette.testclient import TestClient
 
 from modules.auth.utils import encode_jwt
 from modules.auth.models import User, UserSession
-from modules.podcast.models import Podcast
+from modules.podcast.models import Podcast, Episode
 from tests.mocks import BaseMock
 
 
@@ -26,19 +26,26 @@ class PodcastTestClient(TestClient):
         self.headers.pop("Authorization", None)
 
 
+def async_run(coroutine):
+    """ Run coroutine in the current event loop """
+
+    loop = asyncio.get_event_loop()
+    return loop.run_until_complete(coroutine)
+
+
 def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
     """Allows to mock any classes (is used as fixture)
 
     # in conftest.py:
     >>> import pytest
     >>> @pytest.fixture
-    >>> def mocked_vechicle(monkeypatch) -> MockVehicle: # noqa
-    >>>     yield from mock_target_class(MockVehicle, monkeypatch) # noqa
+    >>> def mocked_bicycle(monkeypatch) -> MockBicycle: # noqa
+    >>>     yield from mock_target_class(MockBicycle, monkeypatch) # noqa
 
     # in test.py:
     >>> def test_something(mocked_sender):
-    >>>     mocked_vechicle.run.assert_called
-    >>>     mocked_vechicle.target_class.__init__.assert_called
+    >>>     mocked_bicycle.run.assert_called
+    >>>     mocked_bicycle.target_class.__init__.assert_called
     """
 
     mock_obj = mock_class()
@@ -93,6 +100,17 @@ def get_episode_data(podcast: Podcast = None, status: str = None, creator: User 
     return episode_data
 
 
+def get_podcast_data(**kwargs):
+    uid = uuid.uuid4().hex
+    podcast_data = {
+        "publish_id": uid[:32],
+        "name": f"Podcast {uid}",
+        "description": f"Description: {uid}",
+        "image_url": f"http://link-to-image/{uid}",
+    }
+    return podcast_data | kwargs
+
+
 def create_user():
     email, password = get_user_data()
     loop = asyncio.get_event_loop()
@@ -113,19 +131,21 @@ def create_user_session(user):
     )
 
 
-def get_podcast_data(**kwargs):
-    uid = uuid.uuid4().hex
-    return {
-        **{
-            "publish_id": uid[:32],
-            "name": f"Podcast {uid}",
-            "description": f"Description: {uid}",
-            "image_url": f"http://link-to-image/{uid}",
-        },
-        **kwargs,
-    }
-
-
-def async_run(coroutine):
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(coroutine)
+def create_episode(
+    episode_data: dict,
+    podcast: Podcast,
+    status: Episode.Status = Episode.Status.NEW,
+    file_size: int = 0,
+    source_id: str = None,
+) -> Episode:
+    src_id = source_id or get_video_id()
+    episode_data.update(
+        {
+            "podcast_id": podcast.id,
+            "source_id": src_id,
+            "file_name": f"file_name_{src_id}.mp3",
+            "status": status,
+            "file_size": file_size,
+        }
+    )
+    return async_run(Episode.create(**episode_data))

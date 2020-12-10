@@ -1,7 +1,7 @@
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.utils import EpisodeStatuses
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import get_episode_data, create_user, get_podcast_data
+from tests.helpers import get_episode_data, create_user, get_podcast_data, async_run, create_episode
 
 MB_1 = 1 * 1024 * 1024
 MB_2 = 2 * 1024 * 1024
@@ -27,15 +27,15 @@ class TestProgressAPIView(BaseTestAPIView):
     url = "/api/progress/"
 
     def test_filter_by_status__ok(self, client, user, episode_data, mocked_redis):
-        podcast_1 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user.id)))
-        podcast_2 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user.id)))
+        podcast_1 = async_run(Podcast.create(**get_podcast_data(created_by_id=user.id)))
+        podcast_2 = async_run(Podcast.create(**get_podcast_data(created_by_id=user.id)))
 
         episode_data["created_by_id"] = user.id
-        p1_episode_new = self._create_episode(episode_data, podcast_1, STATUS.NEW, MB_1)
-        p1_episode_down = self._create_episode(episode_data, podcast_1, STATUS.DOWNLOADING, MB_2)
-        p2_episode_down = self._create_episode(episode_data, podcast_2, STATUS.DOWNLOADING, MB_4)
+        p1_episode_new = create_episode(episode_data, podcast_1, STATUS.NEW, MB_1)
+        p1_episode_down = create_episode(episode_data, podcast_1, STATUS.DOWNLOADING, MB_2)
+        p2_episode_down = create_episode(episode_data, podcast_2, STATUS.DOWNLOADING, MB_4)
         # p2_episode_new
-        self._create_episode(episode_data, podcast_2, STATUS.NEW, MB_1)
+        create_episode(episode_data, podcast_2, STATUS.NEW, MB_1)
 
         mocked_redis.async_get_many.return_value = mocked_redis.async_return(
             {
@@ -68,13 +68,13 @@ class TestProgressAPIView(BaseTestAPIView):
         user_1 = create_user()
         user_2 = create_user()
 
-        podcast_1 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user_1.id)))
-        podcast_2 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user_2.id)))
+        podcast_1 = async_run(Podcast.create(**get_podcast_data(created_by_id=user_1.id)))
+        podcast_2 = async_run(Podcast.create(**get_podcast_data(created_by_id=user_2.id)))
 
         ep_data_1 = get_episode_data(creator=user_1)
         ep_data_2 = get_episode_data(creator=user_2)
-        p1_episode_down = self._create_episode(ep_data_1, podcast_1, STATUS.DOWNLOADING, MB_2)
-        p2_episode_down = self._create_episode(ep_data_2, podcast_2, STATUS.DOWNLOADING, MB_4)
+        p1_episode_down = create_episode(ep_data_1, podcast_1, STATUS.DOWNLOADING, MB_2)
+        p2_episode_down = create_episode(ep_data_2, podcast_2, STATUS.DOWNLOADING, MB_4)
 
         mocked_redis.async_get_many.return_value = mocked_redis.async_return(
             {

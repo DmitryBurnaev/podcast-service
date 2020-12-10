@@ -1,4 +1,4 @@
-from typing import NamedTuple, List, Type
+from typing import NamedTuple, Type
 
 import pytest
 
@@ -8,7 +8,7 @@ from modules.podcast.tasks import RQTask, GenerateRSSTask, DownloadEpisodeTask
 
 class RunTaskParams(NamedTuple):
     task_name: str
-    task_args: List[str]
+    task_args: list[str]
 
 
 class TestCLIRunTask:
@@ -24,7 +24,7 @@ class TestCLIRunTask:
         mocked_arg_parser,
         mocked_rq_queue,
         task_name: str,
-        task_args: List[str],
+        task_args: list[str],
         task_class: Type[RQTask],
     ):
         mocked_arg_parser.parse_args.return_value = RunTaskParams(task_name, task_args)

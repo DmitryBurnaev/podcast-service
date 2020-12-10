@@ -1,38 +1,21 @@
-import asyncio
 from typing import Union
 
 from requests import Response
 
 from common.models import BaseModel
-from modules.podcast.models import Podcast, Episode
-from tests.helpers import get_video_id
 
 
 class BaseTestCase:
     @staticmethod
-    def async_run(call):
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(call)
+    def assert_called_with(mock_callable, *args, **kwargs):
+        """ Check mock object (callable) on call action with provided `args`, `kwargs` """
 
-    def _create_episode(
-        self,
-        episode_data: dict,
-        podcast: Podcast,
-        status: Episode.Status = Episode.Status.NEW,
-        file_size: int = 0,
-        source_id: str = None,
-    ) -> Episode:
-        src_id = source_id or get_video_id()
-        episode_data.update(
-            {
-                "podcast_id": podcast.id,
-                "source_id": src_id,
-                "file_name": f"file_name_{src_id}.mp3",
-                "status": status,
-                "file_size": file_size,
-            }
-        )
-        return self.async_run(Episode.create(**episode_data))
+        assert mock_callable.called
+        mock_call_args = mock_callable.call_args_list[-1]
+        assert mock_call_args.args == args
+        for key, value in kwargs.items():
+            assert key in mock_call_args.kwargs, mock_call_args.kwargs
+            assert mock_call_args.kwargs[key] == value
 
 
 class BaseTestAPIView(BaseTestCase):

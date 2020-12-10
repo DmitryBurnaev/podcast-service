@@ -2,7 +2,6 @@ import asyncio
 
 from modules.podcast.tasks import RQTask
 from modules.podcast.tasks.base import FinishCode
-from tests.api.test_base import BaseTestCase
 
 
 class TaskForTest(RQTask):
@@ -19,7 +18,7 @@ class TaskForTest(RQTask):
         return FinishCode.OK
 
 
-class TestRunTask(BaseTestCase):
+class TestRunTask:
     def test_run__ok(self):
         task = TaskForTest()
         assert task() == FinishCode.OK

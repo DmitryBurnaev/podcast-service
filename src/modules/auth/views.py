@@ -6,13 +6,13 @@ from typing import Tuple
 from starlette import status
 
 from core import settings
-from common.db_utils import db_transaction
-from common.exceptions import AuthenticationFailedError, InvalidParameterError
-from common.utils import send_email, get_logger
 from common.views import BaseHTTPEndpoint
-from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
-from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
+from common.db_utils import db_transaction
+from common.utils import send_email, get_logger
+from common.exceptions import AuthenticationFailedError, InvalidParameterError
 from modules.auth.models import User, UserSession, UserInvite
+from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
+from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
 from modules.auth.utils import encode_jwt, TOKEN_TYPE_REFRESH, TOKEN_TYPE_RESET_PASSWORD
 from modules.auth.schemas import (
     SignInSchema,
@@ -34,9 +34,9 @@ logger = get_logger(__name__)
 @dataclass
 class TokenCollection:
     refresh_token: str
-    refresh_token_expired_at: str
+    refresh_token_expired_at: datetime
     access_token: str
-    access_token_expired_at: str
+    access_token_expired_at: datetime
 
 
 class JWTSessionMixin:
@@ -52,12 +52,10 @@ class JWTSessionMixin:
             token_type=TOKEN_TYPE_REFRESH,
         )
         return TokenCollection(
-            **{
-                "refresh_token": refresh_token,
-                "refresh_token_expired_at": refresh_token_expired_at,
-                "access_token": access_token,
-                "access_token_expired_at": access_token_expired_at,
-            }
+            refresh_token=refresh_token,
+            refresh_token_expired_at=refresh_token_expired_at,
+            access_token=access_token,
+            access_token_expired_at=access_token_expired_at,
         )
 
     async def _update_session(self, user: User) -> TokenCollection:
