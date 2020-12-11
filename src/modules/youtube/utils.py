@@ -116,25 +116,35 @@ def ffmpeg_preparation(filename: str):
         processed_bytes=0,
     )
     tmp_filename = os.path.join(settings.TMP_AUDIO_PATH, f"tmp_{filename}")
-    proc = subprocess.Popen(
-        ["ffmpeg", "-i", src_path, "-strict", "-2", "-y", tmp_filename],
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    outs, errs = proc.communicate(timeout=settings.FFMPEG_TIMEOUT)
-    if errs:
+    try:
+        completed_proc = subprocess.run(
+            ["ffmpeg", "-i", src_path, "-strict", "-2", "-y", tmp_filename],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=True,
+            timeout=settings.FFMPEG_TIMEOUT,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
         episode_process_hook(status=EpisodeStatuses.error, filename=filename)
         with suppress(IOError):
             os.remove(tmp_filename)
-        raise FFMPegPreparationError(f"FFMPEG failed with errors: {errs}")
 
-    logger.info("FFMPEG results for file %s:\n%s", filename, outs)
+        err_details = f"FFMPEG failed with errors: {err}"
+        if stdout := getattr(err, "stdout", ""):
+            err_details += f"\n{str(stdout, encoding='utf-8')}"
+
+        raise FFMPegPreparationError(f"FFMPEG failed with errors: {err_details}")
+
+    logger.info(
+        "FFMPEG success done preparation for file %s:\n%s",
+        filename, str(completed_proc.stdout, encoding='utf-8')
+    )
 
     try:
+        assert os.path.exists(tmp_filename), f"Prepared file {tmp_filename} wasn't created"
         os.remove(src_path)
         os.rename(tmp_filename, src_path)
-    except IOError as err:
+    except (IOError, AssertionError) as err:
         episode_process_hook(status=EpisodeStatuses.error, filename=filename)
         raise FFMPegPreparationError(f"Failed to rename/remove tmp file: {err}")
 
