@@ -133,11 +133,12 @@ def ffmpeg_preparation(filename: str):
         if stdout := getattr(err, "stdout", ""):
             err_details += f"\n{str(stdout, encoding='utf-8')}"
 
-        raise FFMPegPreparationError(f"FFMPEG failed with errors: {err_details}")
+        raise FFMPegPreparationError(err_details)
 
     logger.info(
         "FFMPEG success done preparation for file %s:\n%s",
-        filename, str(completed_proc.stdout, encoding='utf-8')
+        filename,
+        str(completed_proc.stdout, encoding="utf-8"),
     )
 
     try:

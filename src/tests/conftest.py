@@ -28,7 +28,6 @@ from tests.mocks import (
     MockRQQueue,
     MockGenerateRSS,
     MockArgumentParser,
-    MockPopen,
 )
 
 
@@ -79,11 +78,6 @@ def mocked_generate_rss_task(monkeypatch) -> MockGenerateRSS:
 @pytest.fixture
 def mocked_arg_parser(monkeypatch) -> MockArgumentParser:
     yield from mock_target_class(MockArgumentParser, monkeypatch)
-
-
-@pytest.fixture
-def mocked_popen(monkeypatch) -> MockPopen:
-    yield from mock_target_class(MockPopen, monkeypatch)
 
 
 @pytest.fixture
