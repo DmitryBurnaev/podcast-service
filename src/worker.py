@@ -14,8 +14,7 @@ logger = get_logger("rq.worker")
 
 
 def run_worker():
-    """ Allows to run RQ worker for consuming background tasks (like downloading youtube tracks)
-    """
+    """Allows to run RQ worker for consuming background tasks (like downloading youtube tracks)"""
 
     if settings.SENTRY_DSN:
         sentry_logging = LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)

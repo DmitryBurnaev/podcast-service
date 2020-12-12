@@ -1,4 +1,3 @@
-import enum
 from typing import Type
 
 import sqlalchemy as sa
@@ -45,8 +44,9 @@ class ChoiceType(types.TypeDecorator):
             self.impl = impl
 
     def __repr__(self):
-        """ It is used for representation type in alembic logic (render result in mako template)
-            migrations.env.render_item uses this representation as "sa.%r" % obj. ex.: "sa.VARCHAR"
+        """
+        It is used for representation type in alembic logic (render result in mako template)
+        migrations.env.render_item uses this representation as "sa.%r" % obj. ex.: "sa.VARCHAR"
         """
         return str(self.impl)
 
@@ -75,7 +75,9 @@ class ChoiceType(types.TypeDecorator):
 
 
 class EnumTypeColumn(db.Column):
-    """ Just wrapper for ChoiceType db column
+    """Just wrapper for ChoiceType db column
+
+    >>> import enum
 
     >>> class UserType(enum.Enum):
     >>>    admin = 'admin'
@@ -107,13 +109,5 @@ def db_transaction(func):
     async def wrapped(*args, **kwargs):
         async with db.transaction():
             return await func(*args, **kwargs)
-
-    return wrapped
-
-
-def db_transaction_sync(func):
-    def wrapped(*args, **kwargs):
-        with db.transaction():
-            return func(*args, **kwargs)
 
     return wrapped

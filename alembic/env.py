@@ -9,10 +9,10 @@ from alembic import context
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(BASE_DIR, "src"))
 
-from core import settings           # noqa
-from modules.podcast import models # noqa
-from modules.auth import models     # noqa
-from core.database import db        # noqa
+from core import settings  # noqa
+from modules.podcast import models  # noqa
+from modules.auth import models  # noqa
+from core.database import db  # noqa
 
 
 config = context.config
@@ -61,9 +61,7 @@ def run_migrations_online():
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

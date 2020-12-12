@@ -4,7 +4,7 @@ from core import settings
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks import GenerateRSSTask
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import create_user, get_podcast_data, get_episode_data
+from tests.helpers import create_user, get_podcast_data, get_episode_data, async_run
 
 INVALID_UPDATE_DATA = [
     [{"name": "name" * 100}, {"name": "Length must be between 1 and 256."}],
@@ -20,10 +20,10 @@ INVALID_CREATE_DATA = INVALID_UPDATE_DATA + [
 def _podcast(podcast):
     return {
         "id": podcast.id,
-        'name': podcast.name,
-        'description': podcast.description,
-        'image_url': podcast.image_url,
-        'created_at': podcast.created_at.isoformat(),
+        "name": podcast.name,
+        "description": podcast.description,
+        "image_url": podcast.image_url,
+        "created_at": podcast.created_at.isoformat(),
     }
 
 
@@ -42,11 +42,11 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
 
         podcast_data = get_podcast_data()
         podcast_data["created_by_id"] = user_1.id
-        self.async_run(Podcast.create(**podcast_data))
+        async_run(Podcast.create(**podcast_data))
 
         podcast_data = get_podcast_data()
         podcast_data["created_by_id"] = user_2.id
-        podcast_2 = self.async_run(Podcast.create(**podcast_data))
+        podcast_2 = async_run(Podcast.create(**podcast_data))
 
         client.login(user_2)
         response = client.get(self.url)
@@ -56,14 +56,14 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
     def test_create__ok(self, client, user, podcast_data):
         podcast_data = {
             "name": podcast_data["name"],
-            "description": podcast_data["description"]
+            "description": podcast_data["description"],
         }
         client.login(user)
         response = client.post(self.url, json=podcast_data)
         assert response.status_code == 201
 
         response_data = response.json()
-        podcast = self.async_run(Podcast.async_get(id=response_data["id"]))
+        podcast = async_run(Podcast.async_get(id=response_data["id"]))
         assert podcast is not None
         assert response.json() == _podcast(podcast)
 
@@ -99,7 +99,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
             "download_automatically": True,
         }
         response = client.patch(url, json=patch_data)
-        podcast = self.async_run(Podcast.async_get(id=podcast.id))
+        podcast = async_run(Podcast.async_get(id=podcast.id))
         assert response.status_code == 200
         assert response.json() == _podcast(podcast)
         assert podcast.name == "New name"
@@ -124,7 +124,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         response = client.delete(url)
         assert response.status_code == 204
-        assert self.async_run(Podcast.async_get(id=podcast.id))  is None
+        assert async_run(Podcast.async_get(id=podcast.id)) is None
         mocked_s3.delete_files_async.assert_called_with(
             [f"{podcast.publish_id}.xml"], remote_path=settings.S3_BUCKET_RSS_PATH
         )
@@ -136,41 +136,41 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         self.assert_not_found(client.delete(url), podcast)
 
     def test_delete__episodes_deleted_too__ok(self, client, podcast, user, mocked_s3):
-        episode_1 = self.async_run(Episode.create(**get_episode_data(podcast)))
-        episode_2 = self.async_run(Episode.create(**get_episode_data(podcast, "published")))
+        episode_1 = async_run(Episode.create(**get_episode_data(podcast)))
+        episode_2 = async_run(Episode.create(**get_episode_data(podcast, "published")))
 
         client.login(user)
         url = self.url.format(id=podcast.id)
         response = client.delete(url)
         assert response.status_code == 204
-        assert self.async_run(Podcast.async_get(id=podcast.id)) is None
-        assert self.async_run(Episode.async_get(id=episode_1.id)) is None
-        assert self.async_run(Episode.async_get(id=episode_2.id)) is None
+        assert async_run(Podcast.async_get(id=podcast.id)) is None
+        assert async_run(Episode.async_get(id=episode_1.id)) is None
+        assert async_run(Episode.async_get(id=episode_2.id)) is None
 
         mocked_s3.delete_files_async.assert_called_with([episode_2.file_name])
 
     def test_delete__episodes_in_another_podcast__ok(self, client, episode_data, user, mocked_s3):
-        podcast_1 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user.id)))
+        podcast_1 = async_run(Podcast.create(**get_podcast_data(created_by_id=user.id)))
         episode_data["status"] = Episode.Status.PUBLISHED
         episode_data["podcast_id"] = podcast_1.id
-        episode_1 = self.async_run(Episode.create(**episode_data))
-        episode_1_1 = self.async_run(Episode.create(**get_episode_data(podcast_1, "published")))
+        episode_1 = async_run(Episode.create(**episode_data))
+        episode_1_1 = async_run(Episode.create(**get_episode_data(podcast_1, "published")))
 
-        podcast_2 = self.async_run(Podcast.create(**get_podcast_data()))
+        podcast_2 = async_run(Podcast.create(**get_podcast_data()))
         episode_data["status"] = Episode.Status.PUBLISHED
         episode_data["podcast_id"] = podcast_2.id
         # creating episode with same `source_id` in another podcast
-        episode_2 = self.async_run(Episode.create(**episode_data))
+        episode_2 = async_run(Episode.create(**episode_data))
 
         client.login(user)
         url = self.url.format(id=podcast_1.id)
         response = client.delete(url)
         assert response.status_code == 204
-        assert self.async_run(Podcast.async_get(id=podcast_1.id)) is None
-        assert self.async_run(Episode.async_get(id=episode_1.id)) is None
+        assert async_run(Podcast.async_get(id=podcast_1.id)) is None
+        assert async_run(Episode.async_get(id=episode_1.id)) is None
 
-        assert self.async_run(Podcast.async_get(id=podcast_2.id)) is not None
-        assert self.async_run(Episode.async_get(id=episode_2.id)) is not None
+        assert async_run(Podcast.async_get(id=podcast_2.id)) is not None
+        assert async_run(Episode.async_get(id=episode_2.id)) is not None
 
         mocked_s3.delete_files_async.assert_called_with([episode_1_1.file_name])
 

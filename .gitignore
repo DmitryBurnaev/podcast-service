@@ -4,3 +4,5 @@
 .env
 .coverage
 .pytest_cache
+.python-version
+/media

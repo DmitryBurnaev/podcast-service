@@ -75,4 +75,3 @@ class UserSession(BaseModel):
 
     def __repr__(self):
         return f"<UserSession #{self.id} {self.user_id}>"
-

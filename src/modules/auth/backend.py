@@ -6,16 +6,17 @@ from starlette.requests import Request
 from common.exceptions import (
     AuthenticationFailedError,
     AuthenticationRequiredError,
-    PermissionDeniedError
+    PermissionDeniedError,
 )
 from common.utils import get_logger
-from modules.auth.models import User
-from modules.auth.utils import decode_jwt
+from modules.auth.models import User, UserSession
+from modules.auth.utils import decode_jwt, TOKEN_TYPE_ACCESS
 
 logger = get_logger(__name__)
 
 
 class BaseAuthJWTBackend:
+    """ Core of authenticate system, based on JWT auth approach """
 
     keyword = "Bearer"
 
@@ -35,16 +36,23 @@ class BaseAuthJWTBackend:
         user, _ = await self.authenticate_user(jwt_token=auth[1])
         return user
 
-    async def authenticate_user(self, jwt_token: str) -> Tuple[User, dict]:
+    async def authenticate_user(
+        self, jwt_token: str, token_type: str = TOKEN_TYPE_ACCESS
+    ) -> Tuple[User, dict]:
         """ Allows to find active user by jwt_token """
 
-        logger.info("Logging via JWT auth. Got token: %s", jwt_token)
+        logger.debug("Logging via JWT auth. Got token: %s", jwt_token)
         try:
             jwt_payload = decode_jwt(jwt_token)
         except JWTError as error:
             msg = "Token could not be decoded: %s"
             logger.exception(msg, error)
             raise AuthenticationFailedError(msg % (error,))
+
+        if jwt_payload["token_type"] != token_type:
+            raise AuthenticationFailedError(
+                f"Token type '{token_type}' expected, got '{jwt_payload['token_type']}' instead."
+            )
 
         user_id = jwt_payload.get("user_id")
         user = await User.get_active(user_id)
@@ -53,16 +61,21 @@ class BaseAuthJWTBackend:
             logger.warning(msg, user_id)
             raise AuthenticationFailedError(details=(msg % (user_id,)))
 
+        user_session = await UserSession.async_get(user_id=user.id, is_active=True)
+        if not user_session:
+            raise AuthenticationFailedError(f"Couldn't found active session for user #{user_id}.")
+
         return user, jwt_payload
 
 
 class LoginRequiredAuthBackend(BaseAuthJWTBackend):
-    ...
+    """ Each request must have filled `user` attribute """
 
 
 class AdminRequiredAuthBackend(BaseAuthJWTBackend):
+    """ Login-ed used must have `is_superuser` attribute """
 
-    async def authenticate_user(self, jwt_token):
+    async def authenticate_user(self, jwt_token: str, token_type: str = TOKEN_TYPE_ACCESS):
         user, jwt_payload = await super().authenticate_user(jwt_token)
         if not user.is_superuser:
             raise PermissionDeniedError("You don't have an admin privileges.")

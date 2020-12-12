@@ -6,19 +6,18 @@ from webargs import fields, validate
 __all__ = [
     "SignInSchema",
     "SignUpSchema",
-    "RefreshTokenSchema",
     "JWTResponseSchema",
+    "UserResponseSchema",
+    "RefreshTokenSchema",
+    "ChangePasswordSchema",
     "UserInviteRequestSchema",
     "UserInviteResponseSchema",
     "ResetPasswordRequestSchema",
     "ResetPasswordResponseSchema",
-    "ChangePasswordSchema",
-    "UserResponseSchema",
 ]
 
 
 class TwoPasswordsMixin:
-
     @staticmethod
     def is_valid(data: typing.Mapping) -> typing.Mapping:
         if data["password_1"] != data["password_2"]:
@@ -41,7 +40,7 @@ class SignUpSchema(TwoPasswordsMixin, Schema):
 
 
 class RefreshTokenSchema(Schema):
-    refresh_token = fields.Str(required=True, validate=validate.Length(min=10, max=256))
+    refresh_token = fields.Str(required=True, validate=validate.Length(min=10, max=512))
 
 
 class JWTResponseSchema(Schema):

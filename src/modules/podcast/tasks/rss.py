@@ -60,7 +60,7 @@ class GenerateRSSTask(RQTask):
         episodes = await Episode.async_filter(
             podcast_id=podcast.id,
             status=Episode.Status.PUBLISHED,
-            published_at__ne=None
+            published_at__ne=None,
         )
         context = {"episodes": episodes, "settings": settings}
         with open(os.path.join(settings.TEMPLATE_PATH, "rss", "feed_template.xml")) as fh:

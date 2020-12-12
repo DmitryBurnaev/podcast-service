@@ -18,6 +18,7 @@ from tests.helpers import (
     create_user,
     get_podcast_data,
     mock_target_class,
+    create_user_session,
 )
 from tests.mocks import (
     MockYoutubeDL,
@@ -27,7 +28,6 @@ from tests.mocks import (
     MockRQQueue,
     MockGenerateRSS,
     MockArgumentParser,
-    MockPopen,
 )
 
 
@@ -81,11 +81,6 @@ def mocked_arg_parser(monkeypatch) -> MockArgumentParser:
 
 
 @pytest.fixture
-def mocked_popen(monkeypatch) -> MockPopen:
-    yield from mock_target_class(MockPopen, monkeypatch)
-
-
-@pytest.fixture
 def mocked_ffmpeg(monkeypatch) -> Mock:
     mocked_ffmpeg_function = Mock()
     monkeypatch.setattr(youtube_utils, "ffmpeg_preparation", mocked_ffmpeg_function)
@@ -116,6 +111,11 @@ def loop():
 @pytest.fixture
 def user():
     return create_user()
+
+
+@pytest.fixture
+def user_session(user, loop):
+    return create_user_session(user)
 
 
 @pytest.fixture

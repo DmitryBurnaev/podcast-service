@@ -1,7 +1,6 @@
 import asyncio
 import os
 import shutil
-import subprocess
 import tempfile
 from argparse import ArgumentParser
 from pathlib import Path
@@ -17,7 +16,7 @@ from modules.podcast.tasks import GenerateRSSTask
 
 
 class BaseMock:
-    """ Base class for class mocking
+    """Base class for class mocking
 
     # users class
     >>> class Vehicle:
@@ -30,6 +29,7 @@ class BaseMock:
     >>>         self.run = Mock(return_value=None)  # noqa
 
     """
+
     CODE_OK = 0
     target_obj = None
 
@@ -55,6 +55,7 @@ class MockYoutubeDL(BaseMock):
 
     def __init__(self, *_, **__):
         from tests.helpers import get_video_id
+
         self.video_id = get_video_id()
         self.watch_url = f"https://www.youtube.com/watch?v={self.video_id}"
         self.download = Mock()
@@ -131,10 +132,3 @@ class MockArgumentParser(BaseMock):
     def __init__(self):
         self.parse_args = Mock()
         self.add_argument = Mock()
-
-
-class MockPopen(BaseMock):
-    target_class = subprocess.Popen
-
-    def __init__(self):
-        self.communicate = Mock(return_value=("Output", ""))

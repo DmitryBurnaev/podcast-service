@@ -6,20 +6,27 @@ from jose import jwt
 from core import settings
 
 
-def encode_jwt(payload, refresh=False, expires_in: int = None) -> Tuple[str, datetime]:
+TOKEN_TYPE_ACCESS = "access"
+TOKEN_TYPE_REFRESH = "refresh"
+TOKEN_TYPE_RESET_PASSWORD = "reset_password"
+
+
+def encode_jwt(
+    payload: dict,
+    token_type: str = TOKEN_TYPE_ACCESS,
+    expires_in: int = None,
+) -> Tuple[str, datetime]:
     """ Allows to prepare JWT for auth engine """
 
-    now_time = datetime.utcnow()
-    if refresh:
+    if token_type == TOKEN_TYPE_REFRESH:
         expires_in = settings.JWT_REFRESH_EXPIRES_IN
-        payload["token_type"] = "refresh"
     else:
         expires_in = expires_in or settings.JWT_EXPIRES_IN
-        payload["token_type"] = "access"
 
-    expired_at = now_time + timedelta(seconds=expires_in)
+    expired_at = datetime.utcnow() + timedelta(seconds=expires_in)
     payload["exp"] = expired_at
     payload["exp_iso"] = expired_at.isoformat()
+    payload["token_type"] = token_type
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     return token, expired_at
 
@@ -27,6 +34,4 @@ def encode_jwt(payload, refresh=False, expires_in: int = None) -> Tuple[str, dat
 def decode_jwt(encoded_jwt: str) -> dict:
     """ Allows to decode received JWT token to payload """
 
-    return jwt.decode(
-        encoded_jwt, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
-    )
+    return jwt.decode(encoded_jwt, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])

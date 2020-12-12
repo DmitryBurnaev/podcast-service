@@ -6,15 +6,26 @@ from typing import Tuple
 from starlette import status
 
 from core import settings
-from common.db_utils import db_transaction
-from common.exceptions import AuthenticationFailedError, InvalidParameterError
-from common.utils import send_email, get_logger
 from common.views import BaseHTTPEndpoint
-from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
-from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
+from common.db_utils import db_transaction
+from common.utils import send_email, get_logger
+from common.exceptions import AuthenticationFailedError, InvalidParameterError
 from modules.auth.models import User, UserSession, UserInvite
-from modules.auth.utils import encode_jwt
-from modules.auth.schemas import *
+from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
+from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
+from modules.auth.utils import encode_jwt, TOKEN_TYPE_REFRESH, TOKEN_TYPE_RESET_PASSWORD
+from modules.auth.schemas import (
+    SignInSchema,
+    SignUpSchema,
+    JWTResponseSchema,
+    RefreshTokenSchema,
+    UserResponseSchema,
+    ChangePasswordSchema,
+    UserInviteRequestSchema,
+    UserInviteResponseSchema,
+    ResetPasswordRequestSchema,
+    ResetPasswordResponseSchema,
+)
 from modules.podcast.models import Podcast
 
 logger = get_logger(__name__)
@@ -23,24 +34,29 @@ logger = get_logger(__name__)
 @dataclass
 class TokenCollection:
     refresh_token: str
-    refresh_token_expired_at: str
+    refresh_token_expired_at: datetime
     access_token: str
-    access_token_expired_at: str
+    access_token_expired_at: datetime
 
 
 class JWTSessionMixin:
+    """ Allows to update session and prepare usual / refresh JWT tokens """
+
     schema_response = JWTResponseSchema
 
     @staticmethod
     def _get_tokens(user: User) -> TokenCollection:
-        refresh_token, refresh_token_expired_at = encode_jwt({"user_id": user.id}, refresh=True)
         access_token, access_token_expired_at = encode_jwt({"user_id": user.id})
-        return TokenCollection(**{
-            "refresh_token": refresh_token,
-            "refresh_token_expired_at": refresh_token_expired_at,
-            "access_token": access_token,
-            "access_token_expired_at": access_token_expired_at,
-        })
+        refresh_token, refresh_token_expired_at = encode_jwt(
+            {"user_id": user.id},
+            token_type=TOKEN_TYPE_REFRESH,
+        )
+        return TokenCollection(
+            refresh_token=refresh_token,
+            refresh_token_expired_at=refresh_token_expired_at,
+            access_token=access_token,
+            access_token_expired_at=access_token_expired_at,
+        )
 
     async def _update_session(self, user: User) -> TokenCollection:
         token_collection = self._get_tokens(user)
@@ -57,13 +73,15 @@ class JWTSessionMixin:
             await UserSession.create(
                 user_id=user.id,
                 refresh_token=token_collection.refresh_token,
-                expired_at=token_collection.refresh_token_expired_at
+                expired_at=token_collection.refresh_token_expired_at,
             )
 
         return token_collection
 
 
 class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
+    """ Allows to Log-In user and update/create his session """
+
     schema_request = SignInSchema
     auth_backend = None
 
@@ -90,6 +108,8 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
 
 class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
+    """ Allows to create new user and create his own session """
+
     schema_request = SignUpSchema
     auth_backend = None
 
@@ -103,7 +123,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         )
         await UserInvite.async_update(
             filter_kwargs={"id": user_invite.id},
-            update_data={"is_applied": True, "user_id": user.id}
+            update_data={"is_applied": True, "user_id": user.id},
         )
         await Podcast.create_first_podcast(user.id)
         token_collection = await self._update_session(user)
@@ -119,13 +139,14 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         user_invite = await UserInvite.async_get(
             token=cleaned_data["invite_token"],
             is_applied__is=False,
-            expired_at__gt=datetime.utcnow()
+            expired_at__gt=datetime.utcnow(),
         )
         if not user_invite:
             details = "Invitation link is expired or unavailable"
             logger.error(
                 "Couldn't signup user token: %s | details: %s",
-                cleaned_data["invite_token"], details
+                cleaned_data["invite_token"],
+                details,
             )
             raise InvalidParameterError(details=details)
 
@@ -137,6 +158,11 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
 
 class SignOutAPIView(BaseHTTPEndpoint):
+    """
+    Sign-out consists from 2 operations:
+     - remove JWT token on front-end side
+     - deactivate current session on BE (this allows to block use regular or refresh token)
+    """
 
     async def get(self, request):
         user = request.user
@@ -152,6 +178,8 @@ class SignOutAPIView(BaseHTTPEndpoint):
 
 
 class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
+    """ Allows to update tokens (should be called when main token is outdated) """
+
     schema_request = RefreshTokenSchema
     auth_backend = None
 
@@ -172,12 +200,9 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     async def _validate(self, request, *args, **kwargs) -> Tuple[User, str]:
         cleaned_data = await super()._validate(request)
         refresh_token = cleaned_data["refresh_token"]
-        user, jwt_payload = await LoginRequiredAuthBackend().authenticate_user(refresh_token)
-
-        token_type = jwt_payload.get("token_type")
-        if token_type != "refresh":
-            raise InvalidParameterError("Refresh token has invalid token-type.")
-
+        user, jwt_payload = await LoginRequiredAuthBackend().authenticate_user(
+            refresh_token, token_type="refresh"
+        )
         return user, refresh_token
 
 
@@ -234,7 +259,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
 
 
 class ResetPasswordAPIView(BaseHTTPEndpoint):
-    """ Remove current user from session """
+    """ Send link to user's email for resetting his password """
 
     schema_request = ResetPasswordRequestSchema
     schema_response = ResetPasswordResponseSchema
@@ -277,12 +302,16 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
             "jti": f"token-{uuid.uuid4()}",  # JWT ID
             "slt": get_salt(),
         }
-        token, _ = encode_jwt(payload, expires_in=settings.RESET_PASSWORD_LINK_EXPIRES_IN)
+        token, _ = encode_jwt(
+            payload,
+            token_type=TOKEN_TYPE_RESET_PASSWORD,
+            expires_in=settings.RESET_PASSWORD_LINK_EXPIRES_IN,
+        )
         return token
 
 
 class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
-    """ Create new user in db """
+    """ Simple API for changing user's password """
 
     schema_request = ChangePasswordSchema
     auth_backend = None
@@ -291,7 +320,10 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     async def post(self, request):
         """ Check is email unique and create new User """
         cleaned_data = await self._validate(request)
-        user, _ = await LoginRequiredAuthBackend().authenticate_user(cleaned_data["token"])
+        user, _ = await LoginRequiredAuthBackend().authenticate_user(
+            cleaned_data["token"],
+            token_type=TOKEN_TYPE_RESET_PASSWORD,
+        )
         new_password = User.make_password(cleaned_data["password_1"])
         await user.update(password=new_password).apply()
 

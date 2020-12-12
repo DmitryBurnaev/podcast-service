@@ -25,5 +25,3 @@ db = GinoDB(
     retry_limit=settings.DATABASE["retry_limit"],
     retry_interval=settings.DATABASE["retry_interval"],
 )
-
-

@@ -5,7 +5,7 @@ from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks import DownloadEpisodeTask
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import get_video_id, create_user, get_podcast_data
+from tests.helpers import get_video_id, create_user, get_podcast_data, create_episode, async_run
 
 INVALID_UPDATE_DATA = [
     [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],
@@ -21,26 +21,26 @@ INVALID_CREATE_DATA = [
 def _episode_in_list(episode: Episode):
     return {
         "id": episode.id,
-        'title': episode.title,
-        'image_url':  episode.image_url,
-        'created_at': episode.created_at.isoformat(),
+        "title": episode.title,
+        "image_url": episode.image_url,
+        "created_at": episode.created_at.isoformat(),
     }
 
 
 def _episode_details(episode: Episode):
     return {
         "id": episode.id,
-        'title': episode.title,
-        'author': episode.author,
-        'status': str(episode.status),
-        'length': episode.length,
-        'watch_url': episode.watch_url,
-        'remote_url': episode.remote_url,
-        'image_url': episode.image_url,
-        'file_size': episode.file_size,
-        'description': episode.description,
-        'created_at': episode.created_at.isoformat(),
-        'published_at': episode.published_at.isoformat() if episode.published_at else None,
+        "title": episode.title,
+        "author": episode.author,
+        "status": str(episode.status),
+        "length": episode.length,
+        "watch_url": episode.watch_url,
+        "remote_url": episode.remote_url,
+        "image_url": episode.image_url,
+        "file_size": episode.file_size,
+        "description": episode.description,
+        "created_at": episode.created_at.isoformat(),
+        "published_at": episode.published_at.isoformat() if episode.published_at else None,
     }
 
 
@@ -70,15 +70,21 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         )
         mocked_episode_creator.create.assert_called_once()
 
-    def test_create__start_downloading__ok(self, client, podcast, episode, episode_data, user, mocked_episode_creator, mocked_rq_queue):
+    def test_create__start_downloading__ok(
+        self, client, podcast, episode, episode_data, user, mocked_episode_creator, mocked_rq_queue
+    ):
         mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
         client.login(user)
         url = self.url.format(id=podcast.id)
         response = client.post(url, json={"youtube_link": episode_data["watch_url"]})
         assert response.status_code == 201
-        mocked_rq_queue.enqueue.assert_called_with(tasks.DownloadEpisodeTask(), episode_id=episode.id)
+        mocked_rq_queue.enqueue.assert_called_with(
+            tasks.DownloadEpisodeTask(), episode_id=episode.id
+        )
 
-    def test_create__youtube_error__fail(self, client, podcast, episode_data, user, mocked_episode_creator):
+    def test_create__youtube_error__fail(
+        self, client, podcast, episode_data, user, mocked_episode_creator
+    ):
         mocked_episode_creator.create.side_effect = YoutubeFetchError("Oops")
         client.login(user)
         url = self.url.format(id=podcast.id)
@@ -86,7 +92,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         assert response.status_code == 500
         assert response.json() == {
             "error": "We couldn't extract info about requested episode.",
-            "details": "Oops"
+            "details": "Oops",
         }
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_CREATE_DATA)
@@ -128,7 +134,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
             "description": "New description",
         }
         response = client.patch(url, json=patch_data)
-        episode = self.async_run(Episode.async_get(id=episode.id))
+        episode = async_run(Episode.async_get(id=episode.id))
 
         assert response.status_code == 200
         assert response.json() == _episode_details(episode)
@@ -154,7 +160,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         url = self.url.format(id=episode.id)
         response = client.delete(url)
         assert response.status_code == 204
-        assert self.async_run(Episode.async_get(id=episode.id)) is None
+        assert async_run(Episode.async_get(id=episode.id)) is None
         mocked_s3.delete_files_async.assert_called_with([episode.file_name])
 
     def test_delete__episode_from_another_user__fail(self, client, episode, user):
@@ -168,7 +174,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
             (Episode.Status.NEW, True),
             (Episode.Status.PUBLISHED, False),
             (Episode.Status.DOWNLOADING, False),
-        ]
+        ],
     )
     def test_delete__same_episode_exists__ok(
         self,
@@ -184,16 +190,14 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         user_1 = create_user()
         user_2 = create_user()
 
-        podcast_1 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user_1.id)))
-        podcast_2 = self.async_run(Podcast.create(**get_podcast_data(created_by_id=user_2.id)))
+        podcast_1 = async_run(Podcast.create(**get_podcast_data(created_by_id=user_1.id)))
+        podcast_2 = async_run(Podcast.create(**get_podcast_data(created_by_id=user_2.id)))
 
         episode_data["created_by_id"] = user_1.id
-        _ = self._create_episode(
-            episode_data, podcast_1, status=same_episode_status, source_id=source_id
-        )
+        _ = create_episode(episode_data, podcast_1, status=same_episode_status, source_id=source_id)
 
         episode_data["created_by_id"] = user_2.id
-        episode_2 = self._create_episode(
+        episode_2 = create_episode(
             episode_data, podcast_2, status=Episode.Status.NEW, source_id=source_id
         )
 
@@ -201,7 +205,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         client.login(user_2)
         response = client.delete(url)
         assert response.status_code == 204, f"Delete API is not available: {response.text}"
-        assert self.async_run(Episode.async_get(id=episode_2.id)) is None
+        assert async_run(Episode.async_get(id=episode_2.id)) is None
         if delete_called:
             mocked_s3.delete_files_async.assert_called_with([episode_2.file_name])
         else:
@@ -215,7 +219,7 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
         client.login(user)
         url = self.url.format(id=episode.id)
         response = client.put(url)
-        episode = self.async_run(Episode.async_get(id=episode.id))
+        episode = async_run(Episode.async_get(id=episode.id))
         assert response.status_code == 200
         assert response.json() == _episode_details(episode)
         mocked_rq_queue.enqueue.assert_called_with(DownloadEpisodeTask(), episode_id=episode.id)

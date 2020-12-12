@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 from functools import partial
-from typing import Iterable, Any, Dict, Union, List
+from typing import Iterable, Any, Union
 
 import redis
 
@@ -29,7 +29,7 @@ class RedisClient:
     def set(self, key: str, value, ttl: int = 120):
         self.redis.set(key, json.dumps(value), ttl)
 
-    def get(self, key: str) -> Union[List[Any], Dict[str, Any]]:
+    def get(self, key: str) -> Union[list[Any], dict[str, Any]]:
         return json.loads(self.redis.get(key) or "null")
 
     def get_many(self, keys: Iterable[str], pkey: str) -> dict:

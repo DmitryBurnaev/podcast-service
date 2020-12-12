@@ -21,9 +21,9 @@ class RQTask:
         raise NotImplementedError
 
     def __call__(self, *args, **kwargs) -> FinishCode:
-        logger.info(f"==== STARTED task %s ====", self.name)
+        logger.info("==== STARTED task %s ====", self.name)
         finish_code = asyncio.run(self._perform_and_run(*args, **kwargs))
-        logger.info(f"==== FINISHED task %s | code %s ====", self.name, finish_code)
+        logger.info("==== FINISHED task %s | code %s ====", self.name, finish_code)
         return finish_code
 
     def __eq__(self, other):
@@ -31,6 +31,8 @@ class RQTask:
         return isinstance(other, self.__class__) and self.__class__ == other.__class__
 
     async def _perform_and_run(self, *args, **kwargs):
+        """ Allows to call `self.run` in transaction block with catching any exceptions """
+
         await db.set_bind(
             db.config["dsn"],
             echo=db.config["echo"],
@@ -39,9 +41,11 @@ class RQTask:
             ssl=db.config["ssl"],
             **db.config["kwargs"],
         )
+
         try:
             async with db.transaction():
                 result = await self.run(*args, **kwargs)
+
         except Exception as err:
             result = FinishCode.ERROR
             logger.exception("Couldn't perform task %s | error %s (%s)", self.name, type(err), err)

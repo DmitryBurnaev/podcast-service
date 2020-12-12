@@ -1,20 +1,20 @@
-from typing import List
-
 from starlette import status
 
-from common.db_utils import db_transaction
-from common.storage import StorageS3
-from common.utils import get_logger
-from common.views import BaseHTTPEndpoint
 from core import settings
+from common.utils import get_logger
+from common.storage import StorageS3
+from common.views import BaseHTTPEndpoint
+from common.db_utils import db_transaction
 from modules.podcast.models import Podcast, Episode
-from modules.podcast.schemas import *
+from modules.podcast.schemas import PodcastCreateUpdateSchema, PodcastDetailsSchema
 from modules.podcast.tasks.rss import GenerateRSSTask
 
 logger = get_logger(__name__)
 
 
 class PodcastListCreateAPIView(BaseHTTPEndpoint):
+    """ List and Create API for podcasts """
+
     schema_request = PodcastCreateUpdateSchema
     schema_response = PodcastDetailsSchema
 
@@ -29,32 +29,34 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
             name=cleaned_data["name"],
             publish_id=Podcast.generate_publish_id(),
             description=cleaned_data["description"],
-            created_by_id=request.user.id
+            created_by_id=request.user.id,
         )
         return self._response(podcast, status_code=status.HTTP_201_CREATED)
 
 
 class PodcastRUDAPIView(BaseHTTPEndpoint):
+    """ Retrieve, Update, Delete API for podcasts """
+
     db_model = Podcast
     schema_request = PodcastCreateUpdateSchema
     schema_response = PodcastDetailsSchema
 
     async def get(self, request):
-        podcast_id = request.path_params['podcast_id']
+        podcast_id = request.path_params["podcast_id"]
         podcast = await self._get_object(podcast_id)
         return self._response(podcast)
 
     @db_transaction
     async def patch(self, request):
         cleaned_data = await self._validate(request, partial_=True)
-        podcast_id = request.path_params['podcast_id']
+        podcast_id = request.path_params["podcast_id"]
         podcast = await self._get_object(podcast_id)
         await podcast.update(**cleaned_data).apply()
         return self._response(podcast)
 
     @db_transaction
     async def delete(self, request):
-        podcast_id = int(request.path_params['podcast_id'])
+        podcast_id = int(request.path_params["podcast_id"])
         podcast = await self._get_object(podcast_id)
         episodes = await Episode.async_filter(podcast_id=podcast_id)
         await podcast.delete()
@@ -62,16 +64,14 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         return self._response(status_code=status.HTTP_204_NO_CONTENT)
 
     @staticmethod
-    async def _delete_files(podcast: Podcast, episodes: List[Episode]):
+    async def _delete_files(podcast: Podcast, episodes: list[Episode]):
         podcast_file_names = {
-            episode.file_name
-            for episode in episodes
-            if episode.status == Episode.Status.PUBLISHED
+            episode.file_name for episode in episodes if episode.status == Episode.Status.PUBLISHED
         }
         same_file_episodes = await Episode.async_filter(
             podcast_id__ne=podcast.id,
             file_name__in=podcast_file_names,
-            status=Episode.Status.PUBLISHED
+            status=Episode.Status.PUBLISHED,
         )
         exist_file_names = {episode.file_name for episode in same_file_episodes or []}
 
@@ -97,7 +97,7 @@ class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):
     db_model = Podcast
 
     async def put(self, request):
-        podcast_id = request.path_params['podcast_id']
+        podcast_id = request.path_params["podcast_id"]
         podcast = await self._get_object(podcast_id)
         await self._run_task(GenerateRSSTask, podcast.id)
         return self._response(status_code=status.HTTP_204_NO_CONTENT)

@@ -9,7 +9,6 @@ from core import settings
 from core.database import db
 from common.db_utils import EnumTypeColumn
 from common.models import BaseModel
-from common.i18n import get_text_translation as _
 
 
 class Podcast(BaseModel):
@@ -43,8 +42,8 @@ class Podcast(BaseModel):
     async def create_first_podcast(cls, user_id: int):
         return await Podcast.create(
             publish_id=cls.generate_publish_id(),
-            name=_("Your first podcast"),
-            description=_(
+            name="Your first podcast",
+            description=(
                 "Add new episode -> wait for downloading -> copy podcast RSS-link "
                 "-> past this link to your podcast application -> enjoy".strip()
             ),
@@ -102,10 +101,7 @@ class Episode(BaseModel):
     @classmethod
     async def get_in_progress(cls, user_id):
         """ Return downloading episodes """
-        return await cls.async_filter(
-            status__in=Episode.PROGRESS_STATUSES,
-            created_by_id=user_id
-        )
+        return await cls.async_filter(status__in=Episode.PROGRESS_STATUSES, created_by_id=user_id)
 
     @property
     def safe_image_url(self) -> str:
