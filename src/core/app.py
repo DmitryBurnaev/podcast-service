@@ -1,6 +1,13 @@
+import logging
+import logging.config
+
 import rq
+import sentry_sdk
 from redis import Redis
+from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+from sentry_sdk.integrations.logging import LoggingIntegration
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
 from webargs_starlette import WebargsHTTPException
 
 from core import settings
@@ -31,6 +38,16 @@ class PodcastApp(Starlette):
 
 
 def get_app():
-    app = PodcastApp(routes=routes, exception_handlers=exception_handlers, debug=settings.APP_DEBUG)
+    app = PodcastApp(
+        routes=routes,
+        exception_handlers=exception_handlers,
+        debug=settings.APP_DEBUG,
+        middleware=[Middleware(SentryAsgiMiddleware)],
+    )
     db.init_app(app)
+    logging.config.dictConfig(settings.LOGGING)
+    if settings.SENTRY_DSN:
+        logging_integration = LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)
+        sentry_sdk.init(settings.SENTRY_DSN, integrations=[logging_integration])
+
     return app
