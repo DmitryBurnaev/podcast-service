@@ -1,11 +1,3 @@
-deploy:
-	git pull
-	docker build -t podcast_service .
-	supervisorctl stop podcast_service:
-	docker-compose down
-	supervisorctl start podcast_service:
-	echo y | docker image prune -a
-
 run_web:
 	cd src && pipenv run uvicorn asgi:app --host dev.podcast --port 8081 --reload --reload-dir .
 

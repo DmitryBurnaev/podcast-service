@@ -1,3 +1,5 @@
+#!/bin/sh
+
 export PYTHONPATH=$(pwd)/src
 DATABASE_NAME="${DB_NAME}"
 DATABASE_NAME_TMP="${DB_NAME}_tmp"
