@@ -5,7 +5,7 @@ from typing import Type, Union, Iterable, Any
 from starlette import status
 from starlette.requests import Request
 from starlette.endpoints import HTTPEndpoint
-from marshmallow import Schema, ValidationError
+from marshmallow import Schema, ValidationError, fields
 from starlette.responses import JSONResponse, Response
 from webargs_starlette import parser, WebargsHTTPException
 
@@ -18,6 +18,7 @@ from common.exceptions import (
 from core.database import db
 from common.typing import DBModel
 from common.utils import get_logger
+from modules.podcast.models import Podcast
 from modules.podcast.tasks.base import RQTask
 from modules.auth.backend import LoginRequiredAuthBackend
 
@@ -126,3 +127,56 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         task = task_class()
         handler = partial(self.app.rq_queue.enqueue, task, *args, **kwargs)
         await loop.run_in_executor(None, handler)
+
+
+class ServicesCheckSchema(Schema):
+    postgres = fields.Str()
+
+
+class HealthCheckSchema(Schema):
+    services = fields.Nested(ServicesCheckSchema)
+    errors = fields.List(fields.Str)
+
+
+class HealthCheckAPIView(BaseHTTPEndpoint):
+    """ Allows to control status of web application (live asgi and pg connection)"""
+
+    auth_backend = None
+    schema_response = HealthCheckSchema
+
+    async def get(self, *_):
+        response_data = {"services": {}, "errors": []}
+        result_status = status.HTTP_200_OK
+        try:
+            await Podcast.async_filter()
+
+        except Exception as error:
+            error_msg = f"Couldn't connect to DB: {error.__class__.__name__} '{error}'"
+            logger.exception(error_msg)
+            response_data["services"]["postgres"] = "down"
+            response_data["errors"].append(error_msg)
+        else:
+            response_data["services"]["postgres"] = "ok"
+
+        services = response_data.get("services").values()
+
+        if "down" in services or response_data.get("errors"):
+            response_data["status"] = "down"
+            result_status = status.HTTP_503_SERVICE_UNAVAILABLE
+
+        return self._response(data=response_data, status_code=result_status)
+
+
+class SentryCheckAPIView(BaseHTTPEndpoint):
+    """ Simple checker sentry config (raise err + logger). """
+
+    auth_backend = None
+
+    async def get(self, request):  # noqa
+        logger.error("Error check sentry")
+        try:
+            1 / 0
+        except ZeroDivisionError as err:
+            logger.exception(f"Test exc for sentry: {err}")
+
+        raise BaseApplicationError("Oops!")

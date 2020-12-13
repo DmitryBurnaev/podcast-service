@@ -12,7 +12,6 @@ from common.exceptions import SendRequestError, BaseApplicationError
 
 def get_logger(name: str = None):
     """ Getting configured logger """
-    logging.config.dictConfig(settings.LOGGING)
     return logging.getLogger(name or "app")
 
 

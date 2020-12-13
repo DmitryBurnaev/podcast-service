@@ -40,8 +40,8 @@ def delete_file(filepath: Union[str, Path]):
         logger.info(f"File {filepath} deleted")
 
 
-def get_file_name(video_id: str, file_ext: str = settings.RESULT_FILE_EXT) -> str:
-    return f"{video_id}_{uuid.uuid4().hex}.{file_ext}"
+def get_file_name(video_id: str) -> str:
+    return f"{video_id}_{uuid.uuid4().hex}.mp3"
 
 
 def get_file_size(file_path: str):

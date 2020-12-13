@@ -85,19 +85,13 @@ EMAIL_FROM = config("EMAIL_FROM", default="").strip("'\"")
 INVITE_LINK_EXPIRES_IN = 3 * 24 * 3600  # 3 day
 RESET_PASSWORD_LINK_EXPIRES_IN = 3 * 3600  # 3 hours
 
-RESULT_FILE_EXT = "mp3"
-
-LOCALES_PATH = os.path.join(BASE_DIR, "i18n")
-LOCALES_BY_DEFAULT = "en"
-LOCALES = ["en", "ru"]
-
 SITE_URL = config("SITE_URL", default="https://podcast.site.com/")
 
 DOWNLOAD_EVENT_REDIS_TTL = 60 * 60  # 60 minutes
 RQ_DEFAULT_TIMEOUT = 24 * 3600  # 24 hours
 FFMPEG_TIMEOUT = 2 * 60 * 60  # 2 hours
 
-SENTRY_DSN = config("SENTRY_DSN")
+SENTRY_DSN = config("SENTRY_DSN", default=None)
 LOG_LEVEL = config("LOG_LEVEL", default="INFO")
 LOGGING = {
     "version": 1,
@@ -110,6 +104,7 @@ LOGGING = {
     },
     "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "standard"}},
     "loggers": {
+        "uvicorn": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
         "modules": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
         "common": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
         "app": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
