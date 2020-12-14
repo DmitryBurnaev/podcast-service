@@ -36,5 +36,8 @@ jobs:
           PYPI_USER: ${{ secrets.PYPI_USER }}
           PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
 
+      - name: Create docker-subnet
+        run: docker network create podcast-subnet
+
       - name: Run tests
         run: docker-compose up --exit-code-from test test
