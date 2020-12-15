@@ -1,0 +1,61 @@
+name: Deploy Application
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:11
+        env:
+          POSTGRES_USER: ${{ secrets.DB_USERNAME }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Prepare .env file
+        env:
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+        run: |
+          cp .env.template .env
+          env >> .env
+
+      - name: Build image
+        run: docker-compose build test
+        env:
+          PYPI_USER: ${{ secrets.PYPI_USER }}
+          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+
+      - name: Create docker-subnet
+        run: docker network create podcast-subnet
+
+      - name: Run tests
+        run: docker-compose up --exit-code-from test test
+
+  build-and-deploy:
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Docker login
+        run: |
+          docker login https://docker.pkg.github.com -u ${{ secrets.DOCKER_LOGIN }} --password-stdin
+
+      - name: Build image
+        run: |
+          docker build -t docker.pkg.github.com/procruteam/podcast-service/podcast-service:last -f Dockerfile .
+
+      - name: Push image to docker.io
+        run: |
+          docker push docker.pkg.github.com/procruteam/podcast-service/podcast-service:last
