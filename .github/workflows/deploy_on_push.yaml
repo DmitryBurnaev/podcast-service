@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - feature/issue-19-cd-build-and-deploy
 
 jobs:
   test:
@@ -48,14 +49,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
-      - name: Docker login
-        run: |
-          docker login https://docker.pkg.github.com -u ${{ secrets.DOCKER_LOGIN }} --password-stdin
 
-      - name: Build image
-        run: |
-          docker build -t docker.pkg.github.com/procruteam/podcast-service/podcast-service:last -f Dockerfile .
+      - name: multiple command
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          port: ${{ secrets.PROD_SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PKEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          script: |
+            whoami
+            ls -al
 
-      - name: Push image to docker.io
-        run: |
-          docker push docker.pkg.github.com/procruteam/podcast-service/podcast-service:last
+
+#      - name: Docker login
+#        run: |
+#          docker login https://docker.pkg.github.com -u ${{ secrets.DOCKER_LOGIN }} --password-stdin
+#
+#      - name: Build image
+#        run: |
+#          docker build -t docker.pkg.github.com/procruteam/podcast-service/podcast-service:last -f Dockerfile .
+#
+#      - name: Push image to docker.io
+#        run: |
+#          docker push docker.pkg.github.com/procruteam/podcast-service/podcast-service:last
