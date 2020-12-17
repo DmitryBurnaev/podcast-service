@@ -52,14 +52,14 @@ jobs:
 
       - name: Docker login
         run: |
-          echo ${{ secrets.GH_PACK_KEY }} | docker login https://docker.pkg.github.com -u ${{ github.repository_owner }} --password-stdin
+          echo ${{ secrets.GH_PACK_KEY }} | docker login https://docker.pkg.github.com -u ${{ github.repository_owner,, }} --password-stdin
 
       - name: Build image
         run: |
-          docker build -t docker.pkg.github.com/${{ github.repository_owner }}/podcast-service/podcast-service:last -f Dockerfile .
+          docker build -t docker.pkg.github.com/${{ github.repository_owner,, }}/podcast-service/podcast-service:last -f Dockerfile .
 
       - name: Push image to registry
-        run: docker push docker.pkg.github.com/${{ github.repository_owner }}/podcast-service/podcast-service:last
+        run: docker push docker.pkg.github.com/${{ github.repository_owner,, }}/podcast-service/podcast-service:last
 
       - name: SSH command
         uses: appleboy/ssh-action@master
