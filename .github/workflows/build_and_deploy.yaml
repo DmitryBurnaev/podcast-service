@@ -54,13 +54,13 @@ jobs:
         run: |
           echo ${{ secrets.GH_PACK_KEY }} | docker login https://docker.pkg.github.com -u ${{ github.repository_owner }} --password-stdin
 
-      - name: Build image
-        run: docker build -t ${{ secrets.GH_PACK_URL }} -f Dockerfile .
+#      - name: Build image
+#        run: docker build -t ${{ secrets.GH_PACK_URL }} -f Dockerfile .
+#
+#      - name: Push image to registry
+#        run: docker push ${{ secrets.GH_PACK_URL }}
 
-      - name: Push image to registry
-        run: docker push ${{ secrets.GH_PACK_URL }}
-
-      - name: SSH command
+      - name: SSH commands
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.PROD_SSH_HOST }}
@@ -69,8 +69,7 @@ jobs:
           key: ${{ secrets.SSH_PKEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
-            pwd
-            ls -al
+            docker pull ${{ secrets.GH_PACK_URL }}
 
 
 #      - name: Docker login

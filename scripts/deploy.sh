@@ -1,6 +1,5 @@
 #!/bin/sh
 
-docker pull podcast_service
 supervisorctl stop podcast_service:
 docker-compose down
 supervisorctl start podcast_service:
