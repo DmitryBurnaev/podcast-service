@@ -60,23 +60,23 @@ jobs:
 #      - name: Push image to registry
 #        run: docker push ${{ secrets.GH_PACK_URL }}
 
-#      - name: Prepare SSH key
-#        run: |
-#          echo ${{ secrets.SSH_PKEY }} > /home/runner/.ssh/id_rsa
-#          chmod 400 /home/runner/.ssh/id_rsa
+      - name: Prepare SSH key
+        run: |
+          echo ${{ secrets.SSH_PKEY }} > /home/runner/.ssh/id_rsa
+          chmod 400 /home/runner/.ssh/id_rsa
 #
-      - name: Copy docker-compose.yaml
-        uses: easingthemes/ssh-deploy@v2.1.5
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PKEY }}
-          SOURCE: "./docker-compose.yaml"
-          REMOTE_HOST: ${{ secrets.PROD_SSH_HOST }}
-          REMOTE_USER: ${{ secrets.PROD_SSH_PORT }}
-          TARGET: ${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
+#      - name: Copy docker-compose.yaml
+#        uses: easingthemes/ssh-deploy@v2.1.5
+#        env:
+#          SSH_PRIVATE_KEY: ${{ secrets.SSH_PKEY }}
+#          SOURCE: "./docker-compose.yaml"
+#          REMOTE_HOST: ${{ secrets.PROD_SSH_HOST }}
+#          REMOTE_USER: ${{ secrets.PROD_SSH_PORT }}
+#          TARGET: ${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
 
-#      - name: Copy docker compose file
-#        run: |
-#          scp -v -o StrictHostKeyChecking=no -i /home/runner/.ssh/id_rsa ./docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
+      - name: Copy docker compose file
+        run: |
+          echo ${{ secrets.SSH_PASSPHRASE }} | scp -v -o StrictHostKeyChecking=no -i /home/runner/.ssh/id_rsa ./docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
 
       - name: SSH commands
         uses: appleboy/ssh-action@master
