@@ -62,7 +62,8 @@ jobs:
 
       - name: Prepare SSH key
         run: |
-          echo "${{ secrets.SSH_PKEY }}" > /home/runner/.ssh/id_rsa
+          mkdir ~/.ssh
+          echo "${{ secrets.SSH_PKEY }}" > ~/.ssh/id_rsa
           chmod 400 /home/runner/.ssh/id_rsa
 #
 #      - name: Copy docker-compose.yaml
@@ -76,7 +77,7 @@ jobs:
 
       - name: Copy docker compose file
         run: |
-          echo ${{ secrets.SSH_PASSPHRASE }} | scp -v -o StrictHostKeyChecking=no -i /home/runner/.ssh/id_rsa ./docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
+          echo ${{ secrets.SSH_PASSPHRASE }} | scp -v -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ./docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
 
       - name: SSH commands
         uses: appleboy/ssh-action@master
