@@ -62,7 +62,7 @@ jobs:
 
       - name: Prepare SSH key
         run: |
-          echo ${{ secrets.SSH_PKEY }} > /home/runner/.ssh/id_rsa
+          echo "${{ secrets.SSH_PKEY }}" > /home/runner/.ssh/id_rsa
           chmod 400 /home/runner/.ssh/id_rsa
 #
 #      - name: Copy docker-compose.yaml
