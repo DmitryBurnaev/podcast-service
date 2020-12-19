@@ -68,9 +68,11 @@ jobs:
           ls -lah ~/.ssh
           cat /home/runner/.ssh/id_rsa
 
-      - name: Copy docker compose file
+      - name: Copy project files
         run: |
-          scp -v -o StrictHostKeyChecking=no -i /home/runner/.ssh/id_rsa ./docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
+          scp ./docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
+          scp ./env.template ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/.env.template
+          scp ./migrate_db.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/migrate_db.sh
 
 #      - name: SSH commands
 #        uses: appleboy/ssh-action@master
