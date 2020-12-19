@@ -64,13 +64,13 @@ jobs:
         run: |
           mkdir ~/.ssh
           echo "${{ secrets.SSH_PKEY }}" > ~/.ssh/id_rsa
-          chmod 400 /home/runner/.ssh/id_rsa
+          chmod 440 /home/runner/.ssh/id_rsa
           ls -lah ~/.ssh
           cat /home/runner/.ssh/id_rsa
 
       - name: Copy docker compose file
         run: |
-          echo ${{ secrets.SSH_PASSPHRASE }} | scp -v -o StrictHostKeyChecking=no -i /home/runner/.ssh/id_rsa ./docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
+          scp -v -o StrictHostKeyChecking=no -i /home/runner/.ssh/id_rsa ./docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
 
 #      - name: SSH commands
 #        uses: appleboy/ssh-action@master
