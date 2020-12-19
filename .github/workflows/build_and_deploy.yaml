@@ -64,7 +64,7 @@ jobs:
         run: |
           mkdir ~/.ssh
           echo "${{ secrets.SSH_PKEY }}" > ~/.ssh/id_rsa
-          chmod 440 /home/runner/.ssh/id_rsa
+          chmod 400 /home/runner/.ssh/id_rsa
           ls -lah ~/.ssh
           cat /home/runner/.ssh/id_rsa
 
