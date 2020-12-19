@@ -65,30 +65,23 @@ jobs:
           mkdir ~/.ssh
           echo "${{ secrets.SSH_PKEY }}" > ~/.ssh/id_rsa
           chmod 400 /home/runner/.ssh/id_rsa
-#
-#      - name: Copy docker-compose.yaml
-#        uses: easingthemes/ssh-deploy@v2.1.5
-#        env:
-#          SSH_PRIVATE_KEY: ${{ secrets.SSH_PKEY }}
-#          SOURCE: "./docker-compose.yaml"
-#          REMOTE_HOST: ${{ secrets.PROD_SSH_HOST }}
-#          REMOTE_USER: ${{ secrets.PROD_SSH_PORT }}
-#          TARGET: ${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
+          ls -lah ~/.ssh
+          cat /home/runner/.ssh/id_rsa
 
       - name: Copy docker compose file
         run: |
-          echo ${{ secrets.SSH_PASSPHRASE }} | scp -v -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ./docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
+          echo ${{ secrets.SSH_PASSPHRASE }} | scp -v -o StrictHostKeyChecking=no -i /home/runner/.ssh/id_rsa ./docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
 
-      - name: SSH commands
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.PROD_SSH_HOST }}
-          port: ${{ secrets.PROD_SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PKEY }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          script: |
-            docker pull ${{ secrets.GH_PACK_URL }}
+#      - name: SSH commands
+#        uses: appleboy/ssh-action@master
+#        with:
+#          host: ${{ secrets.PROD_SSH_HOST }}
+#          port: ${{ secrets.PROD_SSH_PORT }}
+#          username: ${{ secrets.SSH_USER }}
+#          key: ${{ secrets.SSH_PKEY }}
+#          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+#          script: |
+#            docker pull ${{ secrets.GH_PACK_URL }}
 
 
 #      - name: Docker login
@@ -102,3 +95,12 @@ jobs:
 #      - name: Push image to docker.io
 #        run: |
 #          docker push docker.pkg.github.com/procruteam/podcast-service/podcast-service:last
+#
+#      - name: Copy docker-compose.yaml
+#        uses: easingthemes/ssh-deploy@v2.1.5
+#        env:
+#          SSH_PRIVATE_KEY: ${{ secrets.SSH_PKEY }}
+#          SOURCE: "./docker-compose.yaml"
+#          REMOTE_HOST: ${{ secrets.PROD_SSH_HOST }}
+#          REMOTE_USER: ${{ secrets.PROD_SSH_PORT }}
+#          TARGET: ${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
