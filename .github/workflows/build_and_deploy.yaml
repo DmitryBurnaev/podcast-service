@@ -81,6 +81,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PKEY }}
           script: |
-            bash ${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
+            sh ${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
+          envs: REGISTRY_URL
         env:
           REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
