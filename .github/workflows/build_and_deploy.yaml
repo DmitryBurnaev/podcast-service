@@ -68,8 +68,8 @@ jobs:
 
       - name: Copy project files
         run: |
-#          scp -o StrictHostKeyChecking=no ./.env.template ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/.env.template
-#          scp -o StrictHostKeyChecking=no ./contrib/docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
+          scp -o StrictHostKeyChecking=no ./.env.template ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/.env.template
+          scp -o StrictHostKeyChecking=no ./contrib/docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
           scp -o StrictHostKeyChecking=no ./contrib/deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
           scp -o StrictHostKeyChecking=no ./contrib/migrate_db.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/migrate_db.sh
 
@@ -81,7 +81,8 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PKEY }}
           script: |
-            REGISTRY_URL=${{ secrets.REGISTRY_URL }} sh ${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
+            echo $REGISTRY_URL > ${{ secrets.PROD_PROJECT_ROOT }}/deploy.log
+            sh ${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
           envs: REGISTRY_URL,PROD_SSH_HOST
         env:
           REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
