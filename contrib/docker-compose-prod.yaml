@@ -2,7 +2,7 @@ version: '3'
 services:
   web:
     image:
-      podcast-service
+      ${REGISTRY_URL}/podcast-service:last
     build:
       context: .
     env_file:
@@ -11,25 +11,21 @@ services:
       - APP_SERVICE=web
     ports:
       - 127.0.0.1:${APP_PORT}:8000
+    networks:
+      - podcast-subnet
 
   rq:
     image:
-      podcast-service
+      ${REGISTRY_URL}/podcast-service:last
     build:
       context: .
     env_file:
       - .env
     environment:
       - APP_SERVICE=rq
+    networks:
+      - podcast-subnet
 
-  test:
-    image:
-      podcast-service
-    build:
-      context: .
-      args:
-        DEV_DEPS: "true"
-    env_file:
-      - .env
-    environment:
-      - APP_SERVICE=test
+networks:
+  podcast-subnet:
+    external: true

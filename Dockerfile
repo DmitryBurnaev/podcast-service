@@ -32,9 +32,9 @@ RUN apt-get update \
 
 COPY ./src ./src
 COPY ./alembic ./alembic
-COPY ./scripts/deploy.sh ./deploy.sh
-COPY ./scripts/entrypoint.sh ./entrypoint.sh
-COPY ./scripts/migrate_db.sh ./migrate_db.sh
+COPY ./contrib/deploy.sh ./deploy.sh
+COPY ./contrib/entrypoint.sh ./entrypoint.sh
+COPY ./contrib/migrate_db.sh ./migrate_db.sh
 COPY pytest.ini .
 COPY alembic.ini .
 COPY .coveragerc .
