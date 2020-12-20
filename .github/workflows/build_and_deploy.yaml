@@ -60,18 +60,18 @@ jobs:
 #      - name: Push image to registry
 #        run: docker push ${{ secrets.REGISTRY_URL }}/podcast-service:last
 #
-#      - name: Prepare SSH key
-#        run: |
-#          mkdir ~/.ssh
-#          echo "${{ secrets.SSH_PKEY }}" > ~/.ssh/id_rsa
-#          chmod 400 ~/.ssh/id_rsa
+      - name: Prepare SSH key
+        run: |
+          mkdir ~/.ssh
+          echo "${{ secrets.SSH_PKEY }}" > ~/.ssh/id_rsa
+          chmod 400 ~/.ssh/id_rsa
 
-#      - name: Copy project files
-#        run: |
+      - name: Copy project files
+        run: |
 #          scp -o StrictHostKeyChecking=no ./.env.template ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/.env.template
 #          scp -o StrictHostKeyChecking=no ./contrib/docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
-#          scp -o StrictHostKeyChecking=no ./contrib/deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
-#          scp -o StrictHostKeyChecking=no ./contrib/migrate_db.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/migrate_db.sh
+          scp -o StrictHostKeyChecking=no ./contrib/deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
+          scp -o StrictHostKeyChecking=no ./contrib/migrate_db.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/migrate_db.sh
 
       - name: Deploy
         uses: appleboy/ssh-action@master
@@ -81,7 +81,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PKEY }}
           script: |
-            sh ${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
+            REGISTRY_URL=${{ secrets.REGISTRY_URL }} sh ${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
           envs: REGISTRY_URL,PROD_SSH_HOST
         env:
           REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
