@@ -83,7 +83,7 @@ jobs:
           script: |
             echo $REGISTRY_URL > ${{ secrets.PROD_PROJECT_ROOT }}/deploy.log
             export PROD_SSH_HOST=${{ secrets.PROD_SSH_HOST }}
-            REGISTRY_URL=${{ secrets.REGISTRY_URL }} sh ${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
+            sh ${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
           envs: REGISTRY_URL,PROD_SSH_HOST
         env:
           REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
