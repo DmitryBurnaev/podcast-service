@@ -81,10 +81,5 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PKEY }}
           script: |
-            echo $REGISTRY_URL > ${{ secrets.PROD_PROJECT_ROOT }}/deploy.log
-            export PROD_SSH_HOST=${{ secrets.PROD_SSH_HOST }}
+            export REGISTRY_URL=${{ secrets.REGISTRY_URL }}
             sh ${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
-          envs: REGISTRY_URL,PROD_SSH_HOST
-        env:
-          REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
-          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
