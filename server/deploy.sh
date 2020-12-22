@@ -1,6 +1,9 @@
 #!/bin/sh
 
-export $(cat .env | grep -v ^# | grep -v ^EMAIL | xargs)
+if [ "${DEPLOY_MODE}" != "CI" ]
+  then
+    export $(cat .env | grep -v ^# | grep -v ^EMAIL | xargs)
+fi
 
 echo "Pulling image ${REGISTRY_URL}/podcast-service:last..." >> ./deploy.log
 docker pull ${REGISTRY_URL}/podcast-service:last

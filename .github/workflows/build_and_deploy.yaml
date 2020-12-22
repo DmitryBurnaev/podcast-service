@@ -81,5 +81,6 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PKEY }}
           script: |
+            export DEPLOY_MODE=CI
             export REGISTRY_URL=${{ secrets.REGISTRY_URL }}
             sh ${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
