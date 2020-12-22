@@ -30,11 +30,11 @@ RUN apt-get update \
 	&& apt-get clean \
 	&& rm -rf /var/lib/apt/lists/*
 
-COPY ./src ./src
-COPY ./alembic ./alembic
-COPY ./contrib/deploy.sh ./deploy.sh
-COPY ./contrib/entrypoint.sh ./entrypoint.sh
-COPY ./contrib/migrate_db.sh ./migrate_db.sh
+COPY src ./src
+COPY alembic ./alembic
+COPY server/deploy.sh ./deploy.sh
+COPY server/migrate_db.sh ./migrate_db.sh
+COPY entrypoint.sh .
 COPY pytest.ini .
 COPY alembic.ini .
 COPY .coveragerc .

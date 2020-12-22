@@ -3,8 +3,6 @@ services:
   web:
     image:
       ${REGISTRY_URL}/podcast-service:last
-    build:
-      context: .
     env_file:
       - .env
     environment:
@@ -17,8 +15,6 @@ services:
   rq:
     image:
       ${REGISTRY_URL}/podcast-service:last
-    build:
-      context: .
     env_file:
       - .env
     environment:
@@ -27,5 +23,5 @@ services:
       - podcast-subnet
 
 networks:
-  podcast-subnet:
+  internal-subnet:
     external: true

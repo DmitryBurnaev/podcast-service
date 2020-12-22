@@ -1,8 +1,14 @@
 #!/bin/sh
 
-export PYTHONPATH=$(pwd)/src
+export $(cat .env | grep -v ^# | grep -v ^EMAIL | xargs)
+
 DATABASE_NAME="${DB_NAME}"
 DATABASE_NAME_TMP="${DB_NAME}_tmp"
+TODAY=$( date '+%Y-%m-%d' )
+
+cp ${BACKUP_ROOT}/${TODAY}.podcast.postgres-backup.tar.gz .
+tar -xzvf ${TODAY}.podcast.postgres-backup.tar.gz podcast.sql
+echo $DATABASE_NAME
 
 echo "==== drop connections ==="
 psql -Upostgres -hlocalhost -c "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname in ('${DATABASE_NAME}', '${DATABASE_NAME_TMP}') AND pid <> pg_backend_pid(); "
