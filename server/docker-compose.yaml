@@ -22,6 +22,16 @@ services:
     networks:
       - podcast-subnet
 
+  migrate_db:
+    image:
+      ${REGISTRY_URL}/podcast-service:last
+    env_file:
+      - .env
+    environment:
+      - APP_SERVICE=migrate_db
+    networks:
+      - podcast-subnet
+
 networks:
   internal-subnet:
     external: true
