@@ -10,7 +10,7 @@ services:
     ports:
       - 127.0.0.1:${APP_PORT}:8000
     networks:
-      - podcast-subnet
+      - internal-subnet
 
   rq:
     image:
@@ -20,7 +20,7 @@ services:
     environment:
       - APP_SERVICE=rq
     networks:
-      - podcast-subnet
+      - internal-subnet
 
   migrate_db:
     image:
@@ -30,7 +30,7 @@ services:
     environment:
       - APP_SERVICE=migrate_db
     networks:
-      - podcast-subnet
+      - internal-subnet
 
 networks:
   internal-subnet:

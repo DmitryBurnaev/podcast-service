@@ -2,18 +2,20 @@
 
 if [ "${DEPLOY_MODE}" != "CI" ]
   then
+    echo "=== reading $(pwd)/.env file ==="
     export $(cat .env | grep -v ^# | grep -v ^EMAIL | xargs)
 fi
 
-echo "Pulling image ${REGISTRY_URL}/podcast-service:last..." >> ./deploy.log
-docker pull ${REGISTRY_URL}/podcast-service:last
+echo "=== pulling image ${REGISTRY_URL}/podcast-service:last ==="
+docker-compose pull
 
-echo "Restarting service..." >> ./deploy.log
+echo "=== restarting service ==="
 supervisorctl stop podcast_service:
 docker-compose down
 supervisorctl start podcast_service:
 
-echo "Clearing..." >> ./deploy.log
+echo "=== clearing ==="
 #echo y | docker image prune -a
+
+echo "=== check status ==="
 supervisorctl status podcast_service:
-exit 0
