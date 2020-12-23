@@ -83,4 +83,6 @@ jobs:
           script: |
             export DEPLOY_MODE=CI
             export REGISTRY_URL=${{ secrets.REGISTRY_URL }}
-            sh ${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
+            cd ${{ secrets.PROD_PROJECT_ROOT }}
+            echo $(pwd) > deploy.log
+            sh deploy.sh
