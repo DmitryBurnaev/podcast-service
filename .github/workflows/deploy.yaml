@@ -53,12 +53,12 @@ jobs:
       - name: Docker login
         run: |
           echo ${{ secrets.GH_PACK_KEY }} | docker login https://docker.pkg.github.com -u ${{ github.repository_owner }} --password-stdin
-#
-#      - name: Build image
-#        run: docker build -t ${{ secrets.REGISTRY_URL }}/podcast-service:last -f Dockerfile .
-#
-#      - name: Push image to registry
-#        run: docker push ${{ secrets.REGISTRY_URL }}/podcast-service:last
+
+      - name: Build image
+        run: docker build -t ${{ secrets.REGISTRY_URL }}/podcast-service:last -f Dockerfile .
+
+      - name: Push image to registry
+        run: docker push ${{ secrets.REGISTRY_URL }}/podcast-service:last
 
       - name: Prepare SSH key
         run: |
@@ -84,5 +84,4 @@ jobs:
             export DEPLOY_MODE=CI
             export REGISTRY_URL=${{ secrets.REGISTRY_URL }}
             cd ${{ secrets.PROD_PROJECT_ROOT }}
-            echo $(pwd) > deploy.log
             sh deploy.sh
