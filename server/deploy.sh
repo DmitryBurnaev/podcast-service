@@ -7,7 +7,7 @@ if [ "${DEPLOY_MODE}" != "CI" ]
 fi
 
 echo "=== pulling image ${REGISTRY_URL}/podcast-service:last ==="
-docker-compose pull
+docker pull ${REGISTRY_URL}/podcast-service:last
 
 echo "=== restarting service ==="
 supervisorctl stop podcast_service:
