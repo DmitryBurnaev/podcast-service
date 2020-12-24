@@ -1,0 +1,80 @@
+name: Deploy Application
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:11
+        env:
+          POSTGRES_USER: ${{ secrets.DB_USERNAME }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Prepare .env file
+        env:
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+        run: |
+          cp .env.template .env
+          env >> .env
+
+      - name: Build image
+        run: docker-compose build test
+
+      - name: Run tests
+        run: docker-compose up --exit-code-from test test
+
+  build-and-deploy:
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Docker login
+        run: |
+          echo ${{ secrets.GH_PACK_KEY }} | docker login https://docker.pkg.github.com -u ${{ github.repository_owner }} --password-stdin
+
+      - name: Build image
+        run: docker build -t ${{ secrets.REGISTRY_URL }}/podcast-service:last -f Dockerfile .
+
+      - name: Push image to registry
+        run: docker push ${{ secrets.REGISTRY_URL }}/podcast-service:last
+
+      - name: Prepare SSH key
+        run: |
+          mkdir ~/.ssh
+          echo "${{ secrets.SSH_PKEY }}" > ~/.ssh/id_rsa
+          chmod 400 ~/.ssh/id_rsa
+
+      - name: Copy project files
+        run: |
+          scp -o StrictHostKeyChecking=no ./.env.template ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/.env.template
+          scp -o StrictHostKeyChecking=no ./server/docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
+          scp -o StrictHostKeyChecking=no ./server/deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
+          scp -o StrictHostKeyChecking=no ./server/migrate_db.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/migrate_db.sh
+
+      - name: Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          port: ${{ secrets.PROD_SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PKEY }}
+          script: |
+            export DEPLOY_MODE=CI
+            export REGISTRY_URL=${{ secrets.REGISTRY_URL }}
+            cd ${{ secrets.PROD_PROJECT_ROOT }}
+            sh deploy.sh

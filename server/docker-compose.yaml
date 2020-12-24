@@ -2,9 +2,7 @@ version: '3'
 services:
   web:
     image:
-      podcast-service
-    build:
-      context: .
+      ${REGISTRY_URL}/podcast-service:last
     env_file:
       - .env
     environment:
@@ -12,31 +10,28 @@ services:
     ports:
       - 127.0.0.1:${APP_PORT}:8000
     networks:
-      - podcast-subnet
+      - internal-subnet
 
   rq:
     image:
-      podcast-service
-    build:
-      context: .
+      ${REGISTRY_URL}/podcast-service:last
     env_file:
       - .env
     environment:
       - APP_SERVICE=rq
     networks:
-      - podcast-subnet
+      - internal-subnet
 
-  test:
-    image: podcast-service
-    build:
-      context: .
-      args:
-        DEV_DEPS: "true"
+  migrate_db:
+    image:
+      ${REGISTRY_URL}/podcast-service:last
     env_file:
       - .env
     environment:
-      - APP_SERVICE=test
+      - APP_SERVICE=migrate_db
+    networks:
+      - internal-subnet
 
 networks:
-  podcast-subnet:
+  internal-subnet:
     external: true

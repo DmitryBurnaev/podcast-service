@@ -1,0 +1,35 @@
+version: '3'
+services:
+  web:
+    image:
+      podcast-service
+    build:
+      context: .
+    env_file:
+      - .env
+    environment:
+      - APP_SERVICE=web
+    ports:
+      - 127.0.0.1:${APP_PORT}:8000
+
+  rq:
+    image:
+      podcast-service
+    build:
+      context: .
+    env_file:
+      - .env
+    environment:
+      - APP_SERVICE=rq
+
+  test:
+    image:
+      podcast-service
+    build:
+      context: .
+      args:
+        DEV_DEPS: "true"
+    env_file:
+      - .env
+    environment:
+      - APP_SERVICE=test
