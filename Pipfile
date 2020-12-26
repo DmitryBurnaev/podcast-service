@@ -13,7 +13,7 @@ psycopg2 = "==2.8.6"  # in order to use in alembic
 gino = {version = "==1.0.1", extras = ["starlette"]}
 alembic = "==1.4.3"
 
-python-jose = "3.2.0"
+PyJWT = "==2.0.0"
 httpx = "==0.16.1"
 redis = "==3.5.3"
 boto3 = "==1.16.30"

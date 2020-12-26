@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from jose import JWTError
+from jwt import InvalidTokenError
 from starlette.requests import Request
 
 from common.exceptions import (
@@ -44,7 +44,7 @@ class BaseAuthJWTBackend:
         logger.debug("Logging via JWT auth. Got token: %s", jwt_token)
         try:
             jwt_payload = decode_jwt(jwt_token)
-        except JWTError as error:
+        except InvalidTokenError as error:
             msg = "Token could not be decoded: %s"
             logger.exception(msg, error)
             raise AuthenticationFailedError(msg % (error,))
