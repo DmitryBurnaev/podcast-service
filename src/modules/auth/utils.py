@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Tuple
 
-from jose import jwt
+import jwt
 
 from core import settings
 

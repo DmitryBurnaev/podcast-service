@@ -458,9 +458,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
     def test__token_expired__fail(self, client, user):
         token, _ = encode_jwt({"user_id": user.id}, expires_in=-10)
         response_data = self._assert_fail_response(client, token)
-        self.assert_auth_invalid(
-            response_data, "Token could not be decoded: Signature has expired."
-        )
+        self.assert_auth_invalid(response_data, "Token could not be decoded: Signature has expired")
 
     def test__token_invalid_type__fail(self, client, user):
         token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_REFRESH)
