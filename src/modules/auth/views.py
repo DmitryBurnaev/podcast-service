@@ -164,7 +164,7 @@ class SignOutAPIView(BaseHTTPEndpoint):
      - deactivate current session on BE (this allows to block use regular or refresh token)
     """
 
-    async def get(self, request):
+    async def delete(self, request):
         user = request.user
         logger.info("Log out for user %s", user)
         user_session = await UserSession.async_get(user_id=user.id, is_active=True)

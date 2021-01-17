@@ -274,7 +274,7 @@ class TestSignOutAPIView(BaseTestAPIView):
 
     def test_sign_out__ok(self, client, user):
         user_session = client.login(user)
-        response = client.get(self.url)
+        response = client.delete(self.url)
         assert response.status_code == 204
 
         user_session = async_run(UserSession.async_get(id=user_session.id))
@@ -282,7 +282,7 @@ class TestSignOutAPIView(BaseTestAPIView):
 
     def test_sign_out__user_session_not_found__ok(self, client, user):
         client.login(user)
-        response = client.get(self.url)
+        response = client.delete(self.url)
         assert response.status_code == 204
 
 
