@@ -55,7 +55,8 @@ DATABASE_DSN = config(
 
 REDIS_HOST = config("REDIS_HOST", default="localhost")
 REDIS_PORT = config("REDIS_PORT", default=6379)
-REDIS_CON = (REDIS_HOST, REDIS_PORT)
+REDIS_DB = config("REDIS_DB", default=0)
+REDIS_CON = (REDIS_HOST, REDIS_PORT, REDIS_DB)
 RQ_QUEUE_NAME = config("RQ_QUEUE_NAME", default="youtube_downloads")
 
 
