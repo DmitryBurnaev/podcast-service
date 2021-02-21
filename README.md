@@ -149,6 +149,7 @@ make lint
 | SENTRY_DSN                | Sentry dsn (if not set, error logs won't be sent) |                       |
 | REDIS_HOST                | Redis host                                        | localhost             |
 | REDIS_PORT                | Redis port                                        | 6379                  |
+| REDIS_DB                  | Redis db                                          | 0                     |
 | DB_NAME_TEST              | Custom name for DB name for tests                 | `DB_NAME` + `_test`   |
 | SENDGRID_API_KEY          | Is needed for sending Email (invite, passw., etc) |                       |
 | EMAIL_FROM                | Is needed for sending Email                       |                       |

@@ -23,6 +23,7 @@ def _podcast(podcast):
         "name": podcast.name,
         "description": podcast.description,
         "image_url": podcast.image_url,
+        "download_automatically": podcast.download_automatically,
         "created_at": podcast.created_at.isoformat(),
     }
 

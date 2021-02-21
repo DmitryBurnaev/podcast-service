@@ -13,8 +13,8 @@ INVALID_UPDATE_DATA = [
 ]
 
 INVALID_CREATE_DATA = [
-    [{"youtube_link": "fake-url"}, {"youtube_link": "Not a valid URL."}],
-    [{}, {"youtube_link": "Missing data for required field."}],
+    [{"source_url": "fake-url"}, {"source_url": "Not a valid URL."}],
+    [{}, {"source_url": "Missing data for required field."}],
 ]
 
 
@@ -22,6 +22,7 @@ def _episode_in_list(episode: Episode):
     return {
         "id": episode.id,
         "title": episode.title,
+        "status": str(episode.status),
         "image_url": episode.image_url,
         "created_at": episode.created_at.isoformat(),
     }
@@ -57,7 +58,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
     def test_create__ok(self, client, podcast, episode, episode_data, user, mocked_episode_creator):
         mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
         client.login(user)
-        episode_data = {"youtube_link": episode_data["watch_url"]}
+        episode_data = {"source_url": episode_data["watch_url"]}
         url = self.url.format(id=podcast.id)
         response = client.post(url, json=episode_data)
         assert response.status_code == 201
@@ -65,7 +66,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         mocked_episode_creator.target_class.__init__.assert_called_with(
             mocked_episode_creator.target_obj,
             podcast_id=podcast.id,
-            youtube_link=episode_data["youtube_link"],
+            youtube_link=episode_data["source_url"],
             user_id=user.id,
         )
         mocked_episode_creator.create.assert_called_once()
@@ -76,7 +77,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
         client.login(user)
         url = self.url.format(id=podcast.id)
-        response = client.post(url, json={"youtube_link": episode_data["watch_url"]})
+        response = client.post(url, json={"source_url": episode_data["watch_url"]})
         assert response.status_code == 201
         mocked_rq_queue.enqueue.assert_called_with(
             tasks.DownloadEpisodeTask(), episode_id=episode.id
@@ -88,7 +89,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         mocked_episode_creator.create.side_effect = YoutubeFetchError("Oops")
         client.login(user)
         url = self.url.format(id=podcast.id)
-        response = client.post(url, json={"youtube_link": episode_data["watch_url"]})
+        response = client.post(url, json={"source_url": episode_data["watch_url"]})
         assert response.status_code == 500
         assert response.json() == {
             "error": "We couldn't extract info about requested episode.",

@@ -27,10 +27,11 @@ class PodcastDetailsSchema(Schema):
     description = fields.Str(required=True)
     created_at = fields.DateTime(required=True)
     image_url = fields.URL()
+    download_automatically = fields.Boolean(default=True)
 
 
 class EpisodeCreateSchema(Schema):
-    youtube_link = fields.URL(required=True)
+    source_url = fields.URL(required=True)
 
 
 class EpisodeUpdateSchema(Schema):
@@ -44,6 +45,7 @@ class EpisodeListSchema(Schema):
     title = fields.Str(required=True)
     created_at = fields.DateTime(required=True)
     image_url = fields.URL()
+    status = fields.Str(required=True)
 
 
 class EpisodeDetailsSchema(Schema):
