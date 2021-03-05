@@ -10,12 +10,12 @@ echo "=== pulling image ${REGISTRY_URL}/podcast-service:last ==="
 docker pull ${REGISTRY_URL}/podcast-service:last
 
 echo "=== restarting service ==="
-supervisorctl stop podcast_service:
+supervisorctl stop podcast-service:
 docker-compose down
-supervisorctl start podcast_service:
+supervisorctl start podcast-service:
 
 echo "=== clearing ==="
-#echo y | docker image prune -a
+echo y | docker image prune -a
 
 echo "=== check status ==="
-supervisorctl status podcast_service:
+supervisorctl status podcast-service:
