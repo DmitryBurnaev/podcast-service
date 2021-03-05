@@ -29,12 +29,24 @@ class ProgressAPIView(BaseHTTPEndpoint):
             podcast.id: podcast
             for podcast in await Podcast.async_filter(created_by_id=request.user.id)
         }
-        episodes = await Episode.get_in_progress(request.user.id)
-        progress = await check_state(episodes)
+        episodes = {
+            episode.id: episode for episode in await Episode.get_in_progress(request.user.id)
+        }
+        progress = await check_state(episodes.values())
 
         for progress_item in progress:
-            podcast = podcast_items.get(progress_item["podcast_id"])
-            progress_item["podcast_publish_id"] = getattr(podcast, "publish_id", None)
+            podcast: Podcast = podcast_items.get(progress_item.pop("podcast_id"))
+            episode: Episode = episodes.get(progress_item.pop("episode_id"))
+            progress_item["episode"] = {
+                "id": episode.id,
+                "title": episode.title,
+                "image_url": episode.image_url,
+            }
+            progress_item["podcast"] = {
+                "id": podcast.id,
+                "name": podcast.name,
+                "image_url": podcast.image_url,
+            }
             progress_item["status_display"] = status_choices.get(progress_item["status"])
 
         return self._response(data=progress)
