@@ -81,13 +81,23 @@ class PlayListResponseSchema(Schema):
     entries = fields.Nested(PlayListEntitySchema, many=True)
 
 
+class ProgressPodcastSchema(Schema):
+    id = fields.Int()
+    name = fields.Str()
+    image_url = fields.URL()
+
+
+class ProgressEpisodeSchema(Schema):
+    id = fields.Int()
+    title = fields.Str()
+    image_url = fields.URL()
+
+
 class ProgressResponseSchema(Schema):
     status = fields.Str()
     status_display = fields.Str()
-    episode_id = fields.Int()
-    episode_title = fields.Str()
-    podcast_id = fields.Int()
     completed = fields.Float()
     current_file_size = fields.Int()
     total_file_size = fields.Int()
-    podcast_publish_id = fields.Str()
+    episode = fields.Nested(ProgressEpisodeSchema)
+    podcast = fields.Nested(ProgressPodcastSchema)

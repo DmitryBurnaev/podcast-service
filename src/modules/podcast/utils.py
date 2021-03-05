@@ -83,7 +83,6 @@ async def check_state(episodes: Iterable[Episode]) -> list:
             {
                 "status": status,
                 "episode_id": episode.id,
-                "episode_title": episode.title,
                 "podcast_id": episode.podcast_id,
                 "completed": completed,
                 "current_file_size": current_file_size,

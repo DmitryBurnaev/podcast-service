@@ -13,10 +13,16 @@ def _progress(podcast: Podcast, episode: Episode, current_size: int, completed: 
     return {
         "status": str(EpisodeStatuses.episode_downloading),
         "status_display": "Downloading",
-        "episode_id": episode.id,
-        "episode_title": episode.title,
-        "podcast_id": episode.podcast_id,
-        "podcast_publish_id": podcast.publish_id,
+        "episode": {
+            "id": episode.id,
+            "title": episode.title,
+            "image_url": episode.image_url,
+        },
+        "podcast": {
+            "id": podcast.id,
+            "name": podcast.name,
+            "image_url": podcast.image_url,
+        },
         "current_file_size": current_size,
         "total_file_size": episode.file_size,
         "completed": completed,
