@@ -20,7 +20,7 @@ boto3 = "==1.16.30"
 youtube_dl = "==2020.12.5"
 sentry-sdk = "==0.19.4"
 python-dotenv = "==0.15.0"
-Jinja2 = "==2.11.2" # rss-file rendering
+Jinja2 = "==2.11.3" # rss-file rendering
 
 [dev-packages]
 pytest = "==6.1.2"
