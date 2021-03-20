@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 starlette = "==0.13.8"
 webargs-starlette = "==2.0.0"
-uvicorn = "==0.12.3"
+uvicorn = "==0.13.4"
 rq = "==1.7.0"
 
 psycopg2 = "==2.8.6"  # in order to use in alembic
@@ -16,11 +16,11 @@ alembic = "==1.4.3"
 PyJWT = "==2.0.0"
 httpx = "==0.16.1"
 redis = "==3.5.3"
-boto3 = "==1.16.30"
-youtube_dl = "==2020.12.5"
-sentry-sdk = "==0.19.4"
+boto3 = "==1.17.33"
+youtube_dl = "==2021.3.14"
+sentry-sdk = "==1.0.0"
 python-dotenv = "==0.15.0"
-Jinja2 = "==2.11.2" # rss-file rendering
+Jinja2 = "==2.11.3" # rss-file rendering
 
 [dev-packages]
 pytest = "==6.1.2"
