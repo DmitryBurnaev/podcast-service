@@ -5,6 +5,7 @@ from common.utils import get_logger
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
 from common.db_utils import db_transaction
+from core.database import db
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.schemas import PodcastCreateUpdateSchema, PodcastDetailsSchema
 from modules.podcast.tasks.rss import GenerateRSSTask
@@ -19,6 +20,24 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
     schema_response = PodcastDetailsSchema
 
     async def get(self, request):
+        episodes_count = db.func.count(Episode.id)
+        # podcasts = await Podcast.join(Episode).select(Podcast).group_by(*Podcast.__dict__).gino.all()
+        # podcasts = await Podcast.join(Episode).select(Podcast.id, Episode.status).gino.all()
+        # podcasts = await Podcast.join(Episode).select([Podcast, episodes_count]).group_by(*Podcast.__dict__).gino.all()
+
+
+
+        # q = db.select([
+        #     Podcast,
+        #     episodes_count,
+        # ]).select_from(
+        #     Podcast.outerjoin(Episode)
+        # ).group_by(
+        #     *Podcast,
+        # ).gino.load((Podcast, ColumnLoader(episodes_count)))
+        # async with db.transaction():
+        #     podcasts = await q.iterate()
+        # TODO: we need to add aggregation for this query
         podcasts = await Podcast.async_filter(created_by_id=request.user.id)
         return self._response(podcasts)
 
