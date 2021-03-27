@@ -38,7 +38,8 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
         # async with db.transaction():
         #     podcasts = await q.iterate()
         # TODO: we need to add aggregation for this query
-        podcasts = await Podcast.async_filter(created_by_id=request.user.id)
+        podcasts = await Podcast.join(Episode).select().gino.all()
+        # podcasts = await Podcast.async_filter(created_by_id=request.user.id)
         return self._response(podcasts)
 
     @db_transaction

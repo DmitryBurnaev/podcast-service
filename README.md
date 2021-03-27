@@ -60,8 +60,8 @@ cp .env.template .env
 #### Prepare extra resources (postgres | redis)
 ```shell script
 export $(cat .env | grep -v ^# | xargs)
-docker run --name postgres-server -e POSTGRES_PASSWORD=${DATABASE_PASSWORD} -d postgres:10.11
-docker run --name redis-server -d redis
+docker run --name postgres-etc -e POSTGRES_PASSWORD=${DATABASE_PASSWORD} -d postgres:10.11
+docker run --name redis-etc -d redis
 ```
 
 #### Create database
