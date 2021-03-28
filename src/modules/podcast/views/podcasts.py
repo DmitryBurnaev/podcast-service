@@ -1,3 +1,4 @@
+from gino.loader import ColumnLoader
 from starlette import status
 
 from core import settings
@@ -21,25 +22,21 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
 
     async def get(self, request):
         episodes_count = db.func.count(Episode.id)
-        # podcasts = await Podcast.join(Episode).select(Podcast).group_by(*Podcast.__dict__).gino.all()
-        # podcasts = await Podcast.join(Episode).select(Podcast.id, Episode.status).gino.all()
-        # podcasts = await Podcast.join(Episode).select([Podcast, episodes_count]).group_by(*Podcast.__dict__).gino.all()
+        query = (
+            db.select([Podcast, episodes_count])
+            .where(Podcast.created_by_id == request.user.id)
+            .select_from(Podcast.outerjoin(Episode))
+            .group_by(
+                Podcast.id,
+            )
+            .gino.load((Podcast, ColumnLoader(episodes_count)))
+        )
+        podcasts = []
+        async with db.transaction():
+            async for podcast, episodes_count in query.iterate():
+                podcast.episodes_count = episodes_count
+                podcasts.append(podcast)
 
-
-
-        # q = db.select([
-        #     Podcast,
-        #     episodes_count,
-        # ]).select_from(
-        #     Podcast.outerjoin(Episode)
-        # ).group_by(
-        #     *Podcast,
-        # ).gino.load((Podcast, ColumnLoader(episodes_count)))
-        # async with db.transaction():
-        #     podcasts = await q.iterate()
-        # TODO: we need to add aggregation for this query
-        podcasts = await Podcast.join(Episode).select().gino.all()
-        # podcasts = await Podcast.async_filter(created_by_id=request.user.id)
         return self._response(podcasts)
 
     @db_transaction
