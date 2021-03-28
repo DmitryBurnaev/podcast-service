@@ -4,7 +4,7 @@ from core import settings
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks import GenerateRSSTask
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import create_user, get_podcast_data, get_episode_data, async_run
+from tests.helpers import create_user, get_podcast_data, get_episode_data, async_run, create_episode
 
 INVALID_UPDATE_DATA = [
     [{"name": "name" * 100}, {"name": "Length must be between 1 and 256."}],
@@ -25,6 +25,7 @@ def _podcast(podcast):
         "image_url": podcast.image_url,
         "download_automatically": podcast.download_automatically,
         "created_at": podcast.created_at.isoformat(),
+        "episodes_count": 0,
     }
 
 
@@ -36,6 +37,25 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         response = client.get(self.url)
         assert response.status_code == 200
         assert response.json() == [_podcast(podcast)]
+
+    def test_get_list__check_episodes_count__ok(self, client, user, loop):
+
+        podcast_1 = async_run(Podcast.create(**get_podcast_data(created_by_id=user.id)))
+        create_episode(get_episode_data(), podcast_1)
+        create_episode(get_episode_data(), podcast_1)
+
+        podcast_2 = async_run(Podcast.create(**get_podcast_data(created_by_id=user.id)))
+        create_episode(get_episode_data(), podcast_2)
+
+        client.login(user)
+        response = client.get(self.url)
+        assert response.status_code == 200
+
+        expected_episodes_counts = {podcast_1.id: 2, podcast_2.id: 1}
+        actual_episodes_counts = {
+            podcast["id"]: podcast["episodes_count"] for podcast in response.json()
+        }
+        assert expected_episodes_counts == actual_episodes_counts
 
     def test_get_list__filter_by_created_by__ok(self, client):
         user_1 = create_user()

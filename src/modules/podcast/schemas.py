@@ -28,6 +28,7 @@ class PodcastDetailsSchema(Schema):
     created_at = fields.DateTime(required=True)
     image_url = fields.URL()
     download_automatically = fields.Boolean(default=True)
+    episodes_count = fields.Integer(default=0)
 
 
 class EpisodeCreateSchema(Schema):

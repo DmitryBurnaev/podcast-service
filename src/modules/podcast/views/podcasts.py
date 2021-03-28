@@ -1,3 +1,4 @@
+from gino.loader import ColumnLoader
 from starlette import status
 
 from core import settings
@@ -5,6 +6,7 @@ from common.utils import get_logger
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
 from common.db_utils import db_transaction
+from core.database import db
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.schemas import PodcastCreateUpdateSchema, PodcastDetailsSchema
 from modules.podcast.tasks.rss import GenerateRSSTask
@@ -19,7 +21,22 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
     schema_response = PodcastDetailsSchema
 
     async def get(self, request):
-        podcasts = await Podcast.async_filter(created_by_id=request.user.id)
+        episodes_count = db.func.count(Episode.id)
+        query = (
+            db.select([Podcast, episodes_count])
+            .where(Podcast.created_by_id == request.user.id)
+            .select_from(Podcast.outerjoin(Episode))
+            .group_by(
+                Podcast.id,
+            )
+            .gino.load((Podcast, ColumnLoader(episodes_count)))
+        )
+        podcasts = []
+        async with db.transaction():
+            async for podcast, episodes_count in query.iterate():
+                podcast.episodes_count = episodes_count
+                podcasts.append(podcast)
+
         return self._response(podcasts)
 
     @db_transaction
