@@ -19,13 +19,13 @@ class EpisodeCreator:
         "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%-[0-9a-fA-F][0-9a-fA-F]))+"
     )
 
-    def __init__(self, podcast_id: int, youtube_link: str, user_id: int):
+    def __init__(self, podcast_id: int, source_url: str, user_id: int):
         self.podcast_id = podcast_id
         self.user_id = user_id
-        self.youtube_link = youtube_link
-        self.source_id = get_video_id(youtube_link)
+        self.source_url = source_url
+        self.source_id = get_video_id(source_url)
         if not self.source_id:
-            raise InvalidParameterError({"youtube_link": "Couldn't extract source_id from link"})
+            raise InvalidParameterError({"source_url": "Couldn't extract source_id from link"})
 
     async def create(self) -> Episode:
         """
@@ -73,7 +73,7 @@ class EpisodeCreator:
             logger.info(f"New episode for video {self.source_id} will be created.")
             same_episode_data = {}
 
-        extract_error, youtube_info = await get_youtube_info(self.youtube_link)
+        extract_error, youtube_info = await get_youtube_info(self.source_url)
 
         if youtube_info:
             logger.info("Episode will be created from the YouTube video.")

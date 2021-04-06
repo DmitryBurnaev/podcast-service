@@ -29,12 +29,12 @@ class YoutubeInfo(NamedTuple):
     length: int
 
 
-def get_video_id(youtube_link: str) -> Optional[str]:
+def get_video_id(source_url: str) -> Optional[str]:
     """ Extracts youtube link and finds video ID """
 
-    matched_url = re.findall(r"(?:v=|/)([0-9A-Za-z_-]{11}).*", youtube_link)
+    matched_url = re.findall(r"(?:v=|/)([0-9A-Za-z_-]{11}).*", source_url)
     if not matched_url:
-        logger.error(f"Couldn't extract video ID: Source link is not correct: {youtube_link}")
+        logger.error(f"Couldn't extract video ID: Source link is not correct: {source_url}")
         return None
 
     return matched_url[0]
