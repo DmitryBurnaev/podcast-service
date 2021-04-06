@@ -36,7 +36,7 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
         cleaned_data = await self._validate(request)
         episode_creator = EpisodeCreator(
             podcast_id=podcast_id,
-            youtube_link=cleaned_data["source_url"],
+            source_url=cleaned_data["source_url"],
             user_id=request.user.id,
         )
         episode = await episode_creator.create()

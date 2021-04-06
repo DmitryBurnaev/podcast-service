@@ -66,7 +66,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         mocked_episode_creator.target_class.__init__.assert_called_with(
             mocked_episode_creator.target_obj,
             podcast_id=podcast.id,
-            youtube_link=episode_data["source_url"],
+            source_url=episode_data["source_url"],
             user_id=user.id,
         )
         mocked_episode_creator.create.assert_called_once()
@@ -107,7 +107,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
     def test_create__podcast_from_another_user__fail(self, client, podcast):
         client.login(create_user())
         url = self.url.format(id=podcast.id)
-        data = {"youtube_link": "http://link.to.resource/"}
+        data = {"source_url": "http://link.to.resource/"}
         self.assert_not_found(client.post(url, json=data), podcast)
 
 

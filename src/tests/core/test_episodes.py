@@ -14,7 +14,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         watch_url = f"https://www.youtube.com/watch?v={source_id}"
         episode_creator = EpisodeCreator(
             podcast_id=podcast.id,
-            youtube_link=watch_url,
+            source_url=watch_url,
             user_id=user.id,
         )
         episode = async_run(episode_creator.create())
@@ -25,7 +25,7 @@ class TestEpisodeCreator(BaseTestAPIView):
     def test_create__same_episode_in_podcast__ok(self, podcast, episode, user, mocked_youtube):
         episode_creator = EpisodeCreator(
             podcast_id=episode.podcast_id,
-            youtube_link=episode.watch_url,
+            source_url=episode.watch_url,
             user_id=user.id,
         )
         new_episode = async_run(episode_creator.create())
@@ -49,7 +49,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         new_podcast = async_run(Podcast.create(**get_podcast_data()))
         episode_creator = EpisodeCreator(
             podcast_id=new_podcast.id,
-            youtube_link=episode.watch_url,
+            source_url=episode.watch_url,
             user_id=user.id,
         )
         new_episode: Episode = async_run(episode_creator.create())
@@ -68,7 +68,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         new_podcast = async_run(Podcast.create(**get_podcast_data()))
         episode_creator = EpisodeCreator(
             podcast_id=new_podcast.id,
-            youtube_link=episode.watch_url,
+            source_url=episode.watch_url,
             user_id=user.id,
         )
         new_episode: Episode = async_run(episode_creator.create())
@@ -82,7 +82,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         mocked_youtube.extract_info.side_effect = ydl_error
         episode_creator = EpisodeCreator(
             podcast_id=podcast.id,
-            youtube_link=episode_data["watch_url"],
+            source_url=episode_data["watch_url"],
             user_id=user.id,
         )
         with pytest.raises(YoutubeFetchError) as error:
