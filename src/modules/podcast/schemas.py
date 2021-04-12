@@ -92,6 +92,7 @@ class ProgressEpisodeSchema(Schema):
     id = fields.Int()
     title = fields.Str()
     image_url = fields.URL()
+    status = fields.Str()
 
 
 class ProgressResponseSchema(Schema):

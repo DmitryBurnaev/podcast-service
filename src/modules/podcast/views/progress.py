@@ -41,6 +41,7 @@ class ProgressAPIView(BaseHTTPEndpoint):
                 "id": episode.id,
                 "title": episode.title,
                 "image_url": episode.image_url,
+                "status": episode.status,
             }
             progress_item["podcast"] = {
                 "id": podcast.id,
