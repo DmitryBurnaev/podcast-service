@@ -17,6 +17,7 @@ def _progress(podcast: Podcast, episode: Episode, current_size: int, completed: 
             "id": episode.id,
             "title": episode.title,
             "image_url": episode.image_url,
+            "status": str(episode.status),
         },
         "podcast": {
             "id": podcast.id,
