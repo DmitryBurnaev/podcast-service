@@ -25,6 +25,7 @@ def _podcast(podcast):
         "image_url": podcast.image_url,
         "download_automatically": podcast.download_automatically,
         "created_at": podcast.created_at.isoformat(),
+        "rss_link": podcast.rss_link,
         "episodes_count": 0,
     }
 
