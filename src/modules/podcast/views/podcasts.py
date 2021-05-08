@@ -29,6 +29,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
             .group_by(
                 Podcast.id,
             )
+            .order_by(Podcast.id)
             .gino.load((Podcast, ColumnLoader(episodes_count)))
         )
         podcasts = []
