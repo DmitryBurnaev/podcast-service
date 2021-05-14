@@ -32,7 +32,12 @@ class DownloadEpisodeTask(RQTask):
             code = await self.perform_run(int(episode_id))
         except DownloadingInterrupted as error:
             logger.warning("Episode downloading was interrupted with code: %i", error.code)
+            await Episode.async_update({"id": episode_id}, update_data={"status": Episode.Status.ERROR})
             return error.code.value
+        except Exception as error:
+            logger.error("Unable to download episode: %s", error)
+            await Episode.async_update({"id": episode_id}, update_data={"status": Episode.Status.ERROR})
+            return FinishCode.ERROR
 
         return code.value
 
