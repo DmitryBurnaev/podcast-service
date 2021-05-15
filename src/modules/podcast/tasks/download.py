@@ -33,6 +33,12 @@ class DownloadEpisodeTask(RQTask):
         except DownloadingInterrupted as error:
             logger.warning("Episode downloading was interrupted with code: %i", error.code)
             return error.code.value
+        except Exception as error:
+            logger.exception("Unable to download episode: %s", error)
+            await Episode.async_update(
+                {"id": episode_id}, update_data={"status": Episode.Status.ERROR}
+            )
+            return FinishCode.ERROR
 
         return code.value
 
@@ -75,7 +81,6 @@ class DownloadEpisodeTask(RQTask):
 
     async def _check_is_needed(self, episode: Episode):
         """ Allows to find another episodes with same `source_id` which were already downloaded. """
-
         stored_file_size = self.storage.get_file_size(episode.file_name)
         if stored_file_size and stored_file_size == episode.file_size:
             logger.info(
@@ -103,13 +108,13 @@ class DownloadEpisodeTask(RQTask):
         except YoutubeDLError as error:
             logger.exception(
                 "=== [%s] Downloading FAILED: Could not download track: %s. "
-                "All episodes will be rolled back to the NEW state",
+                "All episodes will be moved to the ERROR state",
                 episode.source_id,
                 error,
             )
             await Episode.async_update(
                 filter_kwargs={"source_id": episode.source_id},
-                update_data={"status": Episode.Status.NEW},
+                update_data={"status": Episode.Status.ERROR},
             )
             raise DownloadingInterrupted(code=FinishCode.ERROR)
 

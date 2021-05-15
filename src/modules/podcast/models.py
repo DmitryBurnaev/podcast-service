@@ -11,6 +11,24 @@ from common.db_utils import EnumTypeColumn
 from common.models import BaseModel
 
 
+class EpisodeStatus(enum.Enum):
+    NEW = "new"
+    DOWNLOADING = "downloading"
+    PUBLISHED = "published"
+    ARCHIVED = "archived"
+    ERROR = "error"
+
+    DL_PENDING = "pending"
+    DL_EPISODE_DOWNLOADING = "episode_downloading"
+    DL_EPISODE_POSTPROCESSING = "episode_postprocessing"
+    DL_EPISODE_UPLOADING = "episode_uploading"
+    DL_COVER_DOWNLOADING = "cover_downloading"
+    DL_COVER_UPLOADING = "cover_uploading"
+
+    def __str__(self):
+        return self.value
+
+
 class Podcast(BaseModel):
     """ Simple schema_request for saving podcast in DB """
 
@@ -59,18 +77,8 @@ class Episode(BaseModel):
     """ Simple schema_request for saving episodes in DB """
 
     __tablename__ = "podcast_episodes"
-
-    class Status(enum.Enum):
-        NEW = "new"
-        DOWNLOADING = "downloading"
-        PUBLISHED = "published"
-        ARCHIVED = "archived"
-        ERROR = "error"
-
-        def __str__(self):
-            return self.value
-
-    PROGRESS_STATUSES = (Status.DOWNLOADING, Status.ERROR)
+    Status = EpisodeStatus
+    PROGRESS_STATUSES = (Status.DOWNLOADING,)
 
     id = db.Column(db.Integer, primary_key=True)
     source_id = db.Column(db.String(length=32), index=True, nullable=False)
