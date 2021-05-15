@@ -1,5 +1,4 @@
-from modules.podcast.models import Podcast, Episode
-from modules.podcast.utils import EpisodeStatuses
+from modules.podcast.models import Podcast, Episode, EpisodeStatus
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import get_episode_data, create_user, get_podcast_data, async_run, create_episode
 
@@ -11,8 +10,7 @@ STATUS = Episode.Status
 
 def _progress(podcast: Podcast, episode: Episode, current_size: int, completed: float):
     return {
-        "status": str(EpisodeStatuses.episode_downloading),
-        "status_display": "Downloading",
+        "status": str(EpisodeStatus.DL_EPISODE_DOWNLOADING),
         "episode": {
             "id": episode.id,
             "title": episode.title,
@@ -47,17 +45,17 @@ class TestProgressAPIView(BaseTestAPIView):
         mocked_redis.async_get_many.return_value = mocked_redis.async_return(
             {
                 p1_episode_new.file_name.partition(".")[0]: {
-                    "status": EpisodeStatuses.pending,
+                    "status": EpisodeStatus.DL_PENDING,
                     "processed_bytes": 0,
                     "total_bytes": MB_1,
                 },
                 p1_episode_down.file_name.partition(".")[0]: {
-                    "status": EpisodeStatuses.episode_downloading,
+                    "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_2,
                 },
                 p2_episode_down.file_name.partition(".")[0]: {
-                    "status": EpisodeStatuses.episode_downloading,
+                    "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_4,
                 },
@@ -86,12 +84,12 @@ class TestProgressAPIView(BaseTestAPIView):
         mocked_redis.async_get_many.return_value = mocked_redis.async_return(
             {
                 p1_episode_down.file_name.partition(".")[0]: {
-                    "status": EpisodeStatuses.episode_downloading,
+                    "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_2,
                 },
                 p2_episode_down.file_name.partition(".")[0]: {
-                    "status": EpisodeStatuses.episode_downloading,
+                    "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_4,
                 },

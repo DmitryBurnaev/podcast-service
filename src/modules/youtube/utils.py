@@ -11,7 +11,8 @@ from youtube_dl.utils import YoutubeDLError
 
 from core import settings
 from modules.youtube.exceptions import FFMPegPreparationError
-from modules.podcast.utils import get_file_size, episode_process_hook, EpisodeStatuses
+from modules.podcast.utils import get_file_size, episode_process_hook
+from modules.podcast.models import EpisodeStatus
 from common.utils import get_logger
 
 logger = get_logger(__name__)
@@ -47,7 +48,7 @@ def download_process_hook(event: dict):
     """
     total_bytes = event.get("total_bytes") or event.get("total_bytes_estimate", 0)
     episode_process_hook(
-        status=EpisodeStatuses.episode_downloading,
+        status=EpisodeStatus.DL_EPISODE_DOWNLOADING,
         filename=event["filename"],
         total_bytes=total_bytes,
         processed_bytes=event.get("downloaded_bytes", total_bytes),
@@ -110,7 +111,7 @@ def ffmpeg_preparation(filename: str):
     logger.info(f"Start FFMPEG preparations for {filename} === ")
     src_path = os.path.join(settings.TMP_AUDIO_PATH, filename)
     episode_process_hook(
-        status=EpisodeStatuses.episode_postprocessing,
+        status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
         filename=filename,
         total_bytes=get_file_size(src_path),
         processed_bytes=0,
@@ -125,7 +126,7 @@ def ffmpeg_preparation(filename: str):
             timeout=settings.FFMPEG_TIMEOUT,
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
-        episode_process_hook(status=EpisodeStatuses.error, filename=filename)
+        episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
         with suppress(IOError):
             os.remove(tmp_filename)
 
@@ -146,12 +147,12 @@ def ffmpeg_preparation(filename: str):
         os.remove(src_path)
         os.rename(tmp_filename, src_path)
     except (IOError, AssertionError) as err:
-        episode_process_hook(status=EpisodeStatuses.error, filename=filename)
+        episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
         raise FFMPegPreparationError(f"Failed to rename/remove tmp file: {err}")
 
     total_file_size = get_file_size(src_path)
     episode_process_hook(
-        status=EpisodeStatuses.episode_postprocessing,
+        status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
         filename=filename,
         total_bytes=total_file_size,
         processed_bytes=total_file_size,

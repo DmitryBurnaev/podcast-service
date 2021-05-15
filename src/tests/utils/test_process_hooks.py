@@ -1,12 +1,13 @@
 from core import settings
-from modules.podcast.utils import episode_process_hook, EpisodeStatuses
+from modules.podcast.utils import episode_process_hook
+from modules.podcast.models import EpisodeStatus
 
 
 class TestEpisodeProcessHooks:
     def test_call_hook__ok(self, mocked_redis):
         mocked_redis.get.return_value = {"total_bytes": 1024}
         episode_process_hook(
-            EpisodeStatuses.episode_downloading,
+            EpisodeStatus.DL_EPISODE_DOWNLOADING,
             "test-episode.mp3",
             total_bytes=1024,
             processed_bytes=124,
@@ -15,7 +16,7 @@ class TestEpisodeProcessHooks:
             "test-episode",
             {
                 "event_key": "test-episode",
-                "status": EpisodeStatuses.episode_downloading,
+                "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                 "processed_bytes": 124,
                 "total_bytes": 1024,
             },
@@ -25,12 +26,12 @@ class TestEpisodeProcessHooks:
     def test_call_hook__with_chunks__ok(self, mocked_redis):
         mocked_redis.get.return_value = {"total_bytes": 1024, "processed_bytes": 200}
 
-        episode_process_hook(EpisodeStatuses.episode_downloading, "test-episode.mp3", chunk=100)
+        episode_process_hook(EpisodeStatus.DL_EPISODE_DOWNLOADING, "test-episode.mp3", chunk=100)
         mocked_redis.set.assert_called_with(
             "test-episode",
             {
                 "event_key": "test-episode",
-                "status": EpisodeStatuses.episode_downloading,
+                "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                 "processed_bytes": 200 + 100,
                 "total_bytes": 1024,
             },

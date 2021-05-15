@@ -3,10 +3,9 @@ from unittest.mock import patch
 from youtube_dl.utils import DownloadError
 
 from core import settings
-from modules.podcast.models import Episode, Podcast
+from modules.podcast.models import Episode, Podcast, EpisodeStatus
 from modules.podcast.tasks import DownloadEpisodeTask
 from modules.podcast.tasks.base import FinishCode
-from modules.podcast.utils import EpisodeStatuses
 from modules.youtube.utils import download_process_hook
 from tests.api.test_base import BaseTestCase
 from tests.helpers import get_podcast_data, async_run
@@ -128,7 +127,15 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_generate_rss_task.run.assert_not_called()
 
         assert result == FinishCode.ERROR
-        assert episode.status == Episode.Status.NEW
+        assert episode.status == Episode.Status.ERROR
+        assert episode.published_at is None
+
+    def test_download_episode__unexpected_error__ok(self, episode, mocked_youtube):
+        mocked_youtube.download.side_effect = RuntimeError("Oops")
+        result = async_run(DownloadEpisodeTask().run(episode.id))
+        episode = async_run(Episode.async_get(id=episode.id))
+        assert result == FinishCode.ERROR
+        assert episode.status == Episode.Status.ERROR
         assert episode.published_at is None
 
     def test_download_episode__upload_to_s3_failed__fail(
@@ -157,7 +164,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         }
         download_process_hook(event)
         mocked_process_hook.assert_called_with(
-            status=EpisodeStatuses.episode_downloading,
+            status=EpisodeStatus.DL_EPISODE_DOWNLOADING,
             filename="test-episode.mp3",
             total_bytes=1024,
             processed_bytes=24,

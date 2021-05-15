@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from core import settings
-from modules.podcast.utils import EpisodeStatuses
+from modules.podcast.models import EpisodeStatus
 from modules.youtube.exceptions import FFMPegPreparationError
 from modules.youtube.utils import ffmpeg_preparation
 from tests.api.test_base import BaseTestCase
@@ -26,7 +26,7 @@ class TestFFMPEG(BaseTestCase):
     def assert_hooks_calls(self, mocked_process_hook, finish_call: dict):
         expected_process_hook_calls = [
             dict(
-                status=EpisodeStatuses.episode_postprocessing,
+                status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
                 filename=self.filename,
                 total_bytes=len(b"data"),
                 processed_bytes=0,
@@ -52,7 +52,7 @@ class TestFFMPEG(BaseTestCase):
         self.assert_hooks_calls(
             mocked_process_hook,
             finish_call=dict(
-                status=EpisodeStatuses.episode_postprocessing,
+                status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
                 filename=self.filename,
                 total_bytes=len(b"data"),
                 processed_bytes=len(b"data"),
@@ -72,7 +72,7 @@ class TestFFMPEG(BaseTestCase):
         )
         self.assert_hooks_calls(
             mocked_process_hook,
-            finish_call=dict(status=EpisodeStatuses.error, filename=self.filename),
+            finish_call=dict(status=EpisodeStatus.ERROR, filename=self.filename),
         )
 
     @patch("subprocess.run")
@@ -89,5 +89,5 @@ class TestFFMPEG(BaseTestCase):
         )
         self.assert_hooks_calls(
             mocked_process_hook,
-            finish_call=dict(status=EpisodeStatuses.error, filename=self.filename),
+            finish_call=dict(status=EpisodeStatus.ERROR, filename=self.filename),
         )

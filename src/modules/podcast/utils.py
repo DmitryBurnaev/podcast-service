@@ -1,4 +1,3 @@
-import enum
 import os
 import uuid
 from functools import partial
@@ -9,24 +8,9 @@ from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
 from common.utils import get_logger
-from modules.podcast.models import Episode
+from modules.podcast.models import EpisodeStatus, Episode
 
 logger = get_logger(__name__)
-
-
-# TODO: may be we can use Episode.Status instead...
-class EpisodeStatuses(str, enum.Enum):
-    pending = "pending"
-    episode_downloading = "episode_downloading"
-    episode_postprocessing = "episode_postprocessing"
-    episode_uploading = "episode_uploading"
-    cover_downloading = "cover_downloading"
-    cover_uploading = "cover_uploading"
-    error = "error"
-    finished = "finished"
-
-    def __str__(self):
-        return self.value
 
 
 def delete_file(filepath: Union[str, Path]):
@@ -77,7 +61,7 @@ async def check_state(episodes: Iterable[Episode]) -> list:
             current_file_size = 0
             total_file_size = 0
             completed = 0
-            status = EpisodeStatuses.pending
+            status = EpisodeStatus.DL_PENDING
 
         result.append(
             {
@@ -98,11 +82,11 @@ def upload_process_hook(filename: str, chunk: int):
     Allows to handle uploading to Yandex.Cloud (S3) and update redis state (for user's progress).
     It is called by `s3.upload_file` (`podcast.utils.upload_episode`)
     """
-    episode_process_hook(filename=filename, status=EpisodeStatuses.episode_uploading, chunk=chunk)
+    episode_process_hook(filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk)
 
 
 def episode_process_hook(
-    status: str,
+    status: EpisodeStatus,
     filename: str,
     total_bytes: int = 0,
     processed_bytes: int = None,
@@ -119,7 +103,7 @@ def episode_process_hook(
 
     event_data = {
         "event_key": event_key,
-        "status": status,
+        "status": str(status),
         "processed_bytes": processed_bytes,
         "total_bytes": total_bytes,
     }
@@ -138,7 +122,7 @@ def upload_episode(filename: str, src_path: str = None) -> Optional[str]:
     src_path = src_path or os.path.join(settings.TMP_AUDIO_PATH, filename)
     episode_process_hook(
         filename=filename,
-        status=EpisodeStatuses.episode_uploading,
+        status=EpisodeStatus.DL_EPISODE_UPLOADING,
         processed_bytes=0,
         total_bytes=get_file_size(src_path),
     )
@@ -151,7 +135,7 @@ def upload_episode(filename: str, src_path: str = None) -> Optional[str]:
     )
     if not result_url:
         logger.warning("Couldn't upload file to S3 storage. SKIP")
-        episode_process_hook(filename=filename, status=EpisodeStatuses.error, processed_bytes=0)
+        episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0)
         return
 
     logger.info("Great! uploading for %s was done!", filename)

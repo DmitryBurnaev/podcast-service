@@ -55,6 +55,7 @@ class EpisodeDetailsSchema(Schema):
     title = fields.Str(required=True)
     author = fields.Str()
     status = fields.Str()
+    status_display = fields.Str()
     length = fields.Int(required=True)
     watch_url = fields.URL()
     remote_url = fields.URL()

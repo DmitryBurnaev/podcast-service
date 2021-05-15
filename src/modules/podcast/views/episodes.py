@@ -14,7 +14,6 @@ from modules.podcast.schemas import (
     EpisodeDetailsSchema,
 )
 
-
 logger = get_logger(__name__)
 
 
