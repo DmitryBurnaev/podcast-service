@@ -16,7 +16,7 @@ class TestEpisodeProcessHooks:
             "test-episode",
             {
                 "event_key": "test-episode",
-                "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
+                "status": str(EpisodeStatus.DL_EPISODE_DOWNLOADING),
                 "processed_bytes": 124,
                 "total_bytes": 1024,
             },
@@ -31,7 +31,7 @@ class TestEpisodeProcessHooks:
             "test-episode",
             {
                 "event_key": "test-episode",
-                "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
+                "status": str(EpisodeStatus.DL_EPISODE_DOWNLOADING),
                 "processed_bytes": 200 + 100,
                 "total_bytes": 1024,
             },
