@@ -17,7 +17,7 @@ PyJWT = "==2.0.0"
 httpx = "==0.16.1"
 redis = "==3.5.3"
 boto3 = "==1.17.33"
-youtube_dl = "==2021.3.14"
+youtube_dl = "==2021.4.26"
 sentry-sdk = "==1.0.0"
 python-dotenv = "==0.15.0"
 Jinja2 = "==2.11.3" # rss-file rendering
