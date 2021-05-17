@@ -119,7 +119,7 @@ def ffmpeg_preparation(filename: str):
     tmp_filename = os.path.join(settings.TMP_AUDIO_PATH, f"tmp_{filename}")
     try:
         completed_proc = subprocess.run(
-            ["ffmpeg", "-i", src_path, "-strict", "-2", "-y", tmp_filename],
+            ["ffmpeg", "-y", "-i", src_path, '-vn', '-acodec', 'libmp3lame', '-q:a', '5', tmp_filename],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             check=True,
