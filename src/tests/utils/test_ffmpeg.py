@@ -43,7 +43,7 @@ class TestFFMPEG(BaseTestCase):
         ffmpeg_preparation(self.filename)
         self.assert_called_with(
             mocked_run,
-            ["ffmpeg", "-i", self.src_path, "-strict", "-2", "-y", self.tmp_filename],
+            ["ffmpeg", "-y", "-i", self.src_path, "-vn", "-acodec", "libmp3lame", "-q:a", "5", self.tmp_filename],
             check=True,
             timeout=settings.FFMPEG_TIMEOUT,
         )
