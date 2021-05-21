@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 from functools import partial
 from pathlib import Path
@@ -83,6 +84,21 @@ def upload_process_hook(filename: str, chunk: int):
     It is called by `s3.upload_file` (`podcast.utils.upload_episode`)
     """
     episode_process_hook(filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk)
+
+
+def post_processing_process_hook(filename: str):
+    """
+    Allows to handle progress for ffmpeg file's preparations
+    """
+    # TODO: fix (this is test and temp solution)
+    while True:
+        file_stat = os.stat(os.path.join(settings.TMP_AUDIO_PATH, filename))
+        episode_process_hook(
+            filename=filename,
+            status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
+            processed_bytes=file_stat.st_size
+        )
+        time.sleep(1)
 
 
 def episode_process_hook(
