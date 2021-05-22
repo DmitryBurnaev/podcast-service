@@ -86,13 +86,13 @@ def upload_process_hook(filename: str, chunk: int):
     episode_process_hook(filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk)
 
 
-def post_processing_process_hook(filename: str):
+def post_processing_process_hook(filename: str, target_path: str):
     """
     Allows to handle progress for ffmpeg file's preparations
     """
     # TODO: fix (this is test and temp solution)
     while True:
-        file_stat = os.stat(os.path.join(settings.TMP_AUDIO_PATH, filename))
+        file_stat = os.stat(target_path)
         episode_process_hook(
             filename=filename,
             status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
