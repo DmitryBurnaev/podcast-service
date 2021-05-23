@@ -1,4 +1,5 @@
 import asyncio
+import multiprocessing
 import os
 import shutil
 import tempfile
@@ -132,3 +133,12 @@ class MockArgumentParser(BaseMock):
     def __init__(self):
         self.parse_args = Mock()
         self.add_argument = Mock()
+
+
+class MockProcess(BaseMock):
+    target_class = multiprocessing.context.Process
+
+    def __init__(self):
+        self.start = Mock(return_value=None)
+        self.terminate = Mock(return_value=None)
+        self.__repr__ = Mock(return_value="TestProcess")

@@ -2,6 +2,7 @@ import asyncio
 import os
 import re
 import subprocess
+from multiprocessing import Process
 from contextlib import suppress
 from functools import partial
 from typing import Optional, NamedTuple, Tuple
@@ -11,7 +12,7 @@ from youtube_dl.utils import YoutubeDLError
 
 from core import settings
 from modules.youtube.exceptions import FFMPegPreparationError
-from modules.podcast.utils import get_file_size, episode_process_hook
+from modules.podcast.utils import get_file_size, episode_process_hook, post_processing_process_hook
 from modules.podcast.models import EpisodeStatus
 from common.utils import get_logger
 
@@ -110,16 +111,24 @@ def ffmpeg_preparation(filename: str):
 
     logger.info(f"Start FFMPEG preparations for {filename} === ")
     src_path = os.path.join(settings.TMP_AUDIO_PATH, filename)
+    total_bytes = get_file_size(src_path)
     episode_process_hook(
         status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
         filename=filename,
-        total_bytes=get_file_size(src_path),
+        total_bytes=total_bytes,
         processed_bytes=0,
     )
-    tmp_filename = os.path.join(settings.TMP_AUDIO_PATH, f"tmp_{filename}")
+    tmp_path = os.path.join(settings.TMP_AUDIO_PATH, f"tmp_{filename}")
+
+    logger.info(f"Start SUBPROCESS (filesize watching) for {filename} === ")
+    p = Process(
+        target=post_processing_process_hook,
+        kwargs={"filename": filename, "target_path": tmp_path, "total_bytes": total_bytes},
+    )
+    p.start()
     try:
         completed_proc = subprocess.run(
-            ["ffmpeg", "-y", "-i", src_path, '-vn', '-acodec', 'libmp3lame', '-q:a', '5', tmp_filename],
+            ["ffmpeg", "-y", "-i", src_path, "-vn", "-acodec", "libmp3lame", "-q:a", "5", tmp_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             check=True,
@@ -128,14 +137,16 @@ def ffmpeg_preparation(filename: str):
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
         episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
         with suppress(IOError):
-            os.remove(tmp_filename)
+            os.remove(tmp_path)
 
         err_details = f"FFMPEG failed with errors: {err}"
         if stdout := getattr(err, "stdout", ""):
             err_details += f"\n{str(stdout, encoding='utf-8')}"
 
+        p.terminate()
         raise FFMPegPreparationError(err_details)
 
+    p.terminate()
     logger.info(
         "FFMPEG success done preparation for file %s:\n%s",
         filename,
@@ -143,9 +154,9 @@ def ffmpeg_preparation(filename: str):
     )
 
     try:
-        assert os.path.exists(tmp_filename), f"Prepared file {tmp_filename} wasn't created"
+        assert os.path.exists(tmp_path), f"Prepared file {tmp_path} wasn't created"
         os.remove(src_path)
-        os.rename(tmp_filename, src_path)
+        os.rename(tmp_path, src_path)
     except (IOError, AssertionError) as err:
         episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
         raise FFMPegPreparationError(f"Failed to rename/remove tmp file: {err}")

@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 from functools import partial
 from pathlib import Path
@@ -30,8 +31,7 @@ def get_file_name(video_id: str) -> str:
 
 def get_file_size(file_path: str):
     try:
-        full_path = os.path.join(file_path)
-        return os.path.getsize(full_path)
+        return os.path.getsize(file_path)
     except FileNotFoundError:
         logger.info("File %s not found. Return size 0", file_path)
         return 0
@@ -83,6 +83,22 @@ def upload_process_hook(filename: str, chunk: int):
     It is called by `s3.upload_file` (`podcast.utils.upload_episode`)
     """
     episode_process_hook(filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk)
+
+
+def post_processing_process_hook(filename: str, target_path: str, total_bytes: int):
+    """
+    Allows to handle progress for ffmpeg file's preparations
+    """
+    processed_bytes = 0
+    while processed_bytes < total_bytes:
+        processed_bytes = get_file_size(target_path)
+        episode_process_hook(
+            filename=filename,
+            status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
+            total_bytes=total_bytes,
+            processed_bytes=processed_bytes,
+        )
+        time.sleep(1)
 
 
 def episode_process_hook(
