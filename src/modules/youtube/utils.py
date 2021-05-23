@@ -111,20 +111,24 @@ def ffmpeg_preparation(filename: str):
 
     logger.info(f"Start FFMPEG preparations for {filename} === ")
     src_path = os.path.join(settings.TMP_AUDIO_PATH, filename)
+    total_bytes = get_file_size(src_path)
     episode_process_hook(
         status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
         filename=filename,
-        total_bytes=get_file_size(src_path),
+        total_bytes=total_bytes,
         processed_bytes=0,
     )
     tmp_path = os.path.join(settings.TMP_AUDIO_PATH, f"tmp_{filename}")
 
     logger.info(f"Start SUBPROCESS (filesize watching) for {filename} === ")
-    p = Process(target=post_processing_process_hook, args=(filename, tmp_path))
+    p = Process(
+        target=post_processing_process_hook,
+        kwargs={"filename": filename, "target_path": tmp_path, "total_bytes": total_bytes},
+    )
     p.start()
     try:
         completed_proc = subprocess.run(
-            ["ffmpeg", "-y", "-i", src_path, '-vn', '-acodec', 'libmp3lame', '-q:a', '5', tmp_path],
+            ["ffmpeg", "-y", "-i", src_path, "-vn", "-acodec", "libmp3lame", "-q:a", "5", tmp_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             check=True,

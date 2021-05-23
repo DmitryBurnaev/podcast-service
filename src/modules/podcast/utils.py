@@ -31,8 +31,7 @@ def get_file_name(video_id: str) -> str:
 
 def get_file_size(file_path: str):
     try:
-        full_path = os.path.join(file_path)
-        return os.path.getsize(full_path)
+        return os.path.getsize(file_path)
     except FileNotFoundError:
         logger.info("File %s not found. Return size 0", file_path)
         return 0
@@ -86,17 +85,18 @@ def upload_process_hook(filename: str, chunk: int):
     episode_process_hook(filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk)
 
 
-def post_processing_process_hook(filename: str, target_path: str):
+def post_processing_process_hook(filename: str, target_path: str, total_bytes: int):
     """
     Allows to handle progress for ffmpeg file's preparations
     """
-    # TODO: fix (this is test and temp solution)
-    while True:
-        file_stat = os.stat(target_path)
+    processed_bytes = 0
+    while processed_bytes < total_bytes:
+        processed_bytes = get_file_size(target_path)
         episode_process_hook(
             filename=filename,
             status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
-            processed_bytes=file_stat.st_size
+            total_bytes=total_bytes,
+            processed_bytes=processed_bytes,
         )
         time.sleep(1)
 
