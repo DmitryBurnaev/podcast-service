@@ -2,6 +2,7 @@ class BaseApplicationError(Exception):
     message = "Something went wrong"
     details = None
     status_code = 500
+    status = "INTERNAL_ERROR"
 
     def __init__(self, details=None, message=None, status_code=None):
         self.message = message or self.message
@@ -19,12 +20,20 @@ class HttpError(BaseApplicationError):
 
 class AuthenticationFailedError(BaseApplicationError):
     status_code = 401
+    status = "MISSED_CREDENTIALS"
     message = "Authentication credentials are invalid."
 
 
 class AuthenticationRequiredError(BaseApplicationError):
     status_code = 401
+    status = "MISSED_CREDENTIALS"
     message = "Authentication is required."
+
+
+class SessionExpiredError(BaseApplicationError):
+    status_code = 401
+    status = "SESSION_EXPIRED"
+    message = "User's session is required."
 
 
 class PermissionDeniedError(BaseApplicationError):

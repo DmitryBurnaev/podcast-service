@@ -108,16 +108,15 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         """ Returns JSON-Response (with single instance or list of them) or empty Response """
 
         response_instance = instance if (instance is not None) else data
-
+        payload = {}
         if response_instance is not None:
             schema_kwargs = {}
             if isinstance(response_instance, Iterable) and not isinstance(response_instance, dict):
                 schema_kwargs["many"] = True
 
-            response_data = self.schema_response(**schema_kwargs).dump(response_instance)
-            return JSONResponse(response_data, status_code=status_code)
+            payload = self.schema_response(**schema_kwargs).dump(response_instance)
 
-        return Response(status_code=status_code)
+        return JSONResponse({"status": "OK", "payload": payload}, status_code=status_code)
 
     async def _run_task(self, task_class: Type[RQTask], *args, **kwargs):
         """ Enqueue RQ task """
