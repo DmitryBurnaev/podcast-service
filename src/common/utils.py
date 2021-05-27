@@ -6,6 +6,7 @@ from starlette import status
 from starlette.responses import JSONResponse
 from webargs_starlette import WebargsHTTPException
 
+from common.statuses import ResponseStatus
 from core import settings
 from common.exceptions import SendRequestError, BaseApplicationError
 
@@ -44,7 +45,6 @@ async def send_email(recipient_email: str, subject: str, html_content: str):
             raise SendRequestError(
                 message=f"Couldn't send email to {recipient_email}",
                 details=f"Got status code: {status_code}; response text: {response_text}",
-                response_status=status_code,
                 request_url=request_url,
             )
         else:
@@ -71,18 +71,26 @@ def custom_exception_handler(request, exc):
     Response will be format by our format: {"error": "text", "detail": details}
     """
     error_message = "Something went wrong!"
-    error_details = f"Raised Error: {exc.__class__.__name__}"
+    # error_details = f"Raised Error: {exc.__class__.__name__}"
+    error_details = "Unexpected error handled"
     status_code = getattr(exc, "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR)
+    response_status = ResponseStatus.INTERNAL_ERROR
 
     if isinstance(exc, BaseApplicationError):
         error_message = exc.message
         error_details = exc.details
+        response_status = exc.status
+
     elif isinstance(exc, WebargsHTTPException):
         error_message = "Requested data is not valid."
         error_details = exc.messages.get("json") or exc.messages
         status_code = status.HTTP_400_BAD_REQUEST
+        response_status = ResponseStatus.INVALID_PARAMETERS
 
-    response_data = {"error": error_message, "details": error_details}
+    response_data = {
+        "status": response_status,
+        "payload": {"error": error_message, "details": error_details}
+    }
     log_level = logging.ERROR if status_is_server_error(status_code) else logging.WARNING
     log_message(exc, response_data, log_level)
     return JSONResponse(response_data, status_code=status_code)

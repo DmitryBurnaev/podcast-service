@@ -9,7 +9,7 @@ from core import settings
 from common.views import BaseHTTPEndpoint
 from common.db_utils import db_transaction
 from common.utils import send_email, get_logger
-from common.exceptions import AuthenticationFailedError, InvalidParameterError
+from common.exceptions import AuthenticationFailedError, InvalidParameterError, SessionExpiredError
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
@@ -189,10 +189,10 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
         user_session = await UserSession.async_get(user_id=user.id, is_active=True)
         if not user_session:
-            raise AuthenticationFailedError("There is not active session for user.")
+            raise SessionExpiredError("There is not active session for user.")
 
         if user_session.refresh_token != refresh_token:
-            raise AuthenticationFailedError("Refresh token is not active for user session.")
+            raise SessionExpiredError("Refresh token is not active for user session.")
 
         token_collection = await self._update_session(user)
         return self._response(token_collection)

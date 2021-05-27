@@ -1,13 +1,17 @@
+from common.statuses import ResponseStatus
+
+
 class BaseApplicationError(Exception):
     message = "Something went wrong"
     details = None
     status_code = 500
-    status = "INTERNAL_ERROR"
+    response_status = ResponseStatus.INTERNAL_ERROR
 
-    def __init__(self, details=None, message=None, status_code=None):
+    def __init__(self, details: str = None, message: str = None, status_code: int = None, response_status: str = None):
         self.message = message or self.message
         self.details = details or self.details
         self.status_code = status_code or self.status_code
+        self.response_status = response_status or self.response_status
 
 
 class UnexpectedError(BaseApplicationError):
@@ -20,40 +24,44 @@ class HttpError(BaseApplicationError):
 
 class AuthenticationFailedError(BaseApplicationError):
     status_code = 401
-    status = "MISSED_CREDENTIALS"
+    response_status = ResponseStatus.AUTH_FAILED
     message = "Authentication credentials are invalid."
 
 
 class AuthenticationRequiredError(BaseApplicationError):
     status_code = 401
-    status = "MISSED_CREDENTIALS"
+    response_status = ResponseStatus.MISSED_CREDENTIALS
     message = "Authentication is required."
 
 
 class SessionExpiredError(BaseApplicationError):
     status_code = 401
-    status = "SESSION_EXPIRED"
+    response_status = ResponseStatus.SESSION_EXPIRED
     message = "User's session is required."
 
 
 class PermissionDeniedError(BaseApplicationError):
     status_code = 403
     message = "You don't have permission to perform this action."
+    response_status = ResponseStatus.FORBIDDEN
 
 
 class NotFoundError(BaseApplicationError):
     status_code = 404
     message = "Requested object not found."
+    response_status = ResponseStatus.NOT_FOUND
 
 
 class InviteTokenInvalidationError(BaseApplicationError):
     status_code = 401
     message = "Requested token is expired or does not exist."
+    response_status = ResponseStatus.INVITE_ERROR
 
 
 class InvalidParameterError(BaseApplicationError):
     status_code = 400
     message = "Requested data is not valid."
+    response_status = ResponseStatus.INVALID_PARAMETERS
 
 
 class InvalidResponseError(BaseApplicationError):
@@ -61,18 +69,12 @@ class InvalidResponseError(BaseApplicationError):
     message = "Response data couldn't be serialized."
 
 
-class Forbidden(BaseApplicationError):
-    status_code = 403
-    message = "You don't have permission to perform this action"
-
-
 class SendRequestError(BaseApplicationError):
     status_code = 503
     message = "Got unexpected error for sending request."
     request_url = ""
-    response_status = None
+    response_status = ResponseStatus.SERVICE_COMMUNICATION_ERROR
 
-    def __init__(self, message: str, details: str, request_url: str, response_status: int):
+    def __init__(self, message: str, details: str, request_url: str):
         super().__init__(details, message)
-        self.response_status = response_status
         self.request_url = request_url

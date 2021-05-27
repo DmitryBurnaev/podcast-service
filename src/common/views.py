@@ -60,7 +60,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         except Exception as err:
             error_details = repr(err)
             logger.exception("Unexpected error handled: %s", error_details)
-            raise UnexpectedError(error_details)
+            raise UnexpectedError("Unexpected error handled")
 
         await response(self.scope, self.receive, self.send)
 
