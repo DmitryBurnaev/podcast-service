@@ -3,6 +3,7 @@ from typing import Union
 from requests import Response
 
 from common.models import BaseModel
+from common.statuses import ResponseStatus
 
 
 class BaseTestCase:
@@ -20,6 +21,29 @@ class BaseTestCase:
 
 class BaseTestAPIView(BaseTestCase):
     url: str = NotImplemented
+    default_fail_status_code = 500
+    default_fail_response_status = ResponseStatus.INTERNAL_ERROR
+
+    @staticmethod
+    def assert_ok_response(response: Response, status_code: int = 200) -> Union[dict, list]:
+        response_data = response.json()
+        assert response.status_code == status_code
+        assert "payload" in response_data, response_data
+        assert response_data["status"] == ResponseStatus.OK
+        return response_data["payload"]
+
+    def assert_fail_response(
+        self,
+        response: Response,
+        status_code: int = None,
+        response_status: str = None
+    ) -> Union[dict, list]:
+
+        response_data = response.json()
+        assert response.status_code == (status_code or self.default_fail_status_code)
+        assert "payload" in response_data, response_data
+        assert response_data["status"] == (response_status or self.default_fail_response_status)
+        return response_data["payload"]
 
     @staticmethod
     def assert_bad_request(response: Response, error_details: dict):

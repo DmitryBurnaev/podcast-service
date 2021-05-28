@@ -79,7 +79,7 @@ def custom_exception_handler(request, exc):
     if isinstance(exc, BaseApplicationError):
         error_message = exc.message
         error_details = exc.details
-        response_status = exc.status
+        response_status = exc.response_status
 
     elif isinstance(exc, WebargsHTTPException):
         error_message = "Requested data is not valid."

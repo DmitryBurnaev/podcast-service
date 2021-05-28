@@ -2,8 +2,8 @@ import uuid
 from datetime import datetime, timedelta
 
 import pytest
-from requests import Response
 
+from common.statuses import ResponseStatus
 from core import settings
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.utils import (
@@ -79,13 +79,13 @@ INVALID_CHANGE_PASSWORD_DATA = [
 ]
 
 
-def assert_tokens(response: Response, user: User):
+def assert_tokens(response_data: dict, user: User):
     """ Allows to check access- and refresh-tokens in the response body """
 
-    access_token = response.json().get("access_token")
-    refresh_token = response.json().get("refresh_token")
-    assert access_token, f"No access_token in response: {response.json()}"
-    assert refresh_token, f"No refresh_token in response: {response.json()}"
+    access_token = response_data.get("access_token")
+    refresh_token = response_data.get("refresh_token")
+    assert access_token, f"No access_token in response: {response_data}"
+    assert refresh_token, f"No refresh_token in response: {response_data}"
 
     decoded_access_token = decode_jwt(access_token)
     access_exp_dt = datetime.fromisoformat(decoded_access_token.pop("exp_iso"))
@@ -108,8 +108,8 @@ class TestAuthMeAPIView(BaseTestAPIView):
     def test_get__ok(self, client, user):
         client.login(user)
         response = client.get(self.url)
-        assert response.status_code == 200
-        assert response.json() == {
+        response_data = self.assert_ok_response(response)
+        assert response_data == {
             "id": user.id,
             "email": user.email,
             "is_active": True,
@@ -120,6 +120,8 @@ class TestAuthMeAPIView(BaseTestAPIView):
 class TestAuthSignInAPIView(BaseTestAPIView):
     url = "/api/auth/sign-in/"
     raw_password = "test-password"
+    default_fail_status_code = 401
+    default_fail_response_status = ResponseStatus.AUTH_FAILED
 
     @classmethod
     def setup_class(cls):
@@ -131,14 +133,14 @@ class TestAuthSignInAPIView(BaseTestAPIView):
 
     def test_sign_in__ok(self, client):
         response = client.post(self.url, json={"email": self.email, "password": self.raw_password})
-        assert response.status_code == 200
-        assert_tokens(response, self.user)
+        response_data = self.assert_ok_response(response)
+        assert_tokens(response_data, self.user)
 
     def test_sign_in__check_user_session__ok(self, client):
         response = client.post(self.url, json={"email": self.email, "password": self.raw_password})
-        assert response.status_code == 200
+        response_data = self.assert_ok_response(response)
 
-        refresh_token = response.json().get("refresh_token")
+        refresh_token = response_data.get("refresh_token")
         decoded_refresh_token = decode_jwt(refresh_token)
         refresh_exp_dt = datetime.fromisoformat(decoded_refresh_token.pop("exp_iso"))
 
@@ -159,8 +161,8 @@ class TestAuthSignInAPIView(BaseTestAPIView):
             )
         )
         response = client.post(self.url, json={"email": self.email, "password": self.raw_password})
-        assert response.status_code == 200
-        refresh_token = response.json().get("refresh_token")
+        response_data = self.assert_ok_response(response)
+        refresh_token = response_data.get("refresh_token")
 
         user_session: UserSession = async_run(UserSession.async_get(id=user_session.id))
         assert user_session.refresh_token == refresh_token
@@ -170,12 +172,16 @@ class TestAuthSignInAPIView(BaseTestAPIView):
 
     def test_sign_in__password_mismatch__fail(self, client):
         response = client.post(self.url, json={"email": self.email, "password": "fake-password"})
-        self.assert_auth_invalid(response, "Email or password is invalid.")
+        response_data = self.assert_fail_response(response)
+        assert response_data == {
+            "error": "Authentication credentials are invalid.",
+            "details": "Email or password is invalid."
+        }
 
     def test_sign_in__user_not_found__fail(self, client):
         response = client.post(self.url, json={"email": "fake@t.ru", "password": self.raw_password})
-        assert response.status_code == 401
-        assert response.json() == {
+        response_data = self.assert_fail_response(response)
+        assert response_data == {
             "error": "Authentication credentials are invalid.",
             "details": "Not found active user with provided email.",
         }
@@ -187,8 +193,8 @@ class TestAuthSignInAPIView(BaseTestAPIView):
     def test_sign_in__user_inactive__fail(self, client):
         async_run(self.user.update(is_active=False).apply())
         response = client.post(self.url, json={"email": self.email, "password": self.raw_password})
-        assert response.status_code == 401
-        assert response.json() == {
+        response_data = self.assert_fail_response(response)
+        assert response_data == {
             "error": "Authentication credentials are invalid.",
             "details": "Not found active user with provided email.",
         }
@@ -196,6 +202,8 @@ class TestAuthSignInAPIView(BaseTestAPIView):
 
 class TestAuthSignUPAPIView(BaseTestAPIView):
     url = "/api/auth/sign-up/"
+    default_fail_status_code = 400
+    default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
 
     @staticmethod
     def _sign_up_data(user_invite: UserInvite):
@@ -209,11 +217,11 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
     def test_sign_up__ok(self, client, user_invite):
         request_data = self._sign_up_data(user_invite)
         response = client.post(self.url, json=request_data)
-        assert response.status_code == 201
+        response_data = self.assert_ok_response(response, status_code=201)
 
         user = async_run(User.async_get(email=request_data["email"]))
         assert user is not None, f"User wasn't created with {request_data=}"
-        assert_tokens(response, user)
+        assert_tokens(response_data, user)
 
         user_invite = async_run(UserInvite.async_get(id=user_invite.id))
         assert user_invite.user_id == user.id
@@ -231,9 +239,8 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
 
         async_run(User.create(email=user_email, password="password"))
         response = client.post(self.url, json=request_data)
-
-        assert response.status_code == 400
-        assert response.json() == {
+        response_data = self.assert_fail_response(response)
+        assert response_data == {
             "error": "Requested data is not valid.",
             "details": f"User with email '{user_email}' already exists",
         }
@@ -250,9 +257,8 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
         request_data = self._sign_up_data(user_invite)
         async_run(user_invite.update(**token_update_data).apply())
         response = client.post(self.url, json=request_data)
-
-        assert response.status_code == 400
-        assert response.json() == {
+        response_data = self.assert_fail_response(response)
+        assert response_data == {
             "error": "Requested data is not valid.",
             "details": "Invitation link is expired or unavailable",
         }
@@ -261,9 +267,8 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
         request_data = self._sign_up_data(user_invite)
         request_data["email"] = f"another.email{uuid.uuid4().hex[:10]}@test.com"
         response = client.post(self.url, json=request_data)
-
-        assert response.status_code == 400
-        assert response.json() == {
+        response_data = self.assert_fail_response(response)
+        assert response_data == {
             "error": "Requested data is not valid.",
             "details": "Email does not match with your invitation.",
         }
@@ -288,6 +293,8 @@ class TestSignOutAPIView(BaseTestAPIView):
 
 class TestUserInviteApiView(BaseTestAPIView):
     url = "/api/auth/invite-user/"
+    default_fail_status_code = 400
+    default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
 
     def setup_method(self):
         self.email = f"user_{uuid.uuid4().hex[:10]}@test.com"
@@ -295,11 +302,11 @@ class TestUserInviteApiView(BaseTestAPIView):
     def test_invite__ok(self, client, user, mocked_auth_send):
         client.login(user)
         response = client.post(self.url, json={"email": self.email})
-        assert response.status_code == 201
+        response_data = self.assert_ok_response(response, status_code=201)
 
         user_invite: UserInvite = async_run(UserInvite.async_get(email=self.email))
         assert user_invite is not None
-        assert response.json() == {
+        assert response_data == {
             "id": user_invite.id,
             "token": user_invite.token,
             "email": user_invite.email,
@@ -332,8 +339,9 @@ class TestUserInviteApiView(BaseTestAPIView):
     def test_invite__user_already_exists__fail(self, client, user):
         client.login(user)
         response = client.post(self.url, json={"email": user.email})
-        assert response.status_code == 400
-        assert response.json() == {
+
+        response_data = self.assert_fail_response(response)
+        assert response_data == {
             "error": "Requested data is not valid.",
             "details": f"User with email=[{user.email}] already exists.",
         }
@@ -374,10 +382,9 @@ class TestResetPasswordAPIView(BaseTestAPIView):
 
         client.login(user)
         response = client.post(self.url, json={"email": target_user.email})
-        response_data = response.json()
+        response_data = self.assert_ok_response(response)
         token = response_data.get("token")
 
-        assert response.status_code == 200
         assert response_data["user_id"] == target_user.id
         assert token is not None, response_data
         assert decode_jwt(response_data["token"])["user_id"] == target_user.id
@@ -404,8 +411,10 @@ class TestResetPasswordAPIView(BaseTestAPIView):
 
         client.login(request_user)
         response = client.post(self.url, json={"email": "fake-email@test.com"})
-        assert response.status_code == 400
-        assert response.json() == {
+        response_data = self.assert_fail_response(
+            response, status_code=400, response_status=ResponseStatus.INVALID_PARAMETERS
+        )
+        assert response_data == {
             "error": "Requested data is not valid.",
             "details": "User with email=[fake-email@test.com] not found.",
         }
@@ -413,8 +422,10 @@ class TestResetPasswordAPIView(BaseTestAPIView):
     def test_reset_password__user_is_not_superuser__fail(self, client, user):
         client.login(user)
         response = client.post(self.url, json={"email": user.email})
-        assert response.status_code == 403
-        assert response.json() == {
+        response_data = self.assert_fail_response(
+            response, status_code=403, response_status=ResponseStatus.FORBIDDEN
+        )
+        assert response_data == {
             "error": "You don't have permission to perform this action.",
             "details": "You don't have an admin privileges.",
         }
@@ -433,7 +444,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         client.logout()
         response = client.post(self.url, json=request_data)
         assert response.status_code == 401
-        return response.json()
+        return response.json()["payload"]
 
     def test_change_password__ok(self, client, user, user_session):
         token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
@@ -444,8 +455,8 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         }
         client.logout()
         response = client.post(self.url, json=request_data)
-        assert response.status_code == 200
-        assert_tokens(response, user)
+        response_data = self.assert_ok_response(response)
+        assert_tokens(response_data, user)
 
         user = async_run(User.async_get(id=user.id))
         assert user.verify_password(self.new_password)
@@ -510,8 +521,8 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         user_session = self._prepare_token(user)
         client.logout()
         response = client.post(self.url, json={"refresh_token": user_session.refresh_token})
-        assert response.status_code == 200
-        assert_tokens(response, user)
+        response_data = self.assert_ok_response(response)
+        assert_tokens(response_data, user)
 
     def test_refresh_token__user_inactive__fail(self, client, user):
         user_session = self._prepare_token(user)
@@ -529,8 +540,10 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         refresh_token, _ = encode_jwt({"user_id": user.id}, token_type=token_type)
         print(refresh_token)
         response = client.post(self.url, json={"refresh_token": refresh_token})
-        assert response.status_code == 401
-        assert response.json() == {
+        response_data = self.assert_fail_response(
+            response, status_code=401, response_status=ResponseStatus.AUTH_FAILED
+        )
+        assert response_data == {
             "error": "Authentication credentials are invalid.",
             "details": f"Token type 'refresh' expected, got '{token_type}' instead.",
         }
