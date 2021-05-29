@@ -7,7 +7,13 @@ class BaseApplicationError(Exception):
     status_code = 500
     response_status = ResponseStatus.INTERNAL_ERROR
 
-    def __init__(self, details: str = None, message: str = None, status_code: int = None, response_status: str = None):
+    def __init__(
+        self,
+        details: str = None,
+        message: str = None,
+        status_code: int = None,
+        response_status: str = None,
+    ):
         self.message = message or self.message
         self.details = details or self.details
         self.status_code = status_code or self.status_code

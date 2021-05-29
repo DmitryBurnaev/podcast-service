@@ -36,8 +36,8 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
     def test_get_list__ok(self, client, podcast, user):
         client.login(user)
         response = client.get(self.url)
-        assert response.status_code == 200
-        assert response.json() == [_podcast(podcast)]
+        response_data = self.assert_ok_response(response)
+        assert response_data == [_podcast(podcast)]
 
     def test_get_list__check_episodes_count__ok(self, client, user, loop):
 
@@ -50,11 +50,11 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
 
         client.login(user)
         response = client.get(self.url)
-        assert response.status_code == 200
+        response_data = self.assert_ok_response(response)
 
         expected_episodes_counts = {podcast_1.id: 2, podcast_2.id: 1}
         actual_episodes_counts = {
-            podcast["id"]: podcast["episodes_count"] for podcast in response.json()
+            podcast["id"]: podcast["episodes_count"] for podcast in response_data
         }
         assert expected_episodes_counts == actual_episodes_counts
 
@@ -72,8 +72,8 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
 
         client.login(user_2)
         response = client.get(self.url)
-        assert response.status_code == 200
-        assert response.json() == [_podcast(podcast_2)]
+        response_data = self.assert_ok_response(response)
+        assert response_data == [_podcast(podcast_2)]
 
     def test_create__ok(self, client, user, podcast_data):
         podcast_data = {
@@ -82,12 +82,10 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         }
         client.login(user)
         response = client.post(self.url, json=podcast_data)
-        assert response.status_code == 201
-
-        response_data = response.json()
+        response_data = self.assert_ok_response(response, status_code=201)
         podcast = async_run(Podcast.async_get(id=response_data["id"]))
         assert podcast is not None
-        assert response.json() == _podcast(podcast)
+        assert response_data == _podcast(podcast)
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_CREATE_DATA)
     def test_create__invalid_request__fail(
@@ -104,8 +102,8 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         client.login(user)
         url = self.url.format(id=podcast.id)
         response = client.get(url)
-        assert response.status_code == 200
-        assert response.json() == _podcast(podcast)
+        response_data = self.assert_ok_response(response)
+        assert response_data == _podcast(podcast)
 
     def test_get__podcast_from_another_user__fail(self, client, podcast):
         client.login(create_user())
@@ -122,8 +120,8 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         }
         response = client.patch(url, json=patch_data)
         podcast = async_run(Podcast.async_get(id=podcast.id))
-        assert response.status_code == 200
-        assert response.json() == _podcast(podcast)
+        response_data = self.assert_ok_response(response)
+        assert response_data == _podcast(podcast)
         assert podcast.name == "New name"
         assert podcast.description == "New description"
         assert podcast.download_automatically is True

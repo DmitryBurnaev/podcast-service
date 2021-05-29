@@ -63,8 +63,8 @@ class TestProgressAPIView(BaseTestAPIView):
         )
         client.login(user)
         response = client.get(self.url)
-        assert response.status_code == 200, f"Progress API is not available: {response.json()}"
-        assert response.json() == [
+        response_data = self.assert_ok_response(response)
+        assert response_data == [
             _progress(podcast_2, p2_episode_down, current_size=MB_1, completed=25.0),
             _progress(podcast_1, p1_episode_down, current_size=MB_1, completed=50.0),
         ]
@@ -97,7 +97,7 @@ class TestProgressAPIView(BaseTestAPIView):
         )
         client.login(user_1)
         response = client.get(self.url)
-        assert response.status_code == 200, f"Progress API is not available: {response.json()}"
-        assert response.json() == [
+        response_data = self.assert_ok_response(response)
+        assert response_data == [
             _progress(podcast_1, p1_episode_down, current_size=MB_1, completed=50.0),
         ]

@@ -9,7 +9,7 @@ from core import settings
 from common.views import BaseHTTPEndpoint
 from common.db_utils import db_transaction
 from common.utils import send_email, get_logger
-from common.exceptions import AuthenticationFailedError, InvalidParameterError, SignatureExpiredError
+from common.exceptions import AuthenticationFailedError, InvalidParameterError
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend

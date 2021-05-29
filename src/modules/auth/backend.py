@@ -6,7 +6,8 @@ from starlette.requests import Request
 from common.exceptions import (
     AuthenticationFailedError,
     AuthenticationRequiredError,
-    PermissionDeniedError, SignatureExpiredError,
+    PermissionDeniedError,
+    SignatureExpiredError,
 )
 from common.utils import get_logger
 from modules.auth.models import User, UserSession

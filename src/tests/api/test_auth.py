@@ -175,7 +175,7 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         response_data = self.assert_fail_response(response)
         assert response_data == {
             "error": "Authentication credentials are invalid.",
-            "details": "Email or password is invalid."
+            "details": "Email or password is invalid.",
         }
 
     def test_sign_in__user_not_found__fail(self, client):
@@ -444,6 +444,9 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         client.logout()
         response = client.post(self.url, json=request_data)
         assert response.status_code == 401
+        response_data = response.json()
+        if response_status:
+            assert response_data["status"] == response_status
         return response.json()["payload"]
 
     def test_change_password__ok(self, client, user, user_session):
@@ -468,8 +471,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
 
     def test__token_expired__fail(self, client, user):
         token, _ = encode_jwt({"user_id": user.id}, expires_in=-10)
-        response_data = self._assert_fail_response(client, token)
-        assert response_data["status"] == ResponseStatus.SIGNATURE_EXPIRED
+        response_data = self._assert_fail_response(client, token, ResponseStatus.SIGNATURE_EXPIRED)
         self.assert_auth_invalid(response_data, None)
 
     def test__token_invalid_type__fail(self, client, user):
@@ -555,9 +557,7 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         async_run(user_session.update(refresh_token="fake-token").apply())
         response = client.post(self.url, json={"refresh_token": refresh_token})
         self.assert_auth_invalid(
-            response,
-            "Refresh token is not active for user session.",
-            ResponseStatus.AUTH_FAILED
+            response, "Refresh token is not active for user session.", ResponseStatus.AUTH_FAILED
         )
 
     def test_refresh_token__fake_jwt__fail(self, client, user):

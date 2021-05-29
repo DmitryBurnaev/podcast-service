@@ -33,10 +33,7 @@ class BaseTestAPIView(BaseTestCase):
         return response_data["payload"]
 
     def assert_fail_response(
-        self,
-        response: Response,
-        status_code: int = None,
-        response_status: str = None
+        self, response: Response, status_code: int = None, response_status: str = None
     ) -> Union[dict, list]:
 
         response_data = response.json()
@@ -59,7 +56,9 @@ class BaseTestAPIView(BaseTestCase):
     @staticmethod
     def assert_not_found(response: Response, instance: BaseModel):
         assert response.status_code == 404
-        assert response.json() == {
+        response_data = response.json()
+        assert response_data["status"] == ResponseStatus.NOT_FOUND
+        assert response_data["payload"] == {
             "error": "Requested object not found.",
             "details": (
                 f"{instance.__class__.__name__} #{instance.id} "
@@ -80,7 +79,7 @@ class BaseTestAPIView(BaseTestCase):
         self,
         response_data: Union[Response, dict],
         details: Optional[str],
-        response_status=ResponseStatus.AUTH_FAILED
+        response_status=ResponseStatus.AUTH_FAILED,
     ):
         if isinstance(response_data, Response):
             response_data = self.assert_fail_response(
