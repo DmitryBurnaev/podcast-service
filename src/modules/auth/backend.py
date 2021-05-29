@@ -1,12 +1,12 @@
 from typing import Tuple
 
-from jwt import InvalidTokenError
+from jwt import InvalidTokenError, ExpiredSignatureError
 from starlette.requests import Request
 
 from common.exceptions import (
     AuthenticationFailedError,
     AuthenticationRequiredError,
-    PermissionDeniedError,
+    PermissionDeniedError, SignatureExpiredError,
 )
 from common.utils import get_logger
 from modules.auth.models import User, UserSession
@@ -44,6 +44,9 @@ class BaseAuthJWTBackend:
         logger.debug("Logging via JWT auth. Got token: %s", jwt_token)
         try:
             jwt_payload = decode_jwt(jwt_token)
+        except ExpiredSignatureError:
+            logger.debug("JWT signature was expired for token %s", jwt_token)
+            raise SignatureExpiredError
         except InvalidTokenError as error:
             msg = "Token could not be decoded: %s"
             logger.exception(msg, error)

@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Optional
 
 from requests import Response
 
@@ -49,6 +49,8 @@ class BaseTestAPIView(BaseTestCase):
     def assert_bad_request(response: Response, error_details: dict):
         response_data = response.json()
         assert response.status_code == 400
+        assert "payload" in response_data, response_data
+        response_data = response_data["payload"]
         assert response_data["error"] == "Requested data is not valid."
         for error_field, error_value in error_details.items():
             assert error_field in response_data["details"]
@@ -65,21 +67,27 @@ class BaseTestAPIView(BaseTestCase):
             ),
         }
 
-    @staticmethod
-    def assert_unauth(response: Response):
-        assert response.status_code == 401
-        assert response.json() == {
+    def assert_unauth(self, response: Response):
+        response_data = self.assert_fail_response(
+            response, status_code=401, response_status=ResponseStatus.MISSED_CREDENTIALS
+        )
+        assert response_data == {
             "error": "Authentication is required.",
             "details": "Invalid token header. No credentials provided.",
         }
 
-    @staticmethod
-    def assert_auth_invalid(response: Union[Response, dict], details: str):
-        if isinstance(response, Response):
-            assert response.status_code == 401
-            response = response.json()
+    def assert_auth_invalid(
+        self,
+        response_data: Union[Response, dict],
+        details: Optional[str],
+        response_status=ResponseStatus.AUTH_FAILED
+    ):
+        if isinstance(response_data, Response):
+            response_data = self.assert_fail_response(
+                response_data, status_code=401, response_status=response_status
+            )
 
-        assert response == {
+        assert response_data == {
             "error": "Authentication credentials are invalid.",
             "details": details,
         }

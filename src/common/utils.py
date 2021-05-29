@@ -71,8 +71,7 @@ def custom_exception_handler(request, exc):
     Response will be format by our format: {"error": "text", "detail": details}
     """
     error_message = "Something went wrong!"
-    # error_details = f"Raised Error: {exc.__class__.__name__}"
-    error_details = "Unexpected error handled"
+    error_details = f"Raised Error: {exc.__class__.__name__}"
     status_code = getattr(exc, "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR)
     response_status = ResponseStatus.INTERNAL_ERROR
 
@@ -87,10 +86,11 @@ def custom_exception_handler(request, exc):
         status_code = status.HTTP_400_BAD_REQUEST
         response_status = ResponseStatus.INVALID_PARAMETERS
 
-    response_data = {
-        "status": response_status,
-        "payload": {"error": error_message, "details": error_details}
-    }
+    payload = {"error": error_message, "details": error_details}
+    if not settings.APP_DEBUG:
+        payload.pop("details")
+
+    response_data = {"status": response_status, "payload": payload}
     log_level = logging.ERROR if status_is_server_error(status_code) else logging.WARNING
     log_message(exc, response_data, log_level)
     return JSONResponse(response_data, status_code=status_code)

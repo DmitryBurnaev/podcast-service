@@ -435,7 +435,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
     url = "/api/auth/change-password/"
     new_password = "new123456"
 
-    def _assert_fail_response(self, client, token: str) -> dict:
+    def _assert_fail_response(self, client, token: str, response_status: str = None) -> dict:
         request_data = {
             "token": token,
             "password_1": self.new_password,
@@ -469,7 +469,8 @@ class TestChangePasswordAPIView(BaseTestAPIView):
     def test__token_expired__fail(self, client, user):
         token, _ = encode_jwt({"user_id": user.id}, expires_in=-10)
         response_data = self._assert_fail_response(client, token)
-        self.assert_auth_invalid(response_data, "Token could not be decoded: Signature has expired")
+        assert response_data["status"] == ResponseStatus.SIGNATURE_EXPIRED
+        self.assert_auth_invalid(response_data, None)
 
     def test__token_invalid_type__fail(self, client, user):
         token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_REFRESH)
@@ -553,7 +554,11 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         refresh_token = user_session.refresh_token
         async_run(user_session.update(refresh_token="fake-token").apply())
         response = client.post(self.url, json={"refresh_token": refresh_token})
-        self.assert_auth_invalid(response, "Refresh token is not active for user session.")
+        self.assert_auth_invalid(
+            response,
+            "Refresh token is not active for user session.",
+            ResponseStatus.AUTH_FAILED
+        )
 
     def test_refresh_token__fake_jwt__fail(self, client, user):
         response = client.post(self.url, json={"refresh_token": "fake-jwt-token"})

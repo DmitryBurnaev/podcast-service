@@ -34,10 +34,10 @@ class AuthenticationRequiredError(BaseApplicationError):
     message = "Authentication is required."
 
 
-class SessionExpiredError(BaseApplicationError):
+class SignatureExpiredError(BaseApplicationError):
     status_code = 401
-    response_status = ResponseStatus.SESSION_EXPIRED
-    message = "User's session is required."
+    response_status = ResponseStatus.SIGNATURE_EXPIRED
+    message = "Authentication credentials are invalid."
 
 
 class PermissionDeniedError(BaseApplicationError):

@@ -33,6 +33,11 @@ from tests.mocks import (
 
 
 @pytest.fixture(autouse=True, scope="session")
+def test_settings():
+    settings.APP_DEBUG = True
+
+
+@pytest.fixture(autouse=True, scope="session")
 def client() -> PodcastTestClient:
     from core.app import get_app
 
