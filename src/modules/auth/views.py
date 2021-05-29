@@ -5,6 +5,7 @@ from typing import Tuple
 
 from starlette import status
 
+from common.statuses import ResponseStatus
 from core import settings
 from common.views import BaseHTTPEndpoint
 from common.db_utils import db_transaction
@@ -96,13 +97,18 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         user = await User.async_get(email=email, is_active__is=True)
         if not user:
             logger.info("Not found active user with email [%s]", email)
-            raise AuthenticationFailedError("Not found active user with provided email.")
+            raise AuthenticationFailedError(
+                "Not found active user with provided email.",
+                response_status=ResponseStatus.INVALID_PARAMETERS,
+            )
 
         hasher = PBKDF2PasswordHasher()
         verified, error_msg = hasher.verify(password, encoded=user.password)
         if not verified:
             logger.error("Password didn't verify: email: %s | err: %s", email, error_msg)
-            raise AuthenticationFailedError("Email or password is invalid.")
+            raise AuthenticationFailedError(
+                "Email or password is invalid.", response_status=ResponseStatus.INVALID_PARAMETERS
+            )
 
         return user
 

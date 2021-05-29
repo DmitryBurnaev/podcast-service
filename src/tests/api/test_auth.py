@@ -121,7 +121,7 @@ class TestAuthSignInAPIView(BaseTestAPIView):
     url = "/api/auth/sign-in/"
     raw_password = "test-password"
     default_fail_status_code = 401
-    default_fail_response_status = ResponseStatus.AUTH_FAILED
+    default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
 
     @classmethod
     def setup_class(cls):
