@@ -157,7 +157,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
             raise InvalidParameterError(details=details)
 
         if email != user_invite.email:
-            raise InvalidParameterError(details="Email does not match with your invitation.")
+            raise InvalidParameterError(message="Email does not match with your invitation.")
 
         cleaned_data["user_invite"] = user_invite
         return cleaned_data
@@ -244,7 +244,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
 
     @staticmethod
     async def _send_email(user_invite: UserInvite):
-        link = f"{settings.SITE_URL}/sign-up/?t={user_invite.token}"
+        link = f"{settings.SITE_URL}/sign-up/?token={user_invite.token}"
         body = (
             f"<p>Hello! :) You have been invited to {settings.SITE_URL}</p>"
             f"<p>Please follow the link </p>"

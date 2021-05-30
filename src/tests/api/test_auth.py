@@ -268,10 +268,7 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
         request_data["email"] = f"another.email{uuid.uuid4().hex[:10]}@test.com"
         response = client.post(self.url, json=request_data)
         response_data = self.assert_fail_response(response)
-        assert response_data == {
-            "error": "Requested data is not valid.",
-            "details": "Email does not match with your invitation.",
-        }
+        assert response_data["error"] == "Email does not match with your invitation."
 
 
 class TestSignOutAPIView(BaseTestAPIView):
@@ -315,7 +312,7 @@ class TestUserInviteApiView(BaseTestAPIView):
             "expired_at": user_invite.expired_at.isoformat(),
         }
 
-        link = f"{settings.SITE_URL}/sign-up/?t={user_invite.token}"
+        link = f"{settings.SITE_URL}/sign-up/?token={user_invite.token}"
         expected_body = (
             f"<p>Hello! :) You have been invited to {settings.SITE_URL}</p>"
             f"<p>Please follow the link </p>"
