@@ -15,6 +15,7 @@ from common.exceptions import (
     BaseApplicationError,
     InvalidParameterError,
 )
+from common.statuses import ResponseStatus
 from core.database import db
 from common.typing import DBModel
 from common.utils import get_logger
@@ -60,7 +61,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         except Exception as err:
             error_details = repr(err)
             logger.exception("Unexpected error handled: %s", error_details)
-            raise UnexpectedError(error_details)
+            raise UnexpectedError("Unexpected error handled")
 
         await response(self.scope, self.receive, self.send)
 
@@ -104,20 +105,22 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         instance: Union[DBModel, Iterable[DBModel]] = None,
         data: Any = None,
         status_code: int = status.HTTP_200_OK,
+        response_status: ResponseStatus = ResponseStatus.OK,
     ) -> Response:
         """ Returns JSON-Response (with single instance or list of them) or empty Response """
 
         response_instance = instance if (instance is not None) else data
-
+        payload = {}
         if response_instance is not None:
             schema_kwargs = {}
             if isinstance(response_instance, Iterable) and not isinstance(response_instance, dict):
                 schema_kwargs["many"] = True
 
-            response_data = self.schema_response(**schema_kwargs).dump(response_instance)
-            return JSONResponse(response_data, status_code=status_code)
+            payload = self.schema_response(**schema_kwargs).dump(response_instance)
 
-        return Response(status_code=status_code)
+        return JSONResponse(
+            {"status": response_status, "payload": payload}, status_code=status_code
+        )
 
     async def _run_task(self, task_class: Type[RQTask], *args, **kwargs):
         """ Enqueue RQ task """
@@ -147,6 +150,8 @@ class HealthCheckAPIView(BaseHTTPEndpoint):
     async def get(self, *_):
         response_data = {"services": {}, "errors": []}
         result_status = status.HTTP_200_OK
+        response_status = ResponseStatus.OK
+
         try:
             await Podcast.async_filter()
 
@@ -163,8 +168,11 @@ class HealthCheckAPIView(BaseHTTPEndpoint):
         if "down" in services or response_data.get("errors"):
             response_data["status"] = "down"
             result_status = status.HTTP_503_SERVICE_UNAVAILABLE
+            response_status = ResponseStatus.INTERNAL_ERROR
 
-        return self._response(data=response_data, status_code=result_status)
+        return self._response(
+            data=response_data, status_code=result_status, response_status=response_status
+        )
 
 
 class SentryCheckAPIView(BaseHTTPEndpoint):
