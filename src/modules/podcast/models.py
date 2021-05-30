@@ -60,7 +60,7 @@ class Podcast(BaseModel):
     async def create_first_podcast(cls, user_id: int):
         return await Podcast.create(
             publish_id=cls.generate_publish_id(),
-            name="Your first podcast",
+            name="Your podcast",
             description=(
                 "Add new episode -> wait for downloading -> copy podcast RSS-link "
                 "-> past this link to your podcast application -> enjoy".strip()

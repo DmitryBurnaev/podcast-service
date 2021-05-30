@@ -86,9 +86,9 @@ def custom_exception_handler(request, exc):
         status_code = status.HTTP_400_BAD_REQUEST
         response_status = ResponseStatus.INVALID_PARAMETERS
 
-    payload = {"error": error_message, "details": error_details}
-    if not settings.APP_DEBUG:
-        payload.pop("details")
+    payload = {"error": error_message}
+    if settings.APP_DEBUG or response_status == ResponseStatus.INVALID_PARAMETERS:
+        payload["details"] = error_details
 
     response_data = {"status": response_status, "payload": payload}
     log_level = logging.ERROR if status_is_server_error(status_code) else logging.WARNING
