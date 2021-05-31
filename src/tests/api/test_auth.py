@@ -1,3 +1,5 @@
+import base64
+import json
 import uuid
 from datetime import datetime, timedelta
 
@@ -311,8 +313,12 @@ class TestUserInviteApiView(BaseTestAPIView):
             "created_at": user_invite.created_at.isoformat(),
             "expired_at": user_invite.expired_at.isoformat(),
         }
-
-        link = f"{settings.SITE_URL}/sign-up/?token={user_invite.token}"
+        invite_data = {
+            "token": user_invite.token,
+            "email": user_invite.email,
+        }
+        invite_data = base64.urlsafe_b64encode(json.dumps(invite_data).encode()).decode()
+        link = f"{settings.SITE_URL}/sign-up/?i={invite_data}"
         expected_body = (
             f"<p>Hello! :) You have been invited to {settings.SITE_URL}</p>"
             f"<p>Please follow the link </p>"
