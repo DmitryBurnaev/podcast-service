@@ -21,6 +21,11 @@ services:
       - APP_SERVICE=rq
     networks:
       - internal-subnet
+    deploy:
+      replicas: 4
+      resources:
+        limits:
+          cpus: '0.25'
 
   migrate_db:
     image:

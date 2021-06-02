@@ -21,11 +21,6 @@ services:
       - .env
     environment:
       - APP_SERVICE=rq
-    deploy:
-      replicas: 4
-      resources:
-        limits:
-          cpus: '0.25'
 
   test:
     image:
