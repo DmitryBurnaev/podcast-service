@@ -18,7 +18,7 @@ httpx = "==0.16.1"
 redis = "==3.5.3"
 boto3 = "==1.17.33"
 youtube_dl = "==2021.5.16"
-sentry-sdk = "==1.0.0"
+sentry-sdk = "==1.1.0"
 python-dotenv = "==0.15.0"
 Jinja2 = "==2.11.3" # rss-file rendering
 
