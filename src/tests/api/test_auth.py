@@ -152,12 +152,12 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         assert user_session.expired_at == refresh_exp_dt
         assert user_session.last_login is not None
 
-    def test_sign_in__update_user_session__ok(self, client):
+    def test_sign_in__create_new_user_session__ok(self, client):
         old_expired_at = datetime.now() + timedelta(seconds=1)
-        user_session = async_run(
+        old_user_session = async_run(
             UserSession.create(
                 user_id=self.user.id,
-                is_active=False,
+                is_active=True,
                 refresh_token="refresh_token",
                 expired_at=old_expired_at,
             )
@@ -166,11 +166,17 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         refresh_token = response_data.get("refresh_token")
 
-        user_session: UserSession = async_run(UserSession.async_get(id=user_session.id))
-        assert user_session.refresh_token == refresh_token
-        assert user_session.user_id == self.user.id
-        assert user_session.expired_at > old_expired_at
-        assert user_session.is_active is True
+        user_sessions: list[UserSession] = async_run(UserSession.async_filter(user_id=self.user.id))
+        assert len(user_sessions) == 2
+        old_session, new_session = user_sessions
+
+        assert old_session.id == old_user_session.id
+        assert old_session.is_active is True
+        assert old_session.expired_at == old_expired_at
+
+        assert new_session.user_id != old_user_session.id
+        assert new_session.refresh_token == refresh_token
+        assert new_session.is_active is True
 
     def test_sign_in__password_mismatch__fail(self, client):
         response = client.post(self.url, json={"email": self.email, "password": "fake-password"})
