@@ -151,6 +151,7 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         assert user_session.is_active is True
         assert user_session.expired_at == refresh_exp_dt
         assert user_session.last_login is not None
+        assert decoded_refresh_token.get("session_id") == user_session.id
 
     def test_sign_in__create_new_user_session__ok(self, client):
         old_expired_at = datetime.now() + timedelta(seconds=1)

@@ -61,24 +61,27 @@ class JWTSessionMixin:
             access_token_expired_at=access_token_expired_at,
         )
 
+    async def _create_session(self, user: User) -> TokenCollection:
+        token_collection = self._get_tokens(user)
+        session_id = await UserSession.create(
+            user_id=user.id,
+            refresh_token="",
+            expired_at=token_collection.refresh_token_expired_at,
+        )
+        return token_collection
+
     async def _update_session(self, user: User) -> TokenCollection:
         token_collection = self._get_tokens(user)
         user_session = await UserSession.async_get(user_id=user.id)
-        if user_session:
-            await user_session.update(
-                refresh_token=token_collection.refresh_token,
-                expired_at=token_collection.refresh_token_expired_at,
-                last_login=datetime.utcnow(),
-                is_active=True,
-            ).apply()
+        if not user_session:
+            return await self._create_session(user)
 
-        else:
-            await UserSession.create(
-                user_id=user.id,
-                refresh_token=token_collection.refresh_token,
-                expired_at=token_collection.refresh_token_expired_at,
-            )
-
+        await user_session.update(
+            refresh_token=token_collection.refresh_token,
+            expired_at=token_collection.refresh_token_expired_at,
+            last_login=datetime.utcnow(),
+            is_active=True,
+        ).apply()
         return token_collection
 
 
@@ -91,7 +94,7 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     async def post(self, request):
         cleaned_data = await self._validate(request)
         user = await self.authenticate(cleaned_data["email"], cleaned_data["password"])
-        token_collection = await self._update_session(user)
+        token_collection = await self._create_session(user)
         return self._response(token_collection)
 
     @staticmethod
@@ -134,7 +137,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
             update_data={"is_applied": True, "user_id": user.id},
         )
         await Podcast.create_first_podcast(user.id)
-        token_collection = await self._update_session(user)
+        token_collection = await self._create_session(user)
         return self._response(token_collection, status_code=status.HTTP_201_CREATED)
 
     async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
@@ -193,25 +196,26 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
     @db_transaction
     async def post(self, request):
-        user, refresh_token = await self._validate(request)
+        # TODO: get session ID from JWT payload
+        user, refresh_token, session_id = await self._validate(request)
 
-        user_session = await UserSession.async_get(user_id=user.id, is_active=True)
+        user_session = await UserSession.async_get(id=session_id, is_active=True)
         if not user_session:
             raise AuthenticationFailedError("There is not active session for user.")
 
         if user_session.refresh_token != refresh_token:
-            raise AuthenticationFailedError("Refresh token is not active for user session.")
+            raise AuthenticationFailedError("Refresh token does not match with user session.")
 
         token_collection = await self._update_session(user)
         return self._response(token_collection)
 
-    async def _validate(self, request, *args, **kwargs) -> Tuple[User, str]:
+    async def _validate(self, request, *args, **kwargs) -> Tuple[User, str, int]:
         cleaned_data = await super()._validate(request)
         refresh_token = cleaned_data["refresh_token"]
         user, jwt_payload = await LoginRequiredAuthBackend().authenticate_user(
             refresh_token, token_type="refresh"
         )
-        return user, refresh_token
+        return user, refresh_token, jwt_payload.get("session_id", 0)
 
 
 class InviteUserAPIView(BaseHTTPEndpoint):
@@ -337,7 +341,7 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         new_password = User.make_password(cleaned_data["password_1"])
         await user.update(password=new_password).apply()
 
-        token_collection = await self._update_session(user)
+        token_collection = await self._create_session(user)
         return self._response(token_collection)
 
 
