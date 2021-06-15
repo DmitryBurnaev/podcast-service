@@ -67,8 +67,7 @@ class UserSession(BaseModel):
     __tablename__ = "auth_sessions"
 
     id = db.Column(db.Integer, primary_key=True)
-    # TODO: uniq True!!, server default
-    public_id = db.Column(db.String(length=32), index=True, nullable=False, default=uuid.uuid4)
+    public_id = db.Column(db.String(length=32), index=True, nullable=False, unique=True)
     user_id = db.Column(db.Integer, db.ForeignKey("auth_users.id"))
     refresh_token = db.Column(db.String(length=256))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
