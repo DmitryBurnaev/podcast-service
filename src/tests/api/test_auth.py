@@ -150,15 +150,16 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         assert user_session.refresh_token == refresh_token
         assert user_session.is_active is True
         assert user_session.expired_at == refresh_exp_dt
-        assert user_session.last_login is not None
-        assert decoded_refresh_token.get("session_id") == user_session.id
+        assert user_session.refreshed_at is not None
+        assert decoded_refresh_token.get("session_id") == user_session.public_id
 
     def test_sign_in__create_new_user_session__ok(self, client):
         old_expired_at = datetime.now() + timedelta(seconds=1)
         old_user_session = async_run(
             UserSession.create(
-                user_id=self.user.id,
                 is_active=True,
+                user_id=self.user.id,
+                public_id=str(uuid.uuid4()),
                 refresh_token="refresh_token",
                 expired_at=old_expired_at,
             )
@@ -174,10 +175,12 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         assert old_session.id == old_user_session.id
         assert old_session.is_active is True
         assert old_session.expired_at == old_expired_at
+        assert old_session.refreshed_at == old_user_session.refreshed_at
 
         assert new_session.user_id != old_user_session.id
         assert new_session.refresh_token == refresh_token
         assert new_session.is_active is True
+        assert old_session.refreshed_at is not None
 
     def test_sign_in__password_mismatch__fail(self, client):
         response = client.post(self.url, json={"email": self.email, "password": "fake-password"})
@@ -519,11 +522,15 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
     @staticmethod
     def _prepare_token(user: User, is_active=True, refresh=True) -> UserSession:
         token_type = TOKEN_TYPE_REFRESH if refresh else TOKEN_TYPE_ACCESS
-        refresh_token, _ = encode_jwt({"user_id": user.id}, token_type=token_type)
+        session_id = str(uuid.uuid4())
+        refresh_token, _ = encode_jwt(
+            {"user_id": user.id, "session_id": session_id}, token_type=token_type
+        )
         user_session = async_run(
             UserSession.create(
                 user_id=user.id,
                 is_active=is_active,
+                public_id=session_id,
                 refresh_token=refresh_token,
                 expired_at=datetime.utcnow(),
             )
@@ -567,7 +574,7 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         async_run(user_session.update(refresh_token="fake-token").apply())
         response = client.post(self.url, json={"refresh_token": refresh_token})
         self.assert_auth_invalid(
-            response, "Refresh token is not active for user session.", ResponseStatus.AUTH_FAILED
+            response, "Refresh token does not match with user session.", ResponseStatus.AUTH_FAILED
         )
 
     def test_refresh_token__fake_jwt__fail(self, client, user):

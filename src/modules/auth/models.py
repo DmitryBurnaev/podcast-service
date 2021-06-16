@@ -1,5 +1,4 @@
 import secrets
-import uuid
 from datetime import datetime
 
 from common.models import BaseModel
@@ -67,13 +66,13 @@ class UserSession(BaseModel):
     __tablename__ = "auth_sessions"
 
     id = db.Column(db.Integer, primary_key=True)
-    public_id = db.Column(db.String(length=32), index=True, nullable=False, unique=True)
+    public_id = db.Column(db.String(length=36), index=True, nullable=False, unique=True)
     user_id = db.Column(db.Integer, db.ForeignKey("auth_users.id"))
-    refresh_token = db.Column(db.String(length=256))
+    refresh_token = db.Column(db.String(length=512))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     expired_at = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    last_login = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    refreshed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     def __repr__(self):
         return f"<UserSession #{self.id} {self.user_id}>"

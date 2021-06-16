@@ -48,10 +48,10 @@ class JWTSessionMixin:
     schema_response = JWTResponseSchema
 
     @staticmethod
-    def _get_tokens(user: User) -> TokenCollection:
+    def _get_tokens(user: User, session_id: uuid.UUID) -> TokenCollection:
         access_token, access_token_expired_at = encode_jwt({"user_id": user.id})
         refresh_token, refresh_token_expired_at = encode_jwt(
-            {"user_id": user.id},
+            {"user_id": user.id, "session_id": str(session_id)},
             token_type=TOKEN_TYPE_REFRESH,
         )
         return TokenCollection(
@@ -62,24 +62,26 @@ class JWTSessionMixin:
         )
 
     async def _create_session(self, user: User) -> TokenCollection:
-        token_collection = self._get_tokens(user)
-        session_id = await UserSession.create(
+        session_id = uuid.uuid4()
+        token_collection = self._get_tokens(user, session_id)
+        await UserSession.create(
             user_id=user.id,
-            refresh_token="",
+            public_id=str(session_id),
+            refresh_token=token_collection.refresh_token,
             expired_at=token_collection.refresh_token_expired_at,
         )
         return token_collection
 
     async def _update_session(self, user: User) -> TokenCollection:
-        token_collection = self._get_tokens(user)
         user_session = await UserSession.async_get(user_id=user.id)
         if not user_session:
             return await self._create_session(user)
 
+        token_collection = self._get_tokens(user, session_id=user_session.public_id)
         await user_session.update(
             refresh_token=token_collection.refresh_token,
             expired_at=token_collection.refresh_token_expired_at,
-            last_login=datetime.utcnow(),
+            refreshed_at=datetime.utcnow(),
             is_active=True,
         ).apply()
         return token_collection
@@ -198,8 +200,10 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     async def post(self, request):
         # TODO: get session ID from JWT payload
         user, refresh_token, session_id = await self._validate(request)
+        if session_id is None:
+            raise AuthenticationFailedError("No session ID in token found")
 
-        user_session = await UserSession.async_get(id=session_id, is_active=True)
+        user_session = await UserSession.async_get(public_id=session_id, is_active=True)
         if not user_session:
             raise AuthenticationFailedError("There is not active session for user.")
 
@@ -215,7 +219,7 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         user, jwt_payload = await LoginRequiredAuthBackend().authenticate_user(
             refresh_token, token_type="refresh"
         )
-        return user, refresh_token, jwt_payload.get("session_id", 0)
+        return user, refresh_token, jwt_payload.get("session_id")
 
 
 class InviteUserAPIView(BaseHTTPEndpoint):
