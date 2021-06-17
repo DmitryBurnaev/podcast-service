@@ -122,11 +122,12 @@ def create_user_session(user):
     return loop.run_until_complete(
         UserSession.create(
             user_id=user.id,
+            public_id=str(uuid.uuid4()),
             refresh_token="refresh-token",
             is_active=True,
             expired_at=datetime.utcnow() + timedelta(seconds=120),
             created_at=datetime.utcnow(),
-            last_login=datetime.utcnow(),
+            refreshed_at=datetime.utcnow(),
         )
     )
 
