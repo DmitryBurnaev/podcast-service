@@ -1,9 +1,10 @@
 import base64
 import json
 import uuid
+from uuid import UUID
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Tuple
+from typing import Tuple, Optional, Union
 
 from starlette import status
 
@@ -48,7 +49,7 @@ class JWTSessionMixin:
     schema_response = JWTResponseSchema
 
     @staticmethod
-    def _get_tokens(user: User, session_id: uuid.UUID) -> TokenCollection:
+    def _get_tokens(user: User, session_id: Union[str, UUID]) -> TokenCollection:
         access_token, access_token_expired_at = encode_jwt({"user_id": user.id})
         refresh_token, refresh_token_expired_at = encode_jwt(
             {"user_id": user.id, "session_id": str(session_id)},
@@ -72,12 +73,12 @@ class JWTSessionMixin:
         )
         return token_collection
 
-    async def _update_session(self, user: User) -> TokenCollection:
-        user_session = await UserSession.async_get(user_id=user.id)
+    async def _update_session(self, user: User, session_id: Union[str, UUID]) -> TokenCollection:
+        user_session = await UserSession.async_get(public_id=str(session_id))
         if not user_session:
             return await self._create_session(user)
 
-        token_collection = self._get_tokens(user, session_id=user_session.public_id)
+        token_collection = self._get_tokens(user, session_id=session_id)
         await user_session.update(
             refresh_token=token_collection.refresh_token,
             expired_at=token_collection.refresh_token_expired_at,
@@ -210,10 +211,10 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         if user_session.refresh_token != refresh_token:
             raise AuthenticationFailedError("Refresh token does not match with user session.")
 
-        token_collection = await self._update_session(user)
+        token_collection = await self._update_session(user, session_id)
         return self._response(token_collection)
 
-    async def _validate(self, request, *args, **kwargs) -> Tuple[User, str, int]:
+    async def _validate(self, request, *args, **kwargs) -> Tuple[User, str, Optional[str]]:
         cleaned_data = await super()._validate(request)
         refresh_token = cleaned_data["refresh_token"]
         user, jwt_payload = await LoginRequiredAuthBackend().authenticate_user(

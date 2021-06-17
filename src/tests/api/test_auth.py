@@ -81,7 +81,7 @@ INVALID_CHANGE_PASSWORD_DATA = [
 ]
 
 
-def assert_tokens(response_data: dict, user: User):
+def assert_tokens(response_data: dict, user: User, session_id: str = None):
     """ Allows to check access- and refresh-tokens in the response body """
 
     access_token = response_data.get("access_token")
@@ -100,8 +100,10 @@ def assert_tokens(response_data: dict, user: User):
     assert refresh_exp_dt > datetime.utcnow()
     assert decoded_refresh_token.get("user_id") == user.id, decoded_refresh_token
     assert decoded_refresh_token.get("token_type") == "refresh", decoded_refresh_token
-
     assert refresh_exp_dt > access_exp_dt
+
+    if session_id:
+        assert decoded_refresh_token.get("session_id") == session_id
 
 
 class TestAuthMeAPIView(BaseTestAPIView):
@@ -543,6 +545,21 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         response = client.post(self.url, json={"refresh_token": user_session.refresh_token})
         response_data = self.assert_ok_response(response)
         assert_tokens(response_data, user)
+
+    def test_refresh_token__several_sessions_for_user__ok(self, client, user):
+        user_session_1 = self._prepare_token(user)
+        user_session_2 = self._prepare_token(user)
+        client.logout()
+        response = client.post(self.url, json={"refresh_token": user_session_2.refresh_token})
+        response_data = self.assert_ok_response(response)
+        assert_tokens(response_data, user, session_id=user_session_2.public_id)
+
+        upd_user_session_1: UserSession = async_run(UserSession.async_get(id=user_session_1.id))
+        upd_user_session_2: UserSession = async_run(UserSession.async_get(id=user_session_2.id))
+
+        assert user_session_1.refreshed_at == upd_user_session_1.refreshed_at
+        assert user_session_1.refresh_token == upd_user_session_1.refresh_token
+        assert user_session_1.refreshed_at < upd_user_session_2.refreshed_at
 
     def test_refresh_token__user_inactive__fail(self, client, user):
         user_session = self._prepare_token(user)
