@@ -179,7 +179,6 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         assert old_session.expired_at == old_expired_at
         assert old_session.refreshed_at == old_user_session.refreshed_at
 
-        assert new_session.user_id != old_user_session.id
         assert new_session.refresh_token == refresh_token
         assert new_session.is_active is True
         assert old_session.refreshed_at is not None
