@@ -10,7 +10,9 @@ uvicorn = "==0.13.4"
 rq = "==1.7.0"
 
 psycopg2 = "==2.8.6"  # in order to use in alembic
-gino = {version = "==1.0.1", extras = ["starlette"]}
+sqlalchemy = "==1.4.19"
+#sqlalchemy = {version = "==1.4.19", extras = ["starlette"]}
+#gino = {version = "==1.0.1", extras = ["starlette"]}
 alembic = "==1.4.3"
 
 PyJWT = "==2.0.0"
