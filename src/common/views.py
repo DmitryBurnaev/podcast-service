@@ -2,6 +2,8 @@ import asyncio
 from functools import partial
 from typing import Type, Union, Iterable, Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import sessionmaker
 from starlette import status
 from starlette.requests import Request
 from starlette.endpoints import HTTPEndpoint
@@ -16,7 +18,6 @@ from common.exceptions import (
     InvalidParameterError,
 )
 from common.statuses import ResponseStatus
-from core.database import db
 from common.typing import DBModel
 from common.utils import get_logger
 from modules.podcast.models import Podcast
@@ -55,7 +56,13 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         handler = getattr(self, handler_name, self.method_not_allowed)
 
         try:
-            response = await handler(self.request)
+            async_session = sessionmaker(
+                self.app.db_engine, expire_on_commit=False, class_=AsyncSession
+            )
+            async with async_session() as session:
+                self.request.db_session = session
+                response = await handler(self.request)
+
         except (BaseApplicationError, WebargsHTTPException) as err:
             raise err
         except Exception as err:
@@ -65,7 +72,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         await response(self.scope, self.receive, self.send)
 
-    async def _get_object(self, instance_id, db_model: DBModel = None, **filter_kwargs) -> db.Model:
+    async def _get_object(self, instance_id, db_model: DBModel = None, **filter_kwargs) -> DBModel:
         """
         Returns current object (only for logged-in or admin user) for CRUD API
         """

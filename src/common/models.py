@@ -1,12 +1,14 @@
-from gino import GinoEngine
+# from gino import GinoEngine
 from sqlalchemy import and_
+from sqlalchemy.orm import Query
 from sqlalchemy.sql import Select
 
-from core.database import db
+# from core.database import Base
 
 
-class BaseModel(db.Model):
+class ModelMixin:
     """ Base model for Gino (sqlalchemy) ORM """
+    # __table__ = NotImplemented
 
     class Meta:
         order_by = ("id",)
@@ -23,17 +25,17 @@ class BaseModel(db.Model):
         return cls.query.where(cls._filter_criteria(filter_kwargs)).order_by(*order_by)
 
     @classmethod
-    async def async_filter(cls, **filter_kwargs) -> "GinoEngine.all":
+    async def async_filter(cls, **filter_kwargs) -> "Query":
         query = cls.prepare_query(**filter_kwargs)
         return await query.gino.all()
 
     @classmethod
-    async def async_get(cls, **filter_kwargs) -> "BaseModel":
+    async def async_get(cls, **filter_kwargs) -> "ModelMixin":
         query = cls.prepare_query(**filter_kwargs)
         return await query.gino.first()
 
     @classmethod
-    async def async_update(cls, filter_kwargs: dict, update_data: dict) -> "GinoEngine.status":
+    async def async_update(cls, filter_kwargs: dict, update_data: dict):
         query = cls.update.values(**update_data).where(cls._filter_criteria(filter_kwargs))
         return await query.gino.status()
 

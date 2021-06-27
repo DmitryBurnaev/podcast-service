@@ -1,19 +1,21 @@
 import secrets
 from datetime import datetime
 
-from common.models import BaseModel
-from core.database import db
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+
+from core.database import ModelBase
+from common.models import ModelMixin
 from modules.auth.hasher import PBKDF2PasswordHasher
 
 
-class User(BaseModel):
+class User(ModelBase, ModelMixin):
     __tablename__ = "auth_users"
 
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(length=128), index=True, nullable=False, unique=True)
-    password = db.Column(db.String(length=256), nullable=False)
-    is_active = db.Column(db.Boolean, default=True)
-    is_superuser = db.Column(db.Boolean, default=False)
+    id = Column(Integer, primary_key=True)
+    email = Column(String(length=128), index=True, nullable=False, unique=True)
+    password = Column(String(length=256), nullable=False)
+    is_active = Column(Boolean, default=True)
+    is_superuser = Column(Boolean, default=False)
 
     def __repr__(self):
         return f"<User #{self.id} {self.email}>"
@@ -41,18 +43,18 @@ class User(BaseModel):
         return await cls.async_get(id=user_id, is_active=True)
 
 
-class UserInvite(BaseModel):
+class UserInvite(ModelBase, ModelMixin):
     __tablename__ = "auth_invites"
     TOKEN_MAX_LENGTH = 32
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("auth_users.id"), unique=True)
-    email = db.Column(db.String(length=32), unique=True)
-    token = db.Column(db.String(length=32), unique=True, nullable=False, index=True)
-    is_applied = db.Column(db.Boolean, default=False, nullable=False)
-    expired_at = db.Column(db.DateTime, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    created_by_id = db.Column(db.Integer, db.ForeignKey("auth_users.id"), nullable=False)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("auth_users.id"), unique=True)
+    email = Column(String(length=32), unique=True)
+    token = Column(String(length=32), unique=True, nullable=False, index=True)
+    is_applied = Column(Boolean, default=False, nullable=False)
+    expired_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_by_id = Column(Integer, ForeignKey("auth_users.id"), nullable=False)
 
     def __repr__(self):
         return f"<UserInvite #{self.id} {self.token}>"
@@ -62,17 +64,17 @@ class UserInvite(BaseModel):
         return secrets.token_urlsafe()[: cls.TOKEN_MAX_LENGTH]
 
 
-class UserSession(BaseModel):
+class UserSession(ModelBase, ModelMixin):
     __tablename__ = "auth_sessions"
 
-    id = db.Column(db.Integer, primary_key=True)
-    public_id = db.Column(db.String(length=36), index=True, nullable=False, unique=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("auth_users.id"))
-    refresh_token = db.Column(db.String(length=512))
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
-    expired_at = db.Column(db.DateTime, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    refreshed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    id = Column(Integer, primary_key=True)
+    public_id = Column(String(length=36), index=True, nullable=False, unique=True)
+    user_id = Column(Integer, ForeignKey("auth_users.id"))
+    refresh_token = Column(String(length=512))
+    is_active = Column(Boolean, default=True, nullable=False)
+    expired_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    refreshed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     def __repr__(self):
         return f"<UserSession #{self.id} {self.user_id}>"

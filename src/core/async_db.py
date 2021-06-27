@@ -4,6 +4,7 @@ for asynchronous ORM use.
 """
 
 import asyncio
+import os
 from datetime import datetime
 
 from sqlalchemy import Column, Boolean
@@ -60,7 +61,7 @@ async def async_main():
     """Main program function."""
 
     engine = create_async_engine(
-        "postgresql+asyncpg://postgres:PG360892@localhost/podcasts",
+        os.getenv("DB_DSN"),
         echo=True,
     )
 

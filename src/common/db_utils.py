@@ -1,7 +1,7 @@
 from typing import Type
 
 import sqlalchemy as sa
-from sqlalchemy import types
+from sqlalchemy import types, Column
 from sqlalchemy.sql import type_api as sa_type_api
 
 from common.typing import EnumClass
@@ -74,7 +74,7 @@ class ChoiceType(types.TypeDecorator):
         return self.enum_class(value)
 
 
-class EnumTypeColumn(db.Column):
+class EnumTypeColumn(Column):
     """Just wrapper for ChoiceType db column
 
     >>> import enum
@@ -102,7 +102,7 @@ class EnumTypeColumn(db.Column):
             kwargs["default"] = getattr(kwargs["default"], "value") or kwargs["default"]
 
         impl = impl or cls.impl
-        return db.Column(ChoiceType(enum_class, impl=impl), *args, **kwargs)
+        return Column(ChoiceType(enum_class, impl=impl), *args, **kwargs)
 
 
 def db_transaction(func):

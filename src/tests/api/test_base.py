@@ -2,7 +2,7 @@ from typing import Union, Optional
 
 from requests import Response
 
-from common.models import BaseModel
+from common.models import ModelMixin
 from common.statuses import ResponseStatus
 
 
@@ -54,7 +54,7 @@ class BaseTestAPIView(BaseTestCase):
             assert error_value in response_data["details"][error_field]
 
     @staticmethod
-    def assert_not_found(response: Response, instance: BaseModel):
+    def assert_not_found(response: Response, instance: ModelMixin):
         assert response.status_code == 404
         response_data = response.json()
         assert response_data["status"] == ResponseStatus.NOT_FOUND
