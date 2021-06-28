@@ -1,6 +1,7 @@
 # from gino import GinoEngine
-from sqlalchemy import and_
-from sqlalchemy.orm import Query
+from sqlalchemy import and_, select
+from sqlalchemy.engine import Result
+from sqlalchemy.orm import Query, Session
 from sqlalchemy.sql import Select
 
 # from core.database import Base
@@ -22,22 +23,30 @@ class ModelMixin:
             else:
                 order_by.append(getattr(cls, field))
 
-        return cls.query.where(cls._filter_criteria(filter_kwargs)).order_by(*order_by)
+        return select(cls).filter(cls._filter_criteria(filter_kwargs)).order_by(*order_by)
 
     @classmethod
-    async def async_filter(cls, **filter_kwargs) -> "Query":
+    async def async_filter(cls, db_session: Session, **filter_kwargs) -> "Query":
         query = cls.prepare_query(**filter_kwargs)
-        return await query.gino.all()
+        result = await db_session.execute(query)
+        return await result.all()
 
     @classmethod
-    async def async_get(cls, **filter_kwargs) -> "ModelMixin":
+    async def async_get(cls, db_session: Session, **filter_kwargs) -> "ModelMixin":
         query = cls.prepare_query(**filter_kwargs)
-        return await query.gino.first()
+        result = await db_session.execute(query)
+        return await result.fetchone()
 
     @classmethod
-    async def async_update(cls, filter_kwargs: dict, update_data: dict):
-        query = cls.update.values(**update_data).where(cls._filter_criteria(filter_kwargs))
-        return await query.gino.status()
+    async def async_update(cls, db_session: Session, filter_kwargs: dict, update_data: dict):
+        query = (
+            db_session.query(cls)
+            .filter(**cls._filter_criteria(filter_kwargs))
+            .update(**update_data)
+        )
+        result: Result = db_session.execute(query)
+        # TODO: we need to return another result (may be)...
+        return await result.first()
 
     @classmethod
     def _filter_criteria(cls, filter_kwargs):
