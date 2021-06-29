@@ -6,6 +6,7 @@ from urllib.parse import urljoin
 from xml.sax.saxutils import escape
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy.orm import relationship
 
 from core import settings
 from common.models import ModelMixin
@@ -46,6 +47,8 @@ class Podcast(ModelBase, ModelMixin):
     rss_link = Column(String(length=128))
     image_url = Column(String(length=512))
     created_by_id = Column(Integer(), ForeignKey("auth_users.id"))
+
+    episodes = relationship("Episode")
 
     def __str__(self):
         return f'<Podcast #{self.id} "{self.name}">'

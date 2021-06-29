@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, func
 from starlette import status
 
 from core import settings
@@ -21,7 +21,19 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
     auth_backend = None
 
     async def get(self, request):
-        stmt = select(Podcast).filter(Podcast.created_by_id == 1).order_by(Podcast.id)
+        func_count = func.count(Episode.id).label("episodes_count")
+        # query = request.db_session.query_property(Podcast)
+
+        # query = Podcast.query
+        stmt = (
+            select([Podcast, func_count])
+            .join(Episode, Episode.podcast_id == Podcast.id)
+            # Podcast.
+            # .with_entities(Episode.poAsyncSessiondcast_id, func_count)
+            .filter(Podcast.created_by_id == 1)
+            .group_by(Podcast.id)
+            .order_by(Podcast.id)
+        )
         podcasts = await request.db_session.execute(stmt)
         #
         # episodes_count = db.func.count(Episode.id)
@@ -41,6 +53,9 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
         #         podcast.episodes_count = episodes_count
         #         podcasts.append(podcast)
         # print(podcast[0])
+        # TODO: fix episodes_count's getting
+        # for podcast in podcasts.iterate():
+        #     print(podcast.id, podcast.episodes_count)
         return self._response(podcasts.scalars())
 
     @db_transaction
