@@ -22,50 +22,32 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
 
     async def get(self, request):
         func_count = func.count(Episode.id).label("episodes_count")
-        # query = request.db_session.query_property(Podcast)
-
-        # query = Podcast.query
         stmt = (
             select([Podcast, func_count])
             .join(Episode, Episode.podcast_id == Podcast.id)
-            # Podcast.
-            # .with_entities(Episode.poAsyncSessiondcast_id, func_count)
+            # TODO: rollback user
             .filter(Podcast.created_by_id == 1)
             .group_by(Podcast.id)
             .order_by(Podcast.id)
         )
         podcasts = await request.db_session.execute(stmt)
-        #
-        # episodes_count = db.func.count(Episode.id)
-        # query = (
-        #     db.select([Podcast, episodes_count])
-        #     .where(Podcast.created_by_id == request.user.id)
-        #     .select_from(Podcast.outerjoin(Episode))
-        #     .group_by(
-        #         Podcast.id,
-        #     )
-        #     .order_by(Podcast.id)
-        #     .gino.load((Podcast, ColumnLoader(episodes_count)))
-        # )
-        # podcasts = []
-        # async with db.transaction():
-        #     async for podcast, episodes_count in query.iterate():
-        #         podcast.episodes_count = episodes_count
-        #         podcasts.append(podcast)
-        # print(podcast[0])
-        # TODO: fix episodes_count's getting
-        # for podcast in podcasts.iterate():
-        #     print(podcast.id, podcast.episodes_count)
-        return self._response(podcasts.scalars())
+        podcast_list = []
+        for podcast, episodes_count in podcasts.all():
+            podcast.episodes_count = episodes_count
+            podcast_list.append(podcast)
 
-    @db_transaction
+        return self._response(podcast_list)
+
     async def post(self, request):
         cleaned_data = await self._validate(request)
+        # TODO:fix podcast creation
         podcast = await Podcast.create(
+            db_session=request.db_session,
             name=cleaned_data["name"],
             publish_id=Podcast.generate_publish_id(),
             description=cleaned_data["description"],
-            created_by_id=request.user.id,
+            # TODO: rollback user
+            created_by_id=1,
         )
         return self._response(podcast, status_code=status.HTTP_201_CREATED)
 

@@ -9,7 +9,6 @@ from sqlalchemy.sql import Select
 
 class ModelMixin:
     """ Base model for Gino (sqlalchemy) ORM """
-    # __table__ = NotImplemented
 
     class Meta:
         order_by = ("id",)
@@ -47,6 +46,13 @@ class ModelMixin:
         result: Result = db_session.execute(query)
         # TODO: we need to return another result (may be)...
         return await result.first()
+
+    @classmethod
+    async def create(cls, db_session: Session, **data: dict):
+        async with db_session.begin():
+            result = db_session.add(cls(**data))  # noqa
+
+        return result
 
     @classmethod
     def _filter_criteria(cls, filter_kwargs):
