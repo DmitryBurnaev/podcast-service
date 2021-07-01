@@ -24,7 +24,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
         func_count = func.count(Episode.id).label("episodes_count")
         stmt = (
             select([Podcast, func_count])
-            .join(Episode, Episode.podcast_id == Podcast.id)
+            .outerjoin(Episode, Episode.podcast_id == Podcast.id)
             # TODO: rollback user
             .filter(Podcast.created_by_id == 1)
             .group_by(Podcast.id)

@@ -27,6 +27,10 @@ from modules.auth.backend import LoginRequiredAuthBackend
 logger = get_logger(__name__)
 
 
+class PRequest(Request):
+    db_session: AsyncSession = None
+
+
 class BaseHTTPEndpoint(HTTPEndpoint):
     """
     Base View witch used as a base class for every API's endpoints

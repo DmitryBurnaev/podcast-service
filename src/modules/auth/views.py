@@ -7,10 +7,11 @@ from datetime import datetime, timedelta
 from typing import Tuple, Optional, Union
 
 from starlette import status
+from starlette.requests import Request
 
 from common.statuses import ResponseStatus
 from core import settings
-from common.views import BaseHTTPEndpoint
+from common.views import BaseHTTPEndpoint, PRequest
 from common.db_utils import db_transaction
 from common.utils import send_email, get_logger
 from common.exceptions import AuthenticationFailedError, InvalidParameterError
@@ -62,10 +63,11 @@ class JWTSessionMixin:
             access_token_expired_at=access_token_expired_at,
         )
 
-    async def _create_session(self, user: User) -> TokenCollection:
+    async def _create_session(self, user: User, request: PRequest) -> TokenCollection:
         session_id = uuid.uuid4()
         token_collection = self._get_tokens(user, session_id)
         await UserSession.create(
+            db_session=request.db_session,
             user_id=user.id,
             public_id=str(session_id),
             refresh_token=token_collection.refresh_token,
@@ -74,7 +76,10 @@ class JWTSessionMixin:
         return token_collection
 
     async def _update_session(self, user: User, session_id: Union[str, UUID]) -> TokenCollection:
-        user_session = await UserSession.async_get(public_id=str(session_id))
+        user_session = await UserSession.async_get(
+            db_session=self.request.db_session,
+            public_id=str(session_id)
+        )
         if not user_session:
             return await self._create_session(user)
 
@@ -97,7 +102,7 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     async def post(self, request):
         cleaned_data = await self._validate(request)
         user = await self.authenticate(cleaned_data["email"], cleaned_data["password"])
-        token_collection = await self._create_session(user)
+        token_collection = await self._create_session(user, request)
         return self._response(token_collection)
 
     @staticmethod
@@ -132,10 +137,12 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         cleaned_data = await self._validate(request)
         user_invite: UserInvite = cleaned_data["user_invite"]
         user = await User.create(
+            db_session=request.db_session,
             email=cleaned_data["email"],
             password=User.make_password(cleaned_data["password_1"]),
         )
         await UserInvite.async_update(
+            db_session=request.db_session,
             filter_kwargs={"id": user_invite.id},
             update_data={"is_applied": True, "user_id": user.id},
         )

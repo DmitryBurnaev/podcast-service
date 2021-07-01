@@ -1,6 +1,7 @@
 # from gino import GinoEngine
 from sqlalchemy import and_, select
 from sqlalchemy.engine import Result
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Query, Session
 from sqlalchemy.sql import Select
 
@@ -37,22 +38,26 @@ class ModelMixin:
         return await result.fetchone()
 
     @classmethod
-    async def async_update(cls, db_session: Session, filter_kwargs: dict, update_data: dict):
-        query = (
-            db_session.query(cls)
-            .filter(**cls._filter_criteria(filter_kwargs))
-            .update(**update_data)
-        )
-        result: Result = db_session.execute(query)
+    async def async_update(cls, db_session: AsyncSession, filter_kwargs: dict, update_data: dict):
+        async with db_session.begin():
+            query = (
+                db_session.query(cls)
+                .filter(**cls._filter_criteria(filter_kwargs))
+                .update(**update_data)
+            )
+            result: Result = await db_session.execute(query)
+            await db_session.commit()
         # TODO: we need to return another result (may be)...
         return await result.first()
 
     @classmethod
-    async def create(cls, db_session: Session, **data: dict):
+    async def create(cls, db_session: AsyncSession, **data):
         async with db_session.begin():
-            result = db_session.add(cls(**data))  # noqa
+            instance = cls(**data)  # noqa
+            db_session.add_all([instance])
+            await db_session.commit()
 
-        return result
+        return instance
 
     @classmethod
     def _filter_criteria(cls, filter_kwargs):

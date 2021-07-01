@@ -1,3 +1,4 @@
+from sqlalchemy.ext.asyncio import AsyncSession
 from youtube_dl.utils import YoutubeDLError
 
 from core import settings
@@ -24,6 +25,7 @@ class DownloadEpisodeTask(RQTask):
     """ Allows to download youtube video and recreate specific rss (by requested episode_id) """
 
     storage: StorageS3 = None
+    db_session: AsyncSession = None
 
     async def run(self, episode_id: int) -> int:
         self.storage = StorageS3()
@@ -36,7 +38,9 @@ class DownloadEpisodeTask(RQTask):
         except Exception as error:
             logger.exception("Unable to download episode: %s", error)
             await Episode.async_update(
-                {"id": episode_id}, update_data={"status": Episode.Status.ERROR}
+                db_session=self.db_session,
+                filter_kwargs={"id": episode_id},
+                update_data={"status": Episode.Status.ERROR}
             )
             return FinishCode.ERROR
 
@@ -113,6 +117,7 @@ class DownloadEpisodeTask(RQTask):
                 error,
             )
             await Episode.async_update(
+                db_session=self.db_session,
                 filter_kwargs={"source_id": episode.source_id},
                 update_data={"status": Episode.Status.ERROR},
             )
@@ -170,10 +175,13 @@ class DownloadEpisodeTask(RQTask):
         logger.info("Found podcasts for rss updates: %s", podcast_ids)
         await GenerateRSSTask().run(*podcast_ids)
 
-    @staticmethod
-    async def _update_episodes(source_id: str, update_data: dict):
+    async def _update_episodes(self, source_id: str, update_data: dict):
         """ Allows to update data for episodes (filtered by source_id)"""
 
         filter_kwargs = {"source_id": source_id, "status__ne": status.ARCHIVED}
         logger.debug("Episodes update filter: %s | data: %s", filter_kwargs, update_data)
-        await Episode.async_update(filter_kwargs=filter_kwargs, update_data=update_data)
+        await Episode.async_update(
+            db_session=self.db_session,
+            filter_kwargs=filter_kwargs,
+            update_data=update_data
+        )
