@@ -140,7 +140,7 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert_tokens(response_data, self.user)
 
-    def test_sign_in__check_user_session__ok(self, client):
+    def test_sign_in__check_user_session__ok(self, client, db_session):
         response = client.post(self.url, json={"email": self.email, "password": self.raw_password})
         response_data = self.assert_ok_response(response)
 
@@ -148,7 +148,9 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         decoded_refresh_token = decode_jwt(refresh_token)
         refresh_exp_dt = datetime.fromisoformat(decoded_refresh_token.pop("exp_iso"))
 
-        user_session: UserSession = async_run(UserSession.async_get(user_id=self.user.id))
+        user_session: UserSession = async_run(
+            UserSession.async_get(db_session, user_id=self.user.id)
+        )
         assert user_session.refresh_token == refresh_token
         assert user_session.is_active is True
         assert user_session.expired_at == refresh_exp_dt
@@ -227,20 +229,20 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
             "password_2": "test-password",
         }
 
-    def test_sign_up__ok(self, client, user_invite):
+    def test_sign_up__ok(self, client, user_invite, db_session):
         request_data = self._sign_up_data(user_invite)
         response = client.post(self.url, json=request_data)
         response_data = self.assert_ok_response(response, status_code=201)
 
-        user = async_run(User.async_get(email=request_data["email"]))
+        user = async_run(User.async_get(db_session, email=request_data["email"]))
         assert user is not None, f"User wasn't created with {request_data=}"
         assert_tokens(response_data, user)
 
-        user_invite = async_run(UserInvite.async_get(id=user_invite.id))
+        user_invite = async_run(UserInvite.async_get(db_session, id=user_invite.id))
         assert user_invite.user_id == user.id
         assert user_invite.is_applied
 
-        assert async_run(Podcast.async_get(created_by_id=user.id)) is not None
+        assert async_run(Podcast.async_get(db_session, created_by_id=user.id)) is not None
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_SIGN_UP_DATA)
     def test_sign_up__invalid_request__fail(self, client, invalid_data: dict, error_details: dict):
@@ -292,7 +294,7 @@ class TestSignOutAPIView(BaseTestAPIView):
         response = client.delete(self.url)
         assert response.status_code == 204
 
-        user_session = async_run(UserSession.async_get(id=user_session.id))
+        user_session = async_run(UserSession.async_get(db_session, id=user_session.id))
         assert user_session.is_active is False
 
     def test_sign_out__user_session_not_found__ok(self, client, user):
@@ -314,7 +316,7 @@ class TestUserInviteApiView(BaseTestAPIView):
         response = client.post(self.url, json={"email": self.email})
         response_data = self.assert_ok_response(response, status_code=201)
 
-        user_invite: UserInvite = async_run(UserInvite.async_get(email=self.email))
+        user_invite: UserInvite = async_run(UserInvite.async_get(db_session, email=self.email))
         assert user_invite is not None
         assert response_data == {
             "id": user_invite.id,
@@ -360,7 +362,9 @@ class TestUserInviteApiView(BaseTestAPIView):
             "details": f"User with email=[{user.email}] already exists.",
         }
 
-    def test_invite__user_already_invited__update_invite__ok(self, client, user, mocked_auth_send):
+    def test_invite__user_already_invited__update_invite__ok(
+        self, client, user, mocked_auth_send, db_session
+    ):
         old_token = UserInvite.generate_token()
         old_expired_at = datetime.utcnow()
         user_invite = async_run(
@@ -374,7 +378,9 @@ class TestUserInviteApiView(BaseTestAPIView):
 
         client.login(user)
         client.post(self.url, json={"email": self.email})
-        updated_user_invite: UserInvite = async_run(UserInvite.async_get(email=self.email))
+        updated_user_invite: UserInvite = async_run(
+            UserInvite.async_get(db_session, email=self.email)
+        )
 
         assert updated_user_invite is not None
         assert updated_user_invite.id == user_invite.id
@@ -475,7 +481,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert_tokens(response_data, user)
 
-        user = async_run(User.async_get(id=user.id))
+        user = async_run(User.async_get(db_session, id=user.id))
         assert user.verify_password(self.new_password)
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_CHANGE_PASSWORD_DATA)

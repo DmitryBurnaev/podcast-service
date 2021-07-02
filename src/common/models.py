@@ -26,13 +26,13 @@ class ModelMixin:
         return select(cls).filter(cls._filter_criteria(filter_kwargs)).order_by(*order_by)
 
     @classmethod
-    async def async_filter(cls, db_session: Session, **filter_kwargs) -> "Query":
+    async def async_filter(cls, db_session: AsyncSession, **filter_kwargs) -> "Query":
         query = cls.prepare_query(**filter_kwargs)
         result = await db_session.execute(query)
         return await result.all()
 
     @classmethod
-    async def async_get(cls, db_session: Session, **filter_kwargs) -> "ModelMixin":
+    async def async_get(cls, db_session: AsyncSession, **filter_kwargs) -> "ModelMixin":
         query = cls.prepare_query(**filter_kwargs)
         result = await db_session.execute(query)
         return await result.fetchone()

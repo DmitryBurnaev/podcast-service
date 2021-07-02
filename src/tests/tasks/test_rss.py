@@ -10,7 +10,7 @@ from tests.helpers import get_episode_data, get_podcast_data, async_run
 class TestGenerateRSSTask:
     """ Checks RSS generation logic """
 
-    def test_generate__single_podcast__ok(self, user, mocked_s3):
+    def test_generate__single_podcast__ok(self, user, mocked_s3, db_session):
 
         podcast_1: Podcast = async_run(Podcast.create(**get_podcast_data()))
         podcast_2: Podcast = async_run(Podcast.create(**get_podcast_data()))
@@ -48,7 +48,7 @@ class TestGenerateRSSTask:
         for episode in [episode_new, episode_downloading, episode_podcast_2]:
             assert episode.source_id not in generated_rss_content, f"{episode} in RSS {podcast_1}"
 
-        podcast_1 = async_run(Podcast.async_get(id=podcast_1.id))
+        podcast_1 = async_run(Podcast.async_get(db_session, id=podcast_1.id))
         assert podcast_1.rss_link == str(expected_file_path)
 
     def test_generate__several_podcasts__ok(self, user, mocked_s3):
@@ -63,12 +63,12 @@ class TestGenerateRSSTask:
             expected_file_path = mocked_s3.tmp_upload_dir / f"{podcast.publish_id}.xml"
             assert os.path.exists(expected_file_path), f"File {expected_file_path} didn't uploaded"
 
-    def test_generate__upload_failed__fail(self, podcast, mocked_s3):
+    def test_generate__upload_failed__fail(self, podcast, mocked_s3, db_session):
         mocked_s3.upload_file.side_effect = lambda *_, **__: ""
 
         generate_rss_task = tasks.GenerateRSSTask()
         result_code = async_run(generate_rss_task.run(podcast.id))
         assert result_code == FinishCode.ERROR
 
-        podcast_1 = async_run(Podcast.async_get(id=podcast.id))
+        podcast_1 = async_run(Podcast.async_get(db_session, id=podcast.id))
         assert podcast_1.rss_link is None

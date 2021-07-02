@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Tuple, Optional, Union
 
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from starlette.requests import Request
 
@@ -48,6 +49,7 @@ class JWTSessionMixin:
     """ Allows to update session and prepare usual / refresh JWT tokens """
 
     schema_response = JWTResponseSchema
+    db_session: AsyncSession = NotImplemented
 
     @staticmethod
     def _get_tokens(user: User, session_id: Union[str, UUID]) -> TokenCollection:
@@ -63,11 +65,11 @@ class JWTSessionMixin:
             access_token_expired_at=access_token_expired_at,
         )
 
-    async def _create_session(self, user: User, request: PRequest) -> TokenCollection:
+    async def _create_session(self, user: User) -> TokenCollection:
         session_id = uuid.uuid4()
         token_collection = self._get_tokens(user, session_id)
         await UserSession.create(
-            db_session=request.db_session,
+            self.db_session,
             user_id=user.id,
             public_id=str(session_id),
             refresh_token=token_collection.refresh_token,
@@ -76,10 +78,7 @@ class JWTSessionMixin:
         return token_collection
 
     async def _update_session(self, user: User, session_id: Union[str, UUID]) -> TokenCollection:
-        user_session = await UserSession.async_get(
-            db_session=self.request.db_session,
-            public_id=str(session_id)
-        )
+        user_session = await UserSession.async_get(self.db_session, public_id=str(session_id))
         if not user_session:
             return await self._create_session(user)
 
@@ -102,12 +101,11 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     async def post(self, request):
         cleaned_data = await self._validate(request)
         user = await self.authenticate(cleaned_data["email"], cleaned_data["password"])
-        token_collection = await self._create_session(user, request)
+        token_collection = await self._create_session(user)
         return self._response(token_collection)
 
-    @staticmethod
-    async def authenticate(email: str, password: str) -> User:
-        user = await User.async_get(email=email, is_active__is=True)
+    async def authenticate(self, email: str, password: str) -> User:
+        user = await User.async_get(db_session=self.db_session, email=email, is_active__is=True)
         if not user:
             logger.info("Not found active user with email [%s]", email)
             raise AuthenticationFailedError(
@@ -154,10 +152,11 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         cleaned_data = await super()._validate(request)
         email = cleaned_data["email"]
 
-        if await User.async_get(email=email):
+        if await User.async_get(self.db_session, email=email):
             raise InvalidParameterError(details=f"User with email '{email}' already exists")
 
         user_invite = await UserInvite.async_get(
+            self.db_session,
             token=cleaned_data["invite_token"],
             is_applied__is=False,
             expired_at__gt=datetime.utcnow(),
@@ -188,7 +187,7 @@ class SignOutAPIView(BaseHTTPEndpoint):
     async def delete(self, request):
         user = request.user
         logger.info("Log out for user %s", user)
-        user_session = await UserSession.async_get(user_id=user.id, is_active=True)
+        user_session = await UserSession.async_get(self.db_session, user_id=user.id, is_active=True)
         if user_session:
             logger.info("Session %s exists and active. It will be updated.", user_session)
             await user_session.update(is_active=False).apply()
@@ -211,7 +210,9 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         if session_id is None:
             raise AuthenticationFailedError("No session ID in token found")
 
-        user_session = await UserSession.async_get(public_id=session_id, is_active=True)
+        user_session = await UserSession.async_get(
+            self.db_session, public_id=session_id, is_active=True
+        )
         if not user_session:
             raise AuthenticationFailedError("There is not active session for user.")
 
@@ -243,7 +244,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
         token = UserInvite.generate_token()
         expired_at = datetime.utcnow() + timedelta(seconds=settings.INVITE_LINK_EXPIRES_IN)
 
-        if user_invite := await UserInvite.async_get(email=email):
+        if user_invite := await UserInvite.async_get(self.db_session, email=email):
             logger.info("INVITE: update for %s (expired %s) token [%s]", email, expired_at, token)
             await user_invite.update(token=token, expired_at=expired_at).apply()
 
@@ -278,7 +279,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
 
     async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
         cleaned_data = await super()._validate(request)
-        if exists_user := await User.async_get(email=cleaned_data["email"]):
+        if exists_user := await User.async_get(self.db_session, email=cleaned_data["email"]):
             raise InvalidParameterError(f"User with email=[{exists_user.email}] already exists.")
 
         return cleaned_data
@@ -300,7 +301,7 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
 
     async def _validate(self, request, partial_: bool = False, location: str = None) -> User:
         cleaned_data = await super()._validate(request)
-        user = await User.async_get(email=cleaned_data["email"])
+        user = await User.async_get(self.db_session, email=cleaned_data["email"])
         if not user:
             raise InvalidParameterError(f"User with email=[{cleaned_data['email']}] not found.")
 
@@ -347,7 +348,8 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         """ Check is email unique and create new User """
         cleaned_data = await self._validate(request)
         user, _ = await LoginRequiredAuthBackend().authenticate_user(
-            cleaned_data["token"],
+            request=request,
+            jwt_token=cleaned_data["token"],
             token_type=TOKEN_TYPE_RESET_PASSWORD,
         )
         new_password = User.make_password(cleaned_data["password_1"])

@@ -10,6 +10,7 @@ from common.exceptions import (
     SignatureExpiredError,
 )
 from common.utils import get_logger
+from common.views import PRequest
 from modules.auth.models import User, UserSession
 from modules.auth.utils import decode_jwt, TOKEN_TYPE_ACCESS
 
@@ -21,7 +22,7 @@ class BaseAuthJWTBackend:
 
     keyword = "Bearer"
 
-    async def authenticate(self, request: Request):
+    async def authenticate(self, request: PRequest):
         auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
         if not auth_header:
             raise AuthenticationRequiredError("Invalid token header. No credentials provided.")
@@ -34,11 +35,11 @@ class BaseAuthJWTBackend:
         if auth[0] != self.keyword:
             raise AuthenticationFailedError("Invalid token header. Keyword mismatch.")
 
-        user, _ = await self.authenticate_user(jwt_token=auth[1])
+        user, _ = await self.authenticate_user(request, jwt_token=auth[1])
         return user
 
     async def authenticate_user(
-        self, jwt_token: str, token_type: str = TOKEN_TYPE_ACCESS
+        self, request: PRequest, jwt_token: str, token_type: str = TOKEN_TYPE_ACCESS,
     ) -> Tuple[User, dict]:
         """ Allows to find active user by jwt_token """
 
@@ -65,7 +66,9 @@ class BaseAuthJWTBackend:
             logger.warning(msg, user_id)
             raise AuthenticationFailedError(details=(msg % (user_id,)))
 
-        user_session = await UserSession.async_get(user_id=user.id, is_active=True)
+        user_session = await UserSession.async_get(
+            request.db_session, user_id=user.id, is_active=True
+        )
         if not user_session:
             raise AuthenticationFailedError(f"Couldn't found active session for user #{user_id}.")
 

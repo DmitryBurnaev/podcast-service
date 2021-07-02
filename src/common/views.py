@@ -39,6 +39,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
     request: Request = None
     app = None
     db_model: DBModel = NotImplemented
+    db_session: AsyncSession = NotImplemented
     auth_backend = LoginRequiredAuthBackend
     schema_request: Type[Schema] = NotImplemented
     schema_response: Type[Schema] = NotImplemented
@@ -49,7 +50,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         So, we can use this one for customs authenticate and catch all exceptions
         """
 
-        self.request = Request(self.scope, receive=self.receive)
+        self.request = PRequest(self.scope, receive=self.receive)
         self.app = self.scope.get("app")
 
         if self.auth_backend:
@@ -65,6 +66,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
             )
             async with async_session() as session:
                 self.request.db_session = session
+                self.db_session = session
                 response = await handler(self.request)
 
         except (BaseApplicationError, WebargsHTTPException) as err:
@@ -85,7 +87,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         if not self.request.user.is_superuser:
             filter_kwargs["created_by_id"] = self.request.user.id
 
-        instance = await db_model.async_get(id=instance_id, **filter_kwargs)
+        instance = await db_model.async_get(self.db_session, id=instance_id, **filter_kwargs)
         if not instance:
             raise NotFoundError(
                 f"{db_model.__name__} #{instance_id} does not exist or belongs to another user"
@@ -164,8 +166,7 @@ class HealthCheckAPIView(BaseHTTPEndpoint):
         response_status = ResponseStatus.OK
 
         try:
-            await Podcast.async_filter()
-
+            await Podcast.async_filter(self.db_session)
         except Exception as error:
             error_msg = f"Couldn't connect to DB: {error.__class__.__name__} '{error}'"
             logger.exception(error_msg)

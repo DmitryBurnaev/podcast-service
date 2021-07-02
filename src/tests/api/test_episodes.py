@@ -121,7 +121,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_details(episode)
 
-    def test_get_details__episode_from_another_user__fail(self, client, episode, user):
+    def test_get_details__episode_from_another_user__fail(self, client, episode, user, db_session):
         client.login(create_user())
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.get(url), episode)
@@ -135,7 +135,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
             "description": "New description",
         }
         response = client.patch(url, json=patch_data)
-        episode = async_run(Episode.async_get(id=episode.id))
+        episode = async_run(Episode.async_get(db_session, id=episode.id))
 
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_details(episode)
@@ -156,12 +156,12 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.patch(url, json={}), episode)
 
-    def test_delete__ok(self, client, episode, user, mocked_s3):
+    def test_delete__ok(self, client, episode, user, mocked_s3, db_session):
         client.login(user)
         url = self.url.format(id=episode.id)
         response = client.delete(url)
         assert response.status_code == 204
-        assert async_run(Episode.async_get(id=episode.id)) is None
+        assert async_run(Episode.async_get(db_session, id=episode.id)) is None
         mocked_s3.delete_files_async.assert_called_with([episode.file_name])
 
     def test_delete__episode_from_another_user__fail(self, client, episode, user):
@@ -185,6 +185,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         mocked_s3,
         same_episode_status,
         delete_called,
+        db_session,
     ):
         source_id = get_video_id()
 
@@ -206,7 +207,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         client.login(user_2)
         response = client.delete(url)
         assert response.status_code == 204, f"Delete API is not available: {response.text}"
-        assert async_run(Episode.async_get(id=episode_2.id)) is None
+        assert async_run(Episode.async_get(db_session, id=episode_2.id)) is None
         if delete_called:
             mocked_s3.delete_files_async.assert_called_with([episode_2.file_name])
         else:
@@ -220,7 +221,7 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
         client.login(user)
         url = self.url.format(id=episode.id)
         response = client.put(url)
-        episode = async_run(Episode.async_get(id=episode.id))
+        episode = async_run(Episode.async_get(db_session, id=episode.id))
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_details(episode)
         mocked_rq_queue.enqueue.assert_called_with(DownloadEpisodeTask(), episode_id=episode.id)

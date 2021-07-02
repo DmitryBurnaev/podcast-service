@@ -2,6 +2,7 @@ import secrets
 from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import ModelBase
 from common.models import ModelMixin
@@ -39,8 +40,8 @@ class User(ModelBase, ModelMixin):
         return self.email
 
     @classmethod
-    async def get_active(cls, user_id: int) -> "User":
-        return await cls.async_get(id=user_id, is_active=True)
+    async def get_active(cls, db_session: AsyncSession, user_id: int) -> "User":
+        return await cls.async_get(db_session, id=user_id, is_active=True)
 
 
 class UserInvite(ModelBase, ModelMixin):

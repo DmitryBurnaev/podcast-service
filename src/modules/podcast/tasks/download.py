@@ -53,7 +53,7 @@ class DownloadEpisodeTask(RQTask):
         :raise: DownloadingInterrupted (if downloading is broken or unnecessary)
         """
 
-        episode = await Episode.async_get(id=episode_id)
+        episode = await Episode.async_get(self.db_session, id=episode_id)
         logger.info(
             "=== [%s] START downloading process URL: %s FILENAME: %s ===",
             episode.source_id,
