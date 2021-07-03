@@ -26,7 +26,7 @@ if TEST_MODE:
     db_name = config("DB_NAME_TEST", default="podcast_test")
 
 DATABASE = {
-    "driver": config("DB_DRIVER", default="postgresql"),
+    "driver": "postgresql+asyncpg",
     "host": config("DB_HOST", default=None),
     "port": config("DB_PORT", cast=int, default=None),
     "username": config("DB_USERNAME", default=None),
@@ -40,6 +40,7 @@ DATABASE = {
     "retry_limit": config("DB_RETRY_LIMIT", cast=int, default=1),
     "retry_interval": config("DB_RETRY_INTERVAL", cast=int, default=1),
 }
+# TODO: fix db dsn (asyncpg)
 DATABASE_DSN = config(
     "DB_DSN",
     cast=make_url,

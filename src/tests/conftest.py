@@ -43,7 +43,7 @@ def client() -> PodcastTestClient:
     from core.app import get_app
 
     with PodcastTestClient(get_app()) as client:
-        with make_db_session(loop) as db_session:
+        with make_db_session(asyncio.get_event_loop()) as db_session:
             client.db_session = db_session
             yield client
 
@@ -53,11 +53,11 @@ def db_session(loop) -> AsyncSession:
     with make_db_session(loop) as db_session:
         yield db_session
 
-
-@pytest.fixture(autouse=True, scope="session")
-def db_migration():
-    ini_path = settings.PROJECT_ROOT_DIR / "alembic.ini"
-    main(["--raiseerr", f"-c{ini_path}", "upgrade", "head"])
+#
+# @pytest.fixture(autouse=True, scope="session")
+# def db_migration():
+#     ini_path = settings.PROJECT_ROOT_DIR / "alembic.ini"
+#     main(["--raiseerr", f"-c{ini_path}", "upgrade", "head"])
 
 
 @pytest.fixture
