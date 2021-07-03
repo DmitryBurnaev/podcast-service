@@ -2,7 +2,6 @@ import base64
 import json
 import uuid
 from uuid import UUID
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Tuple, Optional, Union
 
@@ -17,7 +16,12 @@ from common.exceptions import AuthenticationFailedError, InvalidParameterError
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
-from modules.auth.utils import encode_jwt, TOKEN_TYPE_REFRESH, TOKEN_TYPE_RESET_PASSWORD
+from modules.auth.utils import (
+    encode_jwt,
+    TokenCollection,
+    TOKEN_TYPE_REFRESH,
+    TOKEN_TYPE_RESET_PASSWORD,
+)
 from modules.auth.schemas import (
     SignInSchema,
     SignUpSchema,
@@ -33,14 +37,6 @@ from modules.auth.schemas import (
 from modules.podcast.models import Podcast
 
 logger = get_logger(__name__)
-
-
-@dataclass
-class TokenCollection:
-    refresh_token: str
-    refresh_token_expired_at: datetime
-    access_token: str
-    access_token_expired_at: datetime
 
 
 class JWTSessionMixin:

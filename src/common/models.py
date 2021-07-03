@@ -1,9 +1,9 @@
+from typing import TypeVar
+
 from sqlalchemy import and_, select
 from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
-
-from common.typing import DBModel
 
 
 class ModelMixin:
@@ -76,3 +76,6 @@ class ModelMixin:
                 raise NotImplementedError(f"Unexpected criteria: {criteria}")
 
         return and_(*filters)
+
+
+DBModel = TypeVar("DBModel", bound=ModelMixin)

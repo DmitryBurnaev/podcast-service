@@ -10,7 +10,6 @@ from common.exceptions import (
     SignatureExpiredError,
 )
 from common.utils import get_logger
-from common.views import PRequest
 from modules.auth.models import User, UserSession
 from modules.auth.utils import decode_jwt, TOKEN_TYPE_ACCESS
 
@@ -22,7 +21,7 @@ class BaseAuthJWTBackend:
 
     keyword = "Bearer"
 
-    def __init__(self, request: PRequest):
+    def __init__(self, request):
         self.request = request
         self.db_session: AsyncSession = request.db_session
 

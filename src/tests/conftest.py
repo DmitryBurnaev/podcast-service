@@ -39,7 +39,7 @@ def test_settings():
 
 
 @pytest.fixture(autouse=True, scope="session")
-def client(db_session) -> PodcastTestClient:
+def client() -> PodcastTestClient:
     from core.app import get_app
 
     with PodcastTestClient(get_app()) as client:

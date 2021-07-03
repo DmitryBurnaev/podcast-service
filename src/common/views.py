@@ -17,11 +17,11 @@ from common.exceptions import (
     InvalidParameterError,
 )
 from common.statuses import ResponseStatus
-from common.typing import DBModel
+from common.models import DBModel
 from common.utils import get_logger
-from modules.auth.views import TokenCollection
 from modules.podcast.models import Podcast
 from modules.podcast.tasks.base import RQTask
+from modules.auth.utils import TokenCollection
 from modules.auth.backend import LoginRequiredAuthBackend
 
 logger = get_logger(__name__)

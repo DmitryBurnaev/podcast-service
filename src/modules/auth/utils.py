@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Tuple
 
@@ -9,6 +10,14 @@ from core import settings
 TOKEN_TYPE_ACCESS = "access"
 TOKEN_TYPE_REFRESH = "refresh"
 TOKEN_TYPE_RESET_PASSWORD = "reset_password"
+
+
+@dataclass
+class TokenCollection:
+    refresh_token: str
+    refresh_token_expired_at: datetime
+    access_token: str
+    access_token_expired_at: datetime
 
 
 def encode_jwt(
