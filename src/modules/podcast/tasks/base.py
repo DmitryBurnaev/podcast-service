@@ -1,8 +1,12 @@
 import asyncio
 import enum
 
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+
 from common.utils import get_logger
-from core.database import db
+from core import settings
+# from core.database import db
 
 logger = get_logger(__name__)
 
@@ -15,6 +19,8 @@ class FinishCode(int, enum.Enum):
 
 class RQTask:
     """ Base class for RQ tasks implementation. """
+
+    db_session: AsyncSession = NotImplemented
 
     async def run(self, *args, **kwargs):
         """ We need to override this method to implement main task logic """
@@ -33,17 +39,12 @@ class RQTask:
     async def _perform_and_run(self, *args, **kwargs):
         """ Allows to call `self.run` in transaction block with catching any exceptions """
 
-        await db.set_bind(
-            db.config["dsn"],
-            echo=db.config["echo"],
-            min_size=db.config["min_size"],
-            max_size=db.config["max_size"],
-            ssl=db.config["ssl"],
-            **db.config["kwargs"],
-        )
+        db_engine = create_async_engine(settings.DATABASE_DSN, echo=True)
+        session_maker = sessionmaker(db_engine, expire_on_commit=False, class_=AsyncSession)
 
         try:
-            async with db.transaction():
+            async with session_maker() as db_session:
+                self.db_session = db_session
                 result = await self.run(*args, **kwargs)
 
         except Exception as err:

@@ -8,12 +8,10 @@ from typing import Tuple, Optional, Union
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
-from starlette.requests import Request
 
 from common.statuses import ResponseStatus
 from core import settings
-from common.views import BaseHTTPEndpoint, PRequest
-from common.db_utils import db_transaction
+from common.views import BaseHTTPEndpoint
 from common.utils import send_email, get_logger
 from common.exceptions import AuthenticationFailedError, InvalidParameterError
 from modules.auth.models import User, UserSession, UserInvite
@@ -130,21 +128,20 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     schema_request = SignUpSchema
     auth_backend = None
 
-    @db_transaction
     async def post(self, request):
         cleaned_data = await self._validate(request)
         user_invite: UserInvite = cleaned_data["user_invite"]
         user = await User.create(
-            db_session=request.db_session,
+            self.db_session,
             email=cleaned_data["email"],
             password=User.make_password(cleaned_data["password_1"]),
         )
         await UserInvite.async_update(
-            db_session=request.db_session,
+            self.db_session,
             filter_kwargs={"id": user_invite.id},
             update_data={"is_applied": True, "user_id": user.id},
         )
-        await Podcast.create_first_podcast(user.id)
+        await Podcast.create_first_podcast(self.db_session, user.id)
         token_collection = await self._create_session(user)
         return self._response(token_collection, status_code=status.HTTP_201_CREATED)
 
@@ -203,7 +200,6 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     schema_request = RefreshTokenSchema
     auth_backend = None
 
-    @db_transaction
     async def post(self, request):
         # TODO: get session ID from JWT payload
         user, refresh_token, session_id = await self._validate(request)
@@ -225,7 +221,7 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     async def _validate(self, request, *args, **kwargs) -> Tuple[User, str, Optional[str]]:
         cleaned_data = await super()._validate(request)
         refresh_token = cleaned_data["refresh_token"]
-        user, jwt_payload = await LoginRequiredAuthBackend().authenticate_user(
+        user, jwt_payload = await LoginRequiredAuthBackend(request).authenticate_user(
             refresh_token, token_type="refresh"
         )
         return user, refresh_token, jwt_payload.get("session_id")
@@ -237,7 +233,6 @@ class InviteUserAPIView(BaseHTTPEndpoint):
     schema_request = UserInviteRequestSchema
     schema_response = UserInviteResponseSchema
 
-    @db_transaction
     async def post(self, request):
         cleaned_data = await self._validate(request)
         email = cleaned_data["email"]
@@ -251,6 +246,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
         else:
             logger.info("INVITE: create for %s (expired %s) token [%s]", email, expired_at, token)
             user_invite = await UserInvite.create(
+                self.db_session,
                 email=email,
                 token=token,
                 expired_at=expired_at,
@@ -292,7 +288,6 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
     schema_response = ResetPasswordResponseSchema
     auth_backend = AdminRequiredAuthBackend
 
-    @db_transaction
     async def post(self, request):
         user = await self._validate(request)
         token = self._generate_token(user)
@@ -343,12 +338,10 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     schema_request = ChangePasswordSchema
     auth_backend = None
 
-    @db_transaction
     async def post(self, request):
         """ Check is email unique and create new User """
         cleaned_data = await self._validate(request)
-        user, _ = await LoginRequiredAuthBackend().authenticate_user(
-            request=request,
+        user, _ = await LoginRequiredAuthBackend(request).authenticate_user(
             jwt_token=cleaned_data["token"],
             token_type=TOKEN_TYPE_RESET_PASSWORD,
         )

@@ -38,7 +38,7 @@ class DownloadEpisodeTask(RQTask):
         except Exception as error:
             logger.exception("Unable to download episode: %s", error)
             await Episode.async_update(
-                db_session=self.db_session,
+                self.db_session,
                 filter_kwargs={"id": episode_id},
                 update_data={"status": Episode.Status.ERROR}
             )
@@ -165,12 +165,11 @@ class DownloadEpisodeTask(RQTask):
         )
         logger.info("=== [%s] UPLOADING was done === ", episode.source_id)
 
-    @staticmethod
-    async def _update_all_rss(source_id: str):
+    async def _update_all_rss(self, source_id: str):
         """ Allows to regenerate rss for all podcast with requested episode (by source_id) """
 
         logger.info("Episodes with source #%s: updating rss for all podcast", source_id)
-        affected_episodes = await Episode.async_filter(source_id=source_id)
+        affected_episodes = await Episode.async_filter(self.db_session, source_id=source_id)
         podcast_ids = sorted([episode.podcast_id for episode in affected_episodes])
         logger.info("Found podcasts for rss updates: %s", podcast_ids)
         await GenerateRSSTask().run(*podcast_ids)
@@ -181,7 +180,7 @@ class DownloadEpisodeTask(RQTask):
         filter_kwargs = {"source_id": source_id, "status__ne": status.ARCHIVED}
         logger.debug("Episodes update filter: %s | data: %s", filter_kwargs, update_data)
         await Episode.async_update(
-            db_session=self.db_session,
+            self.db_session,
             filter_kwargs=filter_kwargs,
             update_data=update_data
         )

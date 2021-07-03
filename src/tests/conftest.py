@@ -5,9 +5,10 @@ from typing import Tuple
 from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from core import settings
 from alembic.config import main
-
 from modules.auth.models import UserInvite
 from modules.podcast.models import Podcast, Episode
 from modules.youtube import utils as youtube_utils
@@ -18,7 +19,7 @@ from tests.helpers import (
     create_user,
     get_podcast_data,
     mock_target_class,
-    create_user_session,
+    create_user_session, make_db_session,
 )
 from tests.mocks import (
     MockYoutubeDL,
@@ -38,11 +39,19 @@ def test_settings():
 
 
 @pytest.fixture(autouse=True, scope="session")
-def client() -> PodcastTestClient:
+def client(db_session) -> PodcastTestClient:
     from core.app import get_app
 
     with PodcastTestClient(get_app()) as client:
-        yield client
+        with make_db_session(loop) as db_session:
+            client.db_session = db_session
+            yield client
+
+
+@pytest.fixture
+def db_session(loop) -> AsyncSession:
+    with make_db_session(loop) as db_session:
+        yield db_session
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -120,13 +129,13 @@ def loop():
 
 
 @pytest.fixture
-def user():
-    return create_user()
+def user(db_session):
+    return create_user(db_session)
 
 
 @pytest.fixture
-def user_session(user, loop):
-    return create_user_session(user)
+def user_session(user, loop, db_session):
+    return create_user_session(db_session, user)
 
 
 @pytest.fixture
@@ -140,21 +149,22 @@ def episode_data(podcast):
 
 
 @pytest.fixture
-def podcast(podcast_data, user, loop):
+def podcast(podcast_data, user, loop, db_session):
     podcast_data["created_by_id"] = user.id
-    return loop.run_until_complete(Podcast.create(**podcast_data))
+    return loop.run_until_complete(Podcast.create(db_session, **podcast_data))
 
 
 @pytest.fixture
-def episode(podcast, user, loop) -> Episode:
+def episode(podcast, user, loop, db_session) -> Episode:
     episode_data = get_episode_data(podcast, creator=user)
-    return loop.run_until_complete(Episode.create(**episode_data))
+    return loop.run_until_complete(Episode.create(db_session, **episode_data))
 
 
 @pytest.fixture
-def user_invite(user, loop) -> UserInvite:
+def user_invite(user, loop, db_session) -> UserInvite:
     return loop.run_until_complete(
         UserInvite.create(
+            db_session,
             email=f"user_{uuid.uuid4().hex[:10]}@test.com",
             token=f"{uuid.uuid4().hex}",
             expired_at=datetime.utcnow() + timedelta(days=1),

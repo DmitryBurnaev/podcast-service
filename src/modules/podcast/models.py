@@ -6,6 +6,7 @@ from urllib.parse import urljoin
 from xml.sax.saxutils import escape
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import relationship
 
 from core import settings
@@ -62,8 +63,9 @@ class Podcast(ModelBase, ModelMixin):
         return image_url
 
     @classmethod
-    async def create_first_podcast(cls, user_id: int):
+    async def create_first_podcast(cls, db_session: AsyncSession, user_id: int):
         return await Podcast.create(
+            db_session,
             publish_id=cls.generate_publish_id(),
             name="Your podcast",
             description=(
@@ -112,9 +114,9 @@ class Episode(ModelBase, ModelMixin):
         return f'<Episode #{self.id} {self.source_id} [{self.status}] "{self.title[:10]}..." >'
 
     @classmethod
-    async def get_in_progress(cls, user_id):
+    async def get_in_progress(cls, db_session: AsyncSession, user_id: int):
         """ Return downloading episodes """
-        return await cls.async_filter(status__in=Episode.PROGRESS_STATUSES, created_by_id=user_id)
+        return await cls.async_filter(db_session, status__in=Episode.PROGRESS_STATUSES, created_by_id=user_id)
 
     @property
     def safe_image_url(self) -> str:

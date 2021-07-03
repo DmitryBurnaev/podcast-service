@@ -16,10 +16,13 @@ class ProgressAPIView(BaseHTTPEndpoint):
     async def get(self, request):
         podcast_items = {
             podcast.id: podcast
-            for podcast in await Podcast.async_filter(created_by_id=request.user.id)
+            for podcast in await Podcast.async_filter(
+                self.db_session, created_by_id=request.user.id
+            )
         }
         episodes = {
-            episode.id: episode for episode in await Episode.get_in_progress(request.user.id)
+            episode.id: episode
+            for episode in await Episode.get_in_progress(self.db_session, request.user.id)
         }
         progress = await check_state(episodes.values())
 

@@ -1,6 +1,8 @@
 import re
 from collections.abc import Iterable
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from common.utils import get_logger
 from common.exceptions import InvalidParameterError
 from modules.podcast.models import Episode
@@ -19,13 +21,14 @@ class EpisodeCreator:
         "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%-[0-9a-fA-F][0-9a-fA-F]))+"
     )
 
-    def __init__(self, podcast_id: int, source_url: str, user_id: int):
+    def __init__(self, db_session: AsyncSession, podcast_id: int, source_url: str, user_id: int):
+        self.db_session = db_session
         self.podcast_id = podcast_id
         self.user_id = user_id
         self.source_url = source_url
         self.source_id = get_video_id(source_url)
         if not self.source_id:
-            raise InvalidParameterError({"source_url": "Couldn't extract source_id from link"})
+            raise InvalidParameterError("Couldn't extract source_id from the source link")
 
     async def create(self) -> Episode:
         """
@@ -35,7 +38,7 @@ class EpisodeCreator:
         :return: New <Episode> object
         """
 
-        same_episodes: Iterable[Episode] = await Episode.async_filter(source_id=self.source_id)
+        same_episodes: Iterable[Episode] = await Episode.async_filter(self.db_session, source_id=self.source_id)
         episode_in_podcast, last_same_episode = None, None
         for episode in same_episodes:
             last_same_episode = last_same_episode or episode

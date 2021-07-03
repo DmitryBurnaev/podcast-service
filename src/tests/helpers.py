@@ -2,13 +2,16 @@ import asyncio
 import random
 import time
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from hashlib import blake2b
 from typing import Tuple, Type
 from unittest import mock
 
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.testclient import TestClient
 
+from common.db_utils import make_session_maker
 from modules.auth.utils import encode_jwt
 from modules.auth.models import User, UserSession
 from modules.podcast.models import Podcast, Episode
@@ -16,8 +19,10 @@ from tests.mocks import BaseMock
 
 
 class PodcastTestClient(TestClient):
+    db_session: AsyncSession = None
+
     def login(self, user: User):
-        user_session = create_user_session(user)
+        user_session = create_user_session(user, self.db_session)
         jwt, _ = encode_jwt({"user_id": user.id})
         self.headers["Authorization"] = f"Bearer {jwt}"
         return user_session
@@ -111,16 +116,26 @@ def get_podcast_data(**kwargs):
     return podcast_data | kwargs
 
 
-def create_user():
+@contextmanager
+def make_db_session(loop):
+    session_maker = make_session_maker()
+    async_session = session_maker()
+    loop.run_until_complete(async_session.__aenter__())
+    yield async_session
+    loop.run_until_complete(async_session.__aexit__())
+
+
+def create_user(db_session):
     email, password = get_user_data()
     loop = asyncio.get_event_loop()
-    return loop.run_until_complete(User.create(email=email, password=password))
+    return loop.run_until_complete(User.create(db_session, email=email, password=password))
 
 
-def create_user_session(user):
+def create_user_session(user, db_session):
     loop = asyncio.get_event_loop()
     return loop.run_until_complete(
         UserSession.create(
+            db_session,
             user_id=user.id,
             public_id=str(uuid.uuid4()),
             refresh_token="refresh-token",

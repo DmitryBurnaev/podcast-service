@@ -5,7 +5,6 @@ from core import settings
 from common.utils import get_logger
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
-from common.db_utils import db_transaction
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.schemas import PodcastCreateUpdateSchema, PodcastDetailsSchema
 from modules.podcast.tasks.rss import GenerateRSSTask
@@ -64,7 +63,6 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         podcast = await self._get_object(podcast_id)
         return self._response(podcast)
 
-    @db_transaction
     async def patch(self, request):
         cleaned_data = await self._validate(request, partial_=True)
         podcast_id = request.path_params["podcast_id"]
@@ -72,21 +70,20 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         await podcast.update(**cleaned_data).apply()
         return self._response(podcast)
 
-    @db_transaction
     async def delete(self, request):
         podcast_id = int(request.path_params["podcast_id"])
         podcast = await self._get_object(podcast_id)
-        episodes = await Episode.async_filter(podcast_id=podcast_id)
+        episodes = await Episode.async_filter(self.db_session, podcast_id=podcast_id)
         await podcast.delete()
         await self._delete_files(podcast, episodes)
         return self._response(status_code=status.HTTP_204_NO_CONTENT)
 
-    @staticmethod
-    async def _delete_files(podcast: Podcast, episodes: list[Episode]):
+    async def _delete_files(self, podcast: Podcast, episodes: list[Episode]):
         podcast_file_names = {
             episode.file_name for episode in episodes if episode.status == Episode.Status.PUBLISHED
         }
         same_file_episodes = await Episode.async_filter(
+            self.db_session,
             podcast_id__ne=podcast.id,
             file_name__in=podcast_file_names,
             status=Episode.Status.PUBLISHED,

@@ -2,9 +2,12 @@ from typing import Type
 
 import sqlalchemy as sa
 from sqlalchemy import types, Column
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import type_api as sa_type_api
 
 from common.typing import EnumClass
+from core import settings
 from core.database import db
 
 
@@ -105,9 +108,14 @@ class EnumTypeColumn(Column):
         return Column(ChoiceType(enum_class, impl=impl), *args, **kwargs)
 
 
-def db_transaction(func):
-    async def wrapped(*args, **kwargs):
-        async with db.transaction():
-            return await func(*args, **kwargs)
+def make_session_maker() -> sessionmaker:
+    db_engine = create_async_engine(settings.DATABASE_DSN, echo=True)
+    return sessionmaker(db_engine, expire_on_commit=False, class_=AsyncSession)
 
-    return wrapped
+
+# def db_transaction(func):
+#     async def wrapped(*args, **kwargs):
+#         async with db.transaction():
+#             return await func(*args, **kwargs)
+#
+#     return wrapped

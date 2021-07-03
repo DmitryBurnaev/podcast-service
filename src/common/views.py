@@ -3,7 +3,6 @@ from functools import partial
 from typing import Type, Union, Iterable, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import sessionmaker
 from starlette import status
 from starlette.requests import Request
 from starlette.endpoints import HTTPEndpoint
@@ -20,6 +19,7 @@ from common.exceptions import (
 from common.statuses import ResponseStatus
 from common.typing import DBModel
 from common.utils import get_logger
+from modules.auth.views import TokenCollection
 from modules.podcast.models import Podcast
 from modules.podcast.tasks.base import RQTask
 from modules.auth.backend import LoginRequiredAuthBackend
@@ -36,7 +36,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
     Base View witch used as a base class for every API's endpoints
     """
 
-    request: Request = None
+    request: PRequest = None
     app = None
     db_model: DBModel = NotImplemented
     db_session: AsyncSession = NotImplemented
@@ -53,18 +53,15 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         self.request = PRequest(self.scope, receive=self.receive)
         self.app = self.scope.get("app")
 
-        if self.auth_backend:
-            backend = self.auth_backend()
-            self.scope["user"] = await backend.authenticate(self.request)
-
         handler_name = "get" if self.request.method == "HEAD" else self.request.method.lower()
         handler = getattr(self, handler_name, self.method_not_allowed)
 
         try:
-            async_session = sessionmaker(
-                self.app.db_engine, expire_on_commit=False, class_=AsyncSession
-            )
-            async with async_session() as session:
+            async with self.app.sessionmaker() as session:
+                if self.auth_backend:
+                    backend = self.auth_backend(self.request)
+                    self.scope["user"] = await backend.authenticate()
+
                 self.request.db_session = session
                 self.db_session = session
                 response = await handler(self.request)
@@ -78,7 +75,9 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         await response(self.scope, self.receive, self.send)
 
-    async def _get_object(self, instance_id, db_model: DBModel = None, **filter_kwargs) -> DBModel:
+    async def _get_object(
+        self, instance_id, db_model: Type[DBModel] = None, **filter_kwargs
+    ) -> DBModel:
         """
         Returns current object (only for logged-in or admin user) for CRUD API
         """
@@ -115,7 +114,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
     def _response(
         self,
-        instance: Union[DBModel, Iterable[DBModel]] = None,
+        instance: Union[DBModel, Iterable[DBModel], TokenCollection] = None,
         data: Any = None,
         status_code: int = status.HTTP_200_OK,
         response_status: ResponseStatus = ResponseStatus.OK,
@@ -155,7 +154,7 @@ class HealthCheckSchema(Schema):
 
 
 class HealthCheckAPIView(BaseHTTPEndpoint):
-    """ Allows to control status of web application (live asgi and pg connection)"""
+    """ Allows to control status of web application (live ASGI and pg connection)"""
 
     auth_backend = None
     schema_response = HealthCheckSchema
