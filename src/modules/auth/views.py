@@ -47,9 +47,10 @@ class JWTSessionMixin:
 
     @staticmethod
     def _get_tokens(user: User, session_id: Union[str, UUID]) -> TokenCollection:
-        access_token, access_token_expired_at = encode_jwt({"user_id": user.id})
+        token_payload = {"user_id": user.id, "session_id": str(session_id)}
+        access_token, access_token_expired_at = encode_jwt(token_payload)
         refresh_token, refresh_token_expired_at = encode_jwt(
-            {"user_id": user.id, "session_id": str(session_id)},
+            token_payload,
             token_type=TOKEN_TYPE_REFRESH,
         )
         return TokenCollection(
@@ -77,12 +78,12 @@ class JWTSessionMixin:
             return await self._create_session(user)
 
         token_collection = self._get_tokens(user, session_id=session_id)
-        await user_session.update(
-            refresh_token=token_collection.refresh_token,
-            expired_at=token_collection.refresh_token_expired_at,
-            refreshed_at=datetime.utcnow(),
-            is_active=True,
-        ).apply()
+        user_session.refresh_token = token_collection.refresh_token
+        user_session.expired_at = token_collection.refresh_token_expired_at
+        user_session.refreshed_at = datetime.utcnow()
+        user_session.is_active = True
+        await self.db_session.commit()
+
         return token_collection
 
 
@@ -180,10 +181,16 @@ class SignOutAPIView(BaseHTTPEndpoint):
     async def delete(self, request):
         user = request.user
         logger.info("Log out for user %s", user)
-        user_session = await UserSession.async_get(self.db_session, user_id=user.id, is_active=True)
+
+        # TODO: test logout from current session (if another exist)
+        user_session = await UserSession.async_get(
+            self.db_session, public_id=request.user_session_id, is_active=True
+        )
         if user_session:
             logger.info("Session %s exists and active. It will be updated.", user_session)
-            await user_session.update(is_active=False).apply()
+            user_session.is_active = False
+            await self.db_session.commit()
+
         else:
             logger.info("Not found active sessions for user %s. Skip sign-out.", user)
 
@@ -197,7 +204,6 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     auth_backend = None
 
     async def post(self, request):
-        # TODO: get session ID from JWT payload
         user, refresh_token, session_id = await self._validate(request)
         if session_id is None:
             raise AuthenticationFailedError("No session ID in token found")
@@ -217,7 +223,7 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     async def _validate(self, request, *args, **kwargs) -> Tuple[User, str, Optional[str]]:
         cleaned_data = await super()._validate(request)
         refresh_token = cleaned_data["refresh_token"]
-        user, jwt_payload = await LoginRequiredAuthBackend(request).authenticate_user(
+        user, jwt_payload, _ = await LoginRequiredAuthBackend(request).authenticate_user(
             refresh_token, token_type="refresh"
         )
         return user, refresh_token, jwt_payload.get("session_id")
@@ -337,7 +343,7 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     async def post(self, request):
         """ Check is email unique and create new User """
         cleaned_data = await self._validate(request)
-        user, _ = await LoginRequiredAuthBackend(request).authenticate_user(
+        user, _, _ = await LoginRequiredAuthBackend(request).authenticate_user(
             jwt_token=cleaned_data["token"],
             token_type=TOKEN_TYPE_RESET_PASSWORD,
         )

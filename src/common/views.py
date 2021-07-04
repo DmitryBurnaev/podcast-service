@@ -28,7 +28,8 @@ logger = get_logger(__name__)
 
 
 class PRequest(Request):
-    db_session: AsyncSession = None
+    user_session_id: str = NotImplemented
+    db_session: AsyncSession = NotImplemented
 
 
 class BaseHTTPEndpoint(HTTPEndpoint):
@@ -57,13 +58,15 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         handler = getattr(self, handler_name, self.method_not_allowed)
 
         try:
-            async with self.app.sessionmaker() as session:
-                if self.auth_backend:
-                    backend = self.auth_backend(self.request)
-                    self.scope["user"] = await backend.authenticate()
-
+            async with self.app.session_maker() as session:
                 self.request.db_session = session
                 self.db_session = session
+                if self.auth_backend:
+                    backend = self.auth_backend(self.request)
+                    user, session_id = await backend.authenticate()
+                    self.scope["user"] = user
+                    self.request.user_session_id = session_id
+
                 response = await handler(self.request)
 
         except (BaseApplicationError, WebargsHTTPException) as err:
@@ -73,6 +76,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
             logger.exception(msg_template, err)
             raise UnexpectedError(msg_template % (err,))
 
+        # TODO: fix h11._util.LocalProtocolError: Too much data for declared Content-Length (logout)
         await response(self.scope, self.receive, self.send)
 
     async def _get_object(

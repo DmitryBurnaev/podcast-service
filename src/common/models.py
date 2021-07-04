@@ -33,7 +33,7 @@ class ModelMixin:
     async def async_get(cls, db_session: AsyncSession, **filter_kwargs) -> "DBModel":
         query = cls.prepare_query(**filter_kwargs)
         result = await db_session.execute(query)
-        return await result.fetchone()
+        return result.scalars().first()
 
     @classmethod
     async def async_update(cls, db_session: AsyncSession, filter_kwargs: dict, update_data: dict):
@@ -48,11 +48,9 @@ class ModelMixin:
 
     @classmethod
     async def create(cls, db_session: AsyncSession, **data):
-        async with db_session.begin():
-            instance = cls(**data)  # noqa
-            db_session.add_all([instance])
-            await db_session.commit()
-
+        instance = cls(**data)  # noqa
+        db_session.add_all([instance])
+        await db_session.commit()
         return instance
 
     @classmethod

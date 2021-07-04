@@ -24,7 +24,7 @@ class TestBackendAuth:
 
     def test_check_auth__ok(self, client, user, user_session, db_session):
         request = self._prepare_request(user, db_session)
-        authenticated_user = async_run(BaseAuthJWTBackend(request).authenticate())
+        authenticated_user, _ = async_run(BaseAuthJWTBackend(request).authenticate())
         assert authenticated_user.id == user.id
 
     @pytest.mark.parametrize(
@@ -90,7 +90,7 @@ class TestBackendAuth:
     def test_check_auth__admin_required__ok(self, client, user, user_session, db_session):
         async_run(user.update(is_superuser=True).apply())
         request = self._prepare_request(user, db_session)
-        authenticated_user = async_run(AdminRequiredAuthBackend(request).authenticate())
+        authenticated_user, _ = async_run(AdminRequiredAuthBackend(request).authenticate())
         assert authenticated_user.id == user.id
 
     def test_check_auth__admin_required__not_superuser__fail(
