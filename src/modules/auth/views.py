@@ -194,7 +194,7 @@ class SignOutAPIView(BaseHTTPEndpoint):
         else:
             logger.info("Not found active sessions for user %s. Skip sign-out.", user)
 
-        return self._response(status_code=status.HTTP_204_NO_CONTENT)
+        return self._response(status_code=status.HTTP_200_OK)
 
 
 class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
