@@ -133,13 +133,11 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
             email=cleaned_data["email"],
             password=User.make_password(cleaned_data["password_1"]),
         )
-        await UserInvite.async_update(
-            self.db_session,
-            filter_kwargs={"id": user_invite.id},
-            update_data={"is_applied": True, "user_id": user.id},
-        )
+        user_invite.is_applied = True
+        user_invite.user_id = user.id
         await Podcast.create_first_podcast(self.db_session, user.id)
         token_collection = await self._create_session(user)
+        await self.db_session.commit()
         return self._response(token_collection, status_code=status.HTTP_201_CREATED)
 
     async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
@@ -243,7 +241,9 @@ class InviteUserAPIView(BaseHTTPEndpoint):
 
         if user_invite := await UserInvite.async_get(self.db_session, email=email):
             logger.info("INVITE: update for %s (expired %s) token [%s]", email, expired_at, token)
-            await user_invite.update(token=token, expired_at=expired_at).apply()
+            user_invite.token = token
+            user_invite.expired_at = expired_at
+            await self.db_session.commit()
 
         else:
             logger.info("INVITE: create for %s (expired %s) token [%s]", email, expired_at, token)

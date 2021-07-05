@@ -17,7 +17,6 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
 
     schema_request = PodcastCreateUpdateSchema
     schema_response = PodcastDetailsSchema
-    auth_backend = None
 
     async def get(self, request):
         func_count = func.count(Episode.id).label("episodes_count")
@@ -39,15 +38,15 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
 
     async def post(self, request):
         cleaned_data = await self._validate(request)
-        # TODO:fix podcast creation
         podcast = await Podcast.create(
             db_session=request.db_session,
             name=cleaned_data["name"],
             publish_id=Podcast.generate_publish_id(),
             description=cleaned_data["description"],
-            # TODO: rollback user
-            created_by_id=1,
+            created_by_id=request.user.id,
         )
+        # TODO: recheck transaction's logic
+        raise RuntimeError("OOps")
         return self._response(podcast, status_code=status.HTTP_201_CREATED)
 
 

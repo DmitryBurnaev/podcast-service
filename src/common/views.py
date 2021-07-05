@@ -68,15 +68,17 @@ class BaseHTTPEndpoint(HTTPEndpoint):
                     self.request.user_session_id = session_id
 
                 response = await handler(self.request)
+                await self.db_session.commit()
 
         except (BaseApplicationError, WebargsHTTPException) as err:
+            await self.db_session.rollback()
             raise err
         except Exception as err:
+            await self.db_session.rollback()
             msg_template = "Unexpected error handled: %r"
             logger.exception(msg_template, err)
             raise UnexpectedError(msg_template % (err,))
 
-        # TODO: fix h11._util.LocalProtocolError: Too much data for declared Content-Length (logout)
         await response(self.scope, self.receive, self.send)
 
     async def _get_object(

@@ -50,7 +50,7 @@ class ModelMixin:
     async def create(cls, db_session: AsyncSession, **data):
         instance = cls(**data)  # noqa
         db_session.add_all([instance])
-        await db_session.commit()
+        # await db_session.commit()
         return instance
 
     @classmethod
