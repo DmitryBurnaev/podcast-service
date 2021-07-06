@@ -45,8 +45,8 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_generate_rss_task,
         db_session,
     ):
-        podcast_1 = async_run(Podcast.create(**get_podcast_data()))
-        podcast_2 = async_run(Podcast.create(**get_podcast_data()))
+        podcast_1 = async_run(Podcast.async_create(**get_podcast_data()))
+        podcast_2 = async_run(Podcast.async_create(**get_podcast_data()))
 
         episode_data.update(
             {
@@ -57,11 +57,11 @@ class TestDownloadEpisodeTask(BaseTestCase):
                 "podcast_id": podcast_1.id,
             }
         )
-        async_run(Episode.create(**episode_data))
+        async_run(Episode.async_create(**episode_data))
 
         episode_data["status"] = "new"
         episode_data["podcast_id"] = podcast_2.id
-        episode_2 = async_run(Episode.create(**episode_data))
+        episode_2 = async_run(Episode.async_create(**episode_data))
 
         mocked_s3.get_file_size.return_value = episode_2.file_size
 
@@ -88,7 +88,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
                 "file_size": 1024,
             }
         )
-        episode = async_run(Episode.create(**episode_data))
+        episode = async_run(Episode.async_create(**episode_data))
 
         file_path = settings.TMP_AUDIO_PATH / episode.file_name
         with open(file_path, "wb") as file:

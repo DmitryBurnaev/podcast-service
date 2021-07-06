@@ -32,8 +32,8 @@ class TestProgressAPIView(BaseTestAPIView):
     url = "/api/progress/"
 
     def test_filter_by_status__ok(self, client, user, episode_data, mocked_redis):
-        podcast_1 = async_run(Podcast.create(**get_podcast_data(created_by_id=user.id)))
-        podcast_2 = async_run(Podcast.create(**get_podcast_data(created_by_id=user.id)))
+        podcast_1 = async_run(Podcast.async_create(**get_podcast_data(created_by_id=user.id)))
+        podcast_2 = async_run(Podcast.async_create(**get_podcast_data(created_by_id=user.id)))
 
         episode_data["created_by_id"] = user.id
         p1_episode_new = create_episode(episode_data, podcast_1, STATUS.NEW, MB_1)
@@ -69,12 +69,12 @@ class TestProgressAPIView(BaseTestAPIView):
             _progress(podcast_1, p1_episode_down, current_size=MB_1, completed=50.0),
         ]
 
-    def test_filter_by_user__ok(self, client, episode_data, mocked_redis):
-        user_1 = create_user()
-        user_2 = create_user()
+    def test_filter_by_user__ok(self, client, episode_data, mocked_redis, db_session):
+        user_1 = create_user(db_session)
+        user_2 = create_user(db_session)
 
-        podcast_1 = async_run(Podcast.create(**get_podcast_data(created_by_id=user_1.id)))
-        podcast_2 = async_run(Podcast.create(**get_podcast_data(created_by_id=user_2.id)))
+        podcast_1 = async_run(Podcast.async_create(**get_podcast_data(created_by_id=user_1.id)))
+        podcast_2 = async_run(Podcast.async_create(**get_podcast_data(created_by_id=user_2.id)))
 
         ep_data_1 = get_episode_data(creator=user_1)
         ep_data_2 = get_episode_data(creator=user_2)

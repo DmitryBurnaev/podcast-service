@@ -9,10 +9,11 @@ from tests.helpers import get_podcast_data, async_run
 
 
 class TestEpisodeCreator(BaseTestAPIView):
-    def test_create__ok(self, podcast, user, mocked_youtube):
+    def test_create__ok(self, podcast, user, mocked_youtube, db_session):
         source_id = mocked_youtube.video_id
         watch_url = f"https://www.youtube.com/watch?v={source_id}"
         episode_creator = EpisodeCreator(
+            db_session,
             podcast_id=podcast.id,
             source_url=watch_url,
             user_id=user.id,
@@ -22,8 +23,11 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert episode.watch_url == watch_url
         assert episode.source_id == source_id
 
-    def test_create__same_episode_in_podcast__ok(self, podcast, episode, user, mocked_youtube):
+    def test_create__same_episode_in_podcast__ok(
+        self, podcast, episode, user, mocked_youtube, db_session
+    ):
         episode_creator = EpisodeCreator(
+            db_session,
             podcast_id=episode.podcast_id,
             source_url=episode.watch_url,
             user_id=user.id,
@@ -35,7 +39,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.watch_url == episode.watch_url
 
     def test_create__same_episode_in_other_podcast__ok(
-        self, podcast, episode, user, mocked_youtube
+        self, podcast, episode, user, mocked_youtube, db_session
     ):
         mocked_youtube.extract_info.return_value = {
             "id": episode.source_id,
@@ -46,8 +50,9 @@ class TestEpisodeCreator(BaseTestAPIView):
             "uploader": "Updated author",
             "duration": 123,
         }
-        new_podcast = async_run(Podcast.create(**get_podcast_data()))
+        new_podcast = async_run(Podcast.async_create(**get_podcast_data()))
         episode_creator = EpisodeCreator(
+            db_session,
             podcast_id=new_podcast.id,
             source_url=episode.watch_url,
             user_id=user.id,
@@ -63,10 +68,11 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.author == "Updated author"
         assert new_episode.length == 123
 
-    def test_create__same_episode__extract_failed__ok(self, podcast, episode, user, mocked_youtube):
+    def test_create__same_episode__extract_failed__ok(self, podcast, episode, user, mocked_youtube, db_session):
         mocked_youtube.extract_info.side_effect = ExtractorError("Something went wrong here")
-        new_podcast = async_run(Podcast.create(**get_podcast_data()))
+        new_podcast = async_run(Podcast.async_create(db_session, **get_podcast_data()))
         episode_creator = EpisodeCreator(
+            db_session,
             podcast_id=new_podcast.id,
             source_url=episode.watch_url,
             user_id=user.id,
@@ -77,10 +83,12 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.source_id == episode.source_id
         assert new_episode.watch_url == episode.watch_url
 
-    def test_create__extract_failed__fail(self, podcast, episode_data, user, mocked_youtube):
+    def test_create__extract_failed__fail(self, podcast, episode_data, user, mocked_youtube,
+                                          db_session):
         ydl_error = ExtractorError("Something went wrong here", video_id=episode_data["source_id"])
         mocked_youtube.extract_info.side_effect = ydl_error
         episode_creator = EpisodeCreator(
+            db_session,
             podcast_id=podcast.id,
             source_url=episode_data["watch_url"],
             user_id=user.id,

@@ -192,8 +192,8 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         user_1 = create_user(db_session)
         user_2 = create_user(db_session)
 
-        podcast_1 = async_run(Podcast.create(**get_podcast_data(created_by_id=user_1.id)))
-        podcast_2 = async_run(Podcast.create(**get_podcast_data(created_by_id=user_2.id)))
+        podcast_1 = async_run(Podcast.async_create(**get_podcast_data(created_by_id=user_1.id)))
+        podcast_2 = async_run(Podcast.async_create(**get_podcast_data(created_by_id=user_2.id)))
 
         episode_data["created_by_id"] = user_1.id
         _ = create_episode(episode_data, podcast_1, status=same_episode_status, source_id=source_id)

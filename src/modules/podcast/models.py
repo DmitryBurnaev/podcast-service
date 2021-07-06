@@ -64,7 +64,7 @@ class Podcast(ModelBase, ModelMixin):
 
     @classmethod
     async def create_first_podcast(cls, db_session: AsyncSession, user_id: int):
-        return await Podcast.create(
+        return await Podcast.async_create(
             db_session,
             publish_id=cls.generate_publish_id(),
             name="Your podcast",

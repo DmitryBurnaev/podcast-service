@@ -23,8 +23,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
         stmt = (
             select([Podcast, func_count])
             .outerjoin(Episode, Episode.podcast_id == Podcast.id)
-            # TODO: rollback user
-            .filter(Podcast.created_by_id == 1)
+            .filter(Podcast.created_by_id == request.user.id)
             .group_by(Podcast.id)
             .order_by(Podcast.id)
         )
@@ -38,15 +37,13 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
 
     async def post(self, request):
         cleaned_data = await self._validate(request)
-        podcast = await Podcast.create(
+        podcast = await Podcast.async_create(
             db_session=request.db_session,
             name=cleaned_data["name"],
             publish_id=Podcast.generate_publish_id(),
             description=cleaned_data["description"],
             created_by_id=request.user.id,
         )
-        # TODO: recheck transaction's logic
-        raise RuntimeError("OOps")
         return self._response(podcast, status_code=status.HTTP_201_CREATED)
 
 
@@ -66,16 +63,18 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         cleaned_data = await self._validate(request, partial_=True)
         podcast_id = request.path_params["podcast_id"]
         podcast = await self._get_object(podcast_id)
-        await podcast.update(**cleaned_data).apply()
+        await podcast.update(self.db_session, **cleaned_data)
         return self._response(podcast)
 
     async def delete(self, request):
         podcast_id = int(request.path_params["podcast_id"])
         podcast = await self._get_object(podcast_id)
         episodes = await Episode.async_filter(self.db_session, podcast_id=podcast_id)
-        await podcast.delete()
+
+        await Episode.async_delete(self.db_session, {'podcast_id': podcast_id})
+        await podcast.delete(self.db_session)
         await self._delete_files(podcast, episodes)
-        return self._response(status_code=status.HTTP_204_NO_CONTENT)
+        return self._response()
 
     async def _delete_files(self, podcast: Podcast, episodes: list[Episode]):
         podcast_file_names = {

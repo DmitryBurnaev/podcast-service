@@ -128,13 +128,13 @@ def make_db_session(loop):
 def create_user(db_session):
     email, password = get_user_data()
     loop = asyncio.get_event_loop()
-    return loop.run_until_complete(User.create(db_session, email=email, password=password))
+    return loop.run_until_complete(User.async_create(db_session, email=email, password=password))
 
 
 def create_user_session(user, db_session):
     loop = asyncio.get_event_loop()
     return loop.run_until_complete(
-        UserSession.create(
+        UserSession.async_create(
             db_session,
             user_id=user.id,
             public_id=str(uuid.uuid4()),
@@ -164,4 +164,4 @@ def create_episode(
             "file_size": file_size,
         }
     )
-    return async_run(Episode.create(**episode_data))
+    return async_run(Episode.async_create(**episode_data))

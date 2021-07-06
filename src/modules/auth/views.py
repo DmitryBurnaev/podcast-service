@@ -63,7 +63,7 @@ class JWTSessionMixin:
     async def _create_session(self, user: User) -> TokenCollection:
         session_id = uuid.uuid4()
         token_collection = self._get_tokens(user, session_id)
-        await UserSession.create(
+        await UserSession.async_create(
             self.db_session,
             user_id=user.id,
             public_id=str(session_id),
@@ -82,7 +82,7 @@ class JWTSessionMixin:
         user_session.expired_at = token_collection.refresh_token_expired_at
         user_session.refreshed_at = datetime.utcnow()
         user_session.is_active = True
-        await self.db_session.commit()
+        await self.db_session.flush()
 
         return token_collection
 
@@ -128,7 +128,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     async def post(self, request):
         cleaned_data = await self._validate(request)
         user_invite: UserInvite = cleaned_data["user_invite"]
-        user = await User.create(
+        user = await User.async_create(
             self.db_session,
             email=cleaned_data["email"],
             password=User.make_password(cleaned_data["password_1"]),
@@ -137,7 +137,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         user_invite.user_id = user.id
         await Podcast.create_first_podcast(self.db_session, user.id)
         token_collection = await self._create_session(user)
-        await self.db_session.commit()
+        await self.db_session.flush()
         return self._response(token_collection, status_code=status.HTTP_201_CREATED)
 
     async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
@@ -187,7 +187,7 @@ class SignOutAPIView(BaseHTTPEndpoint):
         if user_session:
             logger.info("Session %s exists and active. It will be updated.", user_session)
             user_session.is_active = False
-            await self.db_session.commit()
+            await self.db_session.flush()
 
         else:
             logger.info("Not found active sessions for user %s. Skip sign-out.", user)
@@ -243,11 +243,11 @@ class InviteUserAPIView(BaseHTTPEndpoint):
             logger.info("INVITE: update for %s (expired %s) token [%s]", email, expired_at, token)
             user_invite.token = token
             user_invite.expired_at = expired_at
-            await self.db_session.commit()
+            await self.db_session.flush()
 
         else:
             logger.info("INVITE: create for %s (expired %s) token [%s]", email, expired_at, token)
-            user_invite = await UserInvite.create(
+            user_invite = await UserInvite.async_create(
                 self.db_session,
                 email=email,
                 token=token,
@@ -348,7 +348,7 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
             token_type=TOKEN_TYPE_RESET_PASSWORD,
         )
         new_password = User.make_password(cleaned_data["password_1"])
-        await user.update(password=new_password).apply()
+        await user.update(self.db_session, password=new_password)
 
         token_collection = await self._create_session(user)
         return self._response(token_collection)

@@ -73,6 +73,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         except (BaseApplicationError, WebargsHTTPException) as err:
             await self.db_session.rollback()
             raise err
+
         except Exception as err:
             await self.db_session.rollback()
             msg_template = "Unexpected error handled: %r"
