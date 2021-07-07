@@ -62,7 +62,7 @@ class ModelMixin:
         await db_session.flush()
         return instance
 
-    async def update(self, db_session: AsyncSession, **update_data: dict):
+    async def update(self, db_session: AsyncSession, **update_data):
         await self.async_update(db_session, {'id': self.id}, update_data=update_data)
 
     async def delete(self, db_session: AsyncSession):

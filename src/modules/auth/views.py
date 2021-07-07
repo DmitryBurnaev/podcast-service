@@ -78,12 +78,13 @@ class JWTSessionMixin:
             return await self._create_session(user)
 
         token_collection = self._get_tokens(user, session_id=session_id)
-        user_session.refresh_token = token_collection.refresh_token
-        user_session.expired_at = token_collection.refresh_token_expired_at
-        user_session.refreshed_at = datetime.utcnow()
-        user_session.is_active = True
-        await self.db_session.flush()
-
+        await user_session.update(
+            self.db_session,
+            refresh_token=token_collection.refresh_token,
+            expired_at=token_collection.refresh_token_expired_at,
+            refreshed_at=datetime.utcnow(),
+            is_active=True,
+        )
         return token_collection
 
 
@@ -133,11 +134,9 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
             email=cleaned_data["email"],
             password=User.make_password(cleaned_data["password_1"]),
         )
-        user_invite.is_applied = True
-        user_invite.user_id = user.id
+        await user_invite.update(self.db_session, is_applied=True, user_id=user.id)
         await Podcast.create_first_podcast(self.db_session, user.id)
         token_collection = await self._create_session(user)
-        await self.db_session.flush()
         return self._response(token_collection, status_code=status.HTTP_201_CREATED)
 
     async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
@@ -241,9 +240,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
 
         if user_invite := await UserInvite.async_get(self.db_session, email=email):
             logger.info("INVITE: update for %s (expired %s) token [%s]", email, expired_at, token)
-            user_invite.token = token
-            user_invite.expired_at = expired_at
-            await self.db_session.flush()
+            await user_invite.update(self.db_session, token=token, expired_at=expired_at)
 
         else:
             logger.info("INVITE: create for %s (expired %s) token [%s]", email, expired_at, token)
