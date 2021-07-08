@@ -23,7 +23,7 @@ class PodcastTestClient(TestClient):
 
     def login(self, user: User):
         user_session = create_user_session(user, self.db_session)
-        jwt, _ = encode_jwt({"user_id": user.id})
+        jwt, _ = encode_jwt({"user_id": user.id, "session_id": user_session.public_id})
         self.headers["Authorization"] = f"Bearer {jwt}"
         return user_session
 
@@ -122,18 +122,20 @@ def make_db_session(loop):
     async_session = session_maker()
     loop.run_until_complete(async_session.__aenter__())
     yield async_session
-    loop.run_until_complete(async_session.__aexit__())
+    loop.run_until_complete(async_session.__aexit__(None, None, None))
 
 
 def create_user(db_session):
     email, password = get_user_data()
     loop = asyncio.get_event_loop()
-    return loop.run_until_complete(User.async_create(db_session, email=email, password=password))
+    user = loop.run_until_complete(User.async_create(db_session, email=email, password=password))
+    loop.run_until_complete(db_session.commit())
+    return user
 
 
 def create_user_session(user, db_session):
     loop = asyncio.get_event_loop()
-    return loop.run_until_complete(
+    user_session = loop.run_until_complete(
         UserSession.async_create(
             db_session,
             user_id=user.id,
@@ -145,6 +147,8 @@ def create_user_session(user, db_session):
             refreshed_at=datetime.utcnow(),
         )
     )
+    loop.run_until_complete(db_session.commit())
+    return user_session
 
 
 def create_episode(
