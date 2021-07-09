@@ -56,10 +56,12 @@ class ModelMixin:
         await db_session.execute(query)
 
     @classmethod
-    async def async_create(cls, db_session: AsyncSession, **data):
+    async def async_create(cls, db_session: AsyncSession, db_commit=False, **data):
         instance = cls(**data)  # noqa
         db_session.add_all([instance])
         await db_session.flush()
+        if db_commit:
+            await db_session.commit()
         return instance
 
     async def update(self, db_session: AsyncSession, **update_data):

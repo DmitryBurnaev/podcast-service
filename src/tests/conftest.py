@@ -164,6 +164,7 @@ def user_invite(user, loop, db_session) -> UserInvite:
     return loop.run_until_complete(
         UserInvite.async_create(
             db_session,
+            db_commit=True,
             email=f"user_{uuid.uuid4().hex[:10]}@test.com",
             token=f"{uuid.uuid4().hex}",
             expired_at=datetime.utcnow() + timedelta(days=1),
