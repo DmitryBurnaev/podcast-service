@@ -265,7 +265,7 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
         request_data = self._sign_up_data(user_invite)
         user_email = request_data["email"]
 
-        async_run(User.async_create(db_session, email=user_email, password="password"))
+        async_run(User.async_create(db_session, db_commit=True, email=user_email, password="pass"))
         response = client.post(self.url, json=request_data)
         response_data = self.assert_fail_response(response)
         assert response_data == {
@@ -305,15 +305,14 @@ class TestSignOutAPIView(BaseTestAPIView):
     def test_sign_out__ok(self, client, user, db_session):
         user_session = client.login(user)
         response = client.delete(self.url)
-        assert response.status_code == 204
-
+        assert response.status_code == 200
         user_session = async_run(UserSession.async_get(db_session, id=user_session.id))
         assert user_session.is_active is False
 
     def test_sign_out__user_session_not_found__ok(self, client, user):
         client.login(user)
         response = client.delete(self.url)
-        assert response.status_code == 204
+        assert response.status_code == 200
 
 
 class TestUserInviteApiView(BaseTestAPIView):
@@ -374,6 +373,7 @@ class TestUserInviteApiView(BaseTestAPIView):
             "error": "Requested data is not valid.",
             "details": f"User with email=[{user.email}] already exists.",
         }
+
     # TODO: test
     def _test_invite__user_already_invited__update_invite__ok(
         self, client, user, mocked_auth_send, db_session
@@ -411,8 +411,9 @@ class TestResetPasswordAPIView(BaseTestAPIView):
 
     def test_reset_password__ok(self, client, user, mocked_auth_send, db_session):
         request_user = user
-        async_run(request_user.update(is_superuser=True).apply())
-        target_user = async_run(User.async_create(db_session, email=self.email, password="password"))
+        async_run(request_user.update(db_session, is_superuser=True))
+        target_user = async_run(User.async_create(db_session, email=self.email, password="pass"))
+        async_run(db_session.commit())
 
         client.login(user)
         response = client.post(self.url, json={"email": target_user.email})
@@ -439,9 +440,9 @@ class TestResetPasswordAPIView(BaseTestAPIView):
         client.logout()
         self.assert_unauth(client.post(self.url, json={"email": self.email}))
 
-    def test_reset_password__user_not_found__fail(self, client, user, mocked_auth_send):
+    def test_reset_password__user_not_found__fail(self, client, user, mocked_auth_send, db_session):
         request_user = user
-        async_run(request_user.update(is_superuser=True).apply())
+        async_run(request_user.update(db_session, is_superuser=True))
 
         client.login(request_user)
         response = client.post(self.url, json={"email": "fake-email@test.com"})
@@ -484,7 +485,10 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         return response.json()["payload"]
 
     def test_change_password__ok(self, client, user, user_session, db_session):
-        token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
+        token, _ = encode_jwt(
+            {"user_id": user.id, "session_id": user_session.public_id},
+            token_type=TOKEN_TYPE_RESET_PASSWORD
+        )
         request_data = {
             "token": token,
             "password_1": self.new_password,

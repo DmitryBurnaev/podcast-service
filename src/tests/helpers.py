@@ -22,7 +22,7 @@ class PodcastTestClient(TestClient):
     db_session: AsyncSession = None
 
     def login(self, user: User):
-        user_session = create_user_session(user, self.db_session)
+        user_session = create_user_session(self.db_session, user)
         jwt, _ = encode_jwt({"user_id": user.id, "session_id": user_session.public_id})
         self.headers["Authorization"] = f"Bearer {jwt}"
         return user_session
@@ -133,7 +133,7 @@ def create_user(db_session):
     return user
 
 
-def create_user_session(user, db_session):
+def create_user_session(db_session, user):
     loop = asyncio.get_event_loop()
     user_session = loop.run_until_complete(
         UserSession.async_create(
