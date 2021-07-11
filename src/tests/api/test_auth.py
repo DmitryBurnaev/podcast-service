@@ -251,10 +251,9 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
         assert user is not None, f"User wasn't created with {request_data=}"
         assert_tokens(response_data, user)
 
-        user_invite = async_run(UserInvite.async_get(db_session, id=user_invite.id))
+        async_run(db_session.refresh(user_invite))
         assert user_invite.user_id == user.id
         assert user_invite.is_applied
-
         assert async_run(Podcast.async_get(db_session, created_by_id=user.id)) is not None
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_SIGN_UP_DATA)
