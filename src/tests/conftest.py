@@ -156,7 +156,9 @@ def podcast(podcast_data, user, loop, db_session):
 @pytest.fixture
 def episode(podcast, user, loop, db_session) -> Episode:
     episode_data = get_episode_data(podcast, creator=user)
-    return loop.run_until_complete(Episode.async_create(db_session, **episode_data))
+    episode = loop.run_until_complete(Episode.async_create(db_session, **episode_data))
+    loop.run_until_complete(db_session.commit())
+    return episode
 
 
 @pytest.fixture

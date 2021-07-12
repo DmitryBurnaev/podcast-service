@@ -22,11 +22,11 @@ class User(ModelBase, ModelMixin):
         return f"<User #{self.id} {self.email}>"
 
     @classmethod
-    def make_password(cls, raw_password: str):
+    def make_password(cls, raw_password: str) -> str:
         hasher = PBKDF2PasswordHasher()
         return hasher.encode(raw_password)
 
-    def verify_password(self, raw_password: str):
+    def verify_password(self, raw_password: str) -> bool:
         hasher = PBKDF2PasswordHasher()
         verified, _ = hasher.verify(raw_password, encoded=str(self.password))
         return verified

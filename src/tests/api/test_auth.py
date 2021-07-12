@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timedelta
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.statuses import ResponseStatus
 from core import settings
@@ -283,6 +284,7 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
     def test_sign_up__token_problems__fail(self, client, user_invite, token_update_data, db_session):
         request_data = self._sign_up_data(user_invite)
         async_run(user_invite.update(db_session, **token_update_data))
+        async_run(db_session.commit())
         response = client.post(self.url, json=request_data)
         response_data = self.assert_fail_response(response)
         assert response_data == {
@@ -411,8 +413,7 @@ class TestResetPasswordAPIView(BaseTestAPIView):
     def test_reset_password__ok(self, client, user, mocked_auth_send, db_session):
         request_user = user
         async_run(request_user.update(db_session, is_superuser=True))
-        target_user = async_run(User.async_create(db_session, email=self.email, password="pass"))
-        async_run(db_session.commit())
+        target_user = async_run(User.async_create(db_session, db_commit=True, email=self.email, password="pass"))
 
         client.login(user)
         response = client.post(self.url, json={"email": target_user.email})
@@ -442,6 +443,7 @@ class TestResetPasswordAPIView(BaseTestAPIView):
     def test_reset_password__user_not_found__fail(self, client, user, mocked_auth_send, db_session):
         request_user = user
         async_run(request_user.update(db_session, is_superuser=True))
+        async_run(db_session.commit())
 
         client.login(request_user)
         response = client.post(self.url, json={"email": "fake-email@test.com"})
@@ -498,7 +500,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert_tokens(response_data, user)
 
-        user = async_run(User.async_get(db_session, id=user.id))
+        async_run(db_session.refresh(user))
         assert user.verify_password(self.new_password)
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_CHANGE_PASSWORD_DATA)
@@ -509,7 +511,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
     def test__token_expired__fail(self, client, user):
         token, _ = encode_jwt({"user_id": user.id}, expires_in=-10)
         response_data = self._assert_fail_response(client, token, ResponseStatus.SIGNATURE_EXPIRED)
-        self.assert_auth_invalid(response_data, None)
+        self.assert_auth_invalid(response_data, "JWT signature has been expired for token")
 
     def test__token_invalid_type__fail(self, client, user):
         token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_REFRESH)
@@ -522,8 +524,9 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         response_data = self._assert_fail_response(client, "fake-jwt")
         self.assert_auth_invalid(response_data, "Token could not be decoded: Not enough segments")
 
-    def test_user_inactive__fail(self, client, user):
-        async_run(user.update(is_active=False).apply())
+    def test_user_inactive__fail(self, client, user, db_session):
+        async_run(user.update(db_session, is_active=False))
+        async_run(db_session.commit())
         token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
         response_data = self._assert_fail_response(client, token)
         self.assert_auth_invalid(response_data, f"Couldn't found active user with id={user.id}.")
@@ -544,16 +547,18 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
     ]
 
     @staticmethod
-    def _prepare_token(user: User, is_active=True, refresh=True) -> UserSession:
+    def _prepare_token(
+        db_session: AsyncSession, user: User, is_active=True, refresh=True
+    ) -> UserSession:
         token_type = TOKEN_TYPE_REFRESH if refresh else TOKEN_TYPE_ACCESS
         session_id = str(uuid.uuid4())
         refresh_token, _ = encode_jwt(
             {"user_id": user.id, "session_id": session_id}, token_type=token_type
         )
-        db_session = None # TODO: get db session
         user_session = async_run(
             UserSession.async_create(
                 db_session,
+                db_commit=True,
                 user_id=user.id,
                 is_active=is_active,
                 public_id=session_id,
@@ -563,16 +568,16 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         )
         return user_session
 
-    def test_refresh_token__ok(self, client, user):
-        user_session = self._prepare_token(user)
+    def test_refresh_token__ok(self, client, user, db_session):
+        user_session = self._prepare_token(db_session, user)
         client.logout()
         response = client.post(self.url, json={"refresh_token": user_session.refresh_token})
         response_data = self.assert_ok_response(response)
         assert_tokens(response_data, user)
 
     def test_refresh_token__several_sessions_for_user__ok(self, client, user, db_session):
-        user_session_1 = self._prepare_token(user)
-        user_session_2 = self._prepare_token(user)
+        user_session_1 = self._prepare_token(db_session, user)
+        user_session_2 = self._prepare_token(db_session, user)
         client.logout()
         response = client.post(self.url, json={"refresh_token": user_session_2.refresh_token})
         response_data = self.assert_ok_response(response)
@@ -585,21 +590,24 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         assert user_session_1.refresh_token == upd_user_session_1.refresh_token
         assert user_session_1.refreshed_at < upd_user_session_2.refreshed_at
 
-    def test_refresh_token__user_inactive__fail(self, client, user):
-        user_session = self._prepare_token(user)
-        async_run(user.update(is_active=False).apply())
+    def test_refresh_token__user_inactive__fail(self, client, user, db_session):
+        user_session = self._prepare_token(db_session, user)
+        async_run(user.update(db_session, is_active=False))
+        async_run(db_session.commit())
         response = client.post(self.url, json={"refresh_token": user_session.refresh_token})
         self.assert_auth_invalid(response, f"Couldn't found active user with id={user.id}.")
 
-    def test_refresh_token__session_inactive__fail(self, client, user):
-        session = self._prepare_token(user, is_active=False)
+    def test_refresh_token__session_inactive__fail(self, client, user, db_session):
+        session = self._prepare_token(db_session, user, is_active=False)
         response = client.post(self.url, json={"refresh_token": session.refresh_token})
-        self.assert_auth_invalid(response, f"Couldn't found active session for user #{user.id}.")
+        expected_msg = (
+            f"Couldn't found active session: user_id={user.id} | session_id='{session.public_id}'."
+        )
+        self.assert_auth_invalid(response, expected_msg)
 
     @pytest.mark.parametrize("token_type", [TOKEN_TYPE_ACCESS, TOKEN_TYPE_RESET_PASSWORD])
     def test_refresh_token__token_not_refresh__fail(self, client, user, token_type):
         refresh_token, _ = encode_jwt({"user_id": user.id}, token_type=token_type)
-        print(refresh_token)
         response = client.post(self.url, json={"refresh_token": refresh_token})
         response_data = self.assert_fail_response(
             response, status_code=401, response_status=ResponseStatus.AUTH_FAILED
@@ -610,9 +618,10 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         }
 
     def test_refresh_token__token_mismatch__fail(self, client, user, db_session):
-        user_session = self._prepare_token(user, is_active=True)
+        user_session = self._prepare_token(db_session, user, is_active=True)
         refresh_token = user_session.refresh_token
         async_run(user_session.update(db_session, refresh_token="fake-token"))
+        async_run(db_session.commit())
         response = client.post(self.url, json={"refresh_token": refresh_token})
         self.assert_auth_invalid(
             response, "Refresh token does not match with user session.", ResponseStatus.AUTH_FAILED

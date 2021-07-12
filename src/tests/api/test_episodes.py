@@ -55,7 +55,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert response_data == [_episode_in_list(episode)]
 
-    def test_create__ok(self, client, podcast, episode, episode_data, user, mocked_episode_creator):
+    def test_create__ok(self, client, podcast, episode, episode_data, user, mocked_episode_creator, db_session):
         mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
         client.login(user)
         episode_data = {"source_url": episode_data["watch_url"]}
@@ -63,8 +63,10 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         response = client.post(url, json=episode_data)
         response_data = self.assert_ok_response(response, status_code=201)
         assert response_data == _episode_in_list(episode)
+        # TODO: change db_session instance (for checks only)
         mocked_episode_creator.target_class.__init__.assert_called_with(
             mocked_episode_creator.target_obj,
+            db_session,
             podcast_id=podcast.id,
             source_url=episode_data["source_url"],
             user_id=user.id,

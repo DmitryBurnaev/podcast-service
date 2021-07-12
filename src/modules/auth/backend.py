@@ -92,9 +92,11 @@ class LoginRequiredAuthBackend(BaseAuthJWTBackend):
 class AdminRequiredAuthBackend(BaseAuthJWTBackend):
     """ Login-ed used must have `is_superuser` attribute """
 
-    async def authenticate_user(self, jwt_token: str, token_type: str = TOKEN_TYPE_ACCESS):
-        user, jwt_payload, _ = await super().authenticate_user(jwt_token)
+    async def authenticate_user(
+        self, jwt_token: str, token_type: str = TOKEN_TYPE_ACCESS
+    ) -> Tuple[User, dict, str]:
+        user, jwt_payload, session_id = await super().authenticate_user(jwt_token)
         if not user.is_superuser:
             raise PermissionDeniedError("You don't have an admin privileges.")
 
-        return user, jwt_payload
+        return user, jwt_payload, session_id
