@@ -52,6 +52,12 @@ def db_session(loop) -> AsyncSession:
     with make_db_session(loop) as db_session:
         yield db_session
 
+
+@pytest.fixture
+def dbs(loop) -> AsyncSession:
+    with make_db_session(loop) as db_session:
+        yield db_session
+
 #
 # @pytest.fixture(autouse=True, scope="session")
 # def db_migration():
@@ -150,7 +156,9 @@ def episode_data(podcast):
 @pytest.fixture
 def podcast(podcast_data, user, loop, db_session):
     podcast_data["created_by_id"] = user.id
-    return loop.run_until_complete(Podcast.async_create(db_session, **podcast_data))
+    podcast = loop.run_until_complete(Podcast.async_create(db_session, **podcast_data))
+    loop.run_until_complete(db_session.commit())
+    return podcast
 
 
 @pytest.fixture

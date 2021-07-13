@@ -31,11 +31,18 @@ class PodcastTestClient(TestClient):
         self.headers.pop("Authorization", None)
 
 
-def async_run(coroutine):
+def await_(coroutine):
     """ Run coroutine in the current event loop """
 
     loop = asyncio.get_event_loop()
     return loop.run_until_complete(coroutine)
+
+
+# def await_(coroutine):
+#     """ Run coroutine in the current event loop """
+#
+#     loop = asyncio.get_event_loop()
+#     return loop.run_until_complete(coroutine)
 
 
 def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
@@ -120,24 +127,21 @@ def get_podcast_data(**kwargs):
 def make_db_session(loop):
     session_maker = make_session_maker()
     async_session = session_maker()
-    loop.run_until_complete(async_session.__aenter__())
+    await_(async_session.__aenter__())
     yield async_session
-    loop.run_until_complete(async_session.__aexit__(None, None, None))
+    await_(async_session.__aexit__(None, None, None))
 
 
 def create_user(db_session):
     email, password = get_user_data()
-    loop = asyncio.get_event_loop()
-    user = loop.run_until_complete(User.async_create(db_session, email=email, password=password))
-    loop.run_until_complete(db_session.commit())
-    return user
+    return await_(User.async_create(db_session, db_commit=True, email=email, password=password))
 
 
 def create_user_session(db_session, user):
-    loop = asyncio.get_event_loop()
-    user_session = loop.run_until_complete(
+    return await_(
         UserSession.async_create(
             db_session,
+            db_commit=True,
             user_id=user.id,
             public_id=str(uuid.uuid4()),
             refresh_token="refresh-token",
@@ -147,11 +151,10 @@ def create_user_session(db_session, user):
             refreshed_at=datetime.utcnow(),
         )
     )
-    loop.run_until_complete(db_session.commit())
-    return user_session
 
 
 def create_episode(
+    db_session: AsyncSession,
     episode_data: dict,
     podcast: Podcast,
     status: Episode.Status = Episode.Status.NEW,
@@ -168,4 +171,4 @@ def create_episode(
             "file_size": file_size,
         }
     )
-    return async_run(Episode.async_create(**episode_data))
+    return await_(Episode.async_create(db_session, db_commit=True, **episode_data))

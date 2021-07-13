@@ -13,7 +13,8 @@ class BaseTestCase:
 
         assert mock_callable.called
         mock_call_args = mock_callable.call_args_list[-1]
-        assert mock_call_args.args == args
+        if args:
+            assert mock_call_args.args == args
         for key, value in kwargs.items():
             assert key in mock_call_args.kwargs, mock_call_args.kwargs
             assert mock_call_args.kwargs[key] == value

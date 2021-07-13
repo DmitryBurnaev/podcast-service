@@ -61,13 +61,13 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
         episode_id = request.path_params["episode_id"]
         cleaned_data = await self._validate(request, partial_=True)
         episode = await self._get_object(episode_id)
-        await episode.update(**cleaned_data).apply()
+        await episode.update(self.db_session, **cleaned_data)
         return self._response(episode)
 
     async def delete(self, request):
         episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
-        await episode.delete()
+        await episode.delete(self.db_session)
         await self._delete_file(episode)
         return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
 
@@ -80,7 +80,7 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
             status__ne=Episode.Status.NEW,
             id__ne=episode.id,
         )
-        if same_file_episodes:
+        if same_file_episodes.all():
             episode_ids = ",".join([f"#{episode.id}" for episode in same_file_episodes])
             logger.warning(
                 f"There are another episodes for file {episode.file_name}: {episode_ids}. "
@@ -104,6 +104,6 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
 
         logger.info(f'Start download process for "{episode.watch_url}"')
         episode.status = Episode.Status.DOWNLOADING
-        await episode.update(status=episode.status).apply()
+        await episode.update(self.db_session, status=episode.status)
         await self._run_task(tasks.DownloadEpisodeTask, episode_id=episode.id)
         return self._response(episode)

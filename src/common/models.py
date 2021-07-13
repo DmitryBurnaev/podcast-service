@@ -1,6 +1,7 @@
 from typing import TypeVar
 
 from sqlalchemy import and_, select, update, delete
+from sqlalchemy.engine import ScalarResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
@@ -25,7 +26,7 @@ class ModelMixin:
         return select(cls).filter(cls._filter_criteria(filter_kwargs)).order_by(*order_by)
 
     @classmethod
-    async def async_filter(cls, db_session: AsyncSession, **filter_kwargs) -> list["DBModel"]:
+    async def async_filter(cls, db_session: AsyncSession, **filter_kwargs) -> ScalarResult:
         query = cls.prepare_query(**filter_kwargs)
         result = await db_session.execute(query)
         return result.scalars()

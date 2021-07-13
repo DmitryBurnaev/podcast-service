@@ -9,7 +9,7 @@ import botocore.exceptions
 from common.storage import StorageS3
 from core import settings
 
-from tests.helpers import async_run
+from tests.helpers import await_
 
 
 class MockedClient:
@@ -128,7 +128,7 @@ class TestS3Storage:
     def test_delete_files_async__ok(self, mock_boto3_session_client):
         mock_client = MockedClient()
         mock_boto3_session_client.return_value = mock_client
-        async_run(StorageS3().delete_files_async(["test.mp3", "test2.mp3"], "remote-path"))
+        await_(StorageS3().delete_files_async(["test.mp3", "test2.mp3"], "remote-path"))
 
         expected_calls = [
             {"Key": "remote-path/test.mp3", "Bucket": "test-podcast-media"},

@@ -10,7 +10,7 @@ from common.exceptions import (
 from modules.auth.backend import BaseAuthJWTBackend, AdminRequiredAuthBackend
 from modules.auth.models import User
 from modules.auth.utils import encode_jwt, TOKEN_TYPE_RESET_PASSWORD, TOKEN_TYPE_REFRESH
-from tests.helpers import async_run
+from tests.helpers import await_
 
 
 class TestBackendAuth:
@@ -24,7 +24,7 @@ class TestBackendAuth:
 
     def test_check_auth__ok(self, client, user, user_session, db_session):
         request = self._prepare_request(user, db_session)
-        authenticated_user, _ = async_run(BaseAuthJWTBackend(request).authenticate())
+        authenticated_user, _ = await_(BaseAuthJWTBackend(request).authenticate())
         assert authenticated_user.id == user.id
 
     @pytest.mark.parametrize(
@@ -55,23 +55,23 @@ class TestBackendAuth:
     def test_invalid_token__fail(self, client, user, auth_header, auth_exception, err_details):
         request = Request(scope={"type": "http", "headers": [auth_header]})
         with pytest.raises(auth_exception) as err:
-            async_run(BaseAuthJWTBackend(request).authenticate())
+            await_(BaseAuthJWTBackend(request).authenticate())
 
         assert err.value.details == err_details
 
     def test_check_auth__user_not_active__fail(self, client, user, db_session):
-        async_run(user.update(is_active=False).apply())
+        await_(user.update(is_active=False).apply())
         request = self._prepare_request(user, db_session)
         with pytest.raises(AuthenticationFailedError) as err:
-            async_run(BaseAuthJWTBackend(request).authenticate())
+            await_(BaseAuthJWTBackend(request).authenticate())
 
         assert err.value.details == f"Couldn't found active user with id={user.id}."
 
     def test_check_auth__session_not_active__fail(self, client, user, user_session, db_session):
-        async_run(user_session.update(is_active=False).apply())
+        await_(user_session.update(is_active=False).apply())
         request = self._prepare_request(user, db_session)
         with pytest.raises(AuthenticationFailedError) as err:
-            async_run(BaseAuthJWTBackend(request).authenticate())
+            await_(BaseAuthJWTBackend(request).authenticate())
 
         assert err.value.details == f"Couldn't found active session for user #{user.id}."
 
@@ -79,26 +79,26 @@ class TestBackendAuth:
     def test_check_auth__token_type_mismatch__fail(
         self, client, user, user_session, token_type, db_session
     ):
-        async_run(user_session.update(is_active=False).apply())
+        await_(user_session.update(is_active=False).apply())
         token, _ = encode_jwt({"user_id": user.id}, token_type=token_type)
         request = self._prepare_request(user, db_session)
         with pytest.raises(AuthenticationFailedError) as err:
-            async_run(BaseAuthJWTBackend(request).authenticate_user(token, token_type="access"))
+            await_(BaseAuthJWTBackend(request).authenticate_user(token, token_type="access"))
 
         assert err.value.details == f"Token type 'access' expected, got '{token_type}' instead."
 
     def test_check_auth__admin_required__ok(self, client, user, user_session, db_session):
-        async_run(user.update(is_superuser=True).apply())
+        await_(user.update(is_superuser=True).apply())
         request = self._prepare_request(user, db_session)
-        authenticated_user, _ = async_run(AdminRequiredAuthBackend(request).authenticate())
+        authenticated_user, _ = await_(AdminRequiredAuthBackend(request).authenticate())
         assert authenticated_user.id == user.id
 
     def test_check_auth__admin_required__not_superuser__fail(
         self, client, user, user_session, db_session
     ):
-        async_run(user.update(is_superuser=False).apply())
+        await_(user.update(is_superuser=False).apply())
         request = self._prepare_request(user, db_session)
         with pytest.raises(PermissionDeniedError) as err:
-            async_run(AdminRequiredAuthBackend(request).authenticate())
+            await_(AdminRequiredAuthBackend(request).authenticate())
 
         assert err.value.details == "You don't have an admin privileges."

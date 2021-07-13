@@ -5,7 +5,7 @@ from modules.youtube.exceptions import YoutubeFetchError
 from modules.podcast.episodes import EpisodeCreator
 from modules.podcast.models import Podcast, Episode
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import get_podcast_data, async_run
+from tests.helpers import get_podcast_data, await_
 
 
 class TestEpisodeCreator(BaseTestAPIView):
@@ -18,7 +18,7 @@ class TestEpisodeCreator(BaseTestAPIView):
             source_url=watch_url,
             user_id=user.id,
         )
-        episode = async_run(episode_creator.create())
+        episode = await_(episode_creator.create())
         assert episode is not None
         assert episode.watch_url == watch_url
         assert episode.source_id == source_id
@@ -32,7 +32,7 @@ class TestEpisodeCreator(BaseTestAPIView):
             source_url=episode.watch_url,
             user_id=user.id,
         )
-        new_episode = async_run(episode_creator.create())
+        new_episode = await_(episode_creator.create())
         assert new_episode is not None
         assert new_episode.id == episode.id
         assert new_episode.source_id == episode.source_id
@@ -50,14 +50,14 @@ class TestEpisodeCreator(BaseTestAPIView):
             "uploader": "Updated author",
             "duration": 123,
         }
-        new_podcast = async_run(Podcast.async_create(**get_podcast_data()))
+        new_podcast = await_(Podcast.async_create(**get_podcast_data()))
         episode_creator = EpisodeCreator(
             db_session,
             podcast_id=new_podcast.id,
             source_url=episode.watch_url,
             user_id=user.id,
         )
-        new_episode: Episode = async_run(episode_creator.create())
+        new_episode: Episode = await_(episode_creator.create())
         assert episode is not None
         assert new_episode.id != episode.id
         assert new_episode.source_id == episode.source_id
@@ -70,14 +70,14 @@ class TestEpisodeCreator(BaseTestAPIView):
 
     def test_create__same_episode__extract_failed__ok(self, podcast, episode, user, mocked_youtube, db_session):
         mocked_youtube.extract_info.side_effect = ExtractorError("Something went wrong here")
-        new_podcast = async_run(Podcast.async_create(db_session, **get_podcast_data()))
+        new_podcast = await_(Podcast.async_create(db_session, **get_podcast_data()))
         episode_creator = EpisodeCreator(
             db_session,
             podcast_id=new_podcast.id,
             source_url=episode.watch_url,
             user_id=user.id,
         )
-        new_episode: Episode = async_run(episode_creator.create())
+        new_episode: Episode = await_(episode_creator.create())
         assert episode is not None
         assert new_episode.id != episode.id
         assert new_episode.source_id == episode.source_id
@@ -94,6 +94,6 @@ class TestEpisodeCreator(BaseTestAPIView):
             user_id=user.id,
         )
         with pytest.raises(YoutubeFetchError) as error:
-            async_run(episode_creator.create())
+            await_(episode_creator.create())
 
         assert error.value.details == f"Extracting data for new Episode failed: {ydl_error}"
