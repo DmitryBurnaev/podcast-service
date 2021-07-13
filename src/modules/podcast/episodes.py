@@ -54,7 +54,7 @@ class EpisodeCreator:
             return episode_in_podcast
 
         episode_data = await self._get_episode_data(same_episode=last_same_episode)
-        return await Episode.async_create(**episode_data)
+        return await Episode.async_create(self.db_session, **episode_data)
 
     def _replace_special_symbols(self, value):
         res = self.http_link_regex.sub("[LINK]", value)

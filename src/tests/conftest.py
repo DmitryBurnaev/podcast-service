@@ -48,15 +48,15 @@ def client() -> PodcastTestClient:
 
 
 @pytest.fixture
-def db_session(loop) -> AsyncSession:
-    with make_db_session(loop) as db_session:
-        yield db_session
-
-
-@pytest.fixture
 def dbs(loop) -> AsyncSession:
     with make_db_session(loop) as db_session:
         yield db_session
+
+
+# @pytest.fixture
+# def dbs(loop) -> AsyncSession:
+#     with make_db_session(loop) as db_session:
+#         yield db_session
 
 #
 # @pytest.fixture(autouse=True, scope="session")
@@ -134,13 +134,13 @@ def loop():
 
 
 @pytest.fixture
-def user(db_session):
-    return create_user(db_session)
+def user(dbs):
+    return create_user(dbs)
 
 
 @pytest.fixture
-def user_session(user, loop, db_session):
-    return create_user_session(db_session, user)
+def user_session(user, loop, dbs):
+    return create_user_session(dbs, user)
 
 
 @pytest.fixture
@@ -154,26 +154,26 @@ def episode_data(podcast):
 
 
 @pytest.fixture
-def podcast(podcast_data, user, loop, db_session):
+def podcast(podcast_data, user, loop, dbs):
     podcast_data["created_by_id"] = user.id
-    podcast = loop.run_until_complete(Podcast.async_create(db_session, **podcast_data))
-    loop.run_until_complete(db_session.commit())
+    podcast = loop.run_until_complete(Podcast.async_create(dbs, **podcast_data))
+    loop.run_until_complete(dbs.commit())
     return podcast
 
 
 @pytest.fixture
-def episode(podcast, user, loop, db_session) -> Episode:
+def episode(podcast, user, loop, dbs) -> Episode:
     episode_data = get_episode_data(podcast, creator=user)
-    episode = loop.run_until_complete(Episode.async_create(db_session, **episode_data))
-    loop.run_until_complete(db_session.commit())
+    episode = loop.run_until_complete(Episode.async_create(dbs, **episode_data))
+    loop.run_until_complete(dbs.commit())
     return episode
 
 
 @pytest.fixture
-def user_invite(user, loop, db_session) -> UserInvite:
+def user_invite(user, loop, dbs) -> UserInvite:
     return loop.run_until_complete(
         UserInvite.async_create(
-            db_session,
+            dbs,
             db_commit=True,
             email=f"user_{uuid.uuid4().hex[:10]}@test.com",
             token=f"{uuid.uuid4().hex}",

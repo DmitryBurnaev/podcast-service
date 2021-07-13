@@ -72,6 +72,15 @@ class ModelMixin:
         await db_session.delete(self)
         await db_session.flush()
 
+    def to_dict(self, excluded_fields: list[str] = None) -> dict:
+        excluded_fields = excluded_fields or []
+        res = {}
+        for field in self.__dict__:
+            if field not in excluded_fields and not field.startswith('_'):
+                res[field] = getattr(self, field)
+
+        return res
+
     @classmethod
     def _filter_criteria(cls, filter_kwargs):
         filters = []

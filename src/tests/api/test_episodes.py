@@ -55,7 +55,8 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert response_data == [_episode_in_list(episode)]
 
-    def test_create__ok(self, client, podcast, episode, episode_data, user, mocked_episode_creator, db_session):
+    def test_create__ok(self, client, podcast, episode, episode_data, user, mocked_episode_creator,
+                        dbs):
         mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
         client.login(user)
         episode_data = {"source_url": episode_data["watch_url"]}
@@ -104,8 +105,8 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         self.assert_bad_request(client.post(url, json=invalid_data), error_details)
 
-    def test_create__podcast_from_another_user__fail(self, client, podcast, db_session):
-        client.login(create_user(db_session))
+    def test_create__podcast_from_another_user__fail(self, client, podcast, dbs):
+        client.login(create_user(dbs))
         url = self.url.format(id=podcast.id)
         data = {"source_url": "http://link.to.resource/"}
         self.assert_not_found(client.post(url, json=data), podcast)
@@ -121,12 +122,12 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_details(episode)
 
-    def test_get_details__episode_from_another_user__fail(self, client, episode, user, db_session):
-        client.login(create_user(db_session))
+    def test_get_details__episode_from_another_user__fail(self, client, episode, user, dbs):
+        client.login(create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.get(url), episode)
 
-    def test_update__ok(self, client, episode, user, db_session):
+    def test_update__ok(self, client, episode, user, dbs):
         client.login(user)
         url = self.url.format(id=episode.id)
         patch_data = {
@@ -135,7 +136,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
             "description": "New description",
         }
         response = client.patch(url, json=patch_data)
-        await_(db_session.refresh(episode))
+        await_(dbs.refresh(episode))
 
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_details(episode)
@@ -151,21 +152,21 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         url = self.url.format(id=episode.id)
         self.assert_bad_request(client.patch(url, json=invalid_data), error_details)
 
-    def test_update__episode_from_another_user__fail(self, client, episode, db_session):
-        client.login(create_user(db_session))
+    def test_update__episode_from_another_user__fail(self, client, episode, dbs):
+        client.login(create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.patch(url, json={}), episode)
 
-    def test_delete__ok(self, client, episode, user, mocked_s3, db_session):
+    def test_delete__ok(self, client, episode, user, mocked_s3, dbs):
         client.login(user)
         url = self.url.format(id=episode.id)
         response = client.delete(url)
         assert response.status_code == 204
-        assert await_(Episode.async_get(db_session, id=episode.id)) is None
+        assert await_(Episode.async_get(dbs, id=episode.id)) is None
         mocked_s3.delete_files_async.assert_called_with([episode.file_name])
 
-    def test_delete__episode_from_another_user__fail(self, client, episode, user, db_session):
-        client.login(create_user(db_session))
+    def test_delete__episode_from_another_user__fail(self, client, episode, user, dbs):
+        client.login(create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.delete(url), episode)
 
@@ -185,35 +186,35 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         mocked_s3,
         same_episode_status,
         delete_called,
-        db_session,
+            dbs,
     ):
         source_id = get_video_id()
 
-        user_1 = create_user(db_session)
-        user_2 = create_user(db_session)
+        user_1 = create_user(dbs)
+        user_2 = create_user(dbs)
 
         podcast_1 = await_(Podcast.async_create(
-            db_session, db_commit=True, **get_podcast_data(created_by_id=user_1.id))
+            dbs, db_commit=True, **get_podcast_data(created_by_id=user_1.id))
         )
         podcast_2 = await_(Podcast.async_create(
-            db_session, db_commit=True, **get_podcast_data(created_by_id=user_2.id))
+            dbs, db_commit=True, **get_podcast_data(created_by_id=user_2.id))
         )
 
         episode_data["created_by_id"] = user_1.id
         _ = create_episode(
-            db_session, episode_data, podcast_1, status=same_episode_status, source_id=source_id
+            dbs, episode_data, podcast_1, status=same_episode_status, source_id=source_id
         )
 
         episode_data["created_by_id"] = user_2.id
         episode_2 = create_episode(
-            db_session, episode_data, podcast_2, status=Episode.Status.NEW, source_id=source_id
+            dbs, episode_data, podcast_2, status=Episode.Status.NEW, source_id=source_id
         )
 
         url = self.url.format(id=episode_2.id)
         client.login(user_2)
         response = client.delete(url)
         assert response.status_code == 204, f"Delete API is not available: {response.text}"
-        assert await_(Episode.async_get(db_session, id=episode_2.id)) is None
+        assert await_(Episode.async_get(dbs, id=episode_2.id)) is None
         if delete_called:
             mocked_s3.delete_files_async.assert_called_with([episode_2.file_name])
         else:
@@ -223,16 +224,16 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
 class TestEpisodeDownloadAPIView(BaseTestAPIView):
     url = "/api/episodes/{id}/download/"
 
-    def test_download__ok(self, client, episode, user, mocked_rq_queue, db_session):
+    def test_download__ok(self, client, episode, user, mocked_rq_queue, dbs):
         client.login(user)
         url = self.url.format(id=episode.id)
         response = client.put(url)
-        await_(db_session.refresh(episode))
+        await_(dbs.refresh(episode))
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_details(episode)
         mocked_rq_queue.enqueue.assert_called_with(DownloadEpisodeTask(), episode_id=episode.id)
 
-    def test_download__episode_from_another_user__fail(self, client, episode, user, db_session):
-        client.login(create_user(db_session))
+    def test_download__episode_from_another_user__fail(self, client, episode, user, dbs):
+        client.login(create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.put(url), episode)

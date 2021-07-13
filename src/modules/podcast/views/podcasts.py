@@ -27,7 +27,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
             .group_by(Podcast.id)
             .order_by(Podcast.id)
         )
-        podcasts = await request.db_session.execute(stmt)
+        podcasts = await request.dbs.execute(stmt)
         podcast_list = []
         for podcast, episodes_count in podcasts.all():
             podcast.episodes_count = episodes_count
@@ -38,7 +38,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
     async def post(self, request):
         cleaned_data = await self._validate(request)
         podcast = await Podcast.async_create(
-            db_session=request.db_session,
+            db_session=request.dbs,
             name=cleaned_data["name"],
             publish_id=Podcast.generate_publish_id(),
             description=cleaned_data["description"],
