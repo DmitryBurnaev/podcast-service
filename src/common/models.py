@@ -66,7 +66,7 @@ class ModelMixin:
         return instance
 
     async def update(self, db_session: AsyncSession, **update_data):
-        await self.async_update(db_session, {'id': self.id}, update_data=update_data)
+        await self.async_update(db_session, {"id": self.id}, update_data=update_data)
 
     async def delete(self, db_session: AsyncSession):
         await db_session.delete(self)
@@ -76,7 +76,7 @@ class ModelMixin:
         excluded_fields = excluded_fields or []
         res = {}
         for field in self.__dict__:
-            if field not in excluded_fields and not field.startswith('_'):
+            if field not in excluded_fields and not field.startswith("_"):
                 res[field] = getattr(self, field)
 
         return res

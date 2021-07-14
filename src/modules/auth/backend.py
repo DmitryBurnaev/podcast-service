@@ -43,7 +43,9 @@ class BaseAuthJWTBackend:
         return user, session_id
 
     async def authenticate_user(
-        self, jwt_token: str, token_type: str = TOKEN_TYPE_ACCESS,
+        self,
+        jwt_token: str,
+        token_type: str = TOKEN_TYPE_ACCESS,
     ) -> Tuple[User, dict, str]:
         """ Allows to find active user by jwt_token """
 

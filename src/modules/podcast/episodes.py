@@ -18,7 +18,7 @@ class EpisodeCreator:
 
     symbols_regex = re.compile("[&^<>*#]")
     http_link_regex = re.compile(
-        "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%-[0-9a-fA-F][0-9a-fA-F]))+"
+        "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|%-[0-9a-fA-F][0-9a-fA-F])+"
     )
 
     def __init__(self, db_session: AsyncSession, podcast_id: int, source_url: str, user_id: int):
@@ -38,7 +38,9 @@ class EpisodeCreator:
         :return: New <Episode> object
         """
 
-        same_episodes: Iterable[Episode] = await Episode.async_filter(self.db_session, source_id=self.source_id)
+        same_episodes: Iterable[Episode] = await Episode.async_filter(
+            self.db_session, source_id=self.source_id
+        )
         episode_in_podcast, last_same_episode = None, None
         for episode in same_episodes:
             last_same_episode = last_same_episode or episode

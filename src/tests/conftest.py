@@ -18,7 +18,8 @@ from tests.helpers import (
     create_user,
     get_podcast_data,
     mock_target_class,
-    create_user_session, make_db_session,
+    create_user_session,
+    make_db_session,
 )
 from tests.mocks import (
     MockYoutubeDL,

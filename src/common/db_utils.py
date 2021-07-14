@@ -8,7 +8,6 @@ from sqlalchemy.sql import type_api as sa_type_api
 
 from common.typing import EnumClass
 from core import settings
-from core.database import db
 
 
 class ChoiceType(types.TypeDecorator):
@@ -21,16 +20,16 @@ class ChoiceType(types.TypeDecorator):
 
 
     >>> import enum
+    >>> from core.database import ModelBase
+    >>> from sqlalchemy import Column, String
 
     >>> class UserType(enum.Enum):
     >>>     admin = 'admin'
     >>>     regular = 'regular'
 
-    >>> class User(db.Model):
+    >>> class User(ModelBase):
     >>>     __tablename__ = 'user'
-    >>>     id = db.Column(db.Integer, primary_key=True)
-    >>>     name = db.Column(db.Unicode(255))
-    >>>     type = db.Column(ChoiceType(UserType, impl=db.String(16)))
+    >>>     type = Column(ChoiceType(UserType, impl=String(16)))
 
     >>> user = User(type='admin')
     >>> user.type
@@ -81,14 +80,16 @@ class EnumTypeColumn(Column):
     """Just wrapper for ChoiceType db column
 
     >>> import enum
+    >>> from core.database import ModelBase
+    >>> from sqlalchemy import String
 
     >>> class UserType(enum.Enum):
     >>>    admin = 'admin'
     >>>    regular = 'regular'
 
-    >>> class User(db.Model):
+    >>> class User(ModelBase):
     >>>     ...
-    >>>     type = EnumTypeColumn(UserType, impl=db.String(16), default=UserType.admin)
+    >>>     type = EnumTypeColumn(UserType, impl=String(16), default=UserType.admin)
 
     >>> user = User(type='admin')
     >>> user.type
@@ -111,11 +112,3 @@ class EnumTypeColumn(Column):
 def make_session_maker() -> sessionmaker:
     db_engine = create_async_engine(settings.DATABASE_DSN, echo=True)
     return sessionmaker(db_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-# def db_transaction(func):
-#     async def wrapped(*args, **kwargs):
-#         async with db.transaction():
-#             return await func(*args, **kwargs)
-#
-#     return wrapped

@@ -73,7 +73,7 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         podcast = await self._get_object(podcast_id)
         episodes = await Episode.async_filter(self.db_session, podcast_id=podcast_id)
 
-        await Episode.async_delete(self.db_session, {'podcast_id': podcast_id})
+        await Episode.async_delete(self.db_session, {"podcast_id": podcast_id})
         await podcast.delete(self.db_session)
         await self._delete_files(podcast, episodes)
         return self._response()

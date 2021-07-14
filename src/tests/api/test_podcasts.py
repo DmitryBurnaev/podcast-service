@@ -4,8 +4,13 @@ from core import settings
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks import GenerateRSSTask
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import create_user, get_podcast_data, get_episode_data, await_, \
-    create_episode, await_
+from tests.helpers import (
+    create_user,
+    get_podcast_data,
+    get_episode_data,
+    create_episode,
+    await_,
+)
 
 INVALID_UPDATE_DATA = [
     [{"name": "name" * 100}, {"name": "Length must be between 1 and 256."}],
@@ -157,12 +162,8 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         self.assert_not_found(client.delete(url), podcast)
 
     def test_delete__episodes_deleted_too__ok(self, client, podcast, user, mocked_s3, dbs):
-        episode_1 = await_(
-            Episode.async_create(dbs, **get_episode_data(podcast))
-        )
-        episode_2 = await_(
-            Episode.async_create(dbs, **get_episode_data(podcast, "published"))
-        )
+        episode_1 = await_(Episode.async_create(dbs, **get_episode_data(podcast)))
+        episode_2 = await_(Episode.async_create(dbs, **get_episode_data(podcast, "published")))
         await_(dbs.commit())
 
         client.login(user)
@@ -215,9 +216,7 @@ class TestPodcastGenerateRSSAPIView(BaseTestAPIView):
         assert response.status_code == 204
         mocked_rq_queue.enqueue.assert_called_with(GenerateRSSTask(), podcast.id)
 
-    def test_run_generation__podcast_from_another_user__fail(
-        self, client, podcast, user, dbs
-    ):
+    def test_run_generation__podcast_from_another_user__fail(self, client, podcast, user, dbs):
         client.login(create_user(dbs))
         url = self.url.format(id=podcast.id)
         self.assert_not_found(client.put(url), podcast)

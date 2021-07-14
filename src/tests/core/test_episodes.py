@@ -23,9 +23,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert episode.watch_url == watch_url
         assert episode.source_id == source_id
 
-    def test_create__same_episode_in_podcast__ok(
-        self, podcast, episode, user, mocked_youtube, dbs
-    ):
+    def test_create__same_episode_in_podcast__ok(self, podcast, episode, user, mocked_youtube, dbs):
         episode_creator = EpisodeCreator(
             dbs,
             podcast_id=episode.podcast_id,
@@ -69,7 +67,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.length == 123
 
     def test_create__same_episode__extract_failed__ok(
-            self, podcast, episode, user, mocked_youtube, dbs
+        self, podcast, episode, user, mocked_youtube, dbs
     ):
         mocked_youtube.extract_info.side_effect = ExtractorError("Something went wrong here")
         new_podcast = await_(Podcast.async_create(dbs, **get_podcast_data()))
@@ -85,8 +83,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.source_id == episode.source_id
         assert new_episode.watch_url == episode.watch_url
 
-    def test_create__extract_failed__fail(self, podcast, episode_data, user, mocked_youtube,
-                                          dbs):
+    def test_create__extract_failed__fail(self, podcast, episode_data, user, mocked_youtube, dbs):
         ydl_error = ExtractorError("Something went wrong here", video_id=episode_data["source_id"])
         mocked_youtube.extract_info.side_effect = ydl_error
         episode_creator = EpisodeCreator(

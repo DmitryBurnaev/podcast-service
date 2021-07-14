@@ -55,8 +55,9 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert response_data == [_episode_in_list(episode)]
 
-    def test_create__ok(self, client, podcast, episode, episode_data, user, mocked_episode_creator,
-                        dbs):
+    def test_create__ok(
+        self, client, podcast, episode, episode_data, user, mocked_episode_creator, dbs
+    ):
         mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
         client.login(user)
         episode_data = {"source_url": episode_data["watch_url"]}
@@ -186,18 +187,18 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         mocked_s3,
         same_episode_status,
         delete_called,
-            dbs,
+        dbs,
     ):
         source_id = get_video_id()
 
         user_1 = create_user(dbs)
         user_2 = create_user(dbs)
 
-        podcast_1 = await_(Podcast.async_create(
-            dbs, db_commit=True, **get_podcast_data(created_by_id=user_1.id))
+        podcast_1 = await_(
+            Podcast.async_create(dbs, db_commit=True, **get_podcast_data(created_by_id=user_1.id))
         )
-        podcast_2 = await_(Podcast.async_create(
-            dbs, db_commit=True, **get_podcast_data(created_by_id=user_2.id))
+        podcast_2 = await_(
+            Podcast.async_create(dbs, db_commit=True, **get_podcast_data(created_by_id=user_2.id))
         )
 
         episode_data["created_by_id"] = user_1.id

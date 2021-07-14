@@ -89,9 +89,7 @@ class Episode(ModelBase, ModelMixin):
 
     id = Column(Integer, primary_key=True)
     source_id = Column(String(length=32), index=True, nullable=False)
-    podcast_id = Column(
-        Integer, ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True
-    )
+    podcast_id = Column(Integer, ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True)
     title = Column(String(length=256), nullable=False)
     watch_url = Column(String(length=128))
     remote_url = Column(String(length=128))
@@ -116,7 +114,9 @@ class Episode(ModelBase, ModelMixin):
     @classmethod
     async def get_in_progress(cls, db_session: AsyncSession, user_id: int):
         """ Return downloading episodes """
-        return await cls.async_filter(db_session, status__in=Episode.PROGRESS_STATUSES, created_by_id=user_id)
+        return await cls.async_filter(
+            db_session, status__in=Episode.PROGRESS_STATUSES, created_by_id=user_id
+        )
 
     @property
     def safe_image_url(self) -> str:

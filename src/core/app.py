@@ -54,6 +54,7 @@ def get_app():
 
     return app
 
+
 # TODO:
 #  - recheck transactions
 #  - DB CON fix (settings)

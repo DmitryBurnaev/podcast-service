@@ -136,11 +136,15 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         self.email = f"user_{uuid.uuid4().hex[:10]}@test.com"
 
     def _create_user(self, db_session, is_active=True):
-        self.user = await_(User.async_create(
-            db_session,
-            db_commit=True,
-            email=self.email, password=self.encoded_password, is_active=is_active
-        ))
+        self.user = await_(
+            User.async_create(
+                db_session,
+                db_commit=True,
+                email=self.email,
+                password=self.encoded_password,
+                is_active=is_active,
+            )
+        )
 
     def test_sign_in__ok(self, client, dbs):
         self._create_user(dbs)
@@ -157,9 +161,7 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         decoded_refresh_token = decode_jwt(refresh_token)
         refresh_exp_dt = datetime.fromisoformat(decoded_refresh_token.pop("exp_iso"))
 
-        user_session: UserSession = await_(
-            UserSession.async_get(dbs, user_id=self.user.id)
-        )
+        user_session: UserSession = await_(UserSession.async_get(dbs, user_id=self.user.id))
         assert user_session.refresh_token == refresh_token
         assert user_session.is_active is True
         assert user_session.expired_at == refresh_exp_dt
@@ -393,9 +395,7 @@ class TestUserInviteApiView(BaseTestAPIView):
 
         client.login(user)
         client.post(self.url, json={"email": self.email})
-        updated_user_invite: UserInvite = await_(
-            UserInvite.async_get(db_session, email=self.email)
-        )
+        updated_user_invite: UserInvite = await_(UserInvite.async_get(db_session, email=self.email))
 
         assert updated_user_invite is not None
         assert updated_user_invite.id == user_invite.id
@@ -413,7 +413,9 @@ class TestResetPasswordAPIView(BaseTestAPIView):
     def test_reset_password__ok(self, client, user, mocked_auth_send, dbs):
         request_user = user
         await_(request_user.update(dbs, is_superuser=True))
-        target_user = await_(User.async_create(dbs, db_commit=True, email=self.email, password="pass"))
+        target_user = await_(
+            User.async_create(dbs, db_commit=True, email=self.email, password="pass")
+        )
 
         client.login(user)
         response = client.post(self.url, json={"email": target_user.email})
@@ -488,7 +490,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
     def test_change_password__ok(self, client, user, user_session, dbs):
         token, _ = encode_jwt(
             {"user_id": user.id, "session_id": user_session.public_id},
-            token_type=TOKEN_TYPE_RESET_PASSWORD
+            token_type=TOKEN_TYPE_RESET_PASSWORD,
         )
         request_data = {
             "token": token,

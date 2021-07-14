@@ -74,8 +74,13 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode_2.published_at == episode_2.created_at
 
     def test_download_episode__file_bad_size__ignore(
-        self, episode_data, mocked_youtube, mocked_ffmpeg, mocked_s3,
-        mocked_generate_rss_task, dbs,
+        self,
+        episode_data,
+        mocked_youtube,
+        mocked_ffmpeg,
+        mocked_s3,
+        mocked_generate_rss_task,
+        dbs,
     ):
 
         episode_data.update(
@@ -139,8 +144,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.published_at is None
 
     def test_download_episode__upload_to_s3_failed__fail(
-        self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task,
-            dbs
+        self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task, dbs
     ):
         file_path = settings.TMP_AUDIO_PATH / episode.file_name
         with open(file_path, "wb") as file:

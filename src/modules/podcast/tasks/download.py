@@ -38,7 +38,7 @@ class DownloadEpisodeTask(RQTask):
             await Episode.async_update(
                 self.db_session,
                 filter_kwargs={"id": episode_id},
-                update_data={"status": Episode.Status.ERROR}
+                update_data={"status": Episode.Status.ERROR},
             )
             return FinishCode.ERROR
 
@@ -178,7 +178,5 @@ class DownloadEpisodeTask(RQTask):
         filter_kwargs = {"source_id": source_id, "status__ne": status.ARCHIVED}
         logger.debug("Episodes update filter: %s | data: %s", filter_kwargs, update_data)
         await Episode.async_update(
-            self.db_session,
-            filter_kwargs=filter_kwargs,
-            update_data=update_data
+            self.db_session, filter_kwargs=filter_kwargs, update_data=update_data
         )

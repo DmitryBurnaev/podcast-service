@@ -51,9 +51,7 @@ class Episode(Base):
 
     id = Column(Integer, primary_key=True)
     source_id = Column(String(length=32), index=True, nullable=False)
-    podcast_id = Column(
-        Integer, ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True
-    )
+    podcast_id = Column(Integer, ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True)
     title = Column(String(length=256), nullable=False)
 
 
@@ -71,9 +69,7 @@ async def async_main():
 
     # expire_on_commit=False will prevent attributes from being expired
     # after commit.
-    async_session = sessionmaker(
-        engine, expire_on_commit=False, class_=AsyncSession
-    )
+    async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
     async with async_session() as session:
         # async with session.begin():
