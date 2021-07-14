@@ -22,6 +22,9 @@ class RQTask:
 
     db_session: AsyncSession = NotImplemented
 
+    def __init__(self, db_session: AsyncSession = None):
+        self.db_session = db_session
+
     async def run(self, *args, **kwargs):
         """ We need to override this method to implement main task logic """
         raise NotImplementedError

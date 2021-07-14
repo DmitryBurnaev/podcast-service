@@ -45,7 +45,7 @@ class GenerateRSSTask(RQTask):
             logger.error("Couldn't upload RSS file to storage. SKIP")
             return {podcast.id: FinishCode.ERROR}
 
-        await podcast.update(rss_link=str(result_url)).apply()
+        await podcast.update(self.db_session, rss_link=str(result_url))
         logger.info("RSS file uploaded, podcast record updated")
 
         logger.info("FINISH generation for %s | URL: %s", podcast, podcast.rss_link)

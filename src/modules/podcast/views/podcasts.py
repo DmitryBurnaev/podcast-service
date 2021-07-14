@@ -1,3 +1,5 @@
+from typing import Iterable
+
 from sqlalchemy import select, func
 from starlette import status
 
@@ -27,7 +29,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
             .group_by(Podcast.id)
             .order_by(Podcast.id)
         )
-        podcasts = await request.dbs.execute(stmt)
+        podcasts = await request.db_session.execute(stmt)
         podcast_list = []
         for podcast, episodes_count in podcasts.all():
             podcast.episodes_count = episodes_count
@@ -38,7 +40,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
     async def post(self, request):
         cleaned_data = await self._validate(request)
         podcast = await Podcast.async_create(
-            db_session=request.dbs,
+            db_session=request.db_session,
             name=cleaned_data["name"],
             publish_id=Podcast.generate_publish_id(),
             description=cleaned_data["description"],
@@ -76,7 +78,7 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         await self._delete_files(podcast, episodes)
         return self._response()
 
-    async def _delete_files(self, podcast: Podcast, episodes: list[Episode]):
+    async def _delete_files(self, podcast: Podcast, episodes: Iterable[Episode]):
         podcast_file_names = {
             episode.file_name for episode in episodes if episode.status == Episode.Status.PUBLISHED
         }

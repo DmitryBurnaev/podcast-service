@@ -1,4 +1,3 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 from youtube_dl.utils import YoutubeDLError
 
 from core import settings
@@ -25,7 +24,6 @@ class DownloadEpisodeTask(RQTask):
     """ Allows to download youtube video and recreate specific rss (by requested episode_id) """
 
     storage: StorageS3 = None
-    db_session: AsyncSession = None
 
     async def run(self, episode_id: int) -> int:
         self.storage = StorageS3()
