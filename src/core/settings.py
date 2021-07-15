@@ -34,16 +34,14 @@ DATABASE = {
     "database": db_name,
     "pool_min_size": config("DB_POOL_MIN_SIZE", cast=int, default=1),
     "pool_max_size": config("DB_POOL_MAX_SIZE", cast=int, default=16),
-    "echo": config("DB_ECHO", cast=bool, default=False),
     "ssl": config("DB_SSL", default=None),
     "use_connection_for_request": config("DB_USE_CONNECTION_FOR_REQUEST", cast=bool, default=True),
     "retry_limit": config("DB_RETRY_LIMIT", cast=int, default=1),
     "retry_interval": config("DB_RETRY_INTERVAL", cast=int, default=1),
 }
-# TODO: fix db dsn (asyncpg)
 DATABASE_DSN = config(
     "DB_DSN",
-    cast=make_url,
+    cast=str,
     default=URL(
         drivername=DATABASE["driver"],
         username=DATABASE["username"],
