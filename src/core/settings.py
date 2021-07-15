@@ -53,6 +53,7 @@ DATABASE_DSN = config(
         database=DATABASE["database"],
     ),
 )
+DB_ECHO = config("DB_ECHO", cast=bool, default=False)
 
 REDIS_HOST = config("REDIS_HOST", default="localhost")
 REDIS_PORT = config("REDIS_PORT", default=6379)

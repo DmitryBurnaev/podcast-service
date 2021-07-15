@@ -49,8 +49,10 @@ class RQTask:
             async with session_maker() as db_session:
                 self.db_session = db_session
                 result = await self.run(*args, **kwargs)
+                await self.db_session.commit()
 
         except Exception as err:
+            await self.db_session.rollback()
             result = FinishCode.ERROR
             logger.exception("Couldn't perform task %s | error %s (%s)", self.name, type(err), err)
 
