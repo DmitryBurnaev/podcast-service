@@ -2,11 +2,11 @@ import sys
 import logging
 import logging.config
 
+import sentry_sdk
 from redis import Redis
 from rq import Connection, Worker
-import sentry_sdk
-from sentry_sdk.integrations.logging import LoggingIntegration
 from sentry_sdk.integrations.rq import RqIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 from core import settings
 

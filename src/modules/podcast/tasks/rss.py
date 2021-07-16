@@ -22,7 +22,7 @@ class GenerateRSSTask(RQTask):
 
         self.storage = StorageS3()
         filter_kwargs = {"id__in": map(int, podcast_ids)} if podcast_ids else {}
-        podcasts = await Podcast.async_filter(**filter_kwargs)
+        podcasts = await Podcast.async_filter(self.db_session, **filter_kwargs)
         results = {}
         for podcast in podcasts:
             results.update(await self._generate(podcast))
@@ -45,19 +45,19 @@ class GenerateRSSTask(RQTask):
             logger.error("Couldn't upload RSS file to storage. SKIP")
             return {podcast.id: FinishCode.ERROR}
 
-        await podcast.update(rss_link=str(result_url)).apply()
+        await podcast.update(self.db_session, rss_link=str(result_url))
         logger.info("RSS file uploaded, podcast record updated")
 
         logger.info("FINISH generation for %s | URL: %s", podcast, podcast.rss_link)
         return {podcast.id: FinishCode.OK}
 
-    @staticmethod
-    async def _render_rss_to_file(podcast: Podcast) -> str:
+    async def _render_rss_to_file(self, podcast: Podcast) -> str:
         """ Generate rss for Podcast and Episodes marked as "published" """
 
         logger.info(f"Podcast #{podcast.id}: RSS generation has been started.")
 
         episodes = await Episode.async_filter(
+            self.db_session,
             podcast_id=podcast.id,
             status=Episode.Status.PUBLISHED,
             published_at__ne=None,

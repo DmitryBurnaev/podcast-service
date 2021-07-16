@@ -5,10 +5,14 @@ from hashlib import md5
 from urllib.parse import urljoin
 from xml.sax.saxutils import escape
 
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import relationship
+
 from core import settings
-from core.database import db
+from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
-from common.models import BaseModel
+from core.database import ModelBase
 
 
 class EpisodeStatus(enum.Enum):
@@ -29,21 +33,23 @@ class EpisodeStatus(enum.Enum):
         return self.value
 
 
-class Podcast(BaseModel):
+class Podcast(ModelBase, ModelMixin):
     """ Simple schema_request for saving podcast in DB """
 
     __tablename__ = "podcast_podcasts"
 
-    id = db.Column(db.Integer, primary_key=True)
-    publish_id = db.Column(db.String(length=32), unique=True, nullable=False)
-    name = db.Column(db.String(length=256), nullable=False)
-    description = db.Column(db.String)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    download_automatically = db.Column(db.Boolean, default=True)
-    rss_link = db.Column(db.String(length=128))
-    image_url = db.Column(db.String(length=512))
-    created_by_id = db.Column(db.Integer(), db.ForeignKey("auth_users.id"))
+    id = Column(Integer, primary_key=True)
+    publish_id = Column(String(length=32), unique=True, nullable=False)
+    name = Column(String(length=256), nullable=False)
+    description = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    download_automatically = Column(Boolean, default=True)
+    rss_link = Column(String(length=128))
+    image_url = Column(String(length=512))
+    created_by_id = Column(Integer(), ForeignKey("auth_users.id"))
+
+    episodes = relationship("Episode")
 
     def __str__(self):
         return f'<Podcast #{self.id} "{self.name}">'
@@ -57,8 +63,9 @@ class Podcast(BaseModel):
         return image_url
 
     @classmethod
-    async def create_first_podcast(cls, user_id: int):
-        return await Podcast.create(
+    async def create_first_podcast(cls, db_session: AsyncSession, user_id: int):
+        return await Podcast.async_create(
+            db_session,
             publish_id=cls.generate_publish_id(),
             name="Your podcast",
             description=(
@@ -73,31 +80,29 @@ class Podcast(BaseModel):
         return md5(uuid.uuid4().hex.encode("utf-8")).hexdigest()[::2]
 
 
-class Episode(BaseModel):
+class Episode(ModelBase, ModelMixin):
     """ Simple schema_request for saving episodes in DB """
 
     __tablename__ = "podcast_episodes"
     Status = EpisodeStatus
     PROGRESS_STATUSES = (Status.DOWNLOADING,)
 
-    id = db.Column(db.Integer, primary_key=True)
-    source_id = db.Column(db.String(length=32), index=True, nullable=False)
-    podcast_id = db.Column(
-        db.Integer, db.ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True
-    )
-    title = db.Column(db.String(length=256), nullable=False)
-    watch_url = db.Column(db.String(length=128))
-    remote_url = db.Column(db.String(length=128))
-    image_url = db.Column(db.String(length=512))
-    length = db.Column(db.Integer, default=0)
-    description = db.Column(db.String)
-    file_name = db.Column(db.String(length=128))
-    file_size = db.Column(db.Integer, default=0)
-    author = db.Column(db.String(length=256))
-    status = EnumTypeColumn(Status, impl=db.String(16), default=Status.NEW, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    published_at = db.Column(db.DateTime)
-    created_by_id = db.Column(db.Integer, db.ForeignKey("auth_users.id"), index=True)
+    id = Column(Integer, primary_key=True)
+    source_id = Column(String(length=32), index=True, nullable=False)
+    podcast_id = Column(Integer, ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True)
+    title = Column(String(length=256), nullable=False)
+    watch_url = Column(String(length=128))
+    remote_url = Column(String(length=128))
+    image_url = Column(String(length=512))
+    length = Column(Integer, default=0)
+    description = Column(String)
+    file_name = Column(String(length=128))
+    file_size = Column(Integer, default=0)
+    author = Column(String(length=256))
+    status = EnumTypeColumn(Status, impl=String(16), default=Status.NEW, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    published_at = Column(DateTime)
+    created_by_id = Column(Integer, ForeignKey("auth_users.id"), index=True)
 
     class Meta:
         order_by = ("-created_at",)
@@ -107,9 +112,11 @@ class Episode(BaseModel):
         return f'<Episode #{self.id} {self.source_id} [{self.status}] "{self.title[:10]}..." >'
 
     @classmethod
-    async def get_in_progress(cls, user_id):
+    async def get_in_progress(cls, db_session: AsyncSession, user_id: int):
         """ Return downloading episodes """
-        return await cls.async_filter(status__in=Episode.PROGRESS_STATUSES, created_by_id=user_id)
+        return await cls.async_filter(
+            db_session, status__in=Episode.PROGRESS_STATUSES, created_by_id=user_id
+        )
 
     @property
     def safe_image_url(self) -> str:

@@ -1,8 +1,7 @@
 import enum
 from typing import TypeVar
 
-from core.database import db
+# from core.database import BaseModel
 
 
-DBModel = TypeVar("DBModel", bound=db.Model)
 EnumClass = TypeVar("EnumClass", bound=enum.Enum)

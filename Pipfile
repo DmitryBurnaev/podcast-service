@@ -9,8 +9,9 @@ webargs-starlette = "==2.0.0"
 uvicorn = "==0.13.4"
 rq = "==1.7.0"
 
-psycopg2 = "==2.8.6"  # in order to use in alembic
-gino = {version = "==1.0.1", extras = ["starlette"]}
+asyncpg = "==0.23.0"
+psycopg2-binary = "==2.9.1" # for alembic only
+sqlalchemy = "==1.4.19"
 alembic = "==1.4.3"
 
 PyJWT = "==2.0.0"

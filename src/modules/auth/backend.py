@@ -1,7 +1,7 @@
 from typing import Tuple
 
 from jwt import InvalidTokenError, ExpiredSignatureError
-from starlette.requests import Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.exceptions import (
     AuthenticationFailedError,
@@ -21,7 +21,12 @@ class BaseAuthJWTBackend:
 
     keyword = "Bearer"
 
-    async def authenticate(self, request: Request):
+    def __init__(self, request):
+        self.request = request
+        self.db_session: AsyncSession = request.db_session
+
+    async def authenticate(self) -> Tuple[User, str]:
+        request = self.request
         auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
         if not auth_header:
             raise AuthenticationRequiredError("Invalid token header. No credentials provided.")
@@ -34,20 +39,22 @@ class BaseAuthJWTBackend:
         if auth[0] != self.keyword:
             raise AuthenticationFailedError("Invalid token header. Keyword mismatch.")
 
-        user, _ = await self.authenticate_user(jwt_token=auth[1])
-        return user
+        user, _, session_id = await self.authenticate_user(jwt_token=auth[1])
+        return user, session_id
 
     async def authenticate_user(
-        self, jwt_token: str, token_type: str = TOKEN_TYPE_ACCESS
-    ) -> Tuple[User, dict]:
+        self,
+        jwt_token: str,
+        token_type: str = TOKEN_TYPE_ACCESS,
+    ) -> Tuple[User, dict, str]:
         """ Allows to find active user by jwt_token """
 
         logger.debug("Logging via JWT auth. Got token: %s", jwt_token)
         try:
             jwt_payload = decode_jwt(jwt_token)
         except ExpiredSignatureError:
-            logger.debug("JWT signature was expired for token %s", jwt_token)
-            raise SignatureExpiredError
+            logger.debug("JWT signature has been expired for token %s", jwt_token)
+            raise SignatureExpiredError("JWT signature has been expired for token")
         except InvalidTokenError as error:
             msg = "Token could not be decoded: %s"
             logger.exception(msg, error)
@@ -59,17 +66,25 @@ class BaseAuthJWTBackend:
             )
 
         user_id = jwt_payload.get("user_id")
-        user = await User.get_active(user_id)
+        user = await User.get_active(self.db_session, user_id)
         if not user:
             msg = "Couldn't found active user with id=%s."
             logger.warning(msg, user_id)
             raise AuthenticationFailedError(details=(msg % (user_id,)))
 
-        user_session = await UserSession.async_get(user_id=user.id, is_active=True)
-        if not user_session:
-            raise AuthenticationFailedError(f"Couldn't found active session for user #{user_id}.")
+        session_id = jwt_payload.get("session_id")
+        if not session_id:
+            raise AuthenticationFailedError("Incorrect data in JWT: session_id is missed")
 
-        return user, jwt_payload
+        user_session = await UserSession.async_get(
+            self.db_session, public_id=session_id, is_active=True
+        )
+        if not user_session:
+            raise AuthenticationFailedError(
+                f"Couldn't found active session: {user_id=} | {session_id=}."
+            )
+
+        return user, jwt_payload, session_id
 
 
 class LoginRequiredAuthBackend(BaseAuthJWTBackend):
@@ -79,9 +94,11 @@ class LoginRequiredAuthBackend(BaseAuthJWTBackend):
 class AdminRequiredAuthBackend(BaseAuthJWTBackend):
     """ Login-ed used must have `is_superuser` attribute """
 
-    async def authenticate_user(self, jwt_token: str, token_type: str = TOKEN_TYPE_ACCESS):
-        user, jwt_payload = await super().authenticate_user(jwt_token)
+    async def authenticate_user(
+        self, jwt_token: str, token_type: str = TOKEN_TYPE_ACCESS
+    ) -> Tuple[User, dict, str]:
+        user, jwt_payload, session_id = await super().authenticate_user(jwt_token)
         if not user.is_superuser:
             raise PermissionDeniedError("You don't have an admin privileges.")
 
-        return user, jwt_payload
+        return user, jwt_payload, session_id

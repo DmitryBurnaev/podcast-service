@@ -2,6 +2,7 @@ import asyncio
 from functools import partial
 from typing import Type, Union, Iterable, Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from starlette.requests import Request
 from starlette.endpoints import HTTPEndpoint
@@ -16,14 +17,19 @@ from common.exceptions import (
     InvalidParameterError,
 )
 from common.statuses import ResponseStatus
-from core.database import db
-from common.typing import DBModel
+from common.models import DBModel
 from common.utils import get_logger
 from modules.podcast.models import Podcast
 from modules.podcast.tasks.base import RQTask
+from modules.auth.utils import TokenCollection
 from modules.auth.backend import LoginRequiredAuthBackend
 
 logger = get_logger(__name__)
+
+
+class PRequest(Request):
+    user_session_id: str = NotImplemented
+    db_session: AsyncSession = NotImplemented
 
 
 class BaseHTTPEndpoint(HTTPEndpoint):
@@ -31,9 +37,10 @@ class BaseHTTPEndpoint(HTTPEndpoint):
     Base View witch used as a base class for every API's endpoints
     """
 
-    request: Request = None
+    request: PRequest = None
     app = None
     db_model: DBModel = NotImplemented
+    db_session: AsyncSession = NotImplemented
     auth_backend = LoginRequiredAuthBackend
     schema_request: Type[Schema] = NotImplemented
     schema_response: Type[Schema] = NotImplemented
@@ -44,28 +51,40 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         So, we can use this one for customs authenticate and catch all exceptions
         """
 
-        self.request = Request(self.scope, receive=self.receive)
+        self.request = PRequest(self.scope, receive=self.receive)
         self.app = self.scope.get("app")
-
-        if self.auth_backend:
-            backend = self.auth_backend()
-            self.scope["user"] = await backend.authenticate(self.request)
 
         handler_name = "get" if self.request.method == "HEAD" else self.request.method.lower()
         handler = getattr(self, handler_name, self.method_not_allowed)
 
         try:
-            response = await handler(self.request)
+            async with self.app.session_maker() as session:
+                self.request.db_session = session
+                self.db_session = session
+                if self.auth_backend:
+                    backend = self.auth_backend(self.request)
+                    user, session_id = await backend.authenticate()
+                    self.scope["user"] = user
+                    self.request.user_session_id = session_id
+
+                response = await handler(self.request)
+                await self.db_session.commit()
+
         except (BaseApplicationError, WebargsHTTPException) as err:
+            await self.db_session.rollback()
             raise err
+
         except Exception as err:
+            await self.db_session.rollback()
             msg_template = "Unexpected error handled: %r"
             logger.exception(msg_template, err)
             raise UnexpectedError(msg_template % (err,))
 
         await response(self.scope, self.receive, self.send)
 
-    async def _get_object(self, instance_id, db_model: DBModel = None, **filter_kwargs) -> db.Model:
+    async def _get_object(
+        self, instance_id, db_model: Type[DBModel] = None, **filter_kwargs
+    ) -> DBModel:
         """
         Returns current object (only for logged-in or admin user) for CRUD API
         """
@@ -74,7 +93,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         if not self.request.user.is_superuser:
             filter_kwargs["created_by_id"] = self.request.user.id
 
-        instance = await db_model.async_get(id=instance_id, **filter_kwargs)
+        instance = await db_model.async_get(self.db_session, id=instance_id, **filter_kwargs)
         if not instance:
             raise NotFoundError(
                 f"{db_model.__name__} #{instance_id} does not exist or belongs to another user"
@@ -102,7 +121,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
     def _response(
         self,
-        instance: Union[DBModel, Iterable[DBModel]] = None,
+        instance: Union[DBModel, Iterable[DBModel], TokenCollection] = None,
         data: Any = None,
         status_code: int = status.HTTP_200_OK,
         response_status: ResponseStatus = ResponseStatus.OK,
@@ -142,7 +161,7 @@ class HealthCheckSchema(Schema):
 
 
 class HealthCheckAPIView(BaseHTTPEndpoint):
-    """ Allows to control status of web application (live asgi and pg connection)"""
+    """ Allows to control status of web application (live ASGI and pg connection)"""
 
     auth_backend = None
     schema_response = HealthCheckSchema
@@ -153,8 +172,7 @@ class HealthCheckAPIView(BaseHTTPEndpoint):
         response_status = ResponseStatus.OK
 
         try:
-            await Podcast.async_filter()
-
+            await Podcast.async_filter(self.db_session)
         except Exception as error:
             error_msg = f"Couldn't connect to DB: {error.__class__.__name__} '{error}'"
             logger.exception(error_msg)

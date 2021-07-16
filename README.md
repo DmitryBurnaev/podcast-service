@@ -153,6 +153,7 @@ make lint
 | DB_NAME_TEST              | Custom name for DB name for tests                 | `DB_NAME` + `_test`   |
 | SENDGRID_API_KEY          | Is needed for sending Email (invite, passw., etc) |                       |
 | EMAIL_FROM                | Is needed for sending Email                       |                       |
+| DB_ECHO                   | Sending all db queries to stdout                  | False                 |
 
 
 * * *

@@ -3,7 +3,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from sqlalchemy.engine.url import URL, make_url
+from sqlalchemy.engine.url import URL
 from starlette.config import Config
 from starlette.datastructures import Secret
 
@@ -26,7 +26,7 @@ if TEST_MODE:
     db_name = config("DB_NAME_TEST", default="podcast_test")
 
 DATABASE = {
-    "driver": config("DB_DRIVER", default="postgresql"),
+    "driver": "postgresql+asyncpg",
     "host": config("DB_HOST", default=None),
     "port": config("DB_PORT", cast=int, default=None),
     "username": config("DB_USERNAME", default=None),
@@ -34,7 +34,6 @@ DATABASE = {
     "database": db_name,
     "pool_min_size": config("DB_POOL_MIN_SIZE", cast=int, default=1),
     "pool_max_size": config("DB_POOL_MAX_SIZE", cast=int, default=16),
-    "echo": config("DB_ECHO", cast=bool, default=False),
     "ssl": config("DB_SSL", default=None),
     "use_connection_for_request": config("DB_USE_CONNECTION_FOR_REQUEST", cast=bool, default=True),
     "retry_limit": config("DB_RETRY_LIMIT", cast=int, default=1),
@@ -42,8 +41,8 @@ DATABASE = {
 }
 DATABASE_DSN = config(
     "DB_DSN",
-    cast=make_url,
-    default=URL(
+    cast=str,
+    default=URL.create(
         drivername=DATABASE["driver"],
         username=DATABASE["username"],
         password=DATABASE["password"],
@@ -52,6 +51,7 @@ DATABASE_DSN = config(
         database=DATABASE["database"],
     ),
 )
+DB_ECHO = config("DB_ECHO", cast=bool, default=False)
 
 REDIS_HOST = config("REDIS_HOST", default="localhost")
 REDIS_PORT = config("REDIS_PORT", default=6379)

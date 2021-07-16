@@ -2,7 +2,7 @@ from typing import Union, Optional
 
 from requests import Response
 
-from common.models import BaseModel
+from common.models import ModelMixin
 from common.statuses import ResponseStatus
 
 
@@ -13,7 +13,8 @@ class BaseTestCase:
 
         assert mock_callable.called
         mock_call_args = mock_callable.call_args_list[-1]
-        assert mock_call_args.args == args
+        if args:
+            assert mock_call_args.args == args
         for key, value in kwargs.items():
             assert key in mock_call_args.kwargs, mock_call_args.kwargs
             assert mock_call_args.kwargs[key] == value
@@ -54,7 +55,7 @@ class BaseTestAPIView(BaseTestCase):
             assert error_value in response_data["details"][error_field]
 
     @staticmethod
-    def assert_not_found(response: Response, instance: BaseModel):
+    def assert_not_found(response: Response, instance: ModelMixin):
         assert response.status_code == 404
         response_data = response.json()
         assert response_data["status"] == ResponseStatus.NOT_FOUND

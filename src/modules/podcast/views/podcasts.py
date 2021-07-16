@@ -1,12 +1,12 @@
-from gino.loader import ColumnLoader
+from typing import Iterable
+
+from sqlalchemy import select, func
 from starlette import status
 
 from core import settings
 from common.utils import get_logger
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
-from common.db_utils import db_transaction
-from core.database import db
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.schemas import PodcastCreateUpdateSchema, PodcastDetailsSchema
 from modules.podcast.tasks.rss import GenerateRSSTask
@@ -21,29 +21,26 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
     schema_response = PodcastDetailsSchema
 
     async def get(self, request):
-        episodes_count = db.func.count(Episode.id)
-        query = (
-            db.select([Podcast, episodes_count])
-            .where(Podcast.created_by_id == request.user.id)
-            .select_from(Podcast.outerjoin(Episode))
-            .group_by(
-                Podcast.id,
-            )
+        func_count = func.count(Episode.id).label("episodes_count")
+        stmt = (
+            select([Podcast, func_count])
+            .outerjoin(Episode, Episode.podcast_id == Podcast.id)
+            .filter(Podcast.created_by_id == request.user.id)
+            .group_by(Podcast.id)
             .order_by(Podcast.id)
-            .gino.load((Podcast, ColumnLoader(episodes_count)))
         )
-        podcasts = []
-        async with db.transaction():
-            async for podcast, episodes_count in query.iterate():
-                podcast.episodes_count = episodes_count
-                podcasts.append(podcast)
+        podcasts = await request.db_session.execute(stmt)
+        podcast_list = []
+        for podcast, episodes_count in podcasts.all():
+            podcast.episodes_count = episodes_count
+            podcast_list.append(podcast)
 
-        return self._response(podcasts)
+        return self._response(podcast_list)
 
-    @db_transaction
     async def post(self, request):
         cleaned_data = await self._validate(request)
-        podcast = await Podcast.create(
+        podcast = await Podcast.async_create(
+            db_session=request.db_session,
             name=cleaned_data["name"],
             publish_id=Podcast.generate_publish_id(),
             description=cleaned_data["description"],
@@ -64,29 +61,29 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         podcast = await self._get_object(podcast_id)
         return self._response(podcast)
 
-    @db_transaction
     async def patch(self, request):
         cleaned_data = await self._validate(request, partial_=True)
         podcast_id = request.path_params["podcast_id"]
         podcast = await self._get_object(podcast_id)
-        await podcast.update(**cleaned_data).apply()
+        await podcast.update(self.db_session, **cleaned_data)
         return self._response(podcast)
 
-    @db_transaction
     async def delete(self, request):
         podcast_id = int(request.path_params["podcast_id"])
         podcast = await self._get_object(podcast_id)
-        episodes = await Episode.async_filter(podcast_id=podcast_id)
-        await podcast.delete()
-        await self._delete_files(podcast, episodes)
-        return self._response(status_code=status.HTTP_204_NO_CONTENT)
+        episodes = await Episode.async_filter(self.db_session, podcast_id=podcast_id)
 
-    @staticmethod
-    async def _delete_files(podcast: Podcast, episodes: list[Episode]):
+        await Episode.async_delete(self.db_session, {"podcast_id": podcast_id})
+        await podcast.delete(self.db_session)
+        await self._delete_files(podcast, episodes)
+        return self._response()
+
+    async def _delete_files(self, podcast: Podcast, episodes: Iterable[Episode]):
         podcast_file_names = {
             episode.file_name for episode in episodes if episode.status == Episode.Status.PUBLISHED
         }
         same_file_episodes = await Episode.async_filter(
+            self.db_session,
             podcast_id__ne=podcast.id,
             file_name__in=podcast_file_names,
             status=Episode.Status.PUBLISHED,
