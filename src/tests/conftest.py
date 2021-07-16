@@ -5,6 +5,7 @@ from typing import Tuple
 from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
+from alembic.config import main
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import settings
@@ -54,16 +55,10 @@ def dbs(loop) -> AsyncSession:
         yield db_session
 
 
-# @pytest.fixture
-# def dbs(loop) -> AsyncSession:
-#     with make_db_session(loop) as db_session:
-#         yield db_session
-
-#
-# @pytest.fixture(autouse=True, scope="session")
-# def db_migration():
-#     ini_path = settings.PROJECT_ROOT_DIR / "alembic.ini"
-#     main(["--raiseerr", f"-c{ini_path}", "upgrade", "head"])
+@pytest.fixture(autouse=True, scope="session")
+def db_migration():
+    ini_path = settings.PROJECT_ROOT_DIR / "alembic.ini"
+    main(["--raiseerr", f"-c{ini_path}", "upgrade", "head"])
 
 
 @pytest.fixture

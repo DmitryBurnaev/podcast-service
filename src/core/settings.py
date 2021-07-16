@@ -3,7 +3,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from sqlalchemy.engine.url import URL, make_url
+from sqlalchemy.engine.url import URL
 from starlette.config import Config
 from starlette.datastructures import Secret
 
@@ -42,7 +42,7 @@ DATABASE = {
 DATABASE_DSN = config(
     "DB_DSN",
     cast=str,
-    default=URL(
+    default=URL.create(
         drivername=DATABASE["driver"],
         username=DATABASE["username"],
         password=DATABASE["password"],

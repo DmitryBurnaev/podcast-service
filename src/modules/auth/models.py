@@ -50,7 +50,7 @@ class UserInvite(ModelBase, ModelMixin):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("auth_users.id"), unique=True)
-    email = Column(String(length=32), unique=True)
+    email = Column(String(length=128), unique=True)
     token = Column(String(length=32), unique=True, nullable=False, index=True)
     is_applied = Column(Boolean, default=False, nullable=False)
     expired_at = Column(DateTime, nullable=False)

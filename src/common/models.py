@@ -101,7 +101,7 @@ class ModelMixin:
             else:
                 raise NotImplementedError(f"Unexpected criteria: {criteria}")
 
-        return and_(*filters)
+        return and_(True, *filters)
 
 
 DBModel = TypeVar("DBModel", bound=ModelMixin)

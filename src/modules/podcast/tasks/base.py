@@ -42,7 +42,7 @@ class RQTask:
     async def _perform_and_run(self, *args, **kwargs):
         """ Allows to call `self.run` in transaction block with catching any exceptions """
 
-        db_engine = create_async_engine(settings.DATABASE_DSN, echo=True)
+        db_engine = create_async_engine(settings.DATABASE_DSN, echo=settings.DB_ECHO)
         session_maker = sessionmaker(db_engine, expire_on_commit=False, class_=AsyncSession)
 
         try:
