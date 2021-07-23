@@ -1,5 +1,6 @@
 import pytest
 
+from common.statuses import ResponseStatus
 from modules.youtube.exceptions import YoutubeFetchError
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
@@ -238,3 +239,71 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
         client.login(create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.put(url), episode)
+
+
+class TestEpisodeFlatListAPIView(BaseTestAPIView):
+    url = "/api/episodes/"
+
+    def setup_episodes(self, dbs, user, episode_data):
+        self.user_2 = create_user(dbs)
+        self.podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user.id)))
+        self.podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user.id)))
+        self.podcast_3_from_user_2 = await_(
+            Podcast.async_create(dbs, **get_podcast_data(created_by_id=self.user_2.id))
+        )
+
+        self.episode_1 = await_(create_episode(dbs, episode_data, self.podcast_1))
+        self.episode_2 = await_(create_episode(dbs, episode_data, self.podcast_2))
+        self.episode_3 = await_(create_episode(dbs, episode_data, self.podcast_3_from_user_2))
+        await_(dbs.commit())
+
+    @staticmethod
+    def assert_episodes(response_data: dict, expected_episode_ids: list[int]):
+        actual_episode_ids = [episode["id"] for episode in response_data["payload"]["results"]]
+        assert expected_episode_ids == actual_episode_ids
+
+    def test_get_list__ok(self, client, episode_data, user, dbs):
+        self.setup_episodes(dbs, user, episode_data)
+
+        client.login(user)
+        response = client.get(self.url)
+        response_data = self.assert_ok_response(response)
+        expected_episode_ids = [self.episode_2.id, self.episode_1.id]
+        self.assert_episodes(response_data, expected_episode_ids)
+
+    def test_get_list__limited__ok(self, client, episode_data, user, dbs):
+        self.setup_episodes(dbs, user, episode_data)
+        client.login(user)
+        response = client.get(self.url, params={"limit": 1})
+        response_data = self.assert_ok_response(response)
+        self.assert_episodes(response_data, expected_episode_ids=[self.episode_2.id])
+
+    @pytest.mark.parametrize(
+        "search,title1,title2,expected_titles",
+        [
+            ("new", "New episode", "Old episode", ["New episode"]),
+            ("epi", "New episode", "Old episode", ["New episode", "Old episode"]),
+        ]
+    )
+    def test_get_list__filter_by_title__ok(
+        self, client, episode_data, user, dbs, search, title1, title2, expected_titles
+    ):
+        self.setup_episodes(dbs, user, episode_data)
+        await_(self.episode_1.update(dbs, {'title': title1}))
+        await_(self.episode_2.update(dbs, {'title': title2}))
+        await_(dbs.commit())
+        await_(dbs.refresh(self.episode_1))
+        await_(dbs.refresh(self.episode_2))
+
+        episodes = [self.episode_1, self.episode_2]
+        expected_episodes = [episode.id for episode in episodes if episode.title in expected_titles]
+        client.login(user)
+        response = client.get(self.url, params={"q": search})
+        response_data = self.assert_ok_response(response)
+        self.assert_episodes(response_data, expected_episodes)
+
+    def test_create_without_podcast__fail(self, client, episode_data, user, dbs):
+        client.login(user)
+        response = client.post(self.url, data=get_podcast_data())
+        response_data = self.assert_fail_response(response, status_code=405)
+        assert response_data["status"] == ResponseStatus.NOT_ALLOWED

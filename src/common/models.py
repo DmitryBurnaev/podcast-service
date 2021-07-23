@@ -15,7 +15,7 @@ class ModelMixin:
         order_by = ("id",)
 
     @classmethod
-    def prepare_query(cls, **filter_kwargs) -> Select:
+    def prepare_query(cls, limit: int = None, offset: int = None, **filter_kwargs) -> Select:
         order_by = []
         for field in cls.Meta.order_by:
             if field.startswith("-"):
@@ -23,13 +23,35 @@ class ModelMixin:
             else:
                 order_by.append(getattr(cls, field))
 
-        return select(cls).filter(cls._filter_criteria(filter_kwargs)).order_by(*order_by)
+        query = select(cls).filter(cls._filter_criteria(filter_kwargs)).order_by(*order_by)
+        if limit is not None:
+            query = query.limit(limit)
+        if offset is not None:
+            query = query.offset(offset)
+
+        return query
 
     @classmethod
-    async def async_filter(cls, db_session: AsyncSession, **filter_kwargs) -> ScalarResult:
-        query = cls.prepare_query(**filter_kwargs)
+    async def async_filter(
+        cls, db_session: AsyncSession,
+        limit: int = None,
+        offset: int = None,
+        **filter_kwargs
+    ) -> ScalarResult:
+        query = cls.prepare_query(limit=limit, offset=offset, **filter_kwargs)
         result = await db_session.execute(query)
         return result.scalars()
+
+    @classmethod
+    async def async_count(
+        cls, db_session: AsyncSession,
+        limit: int = None,
+        offset: int = None,
+        **filter_kwargs
+    ) -> int:
+        query = cls.prepare_query(limit=limit, offset=offset, **filter_kwargs)
+        result = await db_session.execute(query)
+        return result.count()
 
     @classmethod
     async def async_get(cls, db_session: AsyncSession, **filter_kwargs) -> "DBModel":

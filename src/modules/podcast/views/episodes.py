@@ -1,5 +1,6 @@
 from starlette import status
 
+from common.exceptions import MethodNotAllowedError
 from common.storage import StorageS3
 from common.utils import get_logger
 from common.views import BaseHTTPEndpoint
@@ -7,10 +8,11 @@ from modules.podcast import tasks
 from modules.podcast.episodes import EpisodeCreator
 from modules.podcast.models import Episode, Podcast
 from modules.podcast.schemas import (
-    EpisodeListSchema,
     EpisodeCreateSchema,
     EpisodeUpdateSchema,
     EpisodeDetailsSchema,
+    EpisodeListRequestSchema,
+    EpisodeListResponseSchema,
 )
 
 logger = get_logger(__name__)
@@ -19,16 +21,38 @@ logger = get_logger(__name__)
 class EpisodeListCreateAPIView(BaseHTTPEndpoint):
     """ List and Create (based on `EpisodeCreator` logic) API for episodes """
 
-    schema_request = EpisodeCreateSchema
-    schema_response = EpisodeListSchema
+    schema_response = EpisodeListResponseSchema
+
+    @property
+    def schema_request(self):
+        schema_map = {
+            "get": EpisodeListRequestSchema,
+            "post": EpisodeCreateSchema
+        }
+        return schema_map.get(self.request.method.lower())
 
     async def get(self, request):
-        podcast_id = request.path_params["podcast_id"]
-        episodes = await Episode.async_filter(self.db_session, podcast_id=podcast_id)
-        return self._response(episodes)
+        filter_kwargs = {"created_by_id": request.user.id}
+        if podcast_id := request.path_params.get("podcast_id"):
+            filter_kwargs["podcast_id"] = podcast_id
+
+        cleaned_data = await self._validate(request, location="query")
+        limit, offset = cleaned_data["limit"], cleaned_data["offset"]
+        episodes = await Episode.async_filter(
+            self.db_session, limit=limit, offset=offset, **filter_kwargs
+        )
+        # query = Episode.prepare_query().exists()
+        # has_next_episodes = await self.db_session.execute(query)
+        has_next_episodes = True
+        # next_episodes_count = await Episode.async_count(
+        #     self.db_session, offset=limit + offset, **filter_kwargs
+        # )
+        return self._response({"has_next": has_next_episodes, "items": episodes})
 
     async def post(self, request):
-        podcast_id = request.path_params["podcast_id"]
+        if not (podcast_id := request.path_params["podcast_id"]):
+            raise MethodNotAllowedError("Couldn't create episode without provided podcast_id")
+
         podcast = await self._get_object(podcast_id, db_model=Podcast)
         cleaned_data = await self._validate(request)
         episode_creator = EpisodeCreator(

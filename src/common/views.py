@@ -121,7 +121,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
     def _response(
         self,
-        instance: Union[DBModel, Iterable[DBModel], TokenCollection] = None,
+        instance: Union[DBModel, Iterable[DBModel], TokenCollection, dict] = None,
         data: Any = None,
         status_code: int = status.HTTP_200_OK,
         response_status: ResponseStatus = ResponseStatus.OK,
