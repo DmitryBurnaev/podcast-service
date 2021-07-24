@@ -1,3 +1,4 @@
+from sqlalchemy import exists
 from starlette import status
 
 from common.exceptions import MethodNotAllowedError
@@ -12,7 +13,7 @@ from modules.podcast.schemas import (
     EpisodeUpdateSchema,
     EpisodeDetailsSchema,
     EpisodeListRequestSchema,
-    EpisodeListResponseSchema,
+    EpisodeListResponseSchema, EpisodeListSchema,
 )
 
 logger = get_logger(__name__)
@@ -21,13 +22,19 @@ logger = get_logger(__name__)
 class EpisodeListCreateAPIView(BaseHTTPEndpoint):
     """ List and Create (based on `EpisodeCreator` logic) API for episodes """
 
-    schema_response = EpisodeListResponseSchema
-
     @property
     def schema_request(self):
         schema_map = {
             "get": EpisodeListRequestSchema,
             "post": EpisodeCreateSchema
+        }
+        return schema_map.get(self.request.method.lower())
+
+    @property
+    def schema_response(self):
+        schema_map = {
+            "get": EpisodeListResponseSchema,
+            "post": EpisodeListSchema
         }
         return schema_map.get(self.request.method.lower())
 
@@ -38,19 +45,18 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
 
         cleaned_data = await self._validate(request, location="query")
         limit, offset = cleaned_data["limit"], cleaned_data["offset"]
+        if search := cleaned_data.get("q"):
+            filter_kwargs["title__icontains"] = search
+
         episodes = await Episode.async_filter(
             self.db_session, limit=limit, offset=offset, **filter_kwargs
         )
-        # query = Episode.prepare_query().exists()
-        # has_next_episodes = await self.db_session.execute(query)
-        has_next_episodes = True
-        # next_episodes_count = await Episode.async_count(
-        #     self.db_session, offset=limit + offset, **filter_kwargs
-        # )
+        query = Episode.prepare_query(offset=(limit + offset), **filter_kwargs)
+        (has_next_episodes,) = next(await self.db_session.execute(exists(query).select()))
         return self._response({"has_next": has_next_episodes, "items": episodes})
 
     async def post(self, request):
-        if not (podcast_id := request.path_params["podcast_id"]):
+        if not (podcast_id := request.path_params.get("podcast_id")):
             raise MethodNotAllowedError("Couldn't create episode without provided podcast_id")
 
         podcast = await self._get_object(podcast_id, db_model=Podcast)
