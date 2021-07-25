@@ -13,12 +13,12 @@ __all__ = ["GenerateRSSTask"]
 
 
 class GenerateRSSTask(RQTask):
-    """ Allows to recreate and upload RSS for specific podcast or for all of exists """
+    """Allows to recreate and upload RSS for specific podcast or for all of exists"""
 
     storage: StorageS3 = None
 
     async def run(self, *podcast_ids: int) -> FinishCode:
-        """ Run process for generation and upload RSS to the cloud (S3) """
+        """Run process for generation and upload RSS to the cloud (S3)"""
 
         self.storage = StorageS3()
         filter_kwargs = {"id__in": map(int, podcast_ids)} if podcast_ids else {}
@@ -35,7 +35,7 @@ class GenerateRSSTask(RQTask):
         return FinishCode.OK
 
     async def _generate(self, podcast: Podcast) -> dict:
-        """ Render RSS and upload it """
+        """Render RSS and upload it"""
 
         logger.info("START rss generation for %s", podcast)
         result_path = await self._render_rss_to_file(podcast)
@@ -52,7 +52,7 @@ class GenerateRSSTask(RQTask):
         return {podcast.id: FinishCode.OK}
 
     async def _render_rss_to_file(self, podcast: Podcast) -> str:
-        """ Generate rss for Podcast and Episodes marked as "published" """
+        """Generate rss for Podcast and Episodes marked as "published" """
 
         logger.info(f"Podcast #{podcast.id}: RSS generation has been started.")
 

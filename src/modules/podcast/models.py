@@ -34,7 +34,7 @@ class EpisodeStatus(enum.Enum):
 
 
 class Podcast(ModelBase, ModelMixin):
-    """ Simple schema_request for saving podcast in DB """
+    """Simple schema_request for saving podcast in DB"""
 
     __tablename__ = "podcast_podcasts"
 
@@ -81,7 +81,7 @@ class Podcast(ModelBase, ModelMixin):
 
 
 class Episode(ModelBase, ModelMixin):
-    """ Simple schema_request for saving episodes in DB """
+    """Simple schema_request for saving episodes in DB"""
 
     __tablename__ = "podcast_episodes"
     Status = EpisodeStatus
@@ -113,7 +113,7 @@ class Episode(ModelBase, ModelMixin):
 
     @classmethod
     async def get_in_progress(cls, db_session: AsyncSession, user_id: int):
-        """ Return downloading episodes """
+        """Return downloading episodes"""
         return await cls.async_filter(
             db_session, status__in=Episode.PROGRESS_STATUSES, created_by_id=user_id
         )

@@ -13,29 +13,24 @@ from modules.podcast.schemas import (
     EpisodeUpdateSchema,
     EpisodeDetailsSchema,
     EpisodeListRequestSchema,
-    EpisodeListResponseSchema, EpisodeListSchema,
+    EpisodeListResponseSchema,
+    EpisodeListSchema,
 )
 
 logger = get_logger(__name__)
 
 
 class EpisodeListCreateAPIView(BaseHTTPEndpoint):
-    """ List and Create (based on `EpisodeCreator` logic) API for episodes """
+    """List and Create (based on `EpisodeCreator` logic) API for episodes"""
 
     @property
     def schema_request(self):
-        schema_map = {
-            "get": EpisodeListRequestSchema,
-            "post": EpisodeCreateSchema
-        }
+        schema_map = {"get": EpisodeListRequestSchema, "post": EpisodeCreateSchema}
         return schema_map.get(self.request.method.lower())
 
     @property
     def schema_response(self):
-        schema_map = {
-            "get": EpisodeListResponseSchema,
-            "post": EpisodeListSchema
-        }
+        schema_map = {"get": EpisodeListResponseSchema, "post": EpisodeListSchema}
         return schema_map.get(self.request.method.lower())
 
     async def get(self, request):
@@ -76,7 +71,7 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
 
 
 class EpisodeRUDAPIView(BaseHTTPEndpoint):
-    """ Retrieve, Update, Delete API for episodes """
+    """Retrieve, Update, Delete API for episodes"""
 
     db_model = Episode
     schema_request = EpisodeUpdateSchema
@@ -102,7 +97,7 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
         return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
 
     async def _delete_file(self, episode: Episode):
-        """ Removing file associated with requested episode """
+        """Removing file associated with requested episode"""
 
         same_file_episodes = await Episode.async_filter(
             self.db_session,
@@ -122,7 +117,7 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
 
 
 class EpisodeDownloadAPIView(BaseHTTPEndpoint):
-    """ RUN episode's downloading (enqueue background task in RQ) """
+    """RUN episode's downloading (enqueue background task in RQ)"""
 
     db_model = Episode
     schema_request = EpisodeUpdateSchema

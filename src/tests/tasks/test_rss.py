@@ -8,7 +8,7 @@ from tests.helpers import get_episode_data, get_podcast_data, await_
 
 
 class TestGenerateRSSTask:
-    """ Checks RSS generation logic """
+    """Checks RSS generation logic"""
 
     def test_generate__single_podcast__ok(self, user, mocked_s3, dbs):
 

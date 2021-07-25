@@ -246,17 +246,17 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
 
     def setup_episodes(self, dbs, user, episode_data):
         self.user_2 = create_user(dbs)
-        self.podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user.id)))
-        self.podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user.id)))
-        self.podcast_3_from_user_2 = await_(
+        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user.id)))
+        podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user.id)))
+        podcast_3_from_user_2 = await_(
             Podcast.async_create(dbs, **get_podcast_data(created_by_id=self.user_2.id))
         )
         episode_data = episode_data | {"created_by_id": user.id}
-        self.episode_1 = create_episode(dbs, episode_data, self.podcast_1)
-        self.episode_2 = create_episode(dbs, episode_data, self.podcast_2)
+        self.episode_1 = create_episode(dbs, episode_data, podcast_1)
+        self.episode_2 = create_episode(dbs, episode_data, podcast_2)
 
         episode_data["created_by_id"] = self.user_2.id
-        self.episode_3 = create_episode(dbs, episode_data, self.podcast_3_from_user_2)
+        self.episode_3 = create_episode(dbs, episode_data, podcast_3_from_user_2)
         await_(dbs.commit())
 
     @staticmethod
@@ -294,14 +294,14 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
         [
             ("new", "New episode", "Old episode", ["New episode"]),
             ("epi", "New episode", "Old episode", ["New episode", "Old episode"]),
-        ]
+        ],
     )
     def test_get_list__filter_by_title__ok(
         self, client, episode_data, user, dbs, search, title1, title2, expected_titles
     ):
         self.setup_episodes(dbs, user, episode_data)
-        await_(self.episode_1.update(dbs, **{'title': title1}))
-        await_(self.episode_2.update(dbs, **{'title': title2}))
+        await_(self.episode_1.update(dbs, **{"title": title1}))
+        await_(self.episode_2.update(dbs, **{"title": title2}))
         await_(dbs.commit())
         await_(dbs.refresh(self.episode_1))
         await_(dbs.refresh(self.episode_2))

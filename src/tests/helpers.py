@@ -32,7 +32,7 @@ class PodcastTestClient(TestClient):
 
 
 def await_(coroutine):
-    """ Run coroutine in the current event loop """
+    """Run coroutine in the current event loop"""
 
     loop = asyncio.get_event_loop()
     return loop.run_until_complete(coroutine)
@@ -84,7 +84,7 @@ def get_user_data() -> Tuple[str, str]:
 
 
 def get_video_id() -> str:
-    """ Generate YouTube-like videoID """
+    """Generate YouTube-like videoID"""
     return blake2b(key=bytes(str(time.time()), encoding="utf-8"), digest_size=6).hexdigest()[:11]
 
 

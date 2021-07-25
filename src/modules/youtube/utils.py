@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 
 class YoutubeInfo(NamedTuple):
-    """ Structure of extended information about youtube video """
+    """Structure of extended information about youtube video"""
 
     watch_url: str
     video_id: str
@@ -32,7 +32,7 @@ class YoutubeInfo(NamedTuple):
 
 
 def get_video_id(source_url: str) -> Optional[str]:
-    """ Extracts youtube link and finds video ID """
+    """Extracts youtube link and finds video ID"""
 
     matched_url = re.findall(r"(?:v=|/)([0-9A-Za-z_-]{11}).*", source_url)
     if not matched_url:
@@ -77,7 +77,7 @@ def download_audio(youtube_link: str, filename: str) -> str:
 
 
 async def get_youtube_info(youtube_link: str) -> Tuple[str, Optional[YoutubeInfo]]:
-    """ Allows extract info about youtube video from Youtube webpage (powered by youtube_dl) """
+    """Allows extract info about youtube video from Youtube webpage (powered by youtube_dl)"""
 
     logger.info(f"Started fetching data for {youtube_link}")
     loop = asyncio.get_running_loop()

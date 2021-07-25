@@ -102,7 +102,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         return instance
 
     async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
-        """ Simple validation, based on marshmallow's schemas """
+        """Simple validation, based on marshmallow's schemas"""
 
         schema_kwargs = {}
         if partial_:
@@ -126,7 +126,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         status_code: int = status.HTTP_200_OK,
         response_status: ResponseStatus = ResponseStatus.OK,
     ) -> Response:
-        """ Returns JSON-Response (with single instance or list of them) or empty Response """
+        """Returns JSON-Response (with single instance or list of them) or empty Response"""
 
         response_instance = instance if (instance is not None) else data
         payload = {}
@@ -142,7 +142,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         )
 
     async def _run_task(self, task_class: Type[RQTask], *args, **kwargs):
-        """ Enqueue RQ task """
+        """Enqueue RQ task"""
 
         logger.info(f"RUN task {task_class}")
         loop = asyncio.get_running_loop()
@@ -161,7 +161,7 @@ class HealthCheckSchema(Schema):
 
 
 class HealthCheckAPIView(BaseHTTPEndpoint):
-    """ Allows to control status of web application (live ASGI and pg connection)"""
+    """Allows to control status of web application (live ASGI and pg connection)"""
 
     auth_backend = None
     schema_response = HealthCheckSchema
@@ -194,7 +194,7 @@ class HealthCheckAPIView(BaseHTTPEndpoint):
 
 
 class SentryCheckAPIView(BaseHTTPEndpoint):
-    """ Simple checker sentry config (raise err + logger). """
+    """Simple checker sentry config (raise err + logger)."""
 
     auth_backend = None
 

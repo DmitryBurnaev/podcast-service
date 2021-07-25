@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 
 
 def get_salt(length=12) -> str:
-    """ Returns a securely generated random string. """
+    """Returns a securely generated random string."""
     allowed_chars = string.ascii_letters + string.digits
     return "".join(secrets.choice(allowed_chars) for _ in range(length))
 
@@ -30,7 +30,7 @@ class PBKDF2PasswordHasher:
     digest = hashlib.sha256
 
     def encode(self, password: str, salt: str = None) -> str:
-        """ Encoding password using random salt + pbkdf2_sha256 """
+        """Encoding password using random salt + pbkdf2_sha256"""
         salt = salt or get_salt()
         assert password is not None
         assert salt and "$" not in salt

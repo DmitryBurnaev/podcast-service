@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 
 
 class EpisodeCreator:
-    """ Allows to extract info from YouTube end create (if necessary) episode """
+    """Allows to extract info from YouTube end create (if necessary) episode"""
 
     symbols_regex = re.compile("[&^<>*#]")
     http_link_regex = re.compile(

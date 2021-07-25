@@ -25,7 +25,7 @@ def encode_jwt(
     token_type: str = TOKEN_TYPE_ACCESS,
     expires_in: int = None,
 ) -> Tuple[str, datetime]:
-    """ Allows to prepare JWT for auth engine """
+    """Allows to prepare JWT for auth engine"""
 
     if token_type == TOKEN_TYPE_REFRESH:
         expires_in = settings.JWT_REFRESH_EXPIRES_IN
@@ -41,6 +41,6 @@ def encode_jwt(
 
 
 def decode_jwt(encoded_jwt: str) -> dict:
-    """ Allows to decode received JWT token to payload """
+    """Allows to decode received JWT token to payload"""
 
     return jwt.decode(encoded_jwt, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])

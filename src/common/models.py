@@ -7,7 +7,7 @@ from sqlalchemy.sql import Select
 
 
 class ModelMixin:
-    """ Base model for Gino (sqlalchemy) ORM """
+    """Base model for Gino (sqlalchemy) ORM"""
 
     id: int = NotImplemented
 
@@ -33,10 +33,7 @@ class ModelMixin:
 
     @classmethod
     async def async_filter(
-        cls, db_session: AsyncSession,
-        limit: int = None,
-        offset: int = None,
-        **filter_kwargs
+        cls, db_session: AsyncSession, limit: int = None, offset: int = None, **filter_kwargs
     ) -> ScalarResult:
         query = cls.prepare_query(limit=limit, offset=offset, **filter_kwargs)
         result = await db_session.execute(query)
@@ -44,10 +41,7 @@ class ModelMixin:
 
     @classmethod
     async def async_count(
-        cls, db_session: AsyncSession,
-        limit: int = None,
-        offset: int = None,
-        **filter_kwargs
+        cls, db_session: AsyncSession, limit: int = None, offset: int = None, **filter_kwargs
     ) -> int:
         query = cls.prepare_query(limit=limit, offset=offset, **filter_kwargs)
         result = await db_session.execute(query)

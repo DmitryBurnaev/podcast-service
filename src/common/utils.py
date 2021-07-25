@@ -12,7 +12,7 @@ from common.exceptions import SendRequestError, BaseApplicationError
 
 
 def get_logger(name: str = None):
-    """ Getting configured logger """
+    """Getting configured logger"""
     return logging.getLogger(name or "app")
 
 
@@ -25,7 +25,7 @@ def status_is_server_error(code):
 
 
 async def send_email(recipient_email: str, subject: str, html_content: str):
-    """ Allows to send email via Sendgrid API """
+    """Allows to send email via Sendgrid API"""
 
     request_url = f"https://api.sendgrid.com/{settings.SENDGRID_API_VERSION}/mail/send"
     request_data = {
@@ -74,7 +74,6 @@ def custom_exception_handler(request, exc):
     error_details = f"Raised Error: {exc.__class__.__name__}"
     status_code = getattr(exc, "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR)
     response_status = ResponseStatus.INTERNAL_ERROR
-    print(exc, isinstance(exc, BaseApplicationError))
     if isinstance(exc, BaseApplicationError):
         error_message = exc.message
         error_details = exc.details
@@ -91,7 +90,6 @@ def custom_exception_handler(request, exc):
         payload["details"] = error_details
 
     response_data = {"status": response_status, "payload": payload}
-    print(response_data)
     log_level = logging.ERROR if status_is_server_error(status_code) else logging.WARNING
     log_message(exc, response_data["payload"], log_level)
     return JSONResponse(response_data, status_code=status_code)
