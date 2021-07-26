@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 
 
 class PlayListAPIView(BaseHTTPEndpoint):
-    """ Allows to extract info from each episode in requested playlist """
+    """Allows to extract info from each episode in requested playlist"""
 
     schema_request = PlayListRequestSchema
     schema_response = PlayListResponseSchema

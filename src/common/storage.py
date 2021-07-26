@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 
 
 class StorageS3:
-    """ Simple client (singleton) for access to S3 bucket """
+    """Simple client (singleton) for access to S3 bucket"""
 
     __instance = None
     BUCKET_NAME = settings.S3_BUCKET_NAME
@@ -64,7 +64,7 @@ class StorageS3:
         return self.CODE_OK, response
 
     def upload_file(self, src_path: str, dst_path: str, callback: Callable = None) -> Optional[str]:
-        """ Upload file to S3 storage """
+        """Upload file to S3 storage"""
 
         mimetype, _ = mimetypes.guess_type(src_path)
         filename = os.path.basename(src_path)

@@ -58,6 +58,12 @@ class NotFoundError(BaseApplicationError):
     response_status = ResponseStatus.NOT_FOUND
 
 
+class MethodNotAllowedError(BaseApplicationError):
+    status_code = 405
+    message = "Requested method is not allowed."
+    response_status = ResponseStatus.NOT_ALLOWED
+
+
 class InviteTokenInvalidationError(BaseApplicationError):
     status_code = 401
     message = "Requested token is expired or does not exist."

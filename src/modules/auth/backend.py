@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 
 
 class BaseAuthJWTBackend:
-    """ Core of authenticate system, based on JWT auth approach """
+    """Core of authenticate system, based on JWT auth approach"""
 
     keyword = "Bearer"
 
@@ -47,7 +47,7 @@ class BaseAuthJWTBackend:
         jwt_token: str,
         token_type: str = TOKEN_TYPE_ACCESS,
     ) -> Tuple[User, dict, str]:
-        """ Allows to find active user by jwt_token """
+        """Allows to find active user by jwt_token"""
 
         logger.debug("Logging via JWT auth. Got token: %s", jwt_token)
         try:
@@ -88,11 +88,11 @@ class BaseAuthJWTBackend:
 
 
 class LoginRequiredAuthBackend(BaseAuthJWTBackend):
-    """ Each request must have filled `user` attribute """
+    """Each request must have filled `user` attribute"""
 
 
 class AdminRequiredAuthBackend(BaseAuthJWTBackend):
-    """ Login-ed used must have `is_superuser` attribute """
+    """Login-ed used must have `is_superuser` attribute"""
 
     async def authenticate_user(
         self, jwt_token: str, token_type: str = TOKEN_TYPE_ACCESS

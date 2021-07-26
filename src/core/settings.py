@@ -91,6 +91,7 @@ SITE_URL = config("SITE_URL", default="https://podcast.site.com/")
 DOWNLOAD_EVENT_REDIS_TTL = 60 * 60  # 60 minutes
 RQ_DEFAULT_TIMEOUT = 24 * 3600  # 24 hours
 FFMPEG_TIMEOUT = 2 * 60 * 60  # 2 hours
+DEFAULT_LIMIT_LIST_API = 20
 
 SENTRY_DSN = config("SENTRY_DSN", default=None)
 LOG_LEVEL = config("LOG_LEVEL", default="INFO")

@@ -1,11 +1,13 @@
 from marshmallow import Schema
 from webargs import fields, validate
 
+from core import settings
 
 __all__ = [
     "PodcastDetailsSchema",
     "PodcastCreateUpdateSchema",
-    "EpisodeListSchema",
+    "EpisodeListRequestSchema",
+    "EpisodeListResponseSchema",
     "EpisodeCreateSchema",
     "EpisodeDetailsSchema",
     "EpisodeUpdateSchema",
@@ -13,6 +15,17 @@ __all__ = [
     "PlayListResponseSchema",
     "ProgressResponseSchema",
 ]
+
+
+class BaseLimitOffsetSchema(Schema):
+    limit = fields.Int(required=False)
+    offset = fields.Int(required=False)
+
+    def load(self, *args, **kwargs):
+        data = super().load(*args, **kwargs)
+        data["limit"] = data.get("limit") or settings.DEFAULT_LIMIT_LIST_API
+        data["offset"] = data.get("offset") or 0
+        return data
 
 
 class PodcastCreateUpdateSchema(Schema):
@@ -36,6 +49,10 @@ class EpisodeCreateSchema(Schema):
     source_url = fields.URL(required=True)
 
 
+class EpisodeListRequestSchema(BaseLimitOffsetSchema):
+    q = fields.Str(default="")
+
+
 class EpisodeUpdateSchema(Schema):
     title = fields.Str(validate=validate.Length(max=256))
     description = fields.Str()
@@ -48,6 +65,11 @@ class EpisodeListSchema(Schema):
     created_at = fields.DateTime(required=True)
     image_url = fields.URL()
     status = fields.Str(required=True)
+
+
+class EpisodeListResponseSchema(Schema):
+    has_next = fields.Bool()
+    items = fields.Nested(EpisodeListSchema, many=True)
 
 
 class EpisodeDetailsSchema(Schema):

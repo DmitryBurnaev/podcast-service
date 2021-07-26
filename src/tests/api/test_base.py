@@ -9,7 +9,7 @@ from common.statuses import ResponseStatus
 class BaseTestCase:
     @staticmethod
     def assert_called_with(mock_callable, *args, **kwargs):
-        """ Check mock object (callable) on call action with provided `args`, `kwargs` """
+        """Check mock object (callable) on call action with provided `args`, `kwargs`"""
 
         assert mock_callable.called
         mock_call_args = mock_callable.call_args_list[-1]

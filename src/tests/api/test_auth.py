@@ -83,7 +83,7 @@ INVALID_CHANGE_PASSWORD_DATA = [
 
 
 def assert_tokens(response_data: dict, user: User, session_id: str = None):
-    """ Allows to check access- and refresh-tokens in the response body """
+    """Allows to check access- and refresh-tokens in the response body"""
 
     access_token = response_data.get("access_token")
     refresh_token = response_data.get("refresh_token")

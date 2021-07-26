@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 
 class PodcastListCreateAPIView(BaseHTTPEndpoint):
-    """ List and Create API for podcasts """
+    """List and Create API for podcasts"""
 
     schema_request = PodcastCreateUpdateSchema
     schema_response = PodcastDetailsSchema
@@ -50,7 +50,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
 
 
 class PodcastRUDAPIView(BaseHTTPEndpoint):
-    """ Retrieve, Update, Delete API for podcasts """
+    """Retrieve, Update, Delete API for podcasts"""
 
     db_model = Podcast
     schema_request = PodcastCreateUpdateSchema
@@ -107,7 +107,7 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
 
 
 class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):
-    """ Allows to start RSS generation task """
+    """Allows to start RSS generation task"""
 
     db_model = Podcast
 

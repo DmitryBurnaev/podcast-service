@@ -25,7 +25,7 @@ exception_handlers = {
 
 
 class PodcastApp(Starlette):
-    """ Simple adaptation of Starlette APP for podcast-service. Small addons here. """
+    """Simple adaptation of Starlette APP for podcast-service. Small addons here."""
 
     rq_queue: rq.Queue
     session_maker: sessionmaker
