@@ -24,6 +24,10 @@ class UnexpectedError(BaseApplicationError):
     message = "Something unexpected happened."
 
 
+class S3UploadingError(BaseApplicationError):
+    message = "Couldn't upload file to the storage"
+
+
 class HttpError(BaseApplicationError):
     message = "Some HTTP error happened."
 
