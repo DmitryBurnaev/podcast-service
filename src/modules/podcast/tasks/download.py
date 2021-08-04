@@ -180,3 +180,29 @@ class DownloadEpisodeTask(RQTask):
         await Episode.async_update(
             self.db_session, filter_kwargs=filter_kwargs, update_data=update_data
         )
+
+
+class DownloadEpisodeImageTask(RQTask):
+    """ Allows to fetch episodes image (cover), prepare them and upload to S3 """
+
+    storage: StorageS3 = None
+
+    async def run(self, episode_id: int) -> int:
+        self.storage = StorageS3()
+
+        try:
+            code = await self.perform_run()
+        except Exception as error:
+            logger.exception("Unable to download episode: %s", error)
+            await Episode.async_update(
+                self.db_session,
+                filter_kwargs={"id": episode_id},
+                update_data={"status": Episode.Status.ERROR},
+            )
+            return FinishCode.ERROR
+
+        return code.value
+
+    async def perform_run(self) -> FinishCode:
+        # TODO: implement logic here (for given episode)
+        return FinishCode.OK

@@ -3,7 +3,7 @@ Backend Service which can be used for creation a custom podcasts (sets of episod
 This project provides a backend (API service) and is positioned as an updated version of [podcast application](https://github.com/DmitryBurnaev/podcast).
 
 ![GitHub Pipenv locked Python version](https://img.shields.io/github/pipenv/locked/python-version/DmitryBurnaev/podcast-service)
-
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 ## Content
 + [Project Description](#project-description)

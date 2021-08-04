@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import logging.config
 
@@ -111,3 +112,24 @@ def cut_string(source_string: str, max_length: int, finish_seq: str = "...") -> 
         return source_string[:slice_length] + finish_seq if (slice_length > 0) else ""
 
     return source_string
+
+
+async def download_content(url: str, retries=5):
+    """ Allows to fetch content from url """
+
+    logger = get_logger(__name__)
+    logger.debug(f"Send request to {url}")
+    while retries := (retries - 1):
+        async with httpx.AsyncClient() as client:
+            await asyncio.sleep(0.1)
+            try:
+                response = await client.get(url, timeout=600)
+            except Exception as err:
+                logger.warning(f"Couldn't download {url}! Error: {err}")
+                continue
+
+            if not (200 <= response.status_code <= 299):
+                logger.warning(f"Couldn't download {url}! Error: Status: {response.status_code}")
+                continue
+
+            return response.content
