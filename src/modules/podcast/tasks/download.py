@@ -1,8 +1,13 @@
+import os.path
+import uuid
+from pathlib import Path
+from typing import Optional
+
 from youtube_dl.utils import YoutubeDLError
 
 from core import settings
 from common.storage import StorageS3
-from common.utils import get_logger
+from common.utils import get_logger, download_content
 from modules.podcast.models import Episode
 from modules.podcast.tasks.base import RQTask, FinishCode
 from modules.podcast.tasks.rss import GenerateRSSTask
@@ -187,11 +192,11 @@ class DownloadEpisodeImageTask(RQTask):
 
     storage: StorageS3 = None
 
-    async def run(self, episode_id: int) -> int:
+    async def run(self, episode_id: int = None) -> int:
         self.storage = StorageS3()
 
         try:
-            code = await self.perform_run()
+            code = await self.perform_run(episode_id)
         except Exception as error:
             logger.exception("Unable to download episode: %s", error)
             await Episode.async_update(
@@ -203,6 +208,30 @@ class DownloadEpisodeImageTask(RQTask):
 
         return code.value
 
-    async def perform_run(self) -> FinishCode:
-        # TODO: implement logic here (for given episode)
+    async def perform_run(self, episode_id: Optional[int]) -> FinishCode:
+        filter_kwargs = {}
+        if episode_id:
+            filter_kwargs['id'] = episode_id
+
+        episodes = await Episode.async_filter(self.db_session, **filter_kwargs)
+        for episode in episodes:
+            tmp_path = await self._crop_image(episode)
+            result_url = await self._upload_cover(tmp_path)
+            await episode.update(self.db_session, image_url=result_url)
+
         return FinishCode.OK
+
+    async def _crop_image(self, episode) -> Path:
+        # TODO: if got 404: use default cover instead
+        image_content = await download_content(episode.image_url)
+        file_ext = episode.image_url.rpartition(".")[2]
+        path = settings.TMP_IMAGE_PATH / f"{uuid.uuid4().hex}.{file_ext}"
+        with open(path, 'wb') as file:
+            file.write(image_content)
+
+        # TODO: crop image here (using ffmpeg)
+        #       https: // trac.ffmpeg.org / wiki / Scaling
+        return path
+
+    async def _upload_cover(self, tmp_path: Path):
+        ...
