@@ -13,6 +13,7 @@ from modules.podcast.tasks.base import RQTask, FinishCode
 from modules.podcast.tasks.rss import GenerateRSSTask
 from modules.youtube import utils as youtube_utils
 from modules.podcast import utils as podcast_utils
+from modules.youtube.utils import ffmpeg_preparation
 
 logger = get_logger(__name__)
 status = Episode.Status
@@ -147,7 +148,7 @@ class DownloadEpisodeTask(RQTask):
         """Postprocessing for downloaded audio file"""
 
         logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
-        youtube_utils.ffmpeg_preparation(result_filename)
+        youtube_utils.ffmpeg_preparation(src_path=(settings.TMP_AUDIO_PATH / result_filename))
         logger.info("=== [%s] POST PROCESSING was done === ", episode.source_id)
 
     async def _upload_file(self, episode: Episode, result_filename: str):
@@ -229,8 +230,8 @@ class DownloadEpisodeImageTask(RQTask):
         with open(path, 'wb') as file:
             file.write(image_content)
 
-        # TODO: crop image here (using ffmpeg)
-        #       https: // trac.ffmpeg.org / wiki / Scaling
+        # TODO: solve problem with scaling
+        ffmpeg_preparation(src_path=path, ffmpeg_params=["-vf", "scale=400:400"])
         return path
 
     async def _upload_cover(self, tmp_path: Path):

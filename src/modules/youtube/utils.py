@@ -5,7 +5,8 @@ import subprocess
 from multiprocessing import Process
 from contextlib import suppress
 from functools import partial
-from typing import Optional, NamedTuple, Tuple
+from pathlib import Path
+from typing import Optional, NamedTuple, Tuple, Union
 
 import youtube_dl
 from youtube_dl.utils import YoutubeDLError
@@ -103,14 +104,13 @@ async def get_youtube_info(youtube_link: str) -> Tuple[str, Optional[YoutubeInfo
     return "OK", youtube_info
 
 
-def ffmpeg_preparation(filename: str):
+def ffmpeg_preparation(src_path: Union[str, Path], ffmpeg_params: list[str] = None) -> None:
     """
     Ffmpeg allows to fix problem with length of audio track
     (in metadata value for this is incorrect, but fact length is fully correct)
     """
-
+    filename = os.path.basename(src_path)
     logger.info(f"Start FFMPEG preparations for {filename} === ")
-    src_path = os.path.join(settings.TMP_AUDIO_PATH, filename)
     total_bytes = get_file_size(src_path)
     episode_process_hook(
         status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
@@ -127,8 +127,9 @@ def ffmpeg_preparation(filename: str):
     )
     p.start()
     try:
+        ffmpeg_params = ffmpeg_params or ["-vn", "-acodec", "libmp3lame", "-q:a", "5"]
         completed_proc = subprocess.run(
-            ["ffmpeg", "-y", "-i", src_path, "-vn", "-acodec", "libmp3lame", "-q:a", "5", tmp_path],
+            ["ffmpeg", "-y", "-i", src_path, *ffmpeg_params, tmp_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             check=True,
