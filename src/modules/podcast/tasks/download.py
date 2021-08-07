@@ -5,6 +5,7 @@ from typing import Optional
 
 from youtube_dl.utils import YoutubeDLError
 
+from common.exceptions import NotFoundError
 from core import settings
 from common.storage import StorageS3
 from common.utils import get_logger, download_content
@@ -216,23 +217,36 @@ class DownloadEpisodeImageTask(RQTask):
 
         episodes = await Episode.async_filter(self.db_session, **filter_kwargs)
         for episode in episodes:
-            tmp_path = await self._crop_image(episode)
-            result_url = await self._upload_cover(tmp_path)
+            if tmp_path := await self._crop_image(episode):
+                result_url = await self._upload_cover(tmp_path)
+            else:
+                result_url = settings.DEFAULT_EPISODE_COVER
+
             await episode.update(self.db_session, image_url=result_url)
 
         return FinishCode.OK
 
-    async def _crop_image(self, episode) -> Path:
-        # TODO: if got 404: use default cover instead
-        image_content = await download_content(episode.image_url)
+    @staticmethod
+    async def _crop_image(episode) -> Optional[Path]:
+        try:
+            image_content = await download_content(episode.image_url)
+        except NotFoundError:
+            return None
+
         file_ext = episode.image_url.rpartition(".")[2]
         path = settings.TMP_IMAGE_PATH / f"{uuid.uuid4().hex}.{file_ext}"
         with open(path, 'wb') as file:
             file.write(image_content)
 
-        # TODO: solve problem with scaling
-        ffmpeg_preparation(src_path=path, ffmpeg_params=["-vf", "scale=400:400"])
+        ffmpeg_preparation(src_path=path, ffmpeg_params=["-vf", "scale=600:-1"])
         return path
 
     async def _upload_cover(self, tmp_path: Path):
-        ...
+        file_ext = os.path.basename(tmp_path).rpartition(".")[2]
+        file_name = f"episode-{uuid.uuid4().hex}.{file_ext}"
+        result_url = self.storage.upload_file(
+            src_path=str(tmp_path),
+            dst_path=(settings.S3_BUCKET_EPISODE_IMAGES_PATH / file_name)
+        )
+        # TODO: support empty URL
+        return result_url

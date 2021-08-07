@@ -56,11 +56,7 @@ class Podcast(ModelBase, ModelMixin):
 
     @property
     def safe_image_url(self) -> str:
-        image_url = self.image_url
-        if not image_url:
-            image_url = urljoin(settings.S3_STORAGE_URL, settings.S3_DEFAULT_PODCAST_IMAGE)
-
-        return image_url
+        return self.image_url or settings.DEFAULT_PODCAST_COVER
 
     @classmethod
     async def create_first_podcast(cls, db_session: AsyncSession, user_id: int):
