@@ -57,7 +57,7 @@ REDIS_HOST = config("REDIS_HOST", default="localhost")
 REDIS_PORT = config("REDIS_PORT", default=6379)
 REDIS_DB = config("REDIS_DB", default=0)
 REDIS_CON = (REDIS_HOST, REDIS_PORT, REDIS_DB)
-RQ_QUEUE_NAME = config("RQ_QUEUE_NAME", default="youtube_downloads")
+RQ_QUEUE_NAME = config("RQ_QUEUE_NAME", default="podcast")
 
 
 TMP_AUDIO_PATH = Path(tempfile.mkdtemp(prefix="podcast_audio__"))

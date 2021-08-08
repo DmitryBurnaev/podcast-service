@@ -9,7 +9,7 @@ if [ "${APP_SERVICE}" = "web" ]
 elif [ "${APP_SERVICE}" = "rq" ]
   then
     cd /podcast && alembic upgrade head
-    cd src && python -m worker youtube_downloads
+    cd src && python -m worker podcast
 
 elif [ "${APP_SERVICE}" = "test" ]
   then

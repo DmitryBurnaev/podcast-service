@@ -94,3 +94,8 @@ class SendRequestError(BaseApplicationError):
     def __init__(self, message: str, details: str, request_url: str):
         super().__init__(details, message)
         self.request_url = request_url
+
+
+class MaxAttemptsReached(BaseApplicationError):
+    status_code = 503
+    message = "Reached max attempt to make action"

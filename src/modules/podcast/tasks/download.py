@@ -5,7 +5,7 @@ from typing import Optional
 
 from youtube_dl.utils import YoutubeDLError
 
-from common.exceptions import NotFoundError
+from common.exceptions import NotFoundError, MaxAttemptsReached
 from core import settings
 from common.storage import StorageS3
 from common.utils import get_logger, download_content
@@ -193,6 +193,7 @@ class DownloadEpisodeImageTask(RQTask):
     """ Allows to fetch episodes image (cover), prepare them and upload to S3 """
 
     storage: StorageS3 = None
+    MAX_UPLOAD_ATTEMPT = 5
 
     async def run(self, episode_id: int = None) -> int:
         self.storage = StorageS3()
@@ -200,7 +201,7 @@ class DownloadEpisodeImageTask(RQTask):
         try:
             code = await self.perform_run(episode_id)
         except Exception as error:
-            logger.exception("Unable to download episode: %s", error)
+            logger.exception("Unable to upload episode's image: %s | episode %s", error, episode_id)
             await Episode.async_update(
                 self.db_session,
                 filter_kwargs={"id": episode_id},
@@ -213,7 +214,7 @@ class DownloadEpisodeImageTask(RQTask):
     async def perform_run(self, episode_id: Optional[int]) -> FinishCode:
         filter_kwargs = {}
         if episode_id:
-            filter_kwargs['id'] = episode_id
+            filter_kwargs['id'] = int(episode_id)
 
         episodes = await Episode.async_filter(self.db_session, **filter_kwargs)
         for episode in episodes:
@@ -233,6 +234,8 @@ class DownloadEpisodeImageTask(RQTask):
         except NotFoundError:
             return None
 
+        # FIXME: filename 4561c01ff0d647658afb12e4ce19eb97.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAptIo1UJ2s8UlZf63j403kjmhkCQ
+        # TODO: recheck for all episodes
         file_ext = episode.image_url.rpartition(".")[2]
         path = settings.TMP_IMAGE_PATH / f"{uuid.uuid4().hex}.{file_ext}"
         with open(path, 'wb') as file:
@@ -244,9 +247,13 @@ class DownloadEpisodeImageTask(RQTask):
     async def _upload_cover(self, tmp_path: Path):
         file_ext = os.path.basename(tmp_path).rpartition(".")[2]
         file_name = f"episode-{uuid.uuid4().hex}.{file_ext}"
-        result_url = self.storage.upload_file(
-            src_path=str(tmp_path),
-            dst_path=(settings.S3_BUCKET_EPISODE_IMAGES_PATH / file_name)
-        )
-        # TODO: support empty URL
-        return result_url
+        attempt = self.MAX_UPLOAD_ATTEMPT
+        while attempt := (attempt - 1):
+            # TODO: ascynio.sleep
+            if result_url := self.storage.upload_file(
+                src_path=str(tmp_path),
+                dst_path=(settings.S3_BUCKET_EPISODE_IMAGES_PATH / file_name)
+            ):
+                return result_url
+
+        raise MaxAttemptsReached("Couldn't upload cover for episode")

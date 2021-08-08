@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import logging.config
+from typing import Optional
 
 import httpx
 from starlette import status
@@ -9,7 +10,7 @@ from webargs_starlette import WebargsHTTPException
 
 from common.statuses import ResponseStatus
 from core import settings
-from common.exceptions import SendRequestError, BaseApplicationError
+from common.exceptions import SendRequestError, BaseApplicationError, NotFoundError
 
 
 def get_logger(name: str = None):
@@ -114,7 +115,7 @@ def cut_string(source_string: str, max_length: int, finish_seq: str = "...") -> 
     return source_string
 
 
-async def download_content(url: str, retries=5):
+async def download_content(url: str, retries=5) -> Optional[bytes]:
     """ Allows to fetch content from url """
 
     logger = get_logger(__name__)
@@ -127,6 +128,9 @@ async def download_content(url: str, retries=5):
             except Exception as err:
                 logger.warning(f"Couldn't download {url}! Error: {err}")
                 continue
+
+            if response.status_code == status.HTTP_404_NOT_FOUND:
+                raise NotFoundError(f"Resource not found by URL {url}!")
 
             if not (200 <= response.status_code <= 299):
                 logger.warning(f"Couldn't download {url}! Error: Status: {response.status_code}")

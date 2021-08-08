@@ -21,7 +21,7 @@ def main():
     )
     task = task_map[args.task_name]()
     print(f" ===== Running task {task} | args: {args.task_args} ===== ")
-    rq_queue.enqueue(task, *args.task_args)
+    rq_queue.enqueue(task, *(args.task_args or []))
 
 
 if __name__ == "__main__":
