@@ -1,4 +1,4 @@
-import os.path
+import asyncio
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -223,6 +223,7 @@ class DownloadEpisodeImageTask(RQTask):
             else:
                 result_url = settings.DEFAULT_EPISODE_COVER
 
+            logger.info("Saving new image URL: episode %s | url %s", episode_id, result_url )
             await episode.update(self.db_session, image_url=result_url)
 
         return FinishCode.OK
@@ -234,10 +235,7 @@ class DownloadEpisodeImageTask(RQTask):
         except NotFoundError:
             return None
 
-        # FIXME: filename 4561c01ff0d647658afb12e4ce19eb97.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAptIo1UJ2s8UlZf63j403kjmhkCQ
-        # TODO: recheck for all episodes
-        file_ext = episode.image_url.rpartition(".")[2]
-        path = settings.TMP_IMAGE_PATH / f"{uuid.uuid4().hex}.{file_ext}"
+        path = settings.TMP_IMAGE_PATH / f"episode-{uuid.uuid4().hex}.jpg"
         with open(path, 'wb') as file:
             file.write(image_content)
 
@@ -245,15 +243,14 @@ class DownloadEpisodeImageTask(RQTask):
         return path
 
     async def _upload_cover(self, tmp_path: Path):
-        file_ext = os.path.basename(tmp_path).rpartition(".")[2]
-        file_name = f"episode-{uuid.uuid4().hex}.{file_ext}"
         attempt = self.MAX_UPLOAD_ATTEMPT
         while attempt := (attempt - 1):
-            # TODO: ascynio.sleep
             if result_url := self.storage.upload_file(
                 src_path=str(tmp_path),
-                dst_path=(settings.S3_BUCKET_EPISODE_IMAGES_PATH / file_name)
+                dst_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
             ):
                 return result_url
+
+            await asyncio.sleep(1)
 
         raise MaxAttemptsReached("Couldn't upload cover for episode")
