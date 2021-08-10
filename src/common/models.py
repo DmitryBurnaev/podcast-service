@@ -4,6 +4,7 @@ from sqlalchemy import and_, select, update, delete
 from sqlalchemy.engine import ScalarResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
+from sqlalchemy.sql.functions import count
 
 
 class ModelMixin:
@@ -38,14 +39,6 @@ class ModelMixin:
         query = cls.prepare_query(limit=limit, offset=offset, **filter_kwargs)
         result = await db_session.execute(query)
         return result.scalars()
-
-    @classmethod
-    async def async_count(
-        cls, db_session: AsyncSession, limit: int = None, offset: int = None, **filter_kwargs
-    ) -> int:
-        query = cls.prepare_query(limit=limit, offset=offset, **filter_kwargs)
-        result = await db_session.execute(query)
-        return result.count()
 
     @classmethod
     async def async_get(cls, db_session: AsyncSession, **filter_kwargs) -> "DBModel":

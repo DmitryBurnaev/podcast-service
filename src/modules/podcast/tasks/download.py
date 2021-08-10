@@ -3,6 +3,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
+from sqlalchemy import func
 from youtube_dl.utils import YoutubeDLError
 
 from common.exceptions import NotFoundError, MaxAttemptsReached
@@ -217,13 +218,23 @@ class DownloadEpisodeImageTask(RQTask):
             filter_kwargs['id'] = int(episode_id)
 
         episodes = await Episode.async_filter(self.db_session, **filter_kwargs)
-        for episode in episodes:
+        # episodes_count = len(list(episodes))
+        # TODO: implement episodes count
+        q = Episode.prepare_query()
+        episodes_count = await self.db_session.execute(q.select(func.count()))
+
+        for index, episode in enumerate(episodes, start=1):
+            logger.info("=== Episode %i from %i ===", index, episodes_count)
+            if settings.S3_STORAGE_URL in episode.image_url:
+                logger.info("Skip episode %i | image URL: %s", episode.id, episode.image_url)
+                continue
+
             if tmp_path := await self._crop_image(episode):
                 result_url = await self._upload_cover(tmp_path)
             else:
                 result_url = settings.DEFAULT_EPISODE_COVER
 
-            logger.info("Saving new image URL: episode %s | url %s", episode_id, result_url )
+            logger.info("Saving new image URL: episode %s | url %s", episode.id, result_url)
             await episode.update(self.db_session, image_url=result_url)
 
         return FinishCode.OK
