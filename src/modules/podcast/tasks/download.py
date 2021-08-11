@@ -3,7 +3,6 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from sqlalchemy import func
 from youtube_dl.utils import YoutubeDLError
 
 from common.exceptions import NotFoundError, MaxAttemptsReached
@@ -202,11 +201,9 @@ class DownloadEpisodeImageTask(RQTask):
         try:
             code = await self.perform_run(episode_id)
         except Exception as error:
-            logger.exception("Unable to upload episode's image: %s | episode %s", error, episode_id)
-            await Episode.async_update(
-                self.db_session,
-                filter_kwargs={"id": episode_id},
-                update_data={"status": Episode.Status.ERROR},
+            logger.exception(
+                "Unable to upload episode's image: episode %s | error: %s",
+                error, episode_id
             )
             return FinishCode.ERROR
 
@@ -217,11 +214,8 @@ class DownloadEpisodeImageTask(RQTask):
         if episode_id:
             filter_kwargs['id'] = int(episode_id)
 
-        episodes = await Episode.async_filter(self.db_session, **filter_kwargs)
-        # episodes_count = len(list(episodes))
-        # TODO: implement episodes count
-        q = Episode.prepare_query()
-        episodes_count = await self.db_session.execute(q.select(func.count()))
+        episodes = list(await Episode.async_filter(self.db_session, **filter_kwargs))
+        episodes_count = len(episodes)
 
         for index, episode in enumerate(episodes, start=1):
             logger.info("=== Episode %i from %i ===", index, episodes_count)
