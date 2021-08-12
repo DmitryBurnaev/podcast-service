@@ -67,6 +67,7 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
             await episode.update(self.db_session, status=Episode.Status.DOWNLOADING)
             await self._run_task(tasks.DownloadEpisodeTask, episode_id=episode.id)
 
+        await self._run_task(tasks.DownloadEpisodeImageTask, episode_id=episode.id)
         return self._response(episode, status_code=status.HTTP_201_CREATED)
 
 

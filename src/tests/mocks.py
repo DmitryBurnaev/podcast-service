@@ -113,6 +113,13 @@ class MockEpisodeCreator(BaseMock):
         self.create = Mock(return_value=self.async_return(None))
 
 
+class MockEpisodeCreator(BaseMock):
+    target_class = EpisodeCreator
+
+    def __init__(self):
+        self.create = Mock(return_value=self.async_return(None))
+
+
 class MockRQQueue(BaseMock):
     target_class = rq.Queue
 

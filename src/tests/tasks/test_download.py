@@ -174,3 +174,34 @@ class TestDownloadEpisodeTask(BaseTestCase):
             total_bytes=1024,
             processed_bytes=24,
         )
+
+
+class TestDownloadEpisodeImageTas(BaseTestCase):
+
+    def test_download_image__ok(self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, dbs):
+        # file_path = settings.TMP_AUDIO_PATH / episode.file_name
+        # with open(file_path, "wb") as file:
+        #     file.write(b"EpisodeData")
+        #
+        # result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
+        # episode = await_(Episode.async_get(dbs, id=episode.id))
+        #
+        # mocked_youtube.download.assert_called_with([episode.watch_url])
+        # mocked_ffmpeg.assert_called_with(episode.file_name)
+        # self.assert_called_with(
+        #     mocked_s3.upload_file,
+        #     src_path=str(file_path),
+        #     dst_path=settings.S3_BUCKET_AUDIO_PATH,
+        # )
+        # mocked_generate_rss_task.run.assert_called_with(episode.podcast_id)
+        #
+        # assert result == FinishCode.OK
+        # assert episode.status == Episode.Status.PUBLISHED
+        assert episode.image_url == ""
+
+    def test_download__image_not_found__use_default(self):
+        ...
+
+    def test_download__skip_already_downloaded(self):
+        ...
+

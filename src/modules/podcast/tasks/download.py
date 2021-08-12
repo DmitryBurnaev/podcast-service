@@ -18,7 +18,7 @@ from modules.youtube.utils import ffmpeg_preparation
 
 logger = get_logger(__name__)
 status = Episode.Status
-__all__ = ["DownloadEpisodeTask"]
+__all__ = ["DownloadEpisodeTask", "DownloadEpisodeImageTask"]
 
 
 class DownloadingInterrupted(Exception):
