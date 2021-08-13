@@ -1,10 +1,11 @@
+import uuid
 from unittest.mock import patch
 
 from youtube_dl.utils import DownloadError
 
 from core import settings
 from modules.podcast.models import Episode, Podcast, EpisodeStatus
-from modules.podcast.tasks import DownloadEpisodeTask
+from modules.podcast.tasks import DownloadEpisodeTask, DownloadEpisodeImageTask
 from modules.podcast.tasks.base import FinishCode
 from modules.youtube.utils import download_process_hook
 from tests.api.test_base import BaseTestCase
@@ -179,25 +180,15 @@ class TestDownloadEpisodeTask(BaseTestCase):
 class TestDownloadEpisodeImageTas(BaseTestCase):
 
     def test_download_image__ok(self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, dbs):
-        # file_path = settings.TMP_AUDIO_PATH / episode.file_name
-        # with open(file_path, "wb") as file:
-        #     file.write(b"EpisodeData")
-        #
-        # result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
-        # episode = await_(Episode.async_get(dbs, id=episode.id))
-        #
-        # mocked_youtube.download.assert_called_with([episode.watch_url])
-        # mocked_ffmpeg.assert_called_with(episode.file_name)
-        # self.assert_called_with(
-        #     mocked_s3.upload_file,
-        #     src_path=str(file_path),
-        #     dst_path=settings.S3_BUCKET_AUDIO_PATH,
-        # )
-        # mocked_generate_rss_task.run.assert_called_with(episode.podcast_id)
-        #
-        # assert result == FinishCode.OK
-        # assert episode.status == Episode.Status.PUBLISHED
-        assert episode.image_url == ""
+        expected_url = f"https://url-to-image.com/cover-{uuid.uuid4().hex}"
+        mocked_s3.upload_file.return_value = expected_url
+        mocked_ffmpeg.return_value = "/tmp/path-to-local/image.jpg"
+
+        result = await_(DownloadEpisodeImageTask(db_session=dbs).run(episode.id))
+        episode = await_(Episode.async_get(dbs, id=episode.id))
+        assert result == FinishCode.OK
+        assert episode.status == Episode.Status.PUBLISHED
+        assert episode.image_url == expected_url
 
     def test_download__image_not_found__use_default(self):
         ...
