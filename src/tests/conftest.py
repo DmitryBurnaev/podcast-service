@@ -12,6 +12,7 @@ from core import settings
 from modules.auth.models import UserInvite
 from modules.podcast.models import Podcast, Episode
 from modules.youtube import utils as youtube_utils
+from common import utils as common_utils
 from tests.helpers import (
     PodcastTestClient,
     get_user_data,
@@ -107,6 +108,14 @@ def mocked_ffmpeg(monkeypatch) -> Mock:
     monkeypatch.setattr(youtube_utils, "ffmpeg_preparation", mocked_ffmpeg_function)
     yield mocked_ffmpeg_function
     del mocked_ffmpeg_function
+
+
+# @pytest.fixture
+# def mocked_download_content(monkeypatch) -> Mock:
+#     mocked_download_content = AsyncMock()
+#     monkeypatch.setattr(common_utils, "download_content", mocked_download_content)
+#     yield mocked_download_content
+#     del mocked_download_content
 
 
 @pytest.fixture

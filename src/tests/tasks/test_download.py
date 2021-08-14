@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from youtube_dl.utils import DownloadError
 
+from common.exceptions import NotFoundError
 from core import settings
 from modules.podcast.models import Episode, Podcast, EpisodeStatus
 from modules.podcast.tasks import DownloadEpisodeTask, DownloadEpisodeImageTask
@@ -179,20 +180,30 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
 class TestDownloadEpisodeImageTas(BaseTestCase):
 
-    def test_download_image__ok(self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, dbs):
+    @patch("modules.podcast.tasks.download.download_content")
+    def test_download_image__ok(self, mocked_download_content, episode, mocked_ffmpeg, mocked_s3, dbs):
+        mocked_download_content.return_value = b"image-content"
         expected_url = f"https://url-to-image.com/cover-{uuid.uuid4().hex}"
         mocked_s3.upload_file.return_value = expected_url
-        mocked_ffmpeg.return_value = "/tmp/path-to-local/image.jpg"
-
+        mocked_ffmpeg.return_value = settings.TMP_IMAGE_PATH / f"test-episode.jpg"
         result = await_(DownloadEpisodeImageTask(db_session=dbs).run(episode.id))
-        episode = await_(Episode.async_get(dbs, id=episode.id))
+        await_(dbs.refresh(episode))
         assert result == FinishCode.OK
-        assert episode.status == Episode.Status.PUBLISHED
         assert episode.image_url == expected_url
 
-    def test_download__image_not_found__use_default(self):
-        ...
+    @patch("modules.podcast.tasks.download.download_content")
+    def test_download__image_not_found__use_default(self, mocked_download_content, episode, dbs):
+        mocked_download_content.side_effect = NotFoundError()
+        result = await_(DownloadEpisodeImageTask(db_session=dbs).run(episode.id))
+        await_(dbs.refresh(episode))
+        assert result == FinishCode.OK
+        assert episode.image_url == settings.DEFAULT_EPISODE_COVER
 
-    def test_download__skip_already_downloaded(self):
-        ...
-
+    @patch("modules.podcast.tasks.download.download_content")
+    def test_download__skip_already_downloaded(self, mocked_download_content, episode, dbs):
+        await_(episode.update(dbs, image_url=settings.DEFAULT_EPISODE_COVER))
+        result = await_(DownloadEpisodeImageTask(db_session=dbs).run(episode.id))
+        await_(dbs.refresh(episode))
+        assert result == FinishCode.OK
+        assert episode.image_url == settings.DEFAULT_EPISODE_COVER
+        assert mocked_download_content.assert_not_awaited
