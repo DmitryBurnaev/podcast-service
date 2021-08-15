@@ -43,7 +43,7 @@ class TestFFMPEG(BaseTestCase):
     @patch("modules.youtube.utils.episode_process_hook")
     def test_episode_prepare__ok(self, mocked_process_hook, mocked_run, mocked_process):
         mocked_run.return_value = CompletedProcess([], returncode=0, stdout=b"Success")
-        ffmpeg_preparation(self.filename)
+        ffmpeg_preparation(self.src_path)
         self.assert_called_with(
             mocked_run,
             [
@@ -83,7 +83,7 @@ class TestFFMPEG(BaseTestCase):
     def test_episode_prepare__ffmpeg_error__fail(self, mocked_process_hook, mocked_run):
         mocked_run.side_effect = subprocess.CalledProcessError(1, [], stderr=b"FFMPEG oops")
         with pytest.raises(FFMPegPreparationError) as err:
-            ffmpeg_preparation(self.filename)
+            ffmpeg_preparation(self.src_path)
 
         assert not os.path.exists(self.tmp_filename), f"File wasn't removed: {self.tmp_filename}"
         assert err.value.details == (
@@ -101,7 +101,7 @@ class TestFFMPEG(BaseTestCase):
         os.remove(self.tmp_filename)
 
         with pytest.raises(FFMPegPreparationError) as err:
-            ffmpeg_preparation(self.filename)
+            ffmpeg_preparation(self.src_path)
 
         assert err.value.details == (
             f"Failed to rename/remove tmp file: Prepared file {self.tmp_filename} wasn't created"

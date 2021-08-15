@@ -25,7 +25,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode = await_(Episode.async_get(dbs, id=episode.id))
 
         mocked_youtube.download.assert_called_with([episode.watch_url])
-        mocked_ffmpeg.assert_called_with(episode.file_name)
+        mocked_ffmpeg.assert_called_with(src_path=file_path)
         self.assert_called_with(
             mocked_s3.upload_file,
             src_path=str(file_path),
@@ -105,7 +105,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
         await_(dbs.refresh(episode))
         mocked_youtube.download.assert_called_with([episode.watch_url])
-        mocked_ffmpeg.assert_called_with(episode.file_name)
+        mocked_ffmpeg.assert_called_with(src_path=file_path)
         self.assert_called_with(
             mocked_s3.upload_file,
             src_path=str(file_path),
@@ -178,18 +178,20 @@ class TestDownloadEpisodeTask(BaseTestCase):
         )
 
 
-class TestDownloadEpisodeImageTas(BaseTestCase):
+class TestDownloadEpisodeImageTask(BaseTestCase):
 
+    @patch("modules.podcast.tasks.download.ffmpeg_preparation")
     @patch("modules.podcast.tasks.download.download_content")
-    def test_download_image__ok(self, mocked_download_content, episode, mocked_ffmpeg, mocked_s3, dbs):
+    def test_download_image__ok(self, mocked_download_content, mocked_ffmpeg, episode, mocked_s3, dbs):
         mocked_download_content.return_value = b"image-content"
         expected_url = f"https://url-to-image.com/cover-{uuid.uuid4().hex}"
         mocked_s3.upload_file.return_value = expected_url
-        mocked_ffmpeg.return_value = settings.TMP_IMAGE_PATH / f"test-episode.jpg"
+        # mocked_ffmpeg.return_value = settings.TMP_IMAGE_PATH / f"test-episode.jpg"
         result = await_(DownloadEpisodeImageTask(db_session=dbs).run(episode.id))
         await_(dbs.refresh(episode))
         assert result == FinishCode.OK
         assert episode.image_url == expected_url
+        mocked_ffmpeg.assert_called_with(src_path=(settings.TMP_IMAGE_PATH / f"test-episode.jpg"))
 
     @patch("modules.podcast.tasks.download.download_content")
     def test_download__image_not_found__use_default(self, mocked_download_content, episode, dbs):

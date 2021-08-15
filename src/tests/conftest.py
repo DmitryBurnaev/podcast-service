@@ -110,14 +110,6 @@ def mocked_ffmpeg(monkeypatch) -> Mock:
     del mocked_ffmpeg_function
 
 
-# @pytest.fixture
-# def mocked_download_content(monkeypatch) -> Mock:
-#     mocked_download_content = AsyncMock()
-#     monkeypatch.setattr(common_utils, "download_content", mocked_download_content)
-#     yield mocked_download_content
-#     del mocked_download_content
-
-
 @pytest.fixture
 def mocked_auth_send() -> AsyncMock:
     mocked_send_email = AsyncMock()
