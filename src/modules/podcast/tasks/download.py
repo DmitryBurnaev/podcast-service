@@ -222,7 +222,7 @@ class DownloadEpisodeImageTask(RQTask):
                 continue
 
             if tmp_path := await self._crop_image(episode):
-                result_url = await self._upload_cover(tmp_path)
+                result_url = await self._upload_cover(episode, tmp_path)
             else:
                 result_url = settings.DEFAULT_EPISODE_COVER
 
@@ -233,20 +233,21 @@ class DownloadEpisodeImageTask(RQTask):
 
     @staticmethod
     async def _crop_image(episode) -> Optional[Path]:
-        result_filename = f"episode-{episode.source_id}.jpg"
         try:
-            tmp_path = await download_content(episode.image_url, filename=result_filename)
+            tmp_path = await download_content(episode.image_url, file_ext="jpg")
         except NotFoundError:
             return None
 
         ffmpeg_preparation(src_path=tmp_path, ffmpeg_params=["-vf", "scale=600:-1"])
         return tmp_path
 
-    async def _upload_cover(self, tmp_path: Path):
+    async def _upload_cover(self, episode: Episode, tmp_path: Path):
         attempt = self.MAX_UPLOAD_ATTEMPT
         while attempt := (attempt - 1):
             if result_url := self.storage.upload_file(
-                src_path=str(tmp_path), dst_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
+                src_path=str(tmp_path),
+                dst_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH,
+                filename=Episode.generate_image_name(episode.source_id),
             ):
                 return result_url
 

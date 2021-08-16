@@ -63,11 +63,17 @@ class StorageS3:
 
         return self.CODE_OK, response
 
-    def upload_file(self, src_path: str, dst_path: str, callback: Callable = None) -> Optional[str]:
+    def upload_file(
+        self,
+        src_path: str,
+        dst_path: str,
+        filename: Optional[str],
+        callback: Callable = None
+    ) -> Optional[str]:
         """Upload file to S3 storage"""
 
         mimetype, _ = mimetypes.guess_type(src_path)
-        filename = os.path.basename(src_path)
+        filename = filename or os.path.basename(src_path)
         dst_path = os.path.join(dst_path, filename)
         code, result = self.__call(
             self.s3.upload_file,

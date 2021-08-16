@@ -121,3 +121,7 @@ class Episode(ModelBase, ModelMixin):
     def content_type(self) -> str:
         file_name = self.file_name or "unknown"
         return f"audio/{file_name.split('.')[-1]}"
+
+    @classmethod
+    def generate_image_name(cls, source_id: str) -> str:
+        return f"{source_id}_{uuid.uuid4().hex}.jpg"

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import logging.config
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -116,7 +117,7 @@ def cut_string(source_string: str, max_length: int, finish_seq: str = "...") -> 
     return source_string
 
 
-async def download_content(url: str, filename: str, retries=5) -> Optional[Path]:
+async def download_content(url: str, file_ext: str, retries=5) -> Optional[Path]:
     """Allows to fetch content from url"""
 
     logger = get_logger(__name__)
@@ -141,7 +142,7 @@ async def download_content(url: str, filename: str, retries=5) -> Optional[Path]
             result_content = response.content
 
     if result_content:
-        path = settings.TMP_PATH / filename
+        path = settings.TMP_PATH / f"{uuid.uuid4().hex}.{file_ext}"
         with open(path, "wb") as file:
             file.write(result_content)
 
