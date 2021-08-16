@@ -4,7 +4,6 @@ from sqlalchemy import and_, select, update, delete
 from sqlalchemy.engine import ScalarResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
-from sqlalchemy.sql.functions import count
 
 
 class ModelMixin:

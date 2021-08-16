@@ -2,7 +2,6 @@ import enum
 import uuid
 from datetime import datetime
 from hashlib import md5
-from urllib.parse import urljoin
 from xml.sax.saxutils import escape
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey

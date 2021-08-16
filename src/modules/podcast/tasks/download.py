@@ -1,5 +1,4 @@
 import asyncio
-import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -190,7 +189,7 @@ class DownloadEpisodeTask(RQTask):
 
 
 class DownloadEpisodeImageTask(RQTask):
-    """ Allows to fetch episodes image (cover), prepare them and upload to S3 """
+    """Allows to fetch episodes image (cover), prepare them and upload to S3"""
 
     storage: StorageS3 = None
     MAX_UPLOAD_ATTEMPT = 5
@@ -202,8 +201,7 @@ class DownloadEpisodeImageTask(RQTask):
             code = await self.perform_run(episode_id)
         except Exception as error:
             logger.exception(
-                "Unable to upload episode's image: episode %s | error: %s",
-                error, episode_id
+                "Unable to upload episode's image: episode %s | error: %s", error, episode_id
             )
             return FinishCode.ERROR
 
@@ -212,7 +210,7 @@ class DownloadEpisodeImageTask(RQTask):
     async def perform_run(self, episode_id: Optional[int]) -> FinishCode:
         filter_kwargs = {}
         if episode_id:
-            filter_kwargs['id'] = int(episode_id)
+            filter_kwargs["id"] = int(episode_id)
 
         episodes = list(await Episode.async_filter(self.db_session, **filter_kwargs))
         episodes_count = len(episodes)
@@ -235,24 +233,20 @@ class DownloadEpisodeImageTask(RQTask):
 
     @staticmethod
     async def _crop_image(episode) -> Optional[Path]:
+        result_filename = f"episode-{episode.source_id}.jpg"
         try:
-            image_content = await download_content(episode.image_url)
+            tmp_path = await download_content(episode.image_url, filename=result_filename)
         except NotFoundError:
             return None
 
-        path = settings.TMP_IMAGE_PATH / f"episode-{uuid.uuid4().hex}.jpg"
-        with open(path, 'wb') as file:
-            file.write(image_content)
-
-        ffmpeg_preparation(src_path=path, ffmpeg_params=["-vf", "scale=600:-1"])
-        return path
+        ffmpeg_preparation(src_path=tmp_path, ffmpeg_params=["-vf", "scale=600:-1"])
+        return tmp_path
 
     async def _upload_cover(self, tmp_path: Path):
         attempt = self.MAX_UPLOAD_ATTEMPT
         while attempt := (attempt - 1):
             if result_url := self.storage.upload_file(
-                src_path=str(tmp_path),
-                dst_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
+                src_path=str(tmp_path), dst_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
             ):
                 return result_url
 

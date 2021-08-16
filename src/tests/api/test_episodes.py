@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 
 from common.statuses import ResponseStatus
@@ -59,8 +57,15 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         assert response_data["items"] == [_episode_in_list(episode)]
 
     def test_create__ok(
-        self, client, podcast, episode, episode_data, user,
-        mocked_episode_creator, mocked_rq_queue, dbs
+        self,
+        client,
+        podcast,
+        episode,
+        episode_data,
+        user,
+        mocked_episode_creator,
+        mocked_rq_queue,
+        dbs,
     ):
         mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
         client.login(user)
@@ -94,10 +99,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
             {"args": (tasks.DownloadEpisodeImageTask(),), "kwargs": {"episode_id": episode.id}},
         ]
         actual_calls = [
-            {
-                "args": call.args,
-                "kwargs": call.kwargs
-            }
+            {"args": call.args, "kwargs": call.kwargs}
             for call in mocked_rq_queue.enqueue.call_args_list
         ]
         assert actual_calls == expected_calls

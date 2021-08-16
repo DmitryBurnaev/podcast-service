@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import logging.config
+from pathlib import Path
 from typing import Optional
 
 import httpx
@@ -115,11 +116,12 @@ def cut_string(source_string: str, max_length: int, finish_seq: str = "...") -> 
     return source_string
 
 
-async def download_content(url: str, retries=5) -> Optional[bytes]:
-    """ Allows to fetch content from url """
+async def download_content(url: str, filename: str, retries=5) -> Optional[Path]:
+    """Allows to fetch content from url"""
 
     logger = get_logger(__name__)
     logger.debug(f"Send request to {url}")
+    result_content = None
     while retries := (retries - 1):
         async with httpx.AsyncClient() as client:
             await asyncio.sleep(0.1)
@@ -136,4 +138,11 @@ async def download_content(url: str, retries=5) -> Optional[bytes]:
                 logger.warning(f"Couldn't download {url}! Error: Status: {response.status_code}")
                 continue
 
-            return response.content
+            result_content = response.content
+
+    if result_content:
+        path = settings.TMP_PATH / filename
+        with open(path, "wb") as file:
+            file.write(result_content)
+
+        return path

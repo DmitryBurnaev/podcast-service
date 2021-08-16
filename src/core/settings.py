@@ -60,6 +60,7 @@ REDIS_CON = (REDIS_HOST, REDIS_PORT, REDIS_DB)
 RQ_QUEUE_NAME = config("RQ_QUEUE_NAME", default="podcast")
 
 
+TMP_PATH = Path(tempfile.mkdtemp(prefix="podcast__"))
 TMP_AUDIO_PATH = Path(tempfile.mkdtemp(prefix="podcast_audio__"))
 TMP_RSS_PATH = Path(tempfile.mkdtemp(prefix="podcast_rss__"))
 TMP_IMAGE_PATH = Path(tempfile.mkdtemp(prefix="podcast_images__"))
