@@ -67,8 +67,8 @@ class StorageS3:
         self,
         src_path: str,
         dst_path: str,
-        filename: Optional[str],
-        callback: Callable = None
+        filename: Optional[str] = None,
+        callback: Callable = None,
     ) -> Optional[str]:
         """Upload file to S3 storage"""
 

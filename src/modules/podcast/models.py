@@ -124,4 +124,4 @@ class Episode(ModelBase, ModelMixin):
 
     @classmethod
     def generate_image_name(cls, source_id: str) -> str:
-        return f"{source_id}_{uuid.uuid4().hex}.jpg"
+        return f"{source_id}_{uuid.uuid4().hex}.png"

@@ -179,23 +179,29 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
 
 class TestDownloadEpisodeImageTask(BaseTestCase):
+    @patch("modules.podcast.models.Episode.generate_image_name")
     @patch("modules.podcast.tasks.download.ffmpeg_preparation")
     @patch("modules.podcast.tasks.download.download_content")
     def test_download_image__ok(
-        self, mocked_download_content, mocked_ffmpeg, episode, mocked_s3, dbs
+        self, mocked_download_content, mocked_ffmpeg, mocked_name, episode, mocked_s3, dbs
     ):
-        tmp_path = settings.TMP_IMAGE_PATH / f"episode-{episode.source_id}.jpg"
+        tmp_path = settings.TMP_IMAGE_PATH / f"{episode.source_id}.jpg"
         mocked_download_content.return_value = tmp_path
         old_image_url = episode.image_url
         new_url = f"https://url-to-image.com/cover-{uuid.uuid4().hex}"
         mocked_s3.upload_file.side_effect = lambda *_, **__: new_url
+        mocked_name.return_value = "episode-test-random-name.jpg"
+
         result = await_(DownloadEpisodeImageTask(db_session=dbs).run(episode.id))
         await_(dbs.refresh(episode))
         assert result == FinishCode.OK
         assert episode.image_url == new_url
         mocked_ffmpeg.assert_called_with(src_path=tmp_path, ffmpeg_params=["-vf", "scale=600:-1"])
-        mocked_download_content.assert_called_with(
-            old_image_url, filename=f"episode-{episode.source_id}.jpg"
+        mocked_download_content.assert_called_with(old_image_url, file_ext="jpg")
+        mocked_s3.upload_file.assert_called_with(
+            src_path=str(tmp_path),
+            dst_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH,
+            filename="episode-test-random-name.jpg",
         )
 
     @patch("modules.podcast.tasks.download.download_content")
