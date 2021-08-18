@@ -1,5 +1,6 @@
 import uuid
 from unittest.mock import patch
+from urllib.parse import urljoin
 
 from youtube_dl.utils import DownloadError
 
@@ -214,9 +215,10 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
 
     @patch("modules.podcast.tasks.download.download_content")
     def test_download__skip_already_downloaded(self, mocked_download_content, episode, dbs):
-        await_(episode.update(dbs, image_url=settings.DEFAULT_EPISODE_COVER))
+        url = urljoin(settings.S3_STORAGE_URL, "images/episode-default.jpg")
+        await_(episode.update(dbs, image_url=url))
         result = await_(DownloadEpisodeImageTask(db_session=dbs).run(episode.id))
         await_(dbs.refresh(episode))
         assert result == FinishCode.OK
-        assert episode.image_url == settings.DEFAULT_EPISODE_COVER
+        assert episode.image_url == url
         assert mocked_download_content.assert_not_awaited
