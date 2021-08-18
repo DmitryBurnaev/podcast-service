@@ -24,6 +24,10 @@ class UnexpectedError(BaseApplicationError):
     message = "Something unexpected happened."
 
 
+class S3UploadingError(BaseApplicationError):
+    message = "Couldn't upload file to the storage"
+
+
 class HttpError(BaseApplicationError):
     message = "Some HTTP error happened."
 
@@ -90,3 +94,8 @@ class SendRequestError(BaseApplicationError):
     def __init__(self, message: str, details: str, request_url: str):
         super().__init__(details, message)
         self.request_url = request_url
+
+
+class MaxAttemptsReached(BaseApplicationError):
+    status_code = 503
+    message = "Reached max attempt to make action"

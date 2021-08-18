@@ -57,7 +57,15 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         assert response_data["items"] == [_episode_in_list(episode)]
 
     def test_create__ok(
-        self, client, podcast, episode, episode_data, user, mocked_episode_creator, dbs
+        self,
+        client,
+        podcast,
+        episode,
+        episode_data,
+        user,
+        mocked_episode_creator,
+        mocked_rq_queue,
+        dbs,
     ):
         mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
         client.login(user)
@@ -73,6 +81,9 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
             user_id=user.id,
         )
         mocked_episode_creator.create.assert_called_once()
+        mocked_rq_queue.enqueue.assert_called_with(
+            tasks.DownloadEpisodeImageTask(), episode_id=episode.id
+        )
 
     def test_create__start_downloading__ok(
         self, client, podcast, episode, episode_data, user, mocked_episode_creator, mocked_rq_queue
@@ -82,9 +93,16 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         response = client.post(url, json={"source_url": episode_data["watch_url"]})
         self.assert_ok_response(response, status_code=201)
-        mocked_rq_queue.enqueue.assert_called_with(
-            tasks.DownloadEpisodeTask(), episode_id=episode.id
-        )
+
+        expected_calls = [
+            {"args": (tasks.DownloadEpisodeTask(),), "kwargs": {"episode_id": episode.id}},
+            {"args": (tasks.DownloadEpisodeImageTask(),), "kwargs": {"episode_id": episode.id}},
+        ]
+        actual_calls = [
+            {"args": call.args, "kwargs": call.kwargs}
+            for call in mocked_rq_queue.enqueue.call_args_list
+        ]
+        assert actual_calls == expected_calls
 
     def test_create__youtube_error__fail(
         self, client, podcast, episode_data, user, mocked_episode_creator

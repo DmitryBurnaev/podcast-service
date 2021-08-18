@@ -1,17 +1,23 @@
+import asyncio
+from pathlib import Path
+from typing import Optional
+
 from youtube_dl.utils import YoutubeDLError
 
 from core import settings
 from common.storage import StorageS3
-from common.utils import get_logger
+from common.utils import get_logger, download_content
+from common.exceptions import NotFoundError, MaxAttemptsReached
 from modules.podcast.models import Episode
 from modules.podcast.tasks.base import RQTask, FinishCode
 from modules.podcast.tasks.rss import GenerateRSSTask
 from modules.youtube import utils as youtube_utils
 from modules.podcast import utils as podcast_utils
+from modules.youtube.utils import ffmpeg_preparation
 
 logger = get_logger(__name__)
 status = Episode.Status
-__all__ = ["DownloadEpisodeTask"]
+__all__ = ["DownloadEpisodeTask", "DownloadEpisodeImageTask"]
 
 
 class DownloadingInterrupted(Exception):
@@ -142,7 +148,7 @@ class DownloadEpisodeTask(RQTask):
         """Postprocessing for downloaded audio file"""
 
         logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
-        youtube_utils.ffmpeg_preparation(result_filename)
+        youtube_utils.ffmpeg_preparation(src_path=(settings.TMP_AUDIO_PATH / result_filename))
         logger.info("=== [%s] POST PROCESSING was done === ", episode.source_id)
 
     async def _upload_file(self, episode: Episode, result_filename: str):
@@ -180,3 +186,71 @@ class DownloadEpisodeTask(RQTask):
         await Episode.async_update(
             self.db_session, filter_kwargs=filter_kwargs, update_data=update_data
         )
+
+
+class DownloadEpisodeImageTask(RQTask):
+    """Allows to fetch episodes image (cover), prepare them and upload to S3"""
+
+    storage: StorageS3 = None
+    MAX_UPLOAD_ATTEMPT = 5
+
+    async def run(self, episode_id: int = None) -> int:
+        self.storage = StorageS3()
+
+        try:
+            code = await self.perform_run(episode_id)
+        except Exception as error:
+            logger.exception(
+                "Unable to upload episode's image: episode %s | error: %s", error, episode_id
+            )
+            return FinishCode.ERROR
+
+        return code.value
+
+    async def perform_run(self, episode_id: Optional[int]) -> FinishCode:
+        filter_kwargs = {}
+        if episode_id:
+            filter_kwargs["id"] = int(episode_id)
+
+        episodes = list(await Episode.async_filter(self.db_session, **filter_kwargs))
+        episodes_count = len(episodes)
+
+        for index, episode in enumerate(episodes, start=1):
+            logger.info("=== Episode %i from %i ===", index, episodes_count)
+            if settings.S3_STORAGE_URL in episode.image_url:
+                logger.info("Skip episode %i | image URL: %s", episode.id, episode.image_url)
+                continue
+
+            if tmp_path := await self._crop_image(episode):
+                result_url = await self._upload_cover(episode, tmp_path)
+            else:
+                result_url = settings.DEFAULT_EPISODE_COVER
+
+            logger.info("Saving new image URL: episode %s | url %s", episode.id, result_url)
+            await episode.update(self.db_session, image_url=result_url)
+
+        return FinishCode.OK
+
+    @staticmethod
+    async def _crop_image(episode) -> Optional[Path]:
+        try:
+            tmp_path = await download_content(episode.image_url, file_ext="jpg")
+        except NotFoundError:
+            return None
+
+        ffmpeg_preparation(src_path=tmp_path, ffmpeg_params=["-vf", "scale=600:-1"])
+        return tmp_path
+
+    async def _upload_cover(self, episode: Episode, tmp_path: Path):
+        attempt = self.MAX_UPLOAD_ATTEMPT
+        while attempt := (attempt - 1):
+            if result_url := self.storage.upload_file(
+                src_path=str(tmp_path),
+                dst_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH,
+                filename=Episode.generate_image_name(episode.source_id),
+            ):
+                return result_url
+
+            await asyncio.sleep(1)
+
+        raise MaxAttemptsReached("Couldn't upload cover for episode")

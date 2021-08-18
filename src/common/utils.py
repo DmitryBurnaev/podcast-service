@@ -1,5 +1,9 @@
+import asyncio
 import logging
 import logging.config
+import uuid
+from pathlib import Path
+from typing import Optional
 
 import httpx
 from starlette import status
@@ -8,7 +12,7 @@ from webargs_starlette import WebargsHTTPException
 
 from common.statuses import ResponseStatus
 from core import settings
-from common.exceptions import SendRequestError, BaseApplicationError
+from common.exceptions import SendRequestError, BaseApplicationError, NotFoundError
 
 
 def get_logger(name: str = None):
@@ -111,3 +115,35 @@ def cut_string(source_string: str, max_length: int, finish_seq: str = "...") -> 
         return source_string[:slice_length] + finish_seq if (slice_length > 0) else ""
 
     return source_string
+
+
+async def download_content(url: str, file_ext: str, retries=5) -> Optional[Path]:
+    """Allows to fetch content from url"""
+
+    logger = get_logger(__name__)
+    logger.debug(f"Send request to {url}")
+    result_content = None
+    while retries := (retries - 1):
+        async with httpx.AsyncClient() as client:
+            await asyncio.sleep(0.1)
+            try:
+                response = await client.get(url, timeout=600)
+            except Exception as err:
+                logger.warning(f"Couldn't download {url}! Error: {err}")
+                continue
+
+            if response.status_code == status.HTTP_404_NOT_FOUND:
+                raise NotFoundError(f"Resource not found by URL {url}!")
+
+            if not (200 <= response.status_code <= 299):
+                logger.warning(f"Couldn't download {url}! Error: Status: {response.status_code}")
+                continue
+
+            result_content = response.content
+
+    if result_content:
+        path = settings.TMP_PATH / f"{uuid.uuid4().hex}.{file_ext}"
+        with open(path, "wb") as file:
+            file.write(result_content)
+
+        return path

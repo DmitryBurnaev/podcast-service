@@ -3,8 +3,10 @@ from collections.abc import Iterable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from common.storage import StorageS3
 from common.utils import get_logger
-from common.exceptions import InvalidParameterError
+from common.exceptions import InvalidParameterError, S3UploadingError
+from core import settings
 from modules.podcast.models import Episode
 from modules.podcast.utils import get_file_name
 from modules.youtube.utils import get_youtube_info, get_video_id
@@ -105,3 +107,17 @@ class EpisodeCreator:
 
         new_episode_data.update({"podcast_id": self.podcast_id, "created_by_id": self.user_id})
         return new_episode_data
+
+    def _save_image(self, source_url: str):
+        ...
+
+        src_path = ""  # TODO: save tmp file here
+        storage = StorageS3()
+        result_url = storage.upload_file(
+            src_path=src_path,
+            dst_path=settings.S3_BUCKET_AUDIO_PATH,
+        )
+        if not result_url:
+            raise S3UploadingError("Couldn't upload episode cover to S3 storage")
+
+        return result_url

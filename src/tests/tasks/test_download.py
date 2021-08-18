@@ -1,10 +1,13 @@
+import uuid
 from unittest.mock import patch
+from urllib.parse import urljoin
 
 from youtube_dl.utils import DownloadError
 
+from common.exceptions import NotFoundError
 from core import settings
 from modules.podcast.models import Episode, Podcast, EpisodeStatus
-from modules.podcast.tasks import DownloadEpisodeTask
+from modules.podcast.tasks import DownloadEpisodeTask, DownloadEpisodeImageTask
 from modules.podcast.tasks.base import FinishCode
 from modules.youtube.utils import download_process_hook
 from tests.api.test_base import BaseTestCase
@@ -23,7 +26,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode = await_(Episode.async_get(dbs, id=episode.id))
 
         mocked_youtube.download.assert_called_with([episode.watch_url])
-        mocked_ffmpeg.assert_called_with(episode.file_name)
+        mocked_ffmpeg.assert_called_with(src_path=file_path)
         self.assert_called_with(
             mocked_s3.upload_file,
             src_path=str(file_path),
@@ -103,7 +106,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
         await_(dbs.refresh(episode))
         mocked_youtube.download.assert_called_with([episode.watch_url])
-        mocked_ffmpeg.assert_called_with(episode.file_name)
+        mocked_ffmpeg.assert_called_with(src_path=file_path)
         self.assert_called_with(
             mocked_s3.upload_file,
             src_path=str(file_path),
@@ -174,3 +177,48 @@ class TestDownloadEpisodeTask(BaseTestCase):
             total_bytes=1024,
             processed_bytes=24,
         )
+
+
+class TestDownloadEpisodeImageTask(BaseTestCase):
+    @patch("modules.podcast.models.Episode.generate_image_name")
+    @patch("modules.podcast.tasks.download.ffmpeg_preparation")
+    @patch("modules.podcast.tasks.download.download_content")
+    def test_download_image__ok(
+        self, mocked_download_content, mocked_ffmpeg, mocked_name, episode, mocked_s3, dbs
+    ):
+        tmp_path = settings.TMP_IMAGE_PATH / f"{episode.source_id}.jpg"
+        mocked_download_content.return_value = tmp_path
+        old_image_url = episode.image_url
+        new_url = f"https://url-to-image.com/cover-{uuid.uuid4().hex}"
+        mocked_s3.upload_file.side_effect = lambda *_, **__: new_url
+        mocked_name.return_value = "episode-test-random-name.jpg"
+
+        result = await_(DownloadEpisodeImageTask(db_session=dbs).run(episode.id))
+        await_(dbs.refresh(episode))
+        assert result == FinishCode.OK
+        assert episode.image_url == new_url
+        mocked_ffmpeg.assert_called_with(src_path=tmp_path, ffmpeg_params=["-vf", "scale=600:-1"])
+        mocked_download_content.assert_called_with(old_image_url, file_ext="jpg")
+        mocked_s3.upload_file.assert_called_with(
+            src_path=str(tmp_path),
+            dst_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH,
+            filename="episode-test-random-name.jpg",
+        )
+
+    @patch("modules.podcast.tasks.download.download_content")
+    def test_download__image_not_found__use_default(self, mocked_download_content, episode, dbs):
+        mocked_download_content.side_effect = NotFoundError()
+        result = await_(DownloadEpisodeImageTask(db_session=dbs).run(episode.id))
+        await_(dbs.refresh(episode))
+        assert result == FinishCode.OK
+        assert episode.image_url == settings.DEFAULT_EPISODE_COVER
+
+    @patch("modules.podcast.tasks.download.download_content")
+    def test_download__skip_already_downloaded(self, mocked_download_content, episode, dbs):
+        url = urljoin(settings.S3_STORAGE_URL, "images/episode-default.jpg")
+        await_(episode.update(dbs, image_url=url))
+        result = await_(DownloadEpisodeImageTask(db_session=dbs).run(episode.id))
+        await_(dbs.refresh(episode))
+        assert result == FinishCode.OK
+        assert episode.image_url == url
+        assert mocked_download_content.assert_not_awaited

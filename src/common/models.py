@@ -40,14 +40,6 @@ class ModelMixin:
         return result.scalars()
 
     @classmethod
-    async def async_count(
-        cls, db_session: AsyncSession, limit: int = None, offset: int = None, **filter_kwargs
-    ) -> int:
-        query = cls.prepare_query(limit=limit, offset=offset, **filter_kwargs)
-        result = await db_session.execute(query)
-        return result.count()
-
-    @classmethod
     async def async_get(cls, db_session: AsyncSession, **filter_kwargs) -> "DBModel":
         query = cls.prepare_query(**filter_kwargs)
         result = await db_session.execute(query)

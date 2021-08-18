@@ -2,7 +2,6 @@ import enum
 import uuid
 from datetime import datetime
 from hashlib import md5
-from urllib.parse import urljoin
 from xml.sax.saxutils import escape
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
@@ -56,11 +55,7 @@ class Podcast(ModelBase, ModelMixin):
 
     @property
     def safe_image_url(self) -> str:
-        image_url = self.image_url
-        if not image_url:
-            image_url = urljoin(settings.S3_STORAGE_URL, settings.S3_DEFAULT_PODCAST_IMAGE)
-
-        return image_url
+        return self.image_url or settings.DEFAULT_PODCAST_COVER
 
     @classmethod
     async def create_first_podcast(cls, db_session: AsyncSession, user_id: int):
@@ -126,3 +121,7 @@ class Episode(ModelBase, ModelMixin):
     def content_type(self) -> str:
         file_name = self.file_name or "unknown"
         return f"audio/{file_name.split('.')[-1]}"
+
+    @classmethod
+    def generate_image_name(cls, source_id: str) -> str:
+        return f"{source_id}_{uuid.uuid4().hex}.png"

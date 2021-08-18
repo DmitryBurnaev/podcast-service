@@ -57,9 +57,10 @@ REDIS_HOST = config("REDIS_HOST", default="localhost")
 REDIS_PORT = config("REDIS_PORT", default=6379)
 REDIS_DB = config("REDIS_DB", default=0)
 REDIS_CON = (REDIS_HOST, REDIS_PORT, REDIS_DB)
-RQ_QUEUE_NAME = config("RQ_QUEUE_NAME", default="youtube_downloads")
+RQ_QUEUE_NAME = config("RQ_QUEUE_NAME", default="podcast")
 
 
+TMP_PATH = Path(tempfile.mkdtemp(prefix="podcast__"))
 TMP_AUDIO_PATH = Path(tempfile.mkdtemp(prefix="podcast_audio__"))
 TMP_RSS_PATH = Path(tempfile.mkdtemp(prefix="podcast_rss__"))
 TMP_IMAGE_PATH = Path(tempfile.mkdtemp(prefix="podcast_images__"))
@@ -76,9 +77,11 @@ S3_BUCKET_NAME = config("S3_BUCKET_NAME", default="podcast")
 S3_BUCKET_AUDIO_PATH = config("S3_BUCKET_AUDIO_PATH", default="audio/")
 S3_BUCKET_RSS_PATH = config("S3_BUCKET_RSS_PATH", default="rss/")
 S3_BUCKET_IMAGES_PATH = config("S3_BUCKET_IMAGES_PATH", default="images/")
-S3_DEFAULT_PODCAST_IMAGE = os.path.join(
-    S3_BUCKET_NAME, S3_BUCKET_IMAGES_PATH, "podcast-default.jpg"
-)
+S3_BUCKET_EPISODE_IMAGES_PATH = Path(os.path.join(S3_BUCKET_IMAGES_PATH, "episodes"))
+S3_BUCKET_PODCAST_IMAGES_PATH = Path(os.path.join(S3_BUCKET_IMAGES_PATH, "podcasts"))
+
+DEFAULT_EPISODE_COVER = config("DEFAULT_EPISODE_COVER", default="episode-default.jpg")
+DEFAULT_PODCAST_COVER = config("DEFAULT_PODCAST_COVER", default="podcast-default.jpg")
 
 SENDGRID_API_KEY = config("SENDGRID_API_KEY")
 SENDGRID_API_VERSION = "v3"
