@@ -106,6 +106,13 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
             await storage.delete_files_async(list(files_to_remove))
 
 
+class PodcastUploadImageAPIView(BaseHTTPEndpoint):
+    """Upload image as podcast's cover"""
+
+    def post(self):
+        raise NotImplemented("Do uploading process here")
+
+
 class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):
     """Allows to start RSS generation task"""
 
