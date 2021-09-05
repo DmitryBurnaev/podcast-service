@@ -8,7 +8,7 @@ from common.utils import get_logger
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
 from modules.podcast.models import Podcast, Episode
-from modules.podcast.schemas import PodcastCreateUpdateSchema, PodcastDetailsSchema
+from modules.podcast.schemas import PodcastCreateUpdateSchema, PodcastDetailsSchema, PodcastUploadImageResponseSchema
 from modules.podcast.tasks.rss import GenerateRSSTask
 
 logger = get_logger(__name__)
@@ -109,8 +109,13 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
 class PodcastUploadImageAPIView(BaseHTTPEndpoint):
     """Upload image as podcast's cover"""
 
-    def post(self):
-        raise NotImplemented("Do uploading process here")
+    db_model = Podcast
+    schema_response = PodcastUploadImageResponseSchema
+
+    def post(self, request):
+        podcast_id = request.path_params["podcast_id"]
+        podcast = await self._get_object(podcast_id)
+        logger.info("Uploading cover for podcast %s", podcast)
 
 
 class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):

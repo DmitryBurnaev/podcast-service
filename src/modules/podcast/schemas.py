@@ -45,6 +45,11 @@ class PodcastDetailsSchema(Schema):
     episodes_count = fields.Integer(default=0)
 
 
+class PodcastUploadImageResponseSchema(Schema):
+    id = fields.Int(required=True)
+    image_url = fields.URL()
+
+
 class EpisodeCreateSchema(Schema):
     source_url = fields.URL(required=True)
 
