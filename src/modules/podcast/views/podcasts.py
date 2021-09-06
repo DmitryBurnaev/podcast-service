@@ -3,6 +3,7 @@ from typing import Iterable, Optional
 
 from sqlalchemy import select, func
 from starlette import status
+from starlette.datastructures import UploadFile
 from starlette.requests import Request
 
 from core import settings
@@ -130,7 +131,15 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
     @staticmethod
     async def _save_uploaded_image(request: Request) -> Path:
         # TODO: implement uploading image saving here
-        ...
+        form = await request.form()
+        uploaded_file: UploadFile = form["podcast_image"]  # type: ignore
+        contents = await uploaded_file.read()
+        # file_ext = uploaded_file.filename.rpartition('.')[-1]
+        # with open(settings.TMP_IMAGE_PATH / f'podcast_cover.{file_ext}', 'wb') as f:
+        #     await run_in_threadpool(f.write. contents)
+        #
+        await uploaded_file.write(contents)
+        return uploaded_file.file.name
 
     @staticmethod
     def _crop_image(tmp_path: Path) -> Optional[Path]:
