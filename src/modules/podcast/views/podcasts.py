@@ -1,15 +1,19 @@
-from typing import Iterable
+from pathlib import Path
+from typing import Iterable, Optional
 
 from sqlalchemy import select, func
 from starlette import status
+from starlette.requests import Request
 
 from core import settings
 from common.utils import get_logger
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
+from common.exceptions import MaxAttemptsReached
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.schemas import PodcastCreateUpdateSchema, PodcastDetailsSchema, PodcastUploadImageResponseSchema
 from modules.podcast.tasks.rss import GenerateRSSTask
+from modules.youtube.utils import ffmpeg_preparation
 
 logger = get_logger(__name__)
 
@@ -112,10 +116,40 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
     db_model = Podcast
     schema_response = PodcastUploadImageResponseSchema
 
-    def post(self, request):
+    def post(self, request: Request):
         podcast_id = request.path_params["podcast_id"]
-        podcast = await self._get_object(podcast_id)
+        podcast: Podcast = await self._get_object(podcast_id)
         logger.info("Uploading cover for podcast %s", podcast)
+        tmp_path = await self._save_uploaded_image(request)
+        tmp_path = self._crop_image(tmp_path)
+
+        podcast.image_url = await self._upload_cover(podcast, tmp_path)
+        await podcast.update(self.db_session, image_url=podcast.image_url)
+        return podcast
+
+    @staticmethod
+    async def _save_uploaded_image(request: Request) -> Path:
+        # TODO: implement uploading image saving here
+        ...
+
+    @staticmethod
+    def _crop_image(tmp_path: Path) -> Optional[Path]:
+        ffmpeg_preparation(src_path=tmp_path, ffmpeg_params=["-vf", "scale=400:400"])
+        return tmp_path
+
+    @staticmethod
+    async def _upload_cover(podcast: Podcast, tmp_path: Path):
+        storage = StorageS3()
+        attempt = settings.MAX_UPLOAD_ATTEMPT
+        while attempt := (attempt - 1):
+            if result_url := storage.upload_file(
+                src_path=str(tmp_path),
+                dst_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH,
+                filename=podcast.generate_image_name(),
+            ):
+                return result_url
+
+        raise MaxAttemptsReached(f"Couldn't upload cover for podcast {podcast}")
 
 
 class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):
