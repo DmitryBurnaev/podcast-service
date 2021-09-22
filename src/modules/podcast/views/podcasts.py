@@ -117,7 +117,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
     db_model = Podcast
     schema_response = PodcastUploadImageResponseSchema
 
-    def post(self, request: Request):
+    async def post(self, request: Request):
         podcast_id = request.path_params["podcast_id"]
         podcast: Podcast = await self._get_object(podcast_id)
         logger.info("Uploading cover for podcast %s", podcast)
@@ -132,7 +132,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
     async def _save_uploaded_image(request: Request) -> Path:
         # TODO: implement uploading image saving here
         form = await request.form()
-        uploaded_file: UploadFile = form["podcast_image"]  # type: ignore
+        uploaded_file: UploadFile = form["image"]  # type: ignore
         contents = await uploaded_file.read()
         # file_ext = uploaded_file.filename.rpartition('.')[-1]
         # with open(settings.TMP_IMAGE_PATH / f'podcast_cover.{file_ext}', 'wb') as f:
