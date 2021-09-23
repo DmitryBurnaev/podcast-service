@@ -126,7 +126,8 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
 
         podcast.image_url = await self._upload_cover(podcast, tmp_path)
         await podcast.update(self.db_session, image_url=podcast.image_url)
-        return podcast
+        await self.db_session.refresh(podcast)
+        return self._response(podcast)
 
     @staticmethod
     async def _save_uploaded_image(request: Request) -> Path:
@@ -146,13 +147,13 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
         return tmp_path
 
     @staticmethod
-    async def _upload_cover(podcast: Podcast, tmp_path: Path):
+    async def _upload_cover(podcast: Podcast, tmp_path: Path) -> str:
         logger.info("Uploading cover to S3: podcast %s", podcast)
         storage = StorageS3()
         attempt = settings.MAX_UPLOAD_ATTEMPT
         while attempt := (attempt - 1):
             try:
-                await run_in_threadpool(
+                image_url = await run_in_threadpool(
                     storage.upload_file,
                     src_path=str(tmp_path),
                     dst_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH,
@@ -161,7 +162,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
             except Exception as err:
                 logger.exception("Couldn't upload image to S3. podcast %s | err: %s", podcast, err)
             else:
-                return
+                return image_url
 
         raise MaxAttemptsReached(f"Couldn't upload cover for podcast {podcast}")
 
