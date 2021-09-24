@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable
 
 from sqlalchemy import select, func
 from starlette import status
@@ -15,7 +15,6 @@ from common.exceptions import MaxAttemptsReached
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.schemas import PodcastCreateUpdateSchema, PodcastDetailsSchema, PodcastUploadImageResponseSchema
 from modules.podcast.tasks.rss import GenerateRSSTask
-from modules.youtube.utils import ffmpeg_preparation
 
 logger = get_logger(__name__)
 
@@ -127,6 +126,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
         podcast.image_url = await self._upload_cover(podcast, tmp_path)
         await podcast.update(self.db_session, image_url=podcast.image_url)
         await self.db_session.refresh(podcast)
+        # TODO: call task for cropping result's image
         return self._response(podcast)
 
     @staticmethod
@@ -140,11 +140,6 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
             await run_in_threadpool(f.write, contents)
 
         return result_file_path
-
-    @staticmethod
-    def _crop_image(tmp_path: Path) -> Optional[Path]:
-        ffmpeg_preparation(src_path=tmp_path, ffmpeg_params=["-vf", "scale=400:400"])
-        return tmp_path
 
     @staticmethod
     async def _upload_cover(podcast: Podcast, tmp_path: Path) -> str:
