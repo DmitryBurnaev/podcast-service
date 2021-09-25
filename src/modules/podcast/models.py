@@ -74,6 +74,9 @@ class Podcast(ModelBase, ModelMixin):
     def generate_publish_id(cls):
         return md5(uuid.uuid4().hex.encode("utf-8")).hexdigest()[::2]
 
+    def generate_image_name(self) -> str:
+        return f"{self.publish_id}_{uuid.uuid4().hex}.png"
+
 
 class Episode(ModelBase, ModelMixin):
     """Simple schema_request for saving episodes in DB"""

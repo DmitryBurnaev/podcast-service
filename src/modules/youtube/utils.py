@@ -104,7 +104,11 @@ async def get_youtube_info(youtube_link: str) -> Tuple[str, Optional[YoutubeInfo
     return "OK", youtube_info
 
 
-def ffmpeg_preparation(src_path: Union[str, Path], ffmpeg_params: list[str] = None) -> None:
+def ffmpeg_preparation(
+    src_path: Union[str, Path],
+    ffmpeg_params: list[str] = None,
+    call_process_hook: bool = True
+) -> None:
     """
     Ffmpeg allows to fix problem with length of audio track
     (in metadata value for this is incorrect, but fact length is fully correct)
@@ -112,12 +116,13 @@ def ffmpeg_preparation(src_path: Union[str, Path], ffmpeg_params: list[str] = No
     filename = os.path.basename(src_path)
     logger.info(f"Start FFMPEG preparations for {filename} === ")
     total_bytes = get_file_size(src_path)
-    episode_process_hook(
-        status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
-        filename=filename,
-        total_bytes=total_bytes,
-        processed_bytes=0,
-    )
+    if call_process_hook:
+        episode_process_hook(
+            status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
+            filename=filename,
+            total_bytes=total_bytes,
+            processed_bytes=0,
+        )
     tmp_path = os.path.join(settings.TMP_AUDIO_PATH, f"tmp_{filename}")
 
     logger.info(f"Start SUBPROCESS (filesize watching) for {filename} === ")
@@ -163,10 +168,11 @@ def ffmpeg_preparation(src_path: Union[str, Path], ffmpeg_params: list[str] = No
         raise FFMPegPreparationError(f"Failed to rename/remove tmp file: {err}")
 
     total_file_size = get_file_size(src_path)
-    episode_process_hook(
-        status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
-        filename=filename,
-        total_bytes=total_file_size,
-        processed_bytes=total_file_size,
-    )
+    if call_process_hook:
+        episode_process_hook(
+            status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
+            filename=filename,
+            total_bytes=total_file_size,
+            processed_bytes=total_file_size,
+        )
     logger.info("FFMPEG Preparation for %s was done", filename)

@@ -232,7 +232,7 @@ class DownloadEpisodeImageTask(RQTask):
         return FinishCode.OK
 
     @staticmethod
-    async def _crop_image(episode) -> Optional[Path]:
+    async def _crop_image(episode: Episode) -> Optional[Path]:
         try:
             tmp_path = await download_content(episode.image_url, file_ext="jpg")
         except NotFoundError:
@@ -241,7 +241,7 @@ class DownloadEpisodeImageTask(RQTask):
         ffmpeg_preparation(src_path=tmp_path, ffmpeg_params=["-vf", "scale=600:-1"])
         return tmp_path
 
-    async def _upload_cover(self, episode: Episode, tmp_path: Path):
+    async def _upload_cover(self, episode: Episode, tmp_path: Path) -> str:
         attempt = self.MAX_UPLOAD_ATTEMPT
         while attempt := (attempt - 1):
             if result_url := self.storage.upload_file(

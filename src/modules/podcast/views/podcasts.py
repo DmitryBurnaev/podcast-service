@@ -1,14 +1,19 @@
+from pathlib import Path
 from typing import Iterable
 
 from sqlalchemy import select, func
 from starlette import status
+from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import UploadFile
+from starlette.requests import Request
 
 from core import settings
 from common.utils import get_logger
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
+from common.exceptions import MaxAttemptsReached
 from modules.podcast.models import Podcast, Episode
-from modules.podcast.schemas import PodcastCreateUpdateSchema, PodcastDetailsSchema
+from modules.podcast.schemas import PodcastCreateUpdateSchema, PodcastDetailsSchema, PodcastUploadImageResponseSchema
 from modules.podcast.tasks.rss import GenerateRSSTask
 
 logger = get_logger(__name__)
@@ -104,6 +109,57 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         )
         if files_to_remove:
             await storage.delete_files_async(list(files_to_remove))
+
+
+class PodcastUploadImageAPIView(BaseHTTPEndpoint):
+    """Upload image as podcast's cover"""
+
+    db_model = Podcast
+    schema_response = PodcastUploadImageResponseSchema
+
+    async def post(self, request: Request):
+        podcast_id = request.path_params["podcast_id"]
+        podcast: Podcast = await self._get_object(podcast_id)
+        logger.info("Uploading cover for podcast %s", podcast)
+        tmp_path = await self._save_uploaded_image(request)
+
+        podcast.image_url = await self._upload_cover(podcast, tmp_path)
+        await podcast.update(self.db_session, image_url=podcast.image_url)
+        await self.db_session.refresh(podcast)
+        # TODO: call task for cropping result's image
+        return self._response(podcast)
+
+    @staticmethod
+    async def _save_uploaded_image(request: Request) -> Path:
+        form = await request.form()
+        uploaded_file: UploadFile = form["image"]  # type: ignore
+        contents = await uploaded_file.read()
+        file_ext = uploaded_file.filename.rpartition('.')[-1]
+        result_file_path = settings.TMP_IMAGE_PATH / f'podcast_cover.{file_ext}'
+        with open(result_file_path, 'wb') as f:
+            await run_in_threadpool(f.write, contents)
+
+        return result_file_path
+
+    @staticmethod
+    async def _upload_cover(podcast: Podcast, tmp_path: Path) -> str:
+        logger.info("Uploading cover to S3: podcast %s", podcast)
+        storage = StorageS3()
+        attempt = settings.MAX_UPLOAD_ATTEMPT
+        while attempt := (attempt - 1):
+            try:
+                image_url = await run_in_threadpool(
+                    storage.upload_file,
+                    src_path=str(tmp_path),
+                    dst_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH,
+                    filename=podcast.generate_image_name(),
+                )
+            except Exception as err:
+                logger.exception("Couldn't upload image to S3. podcast %s | err: %s", podcast, err)
+            else:
+                return image_url
+
+        raise MaxAttemptsReached(f"Couldn't upload cover for podcast {podcast}")
 
 
 class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):
