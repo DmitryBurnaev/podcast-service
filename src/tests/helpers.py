@@ -38,13 +38,6 @@ def await_(coroutine):
     return loop.run_until_complete(coroutine)
 
 
-# def await_(coroutine):
-#     """ Run coroutine in the current event loop """
-#
-#     loop = asyncio.get_event_loop()
-#     return loop.run_until_complete(coroutine)
-
-
 def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
     """Allows to mock any classes (is used as fixture)
 

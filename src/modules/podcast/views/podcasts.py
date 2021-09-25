@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 from typing import Iterable
 
@@ -13,7 +14,11 @@ from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
 from common.exceptions import MaxAttemptsReached
 from modules.podcast.models import Podcast, Episode
-from modules.podcast.schemas import PodcastCreateUpdateSchema, PodcastDetailsSchema, PodcastUploadImageResponseSchema
+from modules.podcast.schemas import (
+    PodcastCreateUpdateSchema,
+    PodcastDetailsSchema,
+    PodcastUploadImageResponseSchema,
+)
 from modules.podcast.tasks.rss import GenerateRSSTask
 
 logger = get_logger(__name__)
@@ -126,7 +131,6 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
         podcast.image_url = await self._upload_cover(podcast, tmp_path)
         await podcast.update(self.db_session, image_url=podcast.image_url)
         await self.db_session.refresh(podcast)
-        # TODO: call task for cropping result's image
         return self._response(podcast)
 
     @staticmethod
@@ -134,9 +138,9 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
         form = await request.form()
         uploaded_file: UploadFile = form["image"]  # type: ignore
         contents = await uploaded_file.read()
-        file_ext = uploaded_file.filename.rpartition('.')[-1]
-        result_file_path = settings.TMP_IMAGE_PATH / f'podcast_cover.{file_ext}'
-        with open(result_file_path, 'wb') as f:
+        file_ext = uploaded_file.filename.rpartition(".")[-1]
+        result_file_path = settings.TMP_IMAGE_PATH / f"podcast_cover.{file_ext}"
+        with open(result_file_path, "wb") as f:
             await run_in_threadpool(f.write, contents)
 
         return result_file_path
@@ -145,7 +149,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
     async def _upload_cover(podcast: Podcast, tmp_path: Path) -> str:
         logger.info("Uploading cover to S3: podcast %s", podcast)
         storage = StorageS3()
-        attempt = settings.MAX_UPLOAD_ATTEMPT
+        attempt = settings.MAX_UPLOAD_ATTEMPT + 1
         while attempt := (attempt - 1):
             try:
                 image_url = await run_in_threadpool(
@@ -155,11 +159,14 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
                     filename=podcast.generate_image_name(),
                 )
             except Exception as err:
-                logger.exception("Couldn't upload image to S3. podcast %s | err: %s", podcast, err)
+                logger.exception(
+                    "Couldn't upload image to S3. podcast %s | err: %s", podcast.id, err
+                )
+                await asyncio.sleep(settings.RETRY_UPLOAD_TIMEOUT)
             else:
                 return image_url
 
-        raise MaxAttemptsReached(f"Couldn't upload cover for podcast {podcast}")
+        raise MaxAttemptsReached(f"Couldn't upload cover for podcast {podcast.id}")
 
 
 class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):

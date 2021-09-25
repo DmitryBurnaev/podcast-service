@@ -37,6 +37,8 @@ from tests.mocks import (
 @pytest.fixture(autouse=True, scope="session")
 def test_settings():
     settings.APP_DEBUG = True
+    settings.MAX_UPLOAD_ATTEMPT = 1
+    settings.RETRY_UPLOAD_TIMEOUT = 0
 
 
 @pytest.fixture(autouse=True, scope="session")
