@@ -28,7 +28,7 @@ Jinja2 = "==3.0.1" # rss-file rendering
 pytest = "==6.2.4"
 requests = "==2.26.0"
 coverage = "==5.5"
-black = "==21.6b0"
+black = "==21.9b0"
 flake8 = "==3.9.2"
 
 [requires]

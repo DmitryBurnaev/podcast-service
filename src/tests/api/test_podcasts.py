@@ -211,7 +211,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
 
 
 class TestPodcastGenerateRSSAPIView(BaseTestAPIView):
-    url = "/api/podcasts/{id}/generate_rss/"
+    url = "/api/podcasts/{id}/generate-rss/"
 
     def test_run_generation__ok(self, client, podcast, user, mocked_rq_queue):
         client.login(user)
@@ -227,7 +227,7 @@ class TestPodcastGenerateRSSAPIView(BaseTestAPIView):
 
 
 class TestPodcastUploadImageAPIView(BaseTestAPIView):
-    url = "/api/podcasts/{id}/upload_image/"
+    url = "/api/podcasts/{id}/upload-image/"
     result_url = "https://storage/path-to-file.png"
 
     @staticmethod
