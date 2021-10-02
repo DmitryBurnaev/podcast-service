@@ -105,9 +105,7 @@ async def get_youtube_info(youtube_link: str) -> Tuple[str, Optional[YoutubeInfo
 
 
 def ffmpeg_preparation(
-    src_path: Union[str, Path],
-    ffmpeg_params: list[str] = None,
-    call_process_hook: bool = True
+    src_path: Union[str, Path], ffmpeg_params: list[str] = None, call_process_hook: bool = True
 ) -> None:
     """
     Ffmpeg allows to fix problem with length of audio track

@@ -1,3 +1,7 @@
+import io
+from typing import Dict
+from unittest.mock import patch
+
 import pytest
 
 from core import settings
@@ -207,7 +211,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
 
 
 class TestPodcastGenerateRSSAPIView(BaseTestAPIView):
-    url = "/api/podcasts/{id}/generate_rss/"
+    url = "/api/podcasts/{id}/generate-rss/"
 
     def test_run_generation__ok(self, client, podcast, user, mocked_rq_queue):
         client.login(user)
@@ -220,3 +224,33 @@ class TestPodcastGenerateRSSAPIView(BaseTestAPIView):
         client.login(create_user(dbs))
         url = self.url.format(id=podcast.id)
         self.assert_not_found(client.put(url), podcast)
+
+
+class TestPodcastUploadImageAPIView(BaseTestAPIView):
+    url = "/api/podcasts/{id}/upload-image/"
+    result_url = "https://storage/path-to-file.png"
+
+    @staticmethod
+    def _files() -> Dict[str, io.BytesIO]:
+        return {"image": io.BytesIO(b"Binary image data: \x00\x01")}
+
+    @patch("common.storage.StorageS3.upload_file")
+    def test_upload__ok(self, mocked_upload_file, client, podcast, user, dbs):
+        client.login(user)
+        mocked_upload_file.return_value = self.result_url
+        response = client.post(url=self.url.format(id=podcast.id), files=self._files())
+        await_(dbs.refresh(podcast))
+        response_data = self.assert_ok_response(response)
+        assert response_data == {"id": podcast.id, "image_url": self.result_url}
+        assert podcast.image_url == self.result_url
+
+    @patch("common.storage.StorageS3.upload_file")
+    def test_upload__upload_failed__fail(self, mocked_upload_file, client, podcast, user, dbs):
+        client.login(user)
+        mocked_upload_file.side_effect = RuntimeError("Oops")
+        response = client.post(url=self.url.format(id=podcast.id), files=self._files())
+        response_data = self.assert_fail_response(response, status_code=503)
+        assert response_data == {
+            "error": "Reached max attempt to make action",
+            "details": f"Couldn't upload cover for podcast {podcast.id}",
+        }

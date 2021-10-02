@@ -75,8 +75,8 @@ class ModelMixin:
         return instance
 
     async def update(self, db_session: AsyncSession, **update_data):
-        if hasattr(self, 'updated_at'):
-            update_data['updated_at'] = datetime.datetime.utcnow()
+        if hasattr(self, "updated_at"):
+            update_data["updated_at"] = datetime.datetime.utcnow()
         await self.async_update(db_session, {"id": self.id}, update_data=update_data)
 
     async def delete(self, db_session: AsyncSession):

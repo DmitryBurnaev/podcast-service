@@ -96,6 +96,7 @@ RQ_DEFAULT_TIMEOUT = 24 * 3600  # 24 hours
 FFMPEG_TIMEOUT = 2 * 60 * 60  # 2 hours
 DEFAULT_LIMIT_LIST_API = 20
 MAX_UPLOAD_ATTEMPT = config("MAX_UPLOAD_ATTEMPT", default=5, cast=int)
+RETRY_UPLOAD_TIMEOUT = 1  # 1 second
 
 SENTRY_DSN = config("SENTRY_DSN", default=None)
 LOG_LEVEL = config("LOG_LEVEL", default="INFO")
