@@ -254,3 +254,14 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
             "error": "Reached max attempt to make action",
             "details": f"Couldn't upload cover for podcast {podcast.id}",
         }
+
+    def test_upload__image_missing__fail(self, client, podcast, user):
+        client.login(user)
+        # TODO: fill files correctly
+        response = client.post(url=self.url.format(id=podcast.id), files={"avatar": None})
+        response_data = self.assert_fail_response(response, status_code=400)
+        assert response_data == {"id": podcast.id, "image_url": self.result_url}
+        assert response_data == {
+            "error": "Reached max attempt to make action",
+            "details": f"Couldn't upload cover for podcast {podcast.id}",
+        }
