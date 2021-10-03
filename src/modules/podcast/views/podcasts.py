@@ -12,7 +12,7 @@ from core import settings
 from common.utils import get_logger
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
-from common.exceptions import MaxAttemptsReached
+from common.exceptions import MaxAttemptsReached, InvalidParameterError
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.schemas import (
     PodcastCreateUpdateSchema,
@@ -126,17 +126,24 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
         podcast_id = request.path_params["podcast_id"]
         podcast: Podcast = await self._get_object(podcast_id)
         logger.info("Uploading cover for podcast %s", podcast)
-        tmp_path = await self._save_uploaded_image(request)
+        cleaned_data = await self._validate(request)
+        tmp_path = await self._save_uploaded_image(cleaned_data)
 
         podcast.image_url = await self._upload_cover(podcast, tmp_path)
         await podcast.update(self.db_session, image_url=podcast.image_url)
         await self.db_session.refresh(podcast)
         return self._response(podcast)
 
-    @staticmethod
-    async def _save_uploaded_image(request: Request) -> Path:
+    async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
         form = await request.form()
-        uploaded_file: UploadFile = form["image"]  # type: ignore
+        if not (image := form.get("image")):
+            raise InvalidParameterError(details="Image is required field")
+
+        return {"image": image}
+
+    @staticmethod
+    async def _save_uploaded_image(cleaned_data: dict) -> Path:
+        uploaded_file: UploadFile = cleaned_data["image"]
         contents = await uploaded_file.read()
         file_ext = uploaded_file.filename.rpartition(".")[-1]
         result_file_path = settings.TMP_IMAGE_PATH / f"podcast_cover.{file_ext}"

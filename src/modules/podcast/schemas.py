@@ -14,6 +14,7 @@ __all__ = [
     "PlayListRequestSchema",
     "PlayListResponseSchema",
     "ProgressResponseSchema",
+    "PodcastUploadImageResponseSchema",
 ]
 
 
