@@ -2,7 +2,6 @@ import asyncio
 from pathlib import Path
 from typing import Iterable
 
-from marshmallow import ValidationError
 from sqlalchemy import select, func
 from starlette import status
 from starlette.concurrency import run_in_threadpool
@@ -13,7 +12,7 @@ from core import settings
 from common.utils import get_logger
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
-from common.exceptions import MaxAttemptsReached
+from common.exceptions import MaxAttemptsReached, InvalidParameterError
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.schemas import (
     PodcastCreateUpdateSchema,
@@ -137,10 +136,10 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
 
     async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
         form = await request.form()
-        if not (image := form.get('image')):
-            raise ValidationError('Required field', field_name='image')
+        if not (image := form.get("image")):
+            raise InvalidParameterError(details="Image is required field")
 
-        return {'image': image}
+        return {"image": image}
 
     @staticmethod
     async def _save_uploaded_image(cleaned_data: dict) -> Path:
