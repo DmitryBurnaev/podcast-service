@@ -37,6 +37,9 @@ def get_video_id(source_url: str) -> Optional[str]:
 
     matched_url = re.findall(r"(?:v=|/)([0-9A-Za-z_-]{11}).*", source_url)
     if not matched_url:
+        # TODO: match url to find ID from another sources
+        #   - ex:  https://music.yandex.ru/album/<alb_id>/track/<track_id>
+
         logger.error(f"Couldn't extract video ID: Source link is not correct: {source_url}")
         return None
 

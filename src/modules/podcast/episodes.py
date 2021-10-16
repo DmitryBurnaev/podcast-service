@@ -22,6 +22,9 @@ class EpisodeCreator:
     http_link_regex = re.compile(
         "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|%-[0-9a-fA-F][0-9a-fA-F])+"
     )
+    allowed_alternative_sources = [
+        'music.yandex.ru'
+    ]
 
     def __init__(self, db_session: AsyncSession, podcast_id: int, source_url: str, user_id: int):
         self.db_session = db_session
@@ -39,7 +42,7 @@ class EpisodeCreator:
         :raise: `modules.youtube.exceptions.YoutubeFetchError`
         :return: New <Episode> object
         """
-
+        # TODO: inject cookie (in netscape format) from yandex
         same_episodes: Iterable[Episode] = await Episode.async_filter(
             self.db_session, source_id=self.source_id
         )
