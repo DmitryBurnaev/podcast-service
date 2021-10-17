@@ -1,7 +1,7 @@
 import pytest
 from youtube_dl.utils import ExtractorError
 
-from modules.youtube.exceptions import YoutubeFetchError
+from modules.providers.exceptions import SourceFetchError
 from modules.podcast.episodes import EpisodeCreator
 from modules.podcast.models import Podcast, Episode
 from tests.api.test_base import BaseTestAPIView
@@ -92,7 +92,7 @@ class TestEpisodeCreator(BaseTestAPIView):
             source_url=episode_data["watch_url"],
             user_id=user.id,
         )
-        with pytest.raises(YoutubeFetchError) as error:
+        with pytest.raises(SourceFetchError) as error:
             await_(episode_creator.create())
 
         assert error.value.details == f"Extracting data for new Episode failed: {ydl_error}"

@@ -33,7 +33,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
 
         yt_content_type = youtube_details.get("_type")
         if yt_content_type != "playlist":
-            logger.warning("Unknown type of returned youtube details: %s", yt_content_type)
+            logger.warning("Unknown type of returned providers details: %s", yt_content_type)
             logger.debug("Returned info: {%s}", youtube_details)
             raise InvalidParameterError(
                 details=f"It seems like incorrect playlist. {yt_content_type=}"

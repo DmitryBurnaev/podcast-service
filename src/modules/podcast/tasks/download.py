@@ -11,9 +11,9 @@ from common.exceptions import NotFoundError, MaxAttemptsReached
 from modules.podcast.models import Episode
 from modules.podcast.tasks.base import RQTask, FinishCode
 from modules.podcast.tasks.rss import GenerateRSSTask
-from modules.youtube import utils as youtube_utils
+from modules.providers import utils as youtube_utils
 from modules.podcast import utils as podcast_utils
-from modules.youtube.utils import ffmpeg_preparation
+from modules.providers.utils import ffmpeg_preparation
 
 logger = get_logger(__name__)
 status = Episode.Status
@@ -27,7 +27,7 @@ class DownloadingInterrupted(Exception):
 
 
 class DownloadEpisodeTask(RQTask):
-    """Allows to download youtube video and recreate specific rss (by requested episode_id)"""
+    """Allows to download providers video and recreate specific rss (by requested episode_id)"""
 
     storage: StorageS3 = None
 
@@ -136,7 +136,7 @@ class DownloadEpisodeTask(RQTask):
         if episode.status not in (Episode.Status.NEW, Episode.Status.DOWNLOADING):
             logger.warning(
                 "[%s] Episode is %s but file-size seems not correct. "
-                "Removing not-correct file %s and reloading it from youtube.",
+                "Removing not-correct file %s and reloading it from providers.",
                 episode.source_id,
                 episode.status,
                 episode.file_name,

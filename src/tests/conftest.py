@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core import settings
 from modules.auth.models import UserInvite
 from modules.podcast.models import Podcast, Episode
-from modules.youtube import utils as youtube_utils
+from modules.providers import utils as youtube_utils
 from tests.helpers import (
     PodcastTestClient,
     get_user_data,

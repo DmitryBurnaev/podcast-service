@@ -1,7 +1,7 @@
 import pytest
 
 from common.statuses import ResponseStatus
-from modules.youtube.exceptions import YoutubeFetchError
+from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks import DownloadEpisodeTask
@@ -107,7 +107,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
     def test_create__youtube_error__fail(
         self, client, podcast, episode_data, user, mocked_episode_creator
     ):
-        mocked_episode_creator.create.side_effect = YoutubeFetchError("Oops")
+        mocked_episode_creator.create.side_effect = SourceFetchError("Oops")
         client.login(user)
         url = self.url.format(id=podcast.id)
         response = client.post(url, json={"source_url": episode_data["watch_url"]})

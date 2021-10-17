@@ -9,7 +9,7 @@ from core import settings
 from modules.podcast.models import Episode, Podcast, EpisodeStatus
 from modules.podcast.tasks import DownloadEpisodeTask, DownloadEpisodeImageTask
 from modules.podcast.tasks.base import FinishCode
-from modules.youtube.utils import download_process_hook
+from modules.providers.utils import download_process_hook
 from tests.api.test_base import BaseTestCase
 from tests.helpers import get_podcast_data, await_
 
@@ -163,7 +163,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.status == Episode.Status.ERROR
         assert episode.published_at is None
 
-    @patch("modules.youtube.utils.episode_process_hook")
+    @patch("modules.providers.utils.episode_process_hook")
     def test_download_process_hook__ok(self, mocked_process_hook):
         event = {
             "total_bytes": 1024,

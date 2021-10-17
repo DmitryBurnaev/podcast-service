@@ -8,8 +8,8 @@ import pytest
 from core import settings
 from modules.podcast.models import EpisodeStatus
 from modules.podcast.utils import post_processing_process_hook
-from modules.youtube.exceptions import FFMPegPreparationError
-from modules.youtube.utils import ffmpeg_preparation
+from modules.providers.exceptions import FFMPegPreparationError
+from modules.providers.utils import ffmpeg_preparation
 from tests.api.test_base import BaseTestCase
 
 
@@ -40,7 +40,7 @@ class TestFFMPEG(BaseTestCase):
         assert actual_process_hook_calls == expected_calls
 
     @patch("subprocess.run")
-    @patch("modules.youtube.utils.episode_process_hook")
+    @patch("modules.providers.utils.episode_process_hook")
     def test_episode_prepare__ok(self, mocked_process_hook, mocked_run, mocked_process):
         mocked_run.return_value = CompletedProcess([], returncode=0, stdout=b"Success")
         ffmpeg_preparation(self.src_path)
@@ -79,7 +79,7 @@ class TestFFMPEG(BaseTestCase):
         )
 
     @patch("subprocess.run")
-    @patch("modules.youtube.utils.episode_process_hook")
+    @patch("modules.providers.utils.episode_process_hook")
     def test_episode_prepare__ffmpeg_error__fail(self, mocked_process_hook, mocked_run):
         mocked_run.side_effect = subprocess.CalledProcessError(1, [], stderr=b"FFMPEG oops")
         with pytest.raises(FFMPegPreparationError) as err:
@@ -95,7 +95,7 @@ class TestFFMPEG(BaseTestCase):
         )
 
     @patch("subprocess.run")
-    @patch("modules.youtube.utils.episode_process_hook")
+    @patch("modules.providers.utils.episode_process_hook")
     def test_episode_prepare__io_error__fail(self, mocked_process_hook, mocked_run):
         mocked_run.return_value = CompletedProcess([], returncode=0, stdout=b"Success")
         os.remove(self.tmp_filename)
