@@ -77,7 +77,7 @@ def get_user_data() -> Tuple[str, str]:
 
 
 def get_video_id() -> str:
-    """Generate YouTube-like videoID"""
+    """Generate SourceID (ex.: youtube's video-id)"""
     return blake2b(key=bytes(str(time.time()), encoding="utf-8"), digest_size=6).hexdigest()[:11]
 
 

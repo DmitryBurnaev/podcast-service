@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 
 class SourceMediaInfo(NamedTuple):
-    """Structure of extended information about providers video"""
+    """Structure of extended information about media source"""
 
     watch_url: str
     source_id: str
@@ -81,7 +81,7 @@ def download_audio(source_url: str, filename: str) -> str:
 
 
 async def get_source_media_info(source_url: str) -> Tuple[str, Optional[SourceMediaInfo]]:
-    """Allows extract info about providers video from Youtube webpage (powered by youtube_dl)"""
+    """Allows extract info about providers video from Source (powered by youtube_dl)"""
 
     logger.info(f"Started fetching data for {source_url}")
     loop = asyncio.get_running_loop()

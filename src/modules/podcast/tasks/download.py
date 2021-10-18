@@ -27,7 +27,7 @@ class DownloadingInterrupted(Exception):
 
 
 class DownloadEpisodeTask(RQTask):
-    """Allows to download providers video and recreate specific rss (by requested episode_id)"""
+    """Allows to download media from the source and recreate podcast's rss (by requested episode_id)"""
 
     storage: StorageS3 = None
 
@@ -107,7 +107,7 @@ class DownloadEpisodeTask(RQTask):
             raise DownloadingInterrupted(code=FinishCode.SKIP)
 
     async def _download_episode(self, episode: Episode):
-        """Allows to fetch info from external resource and extract audio from target video"""
+        """Allows to fetch info from external resource and extract audio from target source"""
 
         await self._update_episodes(episode.source_id, update_data={"status": status.DOWNLOADING})
 

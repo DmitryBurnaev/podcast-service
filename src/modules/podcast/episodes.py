@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 
 class EpisodeCreator:
-    """Allows to extract info from YouTube end create (if necessary) episode"""
+    """Allows to extract info from Source end create episode (if necessary) """
 
     symbols_regex = re.compile("[&^<>*#]")
     http_link_regex = re.compile(
@@ -67,7 +67,7 @@ class EpisodeCreator:
         """
         Allows to get information for new episode.
         This info can be given from same episode (episode which has same source_id)
-        and part information - from YouTube.
+        and part information - from ExternalSource (ex.: YouTube)
 
         :return: dict with information for new episode
         """
