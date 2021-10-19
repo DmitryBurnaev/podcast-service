@@ -95,7 +95,9 @@ class Episode(ModelBase, ModelMixin):
 
     id = Column(Integer, primary_key=True)
     source_id = Column(String(length=32), index=True, nullable=False)
-    source_type = EnumTypeColumn(EpisodeSource, impl=String(16), default=EpisodeSource.YOUTUBE, nullable=True)
+    source_type = EnumTypeColumn(
+        EpisodeSource, impl=String(16), default=EpisodeSource.YOUTUBE, nullable=True
+    )
     podcast_id = Column(Integer, ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True)
     title = Column(String(length=256), nullable=False)
     watch_url = Column(String(length=128))
