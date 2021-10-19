@@ -32,6 +32,13 @@ class EpisodeStatus(enum.Enum):
         return self.value
 
 
+class EpisodeSource(enum.Enum):
+    YOUTUBE = "YOUTUBE"
+
+    def __str__(self):
+        return self.value
+
+
 class Podcast(ModelBase, ModelMixin):
     """Simple schema_request for saving podcast in DB"""
 
@@ -83,10 +90,14 @@ class Episode(ModelBase, ModelMixin):
 
     __tablename__ = "podcast_episodes"
     Status = EpisodeStatus
+    Sources = EpisodeSource
     PROGRESS_STATUSES = (Status.DOWNLOADING,)
 
     id = Column(Integer, primary_key=True)
     source_id = Column(String(length=32), index=True, nullable=False)
+    source_type = EnumTypeColumn(
+        EpisodeSource, impl=String(16), default=EpisodeSource.YOUTUBE, nullable=True
+    )
     podcast_id = Column(Integer, ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True)
     title = Column(String(length=256), nullable=False)
     watch_url = Column(String(length=128))

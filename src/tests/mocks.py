@@ -69,8 +69,8 @@ class MockYoutubeDL(BaseMock):
     def info(self, *_, **__):
         return {
             "id": self.video_id,
-            "title": "Test youtube video",
-            "description": "Test youtube video description",
+            "title": "Test providers video",
+            "description": "Test providers video description",
             "webpage_url": self.watch_url,
             "thumbnail": "http://path.to-image.com",
             "thumbnails": [{"url": "http://path.to-image.com"}],

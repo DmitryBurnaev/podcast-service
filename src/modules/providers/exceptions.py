@@ -5,5 +5,5 @@ class FFMPegPreparationError(BaseApplicationError):
     message = "We couldn't prepare file by ffmpeg"
 
 
-class YoutubeFetchError(BaseApplicationError):
+class SourceFetchError(BaseApplicationError):
     message = "We couldn't extract info about requested episode."
