@@ -32,7 +32,7 @@ class BaseLimitOffsetSchema(Schema):
 class PodcastCreateUpdateSchema(Schema):
     name = fields.Str(required=True, validate=validate.Length(min=1, max=256))
     description = fields.Str()
-    download_automatically = fields.Bool(default=True)
+    download_automatically = fields.Bool(load_default=False)
 
 
 class PodcastDetailsSchema(Schema):
@@ -42,8 +42,8 @@ class PodcastDetailsSchema(Schema):
     created_at = fields.DateTime(required=True)
     image_url = fields.URL()
     rss_link = fields.URL()
-    download_automatically = fields.Boolean(default=True)
-    episodes_count = fields.Integer(default=0)
+    download_automatically = fields.Boolean(dump_default=True)
+    episodes_count = fields.Integer(dump_default=0)
 
 
 class PodcastUploadImageResponseSchema(Schema):
@@ -56,7 +56,7 @@ class EpisodeCreateSchema(Schema):
 
 
 class EpisodeListRequestSchema(BaseLimitOffsetSchema):
-    q = fields.Str(default="")
+    q = fields.Str(load_default="")
 
 
 class EpisodeUpdateSchema(Schema):

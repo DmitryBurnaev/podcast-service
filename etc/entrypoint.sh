@@ -15,7 +15,7 @@ elif [ "${APP_SERVICE}" = "test" ]
   then
     cd /podcast &&
     flake8 --count && \
-    PYTHONPATH=$(pwd)/src coverage run -m pytest && \
+    PYTHONPATH=$(pwd)/src coverage --concurrency=thread,greenlet run -m pytest && \
     coverage report
 
 elif [ "${APP_SERVICE}" = "migrate_db" ]
