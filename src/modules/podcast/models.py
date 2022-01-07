@@ -4,7 +4,7 @@ from datetime import datetime
 from hashlib import md5
 from xml.sax.saxutils import escape
 
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import relationship
 
@@ -112,6 +112,8 @@ class Episode(ModelBase, ModelMixin):
     created_at = Column(DateTime, default=datetime.utcnow)
     published_at = Column(DateTime)
     created_by_id = Column(Integer, ForeignKey("auth_users.id"), index=True)
+    # TODO: on delete??
+    cookie_id = Column(Integer, ForeignKey("podcast_cookies.id", ondelete="CASCADE"))
 
     class Meta:
         order_by = ("-created_at",)
@@ -139,3 +141,17 @@ class Episode(ModelBase, ModelMixin):
     @classmethod
     def generate_image_name(cls, source_id: str) -> str:
         return f"{source_id}_{uuid.uuid4().hex}.png"
+
+
+class Cookie(ModelBase, ModelMixin):
+    """Saving cookies for accessing to auth-only resources"""
+
+    __tablename__ = "podcast_cookies"
+
+    id = Column(Integer, primary_key=True)
+    domain = Column(String(length=256), nullable=False)
+    data = Column(Text(), nullable=False)
+    created_by_id = Column(Integer(), ForeignKey("auth_users.id"))
+
+    def __str__(self):
+        return f'<Podcast #{self.id} "{self.name}">'
