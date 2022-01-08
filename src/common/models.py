@@ -107,6 +107,8 @@ class ModelMixin:
                 filters.append((getattr(cls, field).is_(filter_value)))
             elif criteria == "in":
                 filters.append((getattr(cls, field).in_(filter_value)))
+            elif criteria == "inarr":
+                filters.append(filter_value in getattr(cls, field))
             elif criteria == "icontains":
                 filters.append((getattr(cls, field).ilike(f"%{filter_value}%")))
             elif criteria == "ne":

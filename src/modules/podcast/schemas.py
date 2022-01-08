@@ -15,6 +15,9 @@ __all__ = [
     "PlayListResponseSchema",
     "ProgressResponseSchema",
     "PodcastUploadImageResponseSchema",
+    "CookieCreateUpdateSchema",
+    "CookieListResponseSchema",
+    "CookieListRequestSchema",
 ]
 
 
@@ -133,3 +136,19 @@ class ProgressResponseSchema(Schema):
     total_file_size = fields.Int()
     episode = fields.Nested(ProgressEpisodeSchema)
     podcast = fields.Nested(ProgressPodcastSchema)
+
+
+class CookieCreateUpdateSchema(Schema):
+    domain = fields.Str(required=True)
+    data = fields.Str(required=True)
+    aliases = fields.List(fields.Str)
+
+
+class CookieListRequestSchema(Schema):
+    domain = fields.Str(required=True)
+
+
+class CookieListResponseSchema(Schema):
+    id = fields.Int()
+    domain = fields.Str()
+    created_at = fields.DateTime()
