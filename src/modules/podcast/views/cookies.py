@@ -22,18 +22,17 @@ class CookieListCreateAPIView(BaseHTTPEndpoint):
         cleaned_data = await self._validate(
             request, schema=CookieListRequestSchema, location="query"
         )
-        domain = cleaned_data.get("domain")
-        cookies = await Cookie.async_filter(self.db_session, aliases__inarr=domain)
+        cookies = await Cookie.async_filter(
+            self.db_session, created_by_id=request.user.id, domains__inarr=cleaned_data["domain"]
+        )
         return self._response(cookies)
 
     async def post(self, request):
         cleaned_data = await self._validate(request)
-        # TODO: create new cookie here
-        # podcast = await Podcast.async_create(
-        #     db_session=request.db_session,
-        #     name=cleaned_data["name"],
-        #     publish_id=Podcast.generate_publish_id(),
-        #     description=cleaned_data["description"],
-        #     created_by_id=request.user.id,
-        # )
-        return self._response(cleaned_data, status_code=status.HTTP_201_CREATED)
+        cookie = await Cookie.async_create(
+            db_session=request.db_session,
+            data=cleaned_data["data"],
+            domains=cleaned_data["domains"],
+            created_by_id=request.user.id,
+        )
+        return self._response(cookie, status_code=status.HTTP_201_CREATED)

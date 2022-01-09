@@ -67,7 +67,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
                     self.scope["user"] = user
                     self.request.user_session_id = session_id
 
-                response = await handler(self.request) # noqa
+                response = await handler(self.request)  # noqa
                 await self.db_session.commit()
 
         except (BaseApplicationError, WebargsHTTPException) as err:

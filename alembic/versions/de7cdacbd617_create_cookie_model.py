@@ -21,8 +21,7 @@ def upgrade():
     op.create_table(
         "podcast_cookies",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("domain", sa.String(length=256), nullable=False),
-        sa.Column("aliases", sa.ARRAY(sa.String(length=128)), nullable=True),
+        sa.Column("domains", sa.ARRAY(sa.String(length=128)), nullable=False),
         sa.Column("data", sa.Text(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.Column("created_by_id", sa.Integer(), nullable=True),

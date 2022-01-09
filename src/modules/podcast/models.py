@@ -148,11 +148,13 @@ class Cookie(ModelBase, ModelMixin):
     __tablename__ = "podcast_cookies"
 
     id = Column(Integer, primary_key=True)
-    domain = Column(String(length=256), nullable=False)
-    aliases = Column(ARRAY(String(length=128)))
+    domains = Column(ARRAY(String(length=128)), nullable=False)
     data = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by_id = Column(Integer(), ForeignKey("auth_users.id"))
+
+    class Meta:
+        order_by = ("-created_at",)
 
     def __str__(self):
         return f'<Cookie #{self.id} "{self.domain}" at {self.created_at}>'
