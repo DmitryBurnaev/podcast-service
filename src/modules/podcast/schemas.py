@@ -144,10 +144,10 @@ class CookieCreateUpdateSchema(Schema):
 
 
 class CookieListRequestSchema(Schema):
-    domain = fields.Str(required=True)
+    domain = fields.Str()
 
 
 class CookieListResponseSchema(Schema):
     id = fields.Int()
-    domain = fields.Str()
+    domains = fields.List(fields.Str)
     created_at = fields.DateTime()

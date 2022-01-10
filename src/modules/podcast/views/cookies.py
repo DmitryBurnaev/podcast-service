@@ -22,12 +22,15 @@ class CookieListCreateAPIView(BaseHTTPEndpoint):
         cleaned_data = await self._validate(
             request, schema=CookieListRequestSchema, location="query"
         )
-        cookies = await Cookie.async_filter(
-            self.db_session, created_by_id=request.user.id, domains__inarr=cleaned_data["domain"]
-        )
+        filter_kwargs = {'created_by_id': request.user.id}
+        if domain := cleaned_data.get('domain'):
+            filter_kwargs['domains__inarr'] = domain
+
+        cookies = await Cookie.async_filter(self.db_session, **filter_kwargs)
         return self._response(cookies)
 
     async def post(self, request):
+        # TODO: upload file with cookies (netscape formatted) here
         cleaned_data = await self._validate(request)
         cookie = await Cookie.async_create(
             db_session=request.db_session,
