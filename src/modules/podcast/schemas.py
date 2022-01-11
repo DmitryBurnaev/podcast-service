@@ -139,8 +139,8 @@ class ProgressResponseSchema(Schema):
 
 
 class CookieCreateUpdateSchema(Schema):
-    data = fields.Str(required=True)
-    domains = fields.List(fields.Str)
+    domains = fields.List(fields.Str, required=True)
+    file = fields.Raw()
 
 
 class CookieListRequestSchema(Schema):

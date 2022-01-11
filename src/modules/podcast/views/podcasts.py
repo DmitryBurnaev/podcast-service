@@ -134,7 +134,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
         await self.db_session.refresh(podcast)
         return self._response(podcast)
 
-    async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
+    async def _validate(self, request, **_) -> dict:
         form = await request.form()
         if not (image := form.get("image")):
             raise InvalidParameterError(details="Image is required field")

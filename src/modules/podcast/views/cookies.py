@@ -1,5 +1,6 @@
 from starlette import status
 
+from common.exceptions import InvalidParameterError
 from common.utils import get_logger
 from common.views import BaseHTTPEndpoint
 from modules.podcast.models import Cookie
@@ -32,6 +33,7 @@ class CookieListCreateAPIView(BaseHTTPEndpoint):
     async def post(self, request):
         # TODO: upload file with cookies (netscape formatted) here
         cleaned_data = await self._validate(request)
+        # TODO: save file's content and domains
         cookie = await Cookie.async_create(
             db_session=request.db_session,
             data=cleaned_data["data"],
@@ -39,3 +41,10 @@ class CookieListCreateAPIView(BaseHTTPEndpoint):
             created_by_id=request.user.id,
         )
         return self._response(cookie, status_code=status.HTTP_201_CREATED)
+
+    async def _validate(self, request, **_) -> dict:
+        form = await request.form()
+        if not (file := form.get("file")):
+            raise InvalidParameterError(details="Cookie file is required here")
+
+        return {"file": file}
