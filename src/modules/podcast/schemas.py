@@ -16,7 +16,7 @@ __all__ = [
     "ProgressResponseSchema",
     "PodcastUploadImageResponseSchema",
     "CookieCreateUpdateSchema",
-    "CookieListResponseSchema",
+    "CookieResponseSchema",
     "CookieListRequestSchema",
 ]
 
@@ -147,7 +147,7 @@ class CookieListRequestSchema(Schema):
     domain = fields.Str()
 
 
-class CookieListResponseSchema(Schema):
+class CookieResponseSchema(Schema):
     id = fields.Int()
     domains = fields.List(fields.Str)
     created_at = fields.DateTime()

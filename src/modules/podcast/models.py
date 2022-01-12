@@ -4,7 +4,8 @@ from datetime import datetime
 from hashlib import md5
 from xml.sax.saxutils import escape
 
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, ARRAY
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import relationship
 

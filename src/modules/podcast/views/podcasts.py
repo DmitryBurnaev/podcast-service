@@ -177,7 +177,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
 
 
 class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):
-    """Allows to start RSS generation task"""
+    """Allows starting RSS generation task"""
 
     db_model = Podcast
 
