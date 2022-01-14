@@ -8,6 +8,7 @@ __all__ = [
     "PodcastCreateUpdateSchema",
     "EpisodeListRequestSchema",
     "EpisodeListResponseSchema",
+    "EpisodeListSchema",
     "EpisodeCreateSchema",
     "EpisodeDetailsSchema",
     "EpisodeUpdateSchema",

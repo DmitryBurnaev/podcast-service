@@ -4,7 +4,11 @@ from common.exceptions import InvalidParameterError
 from common.utils import get_logger
 from common.views import BaseHTTPEndpoint
 from modules.podcast.models import Cookie
-from modules.podcast.schemas import CookieResponseSchema, CookieListRequestSchema
+from modules.podcast.schemas import (
+    CookieResponseSchema,
+    CookieListRequestSchema,
+    CookieCreateUpdateSchema,
+)
 
 logger = get_logger(__name__)
 
@@ -45,3 +49,30 @@ class CookieListCreateAPIView(BaseHTTPEndpoint):
             raise InvalidParameterError(details="Domains is required as comma separated list")
 
         return {"file": file, "domains": [domain.strip() for domain in domains.split(",")]}
+
+
+class CookieRUDAPIView(BaseHTTPEndpoint):
+    """Retrieve, Update, Delete API for cookies"""
+
+    db_model = Cookie
+    schema_request = CookieCreateUpdateSchema
+    schema_response = CookieResponseSchema
+
+    async def get(self, request):
+        cookie_id = request.path_params["cookie_id"]
+        cookie = await self._get_object(cookie_id)
+        return self._response(cookie)
+
+    async def patch(self, request):
+        cleaned_data = await self._validate(request, partial_=True)
+        cookie_id = request.path_params["cookie_id"]
+        cookie = await self._get_object(cookie_id)
+        await cookie.update(self.db_session, **cleaned_data)
+        return self._response(cookie)
+
+    async def delete(self, request):
+        cookie_id = int(request.path_params["cookie_id"])
+        cookie = await self._get_object(cookie_id)
+
+        await cookie.delete(self.db_session)
+        return self._response()
