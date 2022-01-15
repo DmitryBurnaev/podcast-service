@@ -1,4 +1,3 @@
-import enum
 import uuid
 from datetime import datetime
 from hashlib import md5
@@ -9,13 +8,14 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import relationship
 
+from common.utils import StringEnum
 from core import settings
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
 from core.database import ModelBase
 
 
-class EpisodeStatus(enum.Enum):
+class EpisodeStatus(StringEnum):
     NEW = "new"
     DOWNLOADING = "downloading"
     PUBLISHED = "published"
@@ -29,15 +29,11 @@ class EpisodeStatus(enum.Enum):
     DL_COVER_DOWNLOADING = "cover_downloading"
     DL_COVER_UPLOADING = "cover_uploading"
 
-    def __str__(self):
-        return self.value
 
-
-class EpisodeSource(enum.Enum):
+class SourceType(StringEnum):
     YOUTUBE = "YOUTUBE"
-
-    def __str__(self):
-        return self.value
+    YANDEX = "YANDEX"
+    FILE = "FILE"
 
 
 class Podcast(ModelBase, ModelMixin):
@@ -91,14 +87,13 @@ class Episode(ModelBase, ModelMixin):
 
     __tablename__ = "podcast_episodes"
     Status = EpisodeStatus
-    Sources = EpisodeSource
+    Sources = SourceType
     PROGRESS_STATUSES = (Status.DOWNLOADING,)
 
     id = Column(Integer, primary_key=True)
+    # TODO: source_id -> remote_id
     source_id = Column(String(length=32), index=True, nullable=False)
-    source_type = EnumTypeColumn(
-        EpisodeSource, impl=String(16), default=EpisodeSource.YOUTUBE, nullable=True
-    )
+    source_config_id = Column(Integer, ForeignKey("podcast_sources.id"), index=True)
     podcast_id = Column(Integer, ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True)
     title = Column(String(length=256), nullable=False)
     watch_url = Column(String(length=128))
@@ -143,14 +138,20 @@ class Episode(ModelBase, ModelMixin):
         return f"{source_id}_{uuid.uuid4().hex}.png"
 
 
-class Cookie(ModelBase, ModelMixin):
+class PerformType(StringEnum):
+    FFMPEG = "FFMPEG"
+
+
+class Source(ModelBase, ModelMixin):
     """Saving cookies for accessing to auth-only resources"""
 
-    __tablename__ = "podcast_cookies"
+    __tablename__ = "podcast_sources"
 
     id = Column(Integer, primary_key=True)
+    type = EnumTypeColumn(SourceType, impl=String(16), nullable=True)
     domains = Column(ARRAY(String(length=128)), nullable=False)
-    data = Column(Text, nullable=False)
+    cookies = Column(Text, nullable=False)
+    perform = EnumTypeColumn(PerformType, impl=String(16), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by_id = Column(Integer(), ForeignKey("auth_users.id"))
 
@@ -158,4 +159,4 @@ class Cookie(ModelBase, ModelMixin):
         order_by = ("-created_at",)
 
     def __str__(self):
-        return f'<Cookie #{self.id} "{self.domain}" at {self.created_at}>'
+        return f'<Source #{self.id} [{self.type}] at {self.created_at}>'

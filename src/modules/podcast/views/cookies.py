@@ -3,7 +3,7 @@ from starlette import status
 from common.exceptions import InvalidParameterError
 from common.utils import get_logger
 from common.views import BaseHTTPEndpoint
-from modules.podcast.models import Cookie
+from modules.podcast.models import Source
 from modules.podcast.schemas import (
     CookieResponseSchema,
     CookieListRequestSchema,
@@ -25,13 +25,13 @@ class CookieListCreateAPIView(BaseHTTPEndpoint):
         if domain := cleaned_data.get("domain"):
             filter_kwargs["domains__inarr"] = domain
 
-        cookies = await Cookie.async_filter(self.db_session, **filter_kwargs)
+        cookies = await Source.async_filter(self.db_session, **filter_kwargs)
         return self._response(cookies)
 
     async def post(self, request):
         cleaned_data = await self._validate_post(request)
         cookie_data = (await cleaned_data["file"].read()).decode()
-        cookie = await Cookie.async_create(
+        cookie = await Source.async_create(
             db_session=request.db_session,
             data=cookie_data,
             domains=cleaned_data["domains"],
@@ -54,7 +54,7 @@ class CookieListCreateAPIView(BaseHTTPEndpoint):
 class CookieRUDAPIView(BaseHTTPEndpoint):
     """Retrieve, Update, Delete API for cookies"""
 
-    db_model = Cookie
+    db_model = Source
     schema_request = CookieCreateUpdateSchema
     schema_response = CookieResponseSchema
 
