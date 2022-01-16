@@ -13,7 +13,7 @@ from modules.podcast.schemas import (
 logger = get_logger(__name__)
 
 
-class CookieListCreateAPIView(BaseHTTPEndpoint):
+class ServiceListCreateAPIView(BaseHTTPEndpoint):
     """List and Create API for cookie's objects"""
 
     schema_request = CookieListRequestSchema
@@ -51,7 +51,7 @@ class CookieListCreateAPIView(BaseHTTPEndpoint):
         return {"file": file, "domains": [domain.strip() for domain in domains.split(",")]}
 
 
-class CookieRUDAPIView(BaseHTTPEndpoint):
+class ServiceRUDAPIView(BaseHTTPEndpoint):
     """Retrieve, Update, Delete API for cookies"""
 
     db_model = Source

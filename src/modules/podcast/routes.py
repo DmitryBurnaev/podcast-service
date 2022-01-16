@@ -14,6 +14,6 @@ routes = [
     Route("/episodes/{episode_id:int}/", views.EpisodeRUDAPIView),
     Route("/episodes/{episode_id:int}/download/", views.EpisodeDownloadAPIView),
     # cookies
-    Route("/cookies/", views.CookieListCreateAPIView),
-    Route("/cookies/{cookie_id:int}/", views.CookieRUDAPIView),
+    Route("/services/", views.ServiceListCreateAPIView),
+    Route("/services/{cookie_id:int}/", views.ServiceRUDAPIView),
 ]
