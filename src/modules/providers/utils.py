@@ -24,7 +24,7 @@ class SourceMediaInfo(NamedTuple):
     """Structure of extended information about media source"""
 
     watch_url: str
-    source_id: str
+    remote_id: str
     description: str
     thumbnail_url: str
     title: str
@@ -32,7 +32,7 @@ class SourceMediaInfo(NamedTuple):
     length: int
 
 
-def get_source_id(source_url: str) -> Optional[tuple[str, SourceType]]:
+def get_remote_id(source_url: str) -> Optional[tuple[str, SourceType]]:
     """Extracts providers link and finds video ID"""
 
     matched_url = re.findall(r"(?:v=|/)([0-9A-Za-z_-]{11}).*", source_url)
@@ -99,7 +99,7 @@ async def get_source_media_info(source_url: str) -> Tuple[str, Optional[SourceMe
         title=source_details["title"],
         description=source_details["description"],
         watch_url=source_details["webpage_url"],
-        source_id=source_details["id"],
+        remote_id=source_details["id"],
         thumbnail_url=source_details["thumbnail"],
         author=source_details["uploader"],
         length=source_details["duration"],

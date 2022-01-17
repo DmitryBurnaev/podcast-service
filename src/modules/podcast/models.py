@@ -91,8 +91,8 @@ class Episode(ModelBase, ModelMixin):
     PROGRESS_STATUSES = (Status.DOWNLOADING,)
 
     id = Column(Integer, primary_key=True)
-    # TODO: source_id -> remote_id
-    source_id = Column(String(length=32), index=True, nullable=False)
+    # TODO: remote_id -> remote_id
+    remote_id = Column(String(length=32), index=True, nullable=False)
     source_config_id = Column(Integer, ForeignKey("podcast_sources.id"), index=True)
     podcast_id = Column(Integer, ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True)
     title = Column(String(length=256), nullable=False)
@@ -115,7 +115,7 @@ class Episode(ModelBase, ModelMixin):
         db_table = "podcast_episodes"
 
     def __str__(self):
-        return f'<Episode #{self.id} {self.source_id} [{self.status}] "{self.title[:10]}..." >'
+        return f'<Episode #{self.id} {self.remote_id} [{self.status}] "{self.title[:10]}..." >'
 
     @classmethod
     async def get_in_progress(cls, db_session: AsyncSession, user_id: int):
@@ -134,8 +134,8 @@ class Episode(ModelBase, ModelMixin):
         return f"audio/{file_name.split('.')[-1]}"
 
     @classmethod
-    def generate_image_name(cls, source_id: str) -> str:
-        return f"{source_id}_{uuid.uuid4().hex}.png"
+    def generate_image_name(cls, remote_id: str) -> str:
+        return f"{remote_id}_{uuid.uuid4().hex}.png"
 
 
 class PerformType(StringEnum):
