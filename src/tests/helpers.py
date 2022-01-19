@@ -82,15 +82,15 @@ def get_video_id() -> str:
 
 
 def get_episode_data(podcast: Podcast = None, status: str = None, creator: User = None) -> dict:
-    remote_id = get_video_id()
+    source_id = get_video_id()
     episode_data = {
-        "remote_id": remote_id,
-        "title": f"episode_{remote_id}",
-        "watch_url": f"https://www.youtube.com/watch?v={remote_id}",
+        "source_id": source_id,
+        "title": f"episode_{source_id}",
+        "watch_url": f"https://www.youtube.com/watch?v={source_id}",
         "length": random.randint(1, 100),
-        "description": f"description_{remote_id}",
-        "image_url": f"image_url_{remote_id}",
-        "file_name": f"file_name_{remote_id}",
+        "description": f"description_{source_id}",
+        "image_url": f"image_url_{source_id}",
+        "file_name": f"file_name_{source_id}",
         "file_size": random.randint(1, 100),
         "author": None,
         "status": status or "new",
@@ -152,13 +152,13 @@ def create_episode(
     podcast: Podcast,
     status: Episode.Status = Episode.Status.NEW,
     file_size: int = 0,
-    remote_id: str = None,
+    source_id: str = None,
 ) -> Episode:
-    src_id = remote_id or get_video_id()
+    src_id = source_id or get_video_id()
     episode_data.update(
         {
             "podcast_id": podcast.id,
-            "remote_id": src_id,
+            "source_id": src_id,
             "file_name": f"file_name_{src_id}.mp3",
             "status": status,
             "file_size": file_size,

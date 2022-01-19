@@ -47,7 +47,7 @@ class TestGenerateRSSTask:
         assert episode_published.file_name in generated_rss_content
 
         for episode in [episode_new, episode_downloading, episode_podcast_2]:
-            assert episode.remote_id not in generated_rss_content, f"{episode} in RSS {podcast_1}"
+            assert episode.source_id not in generated_rss_content, f"{episode} in RSS {podcast_1}"
 
         podcast_1 = await_(Podcast.async_get(dbs, id=podcast_1.id))
         assert podcast_1.rss_link == str(expected_file_path)

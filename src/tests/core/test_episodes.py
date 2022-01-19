@@ -10,8 +10,8 @@ from tests.helpers import get_podcast_data, await_
 
 class TestEpisodeCreator(BaseTestAPIView):
     def test_create__ok(self, podcast, user, mocked_youtube, dbs):
-        remote_id = mocked_youtube.video_id
-        watch_url = f"https://www.youtube.com/watch?v={remote_id}"
+        source_id = mocked_youtube.video_id
+        watch_url = f"https://www.youtube.com/watch?v={source_id}"
         episode_creator = EpisodeCreator(
             dbs,
             podcast_id=podcast.id,
@@ -21,7 +21,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         episode = await_(episode_creator.create())
         assert episode is not None
         assert episode.watch_url == watch_url
-        assert episode.remote_id == remote_id
+        assert episode.source_id == source_id
 
     def test_create__same_episode_in_podcast__ok(self, podcast, episode, user, mocked_youtube, dbs):
         episode_creator = EpisodeCreator(
@@ -33,14 +33,14 @@ class TestEpisodeCreator(BaseTestAPIView):
         new_episode = await_(episode_creator.create())
         assert new_episode is not None
         assert new_episode.id == episode.id
-        assert new_episode.remote_id == episode.remote_id
+        assert new_episode.source_id == episode.source_id
         assert new_episode.watch_url == episode.watch_url
 
     def test_create__same_episode_in_other_podcast__ok(
         self, podcast, episode, user, mocked_youtube, dbs
     ):
         mocked_youtube.extract_info.return_value = {
-            "id": episode.remote_id,
+            "id": episode.source_id,
             "title": "Updated title",
             "description": "Updated description",
             "webpage_url": "https://new.watch.site/updated/",
@@ -58,7 +58,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         new_episode: Episode = await_(episode_creator.create())
         assert episode is not None
         assert new_episode.id != episode.id
-        assert new_episode.remote_id == episode.remote_id
+        assert new_episode.source_id == episode.source_id
         assert new_episode.watch_url == "https://new.watch.site/updated/"
         assert new_episode.title == "Updated title"
         assert new_episode.description == "Updated description"
@@ -80,11 +80,11 @@ class TestEpisodeCreator(BaseTestAPIView):
         new_episode: Episode = await_(episode_creator.create())
         assert episode is not None
         assert new_episode.id != episode.id
-        assert new_episode.remote_id == episode.remote_id
+        assert new_episode.source_id == episode.source_id
         assert new_episode.watch_url == episode.watch_url
 
     def test_create__extract_failed__fail(self, podcast, episode_data, user, mocked_youtube, dbs):
-        ydl_error = ExtractorError("Something went wrong here", video_id=episode_data["remote_id"])
+        ydl_error = ExtractorError("Something went wrong here", video_id=episode_data["source_id"])
         mocked_youtube.extract_info.side_effect = ydl_error
         episode_creator = EpisodeCreator(
             dbs,

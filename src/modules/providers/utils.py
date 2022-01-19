@@ -14,7 +14,7 @@ from youtube_dl.utils import YoutubeDLError
 from core import settings
 from modules.providers.exceptions import FFMPegPreparationError
 from modules.podcast.utils import get_file_size, episode_process_hook, post_processing_process_hook
-from modules.podcast.models import EpisodeStatus, SourceType
+from modules.podcast.models import EpisodeStatus, EpisodeSource
 from common.utils import get_logger
 
 logger = get_logger(__name__)
@@ -24,7 +24,7 @@ class SourceMediaInfo(NamedTuple):
     """Structure of extended information about media source"""
 
     watch_url: str
-    remote_id: str
+    source_id: str
     description: str
     thumbnail_url: str
     title: str
@@ -32,7 +32,7 @@ class SourceMediaInfo(NamedTuple):
     length: int
 
 
-def get_remote_id(source_url: str) -> Optional[tuple[str, SourceType]]:
+def get_source_id(source_url: str) -> Optional[tuple[str, EpisodeSource]]:
     """Extracts providers link and finds video ID"""
 
     matched_url = re.findall(r"(?:v=|/)([0-9A-Za-z_-]{11}).*", source_url)
@@ -43,7 +43,7 @@ def get_remote_id(source_url: str) -> Optional[tuple[str, SourceType]]:
         logger.error(f"Couldn't extract source ID: Source link is not correct: {source_url}")
         return None
 
-    return matched_url[0], SourceType.YOUTUBE
+    return matched_url[0], EpisodeSource.YOUTUBE
 
 
 def download_process_hook(event: dict):
@@ -99,7 +99,7 @@ async def get_source_media_info(source_url: str) -> Tuple[str, Optional[SourceMe
         title=source_details["title"],
         description=source_details["description"],
         watch_url=source_details["webpage_url"],
-        remote_id=source_details["id"],
+        source_id=source_details["id"],
         thumbnail_url=source_details["thumbnail"],
         author=source_details["uploader"],
         length=source_details["duration"],

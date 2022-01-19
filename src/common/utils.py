@@ -1,5 +1,4 @@
 import asyncio
-import enum
 import logging
 import logging.config
 import uuid
@@ -148,9 +147,3 @@ async def download_content(url: str, file_ext: str, retries=5) -> Optional[Path]
             file.write(result_content)
 
         return path
-
-
-class StringEnum(enum.Enum):
-
-    def __str__(self):
-        return self.value

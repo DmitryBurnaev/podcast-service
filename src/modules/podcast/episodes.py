@@ -8,7 +8,7 @@ from common.utils import get_logger
 from common.exceptions import InvalidParameterError
 from modules.podcast.models import Episode
 from modules.podcast.utils import get_file_name
-from modules.providers.utils import get_source_media_info, get_remote_id
+from modules.providers.utils import get_source_media_info, get_source_id
 from modules.providers.exceptions import SourceFetchError
 
 logger = get_logger(__name__)
@@ -27,9 +27,9 @@ class EpisodeCreator:
         self.podcast_id = podcast_id
         self.user_id = user_id
         self.source_url = source_url
-        self.remote_id, self.source_type = get_remote_id(source_url)
-        if not self.remote_id:
-            raise InvalidParameterError("Couldn't extract remote_id from the source link")
+        self.source_id, self.source_type = get_source_id(source_url)
+        if not self.source_id:
+            raise InvalidParameterError("Couldn't extract source_id from the source link")
 
     async def create(self) -> Episode:
         """
@@ -40,7 +40,7 @@ class EpisodeCreator:
         """
         # TODO: inject cookie (in netscape format)
         same_episodes: Iterable[Episode] = await Episode.async_filter(
-            self.db_session, remote_id=self.remote_id
+            self.db_session, source_id=self.source_id
         )
         episode_in_podcast, last_same_episode = None, None
         for episode in same_episodes:
@@ -51,7 +51,7 @@ class EpisodeCreator:
 
         if episode_in_podcast:
             logger.info(
-                f"Episode for video [{self.remote_id}] already exists for current "
+                f"Episode for video [{self.source_id}] already exists for current "
                 f"podcast {self.podcast_id}. Retrieving {episode_in_podcast}..."
             )
             return episode_in_podcast
@@ -66,17 +66,17 @@ class EpisodeCreator:
     async def _get_episode_data(self, same_episode: Optional[Episode]) -> dict:
         """
         Allows to get information for new episode.
-        This info can be given from same episode (episode which has same remote_id)
+        This info can be given from same episode (episode which has same source_id)
         and part information - from ExternalSource (ex.: YouTube)
 
         :return: dict with information for new episode
         """
 
         if same_episode:
-            logger.info(f"Episode for video {self.remote_id} already exists: {same_episode}.")
+            logger.info(f"Episode for video {self.source_id} already exists: {same_episode}.")
             same_episode_data = same_episode.to_dict()
         else:
-            logger.info(f"New episode for source {self.remote_id} will be created.")
+            logger.info(f"New episode for source {self.source_id} will be created.")
             same_episode_data = {}
 
         extract_error, source_info = await get_source_media_info(self.source_url)
@@ -84,7 +84,7 @@ class EpisodeCreator:
         if source_info:
             logger.info("Episode will be created from the source.")
             new_episode_data = {
-                "remote_id": self.remote_id,
+                "source_id": self.source_id,
                 "watch_url": source_info.watch_url,
                 "title": self._replace_special_symbols(source_info.title),
                 "description": self._replace_special_symbols(source_info.description),
@@ -92,7 +92,7 @@ class EpisodeCreator:
                 "author": source_info.author,
                 "length": source_info.length,
                 "file_size": same_episode_data.get("file_size"),
-                "file_name": same_episode_data.get("file_name") or get_file_name(self.remote_id),
+                "file_name": same_episode_data.get("file_name") or get_file_name(self.source_id),
                 "remote_url": same_episode_data.get("remote_url"),
             }
 

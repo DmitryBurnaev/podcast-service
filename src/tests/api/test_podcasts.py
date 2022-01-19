@@ -193,7 +193,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data()))
         episode_data["status"] = Episode.Status.PUBLISHED
         episode_data["podcast_id"] = podcast_2.id
-        # creating episode with same `remote_id` in another podcast
+        # creating episode with same `source_id` in another podcast
         episode_2 = await_(Episode.async_create(dbs, **episode_data))
 
         await_(dbs.commit())

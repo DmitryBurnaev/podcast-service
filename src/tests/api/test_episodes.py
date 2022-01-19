@@ -208,7 +208,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         delete_called,
         dbs,
     ):
-        remote_id = get_video_id()
+        source_id = get_video_id()
 
         user_1 = create_user(dbs)
         user_2 = create_user(dbs)
@@ -222,12 +222,12 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
 
         episode_data["created_by_id"] = user_1.id
         _ = create_episode(
-            dbs, episode_data, podcast_1, status=same_episode_status, remote_id=remote_id
+            dbs, episode_data, podcast_1, status=same_episode_status, source_id=source_id
         )
 
         episode_data["created_by_id"] = user_2.id
         episode_2 = create_episode(
-            dbs, episode_data, podcast_2, status=Episode.Status.NEW, remote_id=remote_id
+            dbs, episode_data, podcast_2, status=Episode.Status.NEW, source_id=source_id
         )
 
         url = self.url.format(id=episode_2.id)

@@ -102,7 +102,7 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
 
         same_file_episodes = await Episode.async_filter(
             self.db_session,
-            remote_id=episode.remote_id,
+            source_id=episode.source_id,
             status__ne=Episode.Status.NEW,
             id__ne=episode.id,
         )

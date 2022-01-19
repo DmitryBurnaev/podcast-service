@@ -54,7 +54,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode_data.update(
             {
                 "status": "published",
-                "remote_id": mocked_youtube.video_id,
+                "source_id": mocked_youtube.video_id,
                 "watch_url": mocked_youtube.watch_url,
                 "file_size": 1024,
                 "podcast_id": podcast_1.id,
@@ -89,7 +89,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode_data.update(
             {
                 "status": "published",
-                "remote_id": mocked_youtube.video_id,
+                "source_id": mocked_youtube.video_id,
                 "watch_url": mocked_youtube.watch_url,
                 "file_size": 1024,
             }
@@ -186,7 +186,7 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
     def test_download_image__ok(
         self, mocked_download_content, mocked_ffmpeg, mocked_name, episode, mocked_s3, dbs
     ):
-        tmp_path = settings.TMP_IMAGE_PATH / f"{episode.remote_id}.jpg"
+        tmp_path = settings.TMP_IMAGE_PATH / f"{episode.source_id}.jpg"
         mocked_download_content.return_value = tmp_path
         old_image_url = episode.image_url
         new_url = f"https://url-to-image.com/cover-{uuid.uuid4().hex}"

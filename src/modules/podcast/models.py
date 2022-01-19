@@ -1,3 +1,4 @@
+import enum
 import uuid
 from datetime import datetime
 from hashlib import md5
@@ -8,14 +9,13 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import relationship
 
-from common.utils import StringEnum
 from core import settings
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
 from core.database import ModelBase
 
 
-class EpisodeStatus(StringEnum):
+class EpisodeStatus(enum.Enum):
     NEW = "new"
     DOWNLOADING = "downloading"
     PUBLISHED = "published"
@@ -29,11 +29,15 @@ class EpisodeStatus(StringEnum):
     DL_COVER_DOWNLOADING = "cover_downloading"
     DL_COVER_UPLOADING = "cover_uploading"
 
+    def __str__(self):
+        return self.value
 
-class SourceType(StringEnum):
+
+class EpisodeSource(enum.Enum):
     YOUTUBE = "YOUTUBE"
-    YANDEX = "YANDEX"
-    FILE = "FILE"
+
+    def __str__(self):
+        return self.value
 
 
 class Podcast(ModelBase, ModelMixin):
@@ -87,13 +91,14 @@ class Episode(ModelBase, ModelMixin):
 
     __tablename__ = "podcast_episodes"
     Status = EpisodeStatus
-    Sources = SourceType
+    Sources = EpisodeSource
     PROGRESS_STATUSES = (Status.DOWNLOADING,)
 
     id = Column(Integer, primary_key=True)
-    # TODO: remote_id -> remote_id
-    remote_id = Column(String(length=32), index=True, nullable=False)
-    source_config_id = Column(Integer, ForeignKey("podcast_sources.id"), index=True)
+    source_id = Column(String(length=32), index=True, nullable=False)
+    source_type = EnumTypeColumn(
+        EpisodeSource, impl=String(16), default=EpisodeSource.YOUTUBE, nullable=True
+    )
     podcast_id = Column(Integer, ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True)
     title = Column(String(length=256), nullable=False)
     watch_url = Column(String(length=128))
@@ -115,7 +120,7 @@ class Episode(ModelBase, ModelMixin):
         db_table = "podcast_episodes"
 
     def __str__(self):
-        return f'<Episode #{self.id} {self.remote_id} [{self.status}] "{self.title[:10]}..." >'
+        return f'<Episode #{self.id} {self.source_id} [{self.status}] "{self.title[:10]}..." >'
 
     @classmethod
     async def get_in_progress(cls, db_session: AsyncSession, user_id: int):
@@ -134,24 +139,18 @@ class Episode(ModelBase, ModelMixin):
         return f"audio/{file_name.split('.')[-1]}"
 
     @classmethod
-    def generate_image_name(cls, remote_id: str) -> str:
-        return f"{remote_id}_{uuid.uuid4().hex}.png"
+    def generate_image_name(cls, source_id: str) -> str:
+        return f"{source_id}_{uuid.uuid4().hex}.png"
 
 
-class PerformType(StringEnum):
-    FFMPEG = "FFMPEG"
-
-
-class Source(ModelBase, ModelMixin):
+class Cookie(ModelBase, ModelMixin):
     """Saving cookies for accessing to auth-only resources"""
 
-    __tablename__ = "podcast_sources"
+    __tablename__ = "podcast_cookies"
 
     id = Column(Integer, primary_key=True)
-    type = EnumTypeColumn(SourceType, impl=String(16), nullable=True)
     domains = Column(ARRAY(String(length=128)), nullable=False)
-    cookies = Column(Text, nullable=False)
-    perform = EnumTypeColumn(PerformType, impl=String(16), nullable=True)
+    data = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by_id = Column(Integer(), ForeignKey("auth_users.id"))
 
@@ -159,4 +158,4 @@ class Source(ModelBase, ModelMixin):
         order_by = ("-created_at",)
 
     def __str__(self):
-        return f'<Source #{self.id} [{self.type}] at {self.created_at}>'
+        return f'<Cookie #{self.id} "{self.domain}" at {self.created_at}>'
