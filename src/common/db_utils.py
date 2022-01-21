@@ -98,7 +98,7 @@ class EnumTypeColumn(Column):
 
     """
 
-    impl = sa.VARCHAR(16)
+    impl = sa.String(16)
 
     def __new__(
         cls, enum_class: Type[EnumClass], impl: sa_type_api.TypeEngine = None, *args, **kwargs

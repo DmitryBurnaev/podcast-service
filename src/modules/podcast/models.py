@@ -1,18 +1,17 @@
 import enum
 import uuid
-from datetime import datetime
 from hashlib import md5
+from datetime import datetime
 from xml.sax.saxutils import escape
 
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
-from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
 
 from core import settings
+from core.database import ModelBase
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
-from core.database import ModelBase
 
 
 class EpisodeStatus(enum.Enum):
@@ -33,8 +32,10 @@ class EpisodeStatus(enum.Enum):
         return self.value
 
 
-class EpisodeSource(enum.Enum):
+class SourceType(enum.Enum):
     YOUTUBE = "YOUTUBE"
+    YANDEX = "YANDEX"
+    UPLOAD = "UPLOAD"
 
     def __str__(self):
         return self.value
@@ -91,14 +92,12 @@ class Episode(ModelBase, ModelMixin):
 
     __tablename__ = "podcast_episodes"
     Status = EpisodeStatus
-    Sources = EpisodeSource
+    Sources = SourceType
     PROGRESS_STATUSES = (Status.DOWNLOADING,)
 
     id = Column(Integer, primary_key=True)
     source_id = Column(String(length=32), index=True, nullable=False)
-    source_type = EnumTypeColumn(
-        EpisodeSource, impl=String(16), default=EpisodeSource.YOUTUBE, nullable=True
-    )
+    source_type = EnumTypeColumn(SourceType, default=SourceType.YOUTUBE, nullable=True)
     podcast_id = Column(Integer, ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True)
     title = Column(String(length=256), nullable=False)
     watch_url = Column(String(length=128))
@@ -109,7 +108,7 @@ class Episode(ModelBase, ModelMixin):
     file_name = Column(String(length=128))
     file_size = Column(Integer, default=0)
     author = Column(String(length=256))
-    status = EnumTypeColumn(Status, impl=String(16), default=Status.NEW, nullable=False)
+    status = EnumTypeColumn(Status, default=Status.NEW, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     published_at = Column(DateTime)
     created_by_id = Column(Integer, ForeignKey("auth_users.id"), index=True)
@@ -144,12 +143,12 @@ class Episode(ModelBase, ModelMixin):
 
 
 class Cookie(ModelBase, ModelMixin):
-    """Saving cookies for accessing to auth-only resources"""
+    """Saving cookies (in netscape format) for accessing to auth-only resources"""
 
     __tablename__ = "podcast_cookies"
 
     id = Column(Integer, primary_key=True)
-    domains = Column(ARRAY(String(length=128)), nullable=False)
+    source_type = EnumTypeColumn(SourceType)
     data = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by_id = Column(Integer(), ForeignKey("auth_users.id"))
