@@ -18,8 +18,9 @@ __all__ = [
     "PodcastUploadImageResponseSchema",
     "CookieCreateUpdateSchema",
     "CookieResponseSchema",
-    "CookieListRequestSchema",
 ]
+
+from modules.podcast.models import SourceType
 
 
 class BaseLimitOffsetSchema(Schema):
@@ -140,15 +141,14 @@ class ProgressResponseSchema(Schema):
 
 
 class CookieCreateUpdateSchema(Schema):
-    domains = fields.List(fields.Str, required=True)
+    source_type = fields.Str(
+        required=True,
+        validate=validate.OneOf(SourceType.__members__.values())
+    )
     file = fields.Raw()
-
-
-class CookieListRequestSchema(Schema):
-    domain = fields.Str()
 
 
 class CookieResponseSchema(Schema):
     id = fields.Int()
-    domains = fields.List(fields.Str)
+    source_type = fields.Str()
     created_at = fields.DateTime()
