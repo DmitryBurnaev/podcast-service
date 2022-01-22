@@ -1,19 +1,29 @@
 from sqlalchemy import exists
 from starlette import status
 
-from common.exceptions import InvalidParameterError, PermissionDeniedError
+from common.exceptions import PermissionDeniedError
 from common.utils import get_logger
 from common.views import BaseHTTPEndpoint
 from modules.podcast.models import Cookie, Episode
-from modules.podcast.schemas import CookieResponseSchema
+from modules.podcast.schemas import CookieResponseSchema, CookieCreateUpdateSchema
 
 logger = get_logger(__name__)
 
 
-class CookieListCreateAPIView(BaseHTTPEndpoint):
+class BaseCookieAPIView(BaseHTTPEndpoint):
+    """ Common actions for cookie's update API view """
+
+    async def _validate(self, request, partial_=False, **_) -> dict:
+        cleaned_data = await super()._validate(request, partial_=partial_, location='form')
+        cleaned_data['data'] = (await cleaned_data.pop("file").read()).decode()
+        return cleaned_data
+
+
+class CookieListCreateAPIView(BaseCookieAPIView):
     """List and Create API for cookie's objects"""
 
     schema_response = CookieResponseSchema
+    schema_request = CookieCreateUpdateSchema
 
     async def get(self, request):
         cookies = await Cookie.async_filter(self.db_session, created_by_id=request.user.id)
@@ -21,36 +31,31 @@ class CookieListCreateAPIView(BaseHTTPEndpoint):
 
     async def post(self, request):
         cleaned_data = await self._validate(request)
-        cookie_data = (await cleaned_data["file"].read()).decode()
         cookie = await Cookie.async_create(
             db_session=request.db_session,
-            data=cookie_data,
             created_by_id=request.user.id,
-            source_type=cleaned_data["source_type"],
+            **cleaned_data
         )
         return self._response(cookie, status_code=status.HTTP_201_CREATED)
 
-    @staticmethod
-    async def _validate(request, **_) -> dict:
-        form = await request.form()
-        if not (file := form.get("file")):
-            raise InvalidParameterError(details="Cookie file is required here")
 
-        if not (source_type := form.get("source_type")):
-            raise InvalidParameterError(details="source_type is required")
-
-        return {"file": file, "domains": source_type}
-
-
-class CookieRDAPIView(BaseHTTPEndpoint):
+class CookieRDAPIView(BaseCookieAPIView):
     """Retrieve, Update, Delete API for cookies"""
 
     db_model = Cookie
     schema_response = CookieResponseSchema
+    schema_request = CookieCreateUpdateSchema
 
     async def get(self, request):
         cookie_id = request.path_params["cookie_id"]
         cookie = await self._get_object(cookie_id)
+        return self._response(cookie)
+
+    async def patch(self, request):
+        cleaned_data = await self._validate(request, partial_=True)
+        cookie_id = int(request.path_params["cookie_id"])
+        cookie = await self._get_object(cookie_id)
+        await cookie.update(self.db_session, **cleaned_data)
         return self._response(cookie)
 
     async def delete(self, request):
