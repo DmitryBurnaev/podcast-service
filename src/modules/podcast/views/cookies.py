@@ -1,9 +1,9 @@
 from sqlalchemy import exists
 from starlette import status
 
-from common.exceptions import PermissionDeniedError
 from common.utils import get_logger
 from common.views import BaseHTTPEndpoint
+from common.exceptions import PermissionDeniedError
 from modules.podcast.models import Cookie, Episode
 from modules.podcast.schemas import CookieResponseSchema, CookieCreateUpdateSchema
 
@@ -60,7 +60,7 @@ class CookieRDAPIView(BaseCookieAPIView):
 
     async def delete(self, request):
         cookie_id = int(request.path_params["cookie_id"])
-        query = Episode.prepare_query(db_session=request.db_session, cookie_id=cookie_id)
+        query = Episode.prepare_query(cookie_id=cookie_id)
         (has_episodes,) = next(await self.db_session.execute(exists(query).select()))
         if has_episodes:
             raise PermissionDeniedError('There are episodes related to this cookie')

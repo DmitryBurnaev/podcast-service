@@ -152,3 +152,4 @@ class CookieResponseSchema(Schema):
     id = fields.Int()
     source_type = fields.Str()
     created_at = fields.DateTime()
+    updated_at = fields.DateTime()

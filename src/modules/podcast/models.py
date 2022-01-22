@@ -150,7 +150,8 @@ class Cookie(ModelBase, ModelMixin):
     id = Column(Integer, primary_key=True)
     source_type = EnumTypeColumn(SourceType)
     data = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     created_by_id = Column(Integer(), ForeignKey("auth_users.id"))
 
     class Meta:

@@ -23,7 +23,8 @@ def upgrade():
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('source_type', sa.VARCHAR(16), nullable=True),
         sa.Column('data', sa.Text(), nullable=False),
-        sa.Column('created_at', sa.DateTime(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.Column('created_by_id', sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(('created_by_id',), ['auth_users.id'], ),
         sa.PrimaryKeyConstraint('id')
