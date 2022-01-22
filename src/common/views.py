@@ -111,7 +111,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         if partial_:
             schema_kwargs["partial"] = [field for field in schema_request().fields]
 
-        schema = schema_request(**schema_kwargs)
+        schema, cleaned_data = schema_request(**schema_kwargs), {}
         try:
             cleaned_data = await parser.parse(schema, request, location=location)
             if hasattr(schema, "is_valid"):
@@ -119,6 +119,9 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         except ValidationError as e:
             raise InvalidParameterError(details=e.data)
+
+        except WebargsHTTPException as e:
+            raise InvalidParameterError(e.messages['form'])
 
         return cleaned_data
 

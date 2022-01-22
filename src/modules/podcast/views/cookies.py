@@ -13,8 +13,8 @@ logger = get_logger(__name__)
 class BaseCookieAPIView(BaseHTTPEndpoint):
     """ Common actions for cookie's update API view """
 
-    async def _validate(self, request, partial_=False, **_) -> dict:
-        cleaned_data = await super()._validate(request, partial_=partial_, location='form')
+    async def _validate(self, request, **_) -> dict:
+        cleaned_data = await super()._validate(request, location='form')
         cleaned_data['data'] = (await cleaned_data.pop("file").read()).decode()
         return cleaned_data
 
@@ -51,8 +51,8 @@ class CookieRDAPIView(BaseCookieAPIView):
         cookie = await self._get_object(cookie_id)
         return self._response(cookie)
 
-    async def patch(self, request):
-        cleaned_data = await self._validate(request, partial_=True)
+    async def put(self, request):
+        cleaned_data = await self._validate(request)
         cookie_id = int(request.path_params["cookie_id"])
         cookie = await self._get_object(cookie_id)
         await cookie.update(self.db_session, **cleaned_data)
