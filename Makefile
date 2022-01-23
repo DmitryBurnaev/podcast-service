@@ -1,5 +1,5 @@
 run_web:
-	cd src && pipenv run uvicorn asgi:app --host dev.podcast --port 8081 --reload --reload-dir .
+	cd src && pipenv run uvicorn asgi:app --host dev.podcast --port 8001 --reload --reload-dir .
 
 run_rq:
 	cd src && pipenv run python -m worker youtube_downloads

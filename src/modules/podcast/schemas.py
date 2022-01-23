@@ -8,6 +8,7 @@ __all__ = [
     "PodcastCreateUpdateSchema",
     "EpisodeListRequestSchema",
     "EpisodeListResponseSchema",
+    "EpisodeListSchema",
     "EpisodeCreateSchema",
     "EpisodeDetailsSchema",
     "EpisodeUpdateSchema",
@@ -15,7 +16,11 @@ __all__ = [
     "PlayListResponseSchema",
     "ProgressResponseSchema",
     "PodcastUploadImageResponseSchema",
+    "CookieCreateUpdateSchema",
+    "CookieResponseSchema",
 ]
+
+from modules.podcast.models import SourceType
 
 
 class BaseLimitOffsetSchema(Schema):
@@ -133,3 +138,15 @@ class ProgressResponseSchema(Schema):
     total_file_size = fields.Int()
     episode = fields.Nested(ProgressEpisodeSchema)
     podcast = fields.Nested(ProgressPodcastSchema)
+
+
+class CookieCreateUpdateSchema(Schema):
+    source_type = fields.Str(required=True, validate=validate.OneOf(SourceType.__members__.keys()))
+    file = fields.Raw(type="file", required=True)
+
+
+class CookieResponseSchema(Schema):
+    id = fields.Int()
+    source_type = fields.Str()
+    created_at = fields.DateTime()
+    updated_at = fields.DateTime()

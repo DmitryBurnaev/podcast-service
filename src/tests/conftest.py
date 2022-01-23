@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import settings
 from modules.auth.models import UserInvite
-from modules.podcast.models import Podcast, Episode
+from modules.podcast.models import Podcast, Episode, Cookie, SourceType
 from modules.providers import utils as youtube_utils
 from tests.helpers import (
     PodcastTestClient,
@@ -155,6 +155,18 @@ def episode_data(podcast):
 def podcast(podcast_data, user, loop, dbs):
     podcast_data["created_by_id"] = user.id
     podcast = loop.run_until_complete(Podcast.async_create(dbs, **podcast_data))
+    loop.run_until_complete(dbs.commit())
+    return podcast
+
+
+@pytest.fixture
+def cookie(user, loop, dbs):
+    cookie_data = {
+        "source_type": SourceType.YANDEX,
+        "data": "Cookie at netscape format\n",
+        "created_by_id": user.id,
+    }
+    podcast = loop.run_until_complete(Cookie.async_create(dbs, **cookie_data))
     loop.run_until_complete(dbs.commit())
     return podcast
 

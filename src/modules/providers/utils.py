@@ -14,7 +14,7 @@ from youtube_dl.utils import YoutubeDLError
 from core import settings
 from modules.providers.exceptions import FFMPegPreparationError
 from modules.podcast.utils import get_file_size, episode_process_hook, post_processing_process_hook
-from modules.podcast.models import EpisodeStatus, EpisodeSource
+from modules.podcast.models import EpisodeStatus, SourceType
 from common.utils import get_logger
 
 logger = get_logger(__name__)
@@ -32,7 +32,7 @@ class SourceMediaInfo(NamedTuple):
     length: int
 
 
-def get_source_id(source_url: str) -> Optional[tuple[str, EpisodeSource]]:
+def get_source_id(source_url: str) -> Optional[tuple[str, SourceType]]:
     """Extracts providers link and finds video ID"""
 
     matched_url = re.findall(r"(?:v=|/)([0-9A-Za-z_-]{11}).*", source_url)
@@ -43,7 +43,7 @@ def get_source_id(source_url: str) -> Optional[tuple[str, EpisodeSource]]:
         logger.error(f"Couldn't extract source ID: Source link is not correct: {source_url}")
         return None
 
-    return matched_url[0], EpisodeSource.YOUTUBE
+    return matched_url[0], SourceType.YOUTUBE
 
 
 def download_process_hook(event: dict):

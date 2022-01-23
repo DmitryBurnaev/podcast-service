@@ -72,7 +72,7 @@ def log_message(exc, error_data, level=logging.ERROR):
 def custom_exception_handler(request, exc):
     """
     Returns the response that should be used for any given exception.
-    Response will be format by our format: {"error": "text", "detail": details}
+    Response will be formatted by our format: {"error": "text", "detail": details}
     """
     error_message = "Something went wrong!"
     error_details = f"Raised Error: {exc.__class__.__name__}"
@@ -85,7 +85,7 @@ def custom_exception_handler(request, exc):
 
     elif isinstance(exc, WebargsHTTPException):
         error_message = "Requested data is not valid."
-        error_details = exc.messages.get("json") or exc.messages
+        error_details = exc.messages.get("json") or exc.messages.get("form") or exc.messages
         status_code = status.HTTP_400_BAD_REQUEST
         response_status = ResponseStatus.INVALID_PARAMETERS
 
@@ -118,7 +118,7 @@ def cut_string(source_string: str, max_length: int, finish_seq: str = "...") -> 
 
 
 async def download_content(url: str, file_ext: str, retries=5) -> Optional[Path]:
-    """Allows to fetch content from url"""
+    """Allows fetching content from url"""
 
     logger = get_logger(__name__)
     logger.debug(f"Send request to {url}")

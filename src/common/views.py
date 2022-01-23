@@ -4,6 +4,7 @@ from typing import Type, Union, Iterable, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.endpoints import HTTPEndpoint
 from marshmallow import Schema, ValidationError, fields
@@ -67,10 +68,10 @@ class BaseHTTPEndpoint(HTTPEndpoint):
                     self.scope["user"] = user
                     self.request.user_session_id = session_id
 
-                response = await handler(self.request)
+                response = await handler(self.request)  # noqa
                 await self.db_session.commit()
 
-        except (BaseApplicationError, WebargsHTTPException) as err:
+        except (BaseApplicationError, WebargsHTTPException, HTTPException) as err:
             await self.db_session.rollback()
             raise err
 
@@ -101,14 +102,17 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         return instance
 
-    async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
+    async def _validate(
+        self, request, schema: Type[Schema] = None, partial_: bool = False, location: str = None
+    ) -> dict:
         """Simple validation, based on marshmallow's schemas"""
 
+        schema_request = schema or self.schema_request
         schema_kwargs = {}
         if partial_:
-            schema_kwargs["partial"] = [field for field in self.schema_request().fields]
+            schema_kwargs["partial"] = [field for field in schema_request().fields]
 
-        schema = self.schema_request(**schema_kwargs)
+        schema, cleaned_data = schema_request(**schema_kwargs), {}
         try:
             cleaned_data = await parser.parse(schema, request, location=location)
             if hasattr(schema, "is_valid"):
@@ -161,7 +165,7 @@ class HealthCheckSchema(Schema):
 
 
 class HealthCheckAPIView(BaseHTTPEndpoint):
-    """Allows to control status of web application (live ASGI and pg connection)"""
+    """Allows controlling status of web application (live ASGI and pg connection)"""
 
     auth_backend = None
     schema_response = HealthCheckSchema

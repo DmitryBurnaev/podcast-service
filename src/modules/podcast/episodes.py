@@ -38,7 +38,7 @@ class EpisodeCreator:
         :raise: `modules.providers.exceptions.SourceFetchError`
         :return: New <Episode> object
         """
-        # TODO: inject cookie (in netscape format) from yandex
+        # TODO: inject cookie (in netscape format)
         same_episodes: Iterable[Episode] = await Episode.async_filter(
             self.db_session, source_id=self.source_id
         )

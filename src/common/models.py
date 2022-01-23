@@ -98,19 +98,21 @@ class ModelMixin:
         for filter_name, filter_value in filter_kwargs.items():
             field, _, criteria = filter_name.partition("__")
             if criteria in ("eq", ""):
-                filters.append((getattr(cls, field) == filter_value))
+                filters.append(getattr(cls, field) == filter_value)
             elif criteria == "gt":
-                filters.append((getattr(cls, field) > filter_value))
+                filters.append(getattr(cls, field) > filter_value)
             elif criteria == "lt":
-                filters.append((getattr(cls, field) < filter_value))
+                filters.append(getattr(cls, field) < filter_value)
             elif criteria == "is":
-                filters.append((getattr(cls, field).is_(filter_value)))
+                filters.append(getattr(cls, field).is_(filter_value))
             elif criteria == "in":
-                filters.append((getattr(cls, field).in_(filter_value)))
+                filters.append(getattr(cls, field).in_(filter_value))
+            elif criteria == "inarr":
+                filters.append(getattr(cls, field).contains([filter_value]))
             elif criteria == "icontains":
-                filters.append((getattr(cls, field).ilike(f"%{filter_value}%")))
+                filters.append(getattr(cls, field).ilike(f"%{filter_value}%"))
             elif criteria == "ne":
-                filters.append((getattr(cls, field) != filter_value))
+                filters.append(getattr(cls, field) != filter_value)
             else:
                 raise NotImplementedError(f"Unexpected criteria: {criteria}")
 
