@@ -1,5 +1,4 @@
-from marshmallow import Schema, ValidationError
-from starlette.datastructures import UploadFile
+from marshmallow import Schema
 from webargs import fields, validate
 
 from core import settings
@@ -141,25 +140,9 @@ class ProgressResponseSchema(Schema):
     podcast = fields.Nested(ProgressPodcastSchema)
 
 
-class BytesField(fields.Field):
-    def _validate(self, value):
-        if not isinstance(value, UploadFile):
-            raise ValidationError('Invalid input type.')
-
-# UploadFile
-
-
 class CookieCreateUpdateSchema(Schema):
-    source_type = fields.Str(
-        required=True,
-        validate=validate.OneOf(SourceType.__members__.keys())
-    )
-    # file = BytesField(required=True)
+    source_type = fields.Str(required=True, validate=validate.OneOf(SourceType.__members__.keys()))
     file = fields.Raw(type="file", required=True)
-
-    # def load(self, *args, **kwargs):
-    #     cl = super().load(*args, **kwargs)
-    #     return load
 
 
 class CookieResponseSchema(Schema):

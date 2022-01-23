@@ -11,11 +11,11 @@ logger = get_logger(__name__)
 
 
 class BaseCookieAPIView(BaseHTTPEndpoint):
-    """ Common actions for cookie's update API view """
+    """Common actions for cookie's update API view"""
 
     async def _validate(self, request, **_) -> dict:
-        cleaned_data = await super()._validate(request, location='form')
-        cleaned_data['data'] = (await cleaned_data.pop("file").read()).decode()
+        cleaned_data = await super()._validate(request, location="form")
+        cleaned_data["data"] = (await cleaned_data.pop("file").read()).decode()
         return cleaned_data
 
 
@@ -32,9 +32,7 @@ class CookieListCreateAPIView(BaseCookieAPIView):
     async def post(self, request):
         cleaned_data = await self._validate(request)
         cookie = await Cookie.async_create(
-            db_session=request.db_session,
-            created_by_id=request.user.id,
-            **cleaned_data
+            db_session=request.db_session, created_by_id=request.user.id, **cleaned_data
         )
         return self._response(cookie, status_code=status.HTTP_201_CREATED)
 
@@ -63,7 +61,7 @@ class CookieRDAPIView(BaseCookieAPIView):
         query = Episode.prepare_query(cookie_id=cookie_id)
         (has_episodes,) = next(await self.db_session.execute(exists(query).select()))
         if has_episodes:
-            raise PermissionDeniedError('There are episodes related to this cookie')
+            raise PermissionDeniedError("There are episodes related to this cookie")
 
         cookie = await self._get_object(cookie_id)
         await cookie.delete(self.db_session)

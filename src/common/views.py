@@ -4,6 +4,7 @@ from typing import Type, Union, Iterable, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.endpoints import HTTPEndpoint
 from marshmallow import Schema, ValidationError, fields
@@ -70,7 +71,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
                 response = await handler(self.request)  # noqa
                 await self.db_session.commit()
 
-        except (BaseApplicationError, WebargsHTTPException) as err:
+        except (BaseApplicationError, WebargsHTTPException, HTTPException) as err:
             await self.db_session.rollback()
             raise err
 
@@ -119,9 +120,6 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         except ValidationError as e:
             raise InvalidParameterError(details=e.data)
-
-        except WebargsHTTPException as e:
-            raise InvalidParameterError(e.messages['form'])
 
         return cleaned_data
 

@@ -8,9 +8,8 @@ from tests.api.test_base import BaseTestAPIView
 from tests.helpers import create_user, await_
 
 INVALID_UPDATE_DATA = [
-    [{"source_type": "FAKE-TYPE"}, {"source_type": "Length must be between 1 and 256."}],
-    [{"file": None}, {"file": "Not a valid string."}],
-    [{"file": "text"}, {"file": "Not a valid boolean."}],
+    [{"source_type": "FAKE-TYPE"}, {"source_type": "Must be one of: YOUTUBE, YANDEX, UPLOAD."}],
+    [{"file": None}, {"file": "Missing data for required field."}],
 ]
 
 INVALID_CREATE_DATA = INVALID_UPDATE_DATA + [
@@ -54,7 +53,7 @@ class TestCookieListCreateAPIView(BaseTestAPIView):
         self, client, user, invalid_data: dict, error_details: dict
     ):
         client.login(user)
-        self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
+        self.assert_bad_request(client.post(self.url, data=invalid_data), error_details)
 
 
 class TestCookieRUDAPIView(BaseTestAPIView):
@@ -86,15 +85,15 @@ class TestCookieRUDAPIView(BaseTestAPIView):
     def test_update__cookie_from_another_user__fail(self, client, cookie, dbs):
         client.login(create_user(dbs))
         url = self.url.format(id=cookie.id)
-        self.assert_not_found(client.put(url, files={"file": _file()}), cookie)
+        data = {"source_type": SourceType.YANDEX}
+        self.assert_not_found(client.put(url, data=data, files={"file": _file()}), cookie)
 
     def test_update__invalid_request__fail(self, client, cookie, user):
         client.login(user)
         url = self.url.format(id=cookie.id)
         data = {"source_type": SourceType.YANDEX}
         self.assert_bad_request(
-            client.put(url, data=data, files={}),
-            {"file": 'Missing data for required field.'}
+            client.put(url, data=data, files={}), {"file": "Missing data for required field."}
         )
 
     def test_delete__ok(self, client, cookie, user, dbs):
@@ -117,7 +116,5 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         client.login(user)
         url = self.url.format(id=cookie.id)
         self.assert_fail_response(
-            client.delete(url),
-            status_code=403,
-            response_status=ResponseStatus.FORBIDDEN
+            client.delete(url), status_code=403, response_status=ResponseStatus.FORBIDDEN
         )
