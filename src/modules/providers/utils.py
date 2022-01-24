@@ -1,21 +1,26 @@
-import asyncio
 import os
 import re
+import asyncio
 import subprocess
-from multiprocessing import Process
-from contextlib import suppress
-from functools import partial
 from pathlib import Path
+from functools import partial
+from contextlib import suppress
+from multiprocessing import Process
 from typing import Optional, NamedTuple, Tuple, Union
 
 import youtube_dl
 from youtube_dl.utils import YoutubeDLError
 
 from core import settings
-from modules.providers.exceptions import FFMPegPreparationError
-from modules.podcast.utils import get_file_size, episode_process_hook, post_processing_process_hook
-from modules.podcast.models import EpisodeStatus, SourceType
 from common.utils import get_logger
+from modules.podcast.models import EpisodeStatus
+from modules.providers.exceptions import FFMPegPreparationError
+from modules.podcast.utils import (
+    SourceType,
+    get_file_size,
+    episode_process_hook,
+    post_processing_process_hook,
+)
 
 logger = get_logger(__name__)
 
