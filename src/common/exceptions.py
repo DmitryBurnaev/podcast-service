@@ -24,6 +24,10 @@ class UnexpectedError(BaseApplicationError):
     message = "Something unexpected happened."
 
 
+class NotSupportedError(BaseApplicationError):
+    message = "Requested action is not supported now"
+
+
 class S3UploadingError(BaseApplicationError):
     message = "Couldn't upload file to the storage"
 

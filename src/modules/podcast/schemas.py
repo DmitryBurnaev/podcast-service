@@ -20,7 +20,7 @@ __all__ = [
     "CookieResponseSchema",
 ]
 
-from modules.podcast.utils import SourceType
+from modules.providers.utils import SourceType
 
 
 class BaseLimitOffsetSchema(Schema):

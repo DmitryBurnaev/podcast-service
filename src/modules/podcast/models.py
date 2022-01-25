@@ -12,7 +12,7 @@ from core import settings
 from core.database import ModelBase
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
-from modules.podcast.utils import SourceType
+from modules.providers.utils import SourceType
 
 
 class EpisodeStatus(enum.Enum):

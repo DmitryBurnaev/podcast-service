@@ -1,3 +1,4 @@
+import enum
 import os
 import re
 import asyncio
@@ -11,12 +12,12 @@ from typing import Optional, NamedTuple, Tuple, Union
 import youtube_dl
 from youtube_dl.utils import YoutubeDLError
 
+from common.exceptions import NotSupportedError
 from core import settings
 from common.utils import get_logger
 from modules.podcast.models import EpisodeStatus
 from modules.providers.exceptions import FFMPegPreparationError
 from modules.podcast.utils import (
-    SourceType,
     get_file_size,
     episode_process_hook,
     post_processing_process_hook,
@@ -37,18 +38,56 @@ class SourceMediaInfo(NamedTuple):
     length: int
 
 
-def get_source_id(source_url: str) -> Optional[tuple[str, SourceType]]:
+class SourceType(enum.Enum):
+    YOUTUBE = "YOUTUBE"
+    YANDEX = "YANDEX"
+    UPLOAD = "UPLOAD"
+
+    def __str__(self):
+        return self.value
+
+
+class SourceInfo(NamedTuple):
+    type: SourceType
+    domains: list[str]
+    cookies_data: Optional[str] = None
+    id_regexp: Optional[str] = None
+
+
+SOURCE_TYPE_MAP = {
+    SourceType.YOUTUBE: SourceInfo(
+        type=SourceType.YOUTUBE,
+        domains=['youtube.com', 'yt.com'],
+        id_regexp=r"(?:v=|/)([0-9A-Za-z_-]{11}).*"
+    ),
+    SourceType.YANDEX: SourceInfo(
+        type=SourceType.YANDEX,
+        domains=['yandex.ru'],
+        id_regexp=r"(?:v=|/)([0-9A-Za-z_-]{11}).*"
+    ),
+    SourceType.UPLOAD: SourceInfo(
+        type=SourceType.UPLOAD,
+        domains=[]
+    )
+}
+
+
+def get_source_info(source_url: str) -> Optional[tuple[str, SourceInfo]]:
     """Extracts providers link and finds video ID"""
 
-    matched_url = re.findall(r"(?:v=|/)([0-9A-Za-z_-]{11}).*", source_url)
-    if not matched_url:
-        # TODO: match url to find ID from another sources
-        #   - ex:  https://music.yandex.ru/album/<alb_id>/track/<track_id>
+    for source_type, source_info in SOURCE_TYPE_MAP.items():
+        if source_url in source_info.domains:
+            if not (matched_url := re.findall(source_info.id_regexp, source_url)):
+                logger.error(
+                    "Couldn't extract source ID: Source link is not correct: %s | source_info: %s",
+                    source_url,
+                    source_info
+                )
+                return None
 
-        logger.error(f"Couldn't extract source ID: Source link is not correct: {source_url}")
-        return None
+            return matched_url[0], source_info
 
-    return matched_url[0], SourceType.YOUTUBE
+    raise NotSupportedError(f"Requested domain is not supported now {source_url}")
 
 
 def download_process_hook(event: dict):

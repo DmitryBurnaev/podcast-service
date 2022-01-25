@@ -8,7 +8,7 @@ from common.utils import get_logger
 from common.exceptions import InvalidParameterError
 from modules.podcast.models import Episode
 from modules.podcast.utils import get_file_name
-from modules.providers.utils import get_source_media_info, get_source_id
+from modules.providers.utils import get_source_media_info, get_source_info
 from modules.providers.exceptions import SourceFetchError
 
 logger = get_logger(__name__)
@@ -27,7 +27,8 @@ class EpisodeCreator:
         self.podcast_id = podcast_id
         self.user_id = user_id
         self.source_url = source_url
-        self.source_id, self.source_type = get_source_id(source_url)
+        # TODO: source_info
+        self.source_id, self.source_info = get_source_info(source_url)
         if not self.source_id:
             raise InvalidParameterError("Couldn't extract source_id from the source link")
 

@@ -1,10 +1,9 @@
-import enum
 import os
 import time
 import uuid
 from functools import partial
 from pathlib import Path
-from typing import Union, Iterable, Optional, NamedTuple
+from typing import Union, Iterable, Optional
 
 from core import settings
 from common.redis import RedisClient
@@ -12,40 +11,8 @@ from common.storage import StorageS3
 from common.utils import get_logger
 from modules.podcast.models import EpisodeStatus, Episode
 
+
 logger = get_logger(__name__)
-
-
-class SourceType(enum.Enum):
-    YOUTUBE = "YOUTUBE"
-    YANDEX = "YANDEX"
-    UPLOAD = "UPLOAD"
-
-    def __str__(self):
-        return self.value
-
-
-# TODO: refactor and move this config!
-class SourceInfo(NamedTuple):
-    type: SourceType
-    domains: list[str]
-    cookies_data: Optional[str] = None
-
-
-SOURCE_TYPE_MAP = {
-    SourceType.YOUTUBE: SourceInfo(
-        type=SourceType.YOUTUBE,
-        domains=['youtube.com', 'yt.com']
-    ),
-    SourceType.YANDEX: SourceInfo(
-        type=SourceType.YANDEX,
-        domains=['yandex.ru']
-    ),
-    SourceType.UPLOAD: SourceInfo(
-        type=SourceType.UPLOAD,
-        domains=[]
-    )
-}
-
 
 
 def delete_file(filepath: Union[str, Path]):
