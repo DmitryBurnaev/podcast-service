@@ -5,10 +5,9 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.utils import get_logger
-from common.exceptions import InvalidParameterError
 from modules.podcast.models import Episode
 from modules.podcast.utils import get_file_name
-from modules.providers.utils import get_source_media_info, get_source_info
+from modules.providers.utils import get_source_media_info, get_source_info, SourceInfo
 from modules.providers.exceptions import SourceFetchError
 
 logger = get_logger(__name__)
@@ -23,14 +22,14 @@ class EpisodeCreator:
     )
 
     def __init__(self, db_session: AsyncSession, podcast_id: int, source_url: str, user_id: int):
-        self.db_session = db_session
-        self.podcast_id = podcast_id
-        self.user_id = user_id
-        self.source_url = source_url
-        # TODO: source_info
-        self.source_id, self.source_info = get_source_info(source_url)
-        if not self.source_id:
-            raise InvalidParameterError("Couldn't extract source_id from the source link")
+        self.db_session: AsyncSession = db_session
+        self.podcast_id: int = podcast_id
+        self.user_id: int = user_id
+        self.source_url: str = source_url
+
+        parsed_source_info = get_source_info(source_url)
+        self.source_id: str = parsed_source_info[0]
+        self.source_info: SourceInfo = parsed_source_info[1]
 
     async def create(self) -> Episode:
         """
@@ -86,6 +85,7 @@ class EpisodeCreator:
             logger.info("Episode will be created from the source.")
             new_episode_data = {
                 "source_id": self.source_id,
+                "source_type": self.source_info.type,
                 "watch_url": source_info.watch_url,
                 "title": self._replace_special_symbols(source_info.title),
                 "description": self._replace_special_symbols(source_info.description),

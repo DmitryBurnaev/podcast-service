@@ -1,6 +1,6 @@
 from core import settings
 from modules.podcast.utils import episode_process_hook
-from modules.podcast.models import EpisodeStatus
+from common.enums import EpisodeStatus
 
 
 class TestEpisodeProcessHooks:

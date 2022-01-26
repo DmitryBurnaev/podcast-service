@@ -9,8 +9,8 @@ from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
 from common.utils import get_logger
-from modules.podcast.models import EpisodeStatus, Episode
-
+from modules.podcast.models import Episode
+from common.enums import EpisodeStatus
 
 logger = get_logger(__name__)
 

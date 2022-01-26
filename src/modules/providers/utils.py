@@ -1,4 +1,3 @@
-import enum
 import os
 import re
 import asyncio
@@ -12,10 +11,11 @@ from typing import Optional, NamedTuple, Tuple, Union
 import youtube_dl
 from youtube_dl.utils import YoutubeDLError
 
-from common.exceptions import NotSupportedError
+from common.enums import SourceType, EpisodeStatus
+from common.exceptions import InvalidParameterError
 from core import settings
 from common.utils import get_logger
-from modules.podcast.models import EpisodeStatus
+from modules.auth.hasher import get_random_hash
 from modules.providers.exceptions import FFMPegPreparationError
 from modules.podcast.utils import (
     get_file_size,
@@ -38,20 +38,11 @@ class SourceMediaInfo(NamedTuple):
     length: int
 
 
-class SourceType(enum.Enum):
-    YOUTUBE = "YOUTUBE"
-    YANDEX = "YANDEX"
-    UPLOAD = "UPLOAD"
-
-    def __str__(self):
-        return self.value
-
-
 class SourceInfo(NamedTuple):
     type: SourceType
     domains: list[str]
-    cookies_data: Optional[str] = None
     id_regexp: Optional[str] = None
+    cookies_data: Optional[str] = None
 
 
 SOURCE_TYPE_MAP = {
@@ -72,22 +63,26 @@ SOURCE_TYPE_MAP = {
 }
 
 
-def get_source_info(source_url: str) -> Optional[tuple[str, SourceInfo]]:
-    """Extracts providers link and finds video ID"""
+def get_source_info(source_url: Optional[str] = None) -> tuple[str, SourceInfo]:
+    """Extracts providers (source) info and finds source ID"""
+
+    if not source_url:
+        random_hash = get_random_hash(size=6)
+        return f"U-{random_hash}", SOURCE_TYPE_MAP[SourceType.UPLOAD]
 
     for source_type, source_info in SOURCE_TYPE_MAP.items():
+        # TODO: extract domain from source_url
         if source_url in source_info.domains:
-            if not (matched_url := re.findall(source_info.id_regexp, source_url)):
+            if matched_url := re.findall(source_info.id_regexp, source_url):
+                return matched_url[0], source_info
+            else:
                 logger.error(
                     "Couldn't extract source ID: Source link is not correct: %s | source_info: %s",
                     source_url,
                     source_info
                 )
-                return None
 
-            return matched_url[0], source_info
-
-    raise NotSupportedError(f"Requested domain is not supported now {source_url}")
+    raise InvalidParameterError(f"Requested domain is not supported now {source_url}")
 
 
 def download_process_hook(event: dict):

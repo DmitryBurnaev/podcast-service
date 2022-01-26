@@ -4,7 +4,7 @@ import pytest
 
 from common.statuses import ResponseStatus
 from modules.podcast.models import Cookie
-from modules.providers.utils import SourceType
+from common.enums import SourceType
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import create_user, await_
 

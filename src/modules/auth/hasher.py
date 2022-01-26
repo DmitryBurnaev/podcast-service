@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import secrets
 import string
+import uuid
 from typing import Tuple
 
 from common.utils import get_logger
@@ -12,8 +13,17 @@ logger = get_logger(__name__)
 
 def get_salt(length=12) -> str:
     """Returns a securely generated random string."""
+
     allowed_chars = string.ascii_letters + string.digits
     return "".join(secrets.choice(allowed_chars) for _ in range(length))
+
+
+def get_random_hash(size: int) -> str:
+    """ Allows calculating random hash with fixed length """
+
+    h = hashlib.blake2b(key=get_salt().encode(), digest_size=size)
+    h.update(str(uuid.uuid4()).encode())
+    return h.hexdigest()[:size]
 
 
 class PBKDF2PasswordHasher:
@@ -22,7 +32,7 @@ class PBKDF2PasswordHasher:
 
     Configured to use PBKDF2 + HMAC + SHA256.
     The result is a 64 byte binary string.  Iterations may be changed
-    safely but you must rename the algorithm if you change SHA256.
+    safely, but you must rename the algorithm if you change SHA256.
     """
 
     algorithm = "pbkdf2_sha256"

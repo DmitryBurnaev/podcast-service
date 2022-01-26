@@ -6,7 +6,8 @@ from youtube_dl.utils import DownloadError
 
 from common.exceptions import NotFoundError
 from core import settings
-from modules.podcast.models import Episode, Podcast, EpisodeStatus
+from modules.podcast.models import Episode, Podcast
+from common.enums import EpisodeStatus
 from modules.podcast.tasks import DownloadEpisodeTask, DownloadEpisodeImageTask
 from modules.podcast.tasks.base import FinishCode
 from modules.providers.utils import download_process_hook

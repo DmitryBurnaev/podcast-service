@@ -20,7 +20,7 @@ __all__ = [
     "CookieResponseSchema",
 ]
 
-from modules.providers.utils import SourceType
+from common.enums import SourceType
 
 
 class BaseLimitOffsetSchema(Schema):
