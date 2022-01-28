@@ -5,7 +5,7 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.utils import get_logger
-from modules.podcast.models import Episode
+from modules.podcast.models import Episode, Cookie
 from modules.podcast.utils import get_file_name
 from modules.providers.utils import get_source_media_info, get_source_info, SourceInfo
 from modules.providers.exceptions import SourceFetchError
@@ -27,9 +27,15 @@ class EpisodeCreator:
         self.user_id: int = user_id
         self.source_url: str = source_url
 
+        self.source_id: str
+        self.source_info: SourceInfo
+        self.cookie: Cookie
+
+    async def _prepare_source_info(self, source_url):
         parsed_source_info = get_source_info(source_url)
-        self.source_id: str = parsed_source_info[0]
-        self.source_info: SourceInfo = parsed_source_info[1]
+        self.source_id, self.source_info = parsed_source_info
+        # TODO: order by created / user_id
+        self.cookie = await Cookie.async_get(self.db_session, source_type=self.source_info.type)
 
     async def create(self) -> Episode:
         """
