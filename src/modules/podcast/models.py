@@ -139,7 +139,7 @@ class Cookie(ModelBase, ModelMixin):
         return f'<Cookie #{self.id} "{self.domain}" at {self.created_at}>'
 
     def save_to_file(self) -> str:
-        cookies_file = settings.TMP_RSS_PATH / f"cookie_{self.type}_{self.id}.txt"
+        cookies_file = settings.TMP_COOKIES_PATH / f"cookie_{self.source_type}_{self.id}.txt"
         # TODO: can we use async API for this files IO-operations?
         if not os.path.exists(cookies_file):
             logger.info(f"Cookie #{self.id}: Generation cookie file [{cookies_file}]")

@@ -80,6 +80,7 @@ class EpisodeCreator:
             source_type=self.source_info.type,
             created_by_id=self.user_id,
         )
+        self.source_info.cookie = cookie
         extract_error, source_info = await get_source_media_info(self.source_info)
 
         if source_info:

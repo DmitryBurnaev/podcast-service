@@ -45,7 +45,6 @@ class SourceConfig(NamedTuple):
     regexp: Optional[str] = None
 
 
-# TODO: can we use extended version of this object (with url, source_id, cookie)?
 @dataclasses.dataclass
 class SourceInfo:
     id: str
