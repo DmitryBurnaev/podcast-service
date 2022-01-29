@@ -6,7 +6,7 @@ from pathlib import Path
 from functools import partial
 from contextlib import suppress
 from multiprocessing import Process
-from typing import Optional, NamedTuple, Tuple, Union
+from typing import Optional, NamedTuple, Union
 
 import youtube_dl
 from youtube_dl.utils import YoutubeDLError
@@ -16,6 +16,7 @@ from common.exceptions import InvalidParameterError
 from core import settings
 from common.utils import get_logger
 from modules.auth.hasher import get_random_hash
+from modules.podcast.models import Cookie
 from modules.providers.exceptions import FFMPegPreparationError
 from modules.podcast.utils import (
     get_file_size,
@@ -39,6 +40,7 @@ class SourceMediaInfo(NamedTuple):
 
 
 class SourceInfo(NamedTuple):
+    # TODO: can we use extended version of this object (with url, source_id, cookie)?
     type: SourceType
     domains: list[str]
     id_regexp: Optional[str] = None
@@ -119,14 +121,19 @@ def download_audio(source_url: str, filename: str) -> str:
     return filename
 
 
-async def get_source_media_info(source_url: str) -> Tuple[str, Optional[SourceMediaInfo]]:
+async def get_source_media_info(
+    source_url: str, cookie: Cookie = None
+) -> tuple[str, Optional[SourceMediaInfo]]:
     """Allows extract info about providers video from Source (powered by youtube_dl)"""
 
     logger.info(f"Started fetching data for {source_url}")
     loop = asyncio.get_running_loop()
+    ydl_config = {"logger": logger, "noplaylist": True}
+    if cookie:
+        ydl_config["cookie"] = cookie.save_to_file()
 
     try:
-        with youtube_dl.YoutubeDL({"logger": logger, "noplaylist": True}) as ydl:
+        with youtube_dl.YoutubeDL(ydl_config) as ydl:
             extract_info = partial(ydl.extract_info, source_url, download=False)
             source_details = await loop.run_in_executor(None, extract_info)
 

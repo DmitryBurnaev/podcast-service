@@ -1,3 +1,4 @@
+import os
 import uuid
 from hashlib import md5
 from datetime import datetime
@@ -12,6 +13,10 @@ from core.database import ModelBase
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
 from common.enums import SourceType, EpisodeStatus
+from common.utils import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class Podcast(ModelBase, ModelMixin):
@@ -132,3 +137,15 @@ class Cookie(ModelBase, ModelMixin):
 
     def __str__(self):
         return f'<Cookie #{self.id} "{self.domain}" at {self.created_at}>'
+
+    def save_to_file(self) -> str:
+        cookies_file = settings.TMP_RSS_PATH / f"cookie_{self.type}_{self.id}.txt"
+        # TODO: can we use async API for this files IO-operations?
+        if not os.path.exists(cookies_file):
+            logger.info(f"Cookie #{self.id}: Generation cookie file [{cookies_file}]")
+            with open(cookies_file, "wt") as fh:
+                fh.write(self.data)
+        else:
+            logger.info(f"Cookie #{self.id}: Found already generated file [{cookies_file}]")
+
+        return cookies_file
