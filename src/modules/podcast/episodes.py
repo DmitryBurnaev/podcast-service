@@ -7,14 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from common.utils import get_logger
 from modules.podcast.models import Episode, Cookie
 from modules.podcast.utils import get_file_name
-from modules.providers.utils import get_source_media_info, get_source_info
+from modules.providers.utils import get_source_media_info, extract_source_info, SourceInfo
 from modules.providers.exceptions import SourceFetchError
 
 logger = get_logger(__name__)
 
 
 class EpisodeCreator:
-    """Allows to extract info from Source end create episode (if necessary)"""
+    """Allows extracting info from Source end create episode (if necessary)"""
 
     symbols_regex = re.compile("[&^<>*#]")
     http_link_regex = re.compile(
@@ -25,8 +25,8 @@ class EpisodeCreator:
         self.db_session: AsyncSession = db_session
         self.podcast_id: int = podcast_id
         self.user_id: int = user_id
-        self.source_url: str = source_url
-        self.source_id, self.source_info = get_source_info(self.source_url)
+        self.source_info: SourceInfo = extract_source_info(source_url)
+        self.source_id: str = self.source_info.id
 
     async def create(self) -> Episode:
         """
@@ -59,14 +59,6 @@ class EpisodeCreator:
         res = self.http_link_regex.sub("[LINK]", value)
         return self.symbols_regex.sub("", res)
 
-    async def _prepare_source_info(self):
-        self.source_id, self.source_info = get_source_info(self.source_url)
-        self.cookie = await Cookie.async_get(
-            self.db_session,
-            source_type=self.source_info.type,
-            created_by_id=self.user_id,
-        )
-
     async def _get_episode_data(self, same_episode: Optional[Episode]) -> dict:
         """
         Allows getting information for new episode.
@@ -88,7 +80,7 @@ class EpisodeCreator:
             source_type=self.source_info.type,
             created_by_id=self.user_id,
         )
-        extract_error, source_info = await get_source_media_info(self.source_url, cookie)
+        extract_error, source_info = await get_source_media_info(self.source_info)
 
         if source_info:
             logger.info("Episode will be created from the source.")

@@ -2,6 +2,7 @@ import os
 import re
 import asyncio
 import subprocess
+import dataclasses
 from pathlib import Path
 from functools import partial
 from contextlib import suppress
@@ -11,12 +12,12 @@ from typing import Optional, NamedTuple, Union
 import youtube_dl
 from youtube_dl.utils import YoutubeDLError
 
-from common.enums import SourceType, EpisodeStatus
-from common.exceptions import InvalidParameterError
 from core import settings
 from common.utils import get_logger
-from modules.auth.hasher import get_random_hash
+from common.enums import SourceType, EpisodeStatus
+from common.exceptions import InvalidParameterError
 from modules.podcast.models import Cookie
+from modules.auth.hasher import get_random_hash
 from modules.providers.exceptions import FFMPegPreparationError
 from modules.podcast.utils import (
     get_file_size,
@@ -39,50 +40,55 @@ class SourceMediaInfo(NamedTuple):
     length: int
 
 
-class SourceInfo(NamedTuple):
-    # TODO: can we use extended version of this object (with url, source_id, cookie)?
+class SourceConfig(NamedTuple):
     type: SourceType
-    domains: list[str]
-    id_regexp: Optional[str] = None
-    cookies_data: Optional[str] = None
+    regexp: Optional[str] = None
 
 
-SOURCE_TYPE_MAP = {
-    SourceType.YOUTUBE: SourceInfo(
+# TODO: can we use extended version of this object (with url, source_id, cookie)?
+@dataclasses.dataclass
+class SourceInfo:
+    id: str
+    type: SourceType
+    url: Optional[str] = None
+    cookie: Optional[Cookie] = None
+
+
+SOURCE_CFG_MAP = {
+    SourceType.YOUTUBE: SourceConfig(
         type=SourceType.YOUTUBE,
-        domains=['youtube.com', 'yt.com'],
-        id_regexp=r"(?:v=|/)([0-9A-Za-z_-]{11}).*"
+        regexp=(
+            r"^https://(?:www\.)?"
+            r"[(?:youtube\.com)|(?:youtu\.be)]+[/watch\?v=|\/]+"
+            r"(?P<source_id>[0-9a-zA-Z-]{11})"
+        )
     ),
-    SourceType.YANDEX: SourceInfo(
+    SourceType.YANDEX: SourceConfig(
         type=SourceType.YANDEX,
-        domains=['yandex.ru'],
-        id_regexp=r"(?:v=|/)([0-9A-Za-z_-]{11}).*"
+        regexp=r"https://music\.yandex\.ru\/[a-z\/0-9]+\/track\/(?P<source_id>[0-9]+)"
     ),
-    SourceType.UPLOAD: SourceInfo(
+    SourceType.UPLOAD: SourceConfig(
         type=SourceType.UPLOAD,
-        domains=[]
     )
 }
 
 
-def get_source_info(source_url: Optional[str] = None) -> tuple[str, SourceInfo]:
+def extract_source_info(source_url: Optional[str] = None) -> SourceInfo:
     """Extracts providers (source) info and finds source ID"""
 
     if not source_url:
         random_hash = get_random_hash(size=6)
-        return f"U-{random_hash}", SOURCE_TYPE_MAP[SourceType.UPLOAD]
+        return SourceInfo(id=f"U-{random_hash}", type=SourceType.UPLOAD)
 
-    for source_type, source_info in SOURCE_TYPE_MAP.items():
-        # TODO: extract domain from source_url
-        if source_url in source_info.domains:
-            if matched_url := re.findall(source_info.id_regexp, source_url):
-                return matched_url[0], source_info
-            else:
-                logger.error(
-                    "Couldn't extract source ID: Source link is not correct: %s | source_info: %s",
-                    source_url,
-                    source_info
-                )
+    for source_type, source_cfg in SOURCE_CFG_MAP.items():
+        if match := re.match(source_cfg.regexp, source_url):
+            if source_id := match.groupdict().get('source_id'):
+                return SourceInfo(id=source_id, url=source_url, type=source_cfg.type)
+
+            logger.error(
+                "Couldn't extract source ID: Source link is not correct: %s | source_info: %s",
+                source_url, source_cfg
+            )
 
     raise InvalidParameterError(f"Requested domain is not supported now {source_url}")
 
@@ -121,24 +127,22 @@ def download_audio(source_url: str, filename: str) -> str:
     return filename
 
 
-async def get_source_media_info(
-    source_url: str, cookie: Cookie = None
-) -> tuple[str, Optional[SourceMediaInfo]]:
+async def get_source_media_info(source_info: SourceInfo) -> tuple[str, Optional[SourceMediaInfo]]:
     """Allows extract info about providers video from Source (powered by youtube_dl)"""
 
-    logger.info(f"Started fetching data for {source_url}")
+    logger.info(f"Started fetching data for {source_info.url}")
     loop = asyncio.get_running_loop()
     ydl_config = {"logger": logger, "noplaylist": True}
-    if cookie:
-        ydl_config["cookie"] = cookie.save_to_file()
+    if source_info.cookie:
+        ydl_config["cookie"] = source_info.cookie.save_to_file()
 
     try:
         with youtube_dl.YoutubeDL(ydl_config) as ydl:
-            extract_info = partial(ydl.extract_info, source_url, download=False)
+            extract_info = partial(ydl.extract_info, source_info.url, download=False)
             source_details = await loop.run_in_executor(None, extract_info)
 
     except YoutubeDLError as error:
-        logger.exception(f"ydl.extract_info failed: {source_url} ({error})")
+        logger.exception(f"ydl.extract_info failed: {source_info.url} ({error})")
         return str(error), None
 
     youtube_info = SourceMediaInfo(
