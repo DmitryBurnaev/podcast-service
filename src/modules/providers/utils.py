@@ -75,6 +75,7 @@ SOURCE_CFG_MAP = {
 def extract_source_info(source_url: Optional[str] = None) -> SourceInfo:
     """Extracts providers (source) info and finds source ID"""
 
+    # TODO: get cookie's object here?
     if not source_url:
         random_hash = get_random_hash(size=6)
         return SourceInfo(id=f"U-{random_hash}", type=SourceType.UPLOAD)
@@ -131,26 +132,26 @@ async def get_source_media_info(source_info: SourceInfo) -> tuple[str, Optional[
 
     logger.info(f"Started fetching data for {source_info.url}")
     loop = asyncio.get_running_loop()
-    ydl_config = {"logger": logger, "noplaylist": True}
+    params = {"logger": logger, "noplaylist": True}
     if source_info.cookie:
-        ydl_config["cookie"] = source_info.cookie.save_to_file()
+        params["cookiefile"] = source_info.cookie.save_to_file()
 
     try:
-        with youtube_dl.YoutubeDL(ydl_config) as ydl:
+        with youtube_dl.YoutubeDL(params) as ydl:
             extract_info = partial(ydl.extract_info, source_info.url, download=False)
             source_details = await loop.run_in_executor(None, extract_info)
 
     except YoutubeDLError as error:
         logger.exception(f"ydl.extract_info failed: {source_info.url} ({error})")
         return str(error), None
-
+    # TODO: fix KeyError here
     youtube_info = SourceMediaInfo(
         title=source_details["title"],
-        description=source_details["description"],
+        description=source_details.get("description") or source_details.get("title"),
         watch_url=source_details["webpage_url"],
         source_id=source_details["id"],
         thumbnail_url=source_details["thumbnail"],
-        author=source_details["uploader"],
+        author=source_details.get("uploader") or source_details.get("artist"),
         length=source_details["duration"],
     )
     return "OK", youtube_info

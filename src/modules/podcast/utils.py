@@ -80,7 +80,7 @@ async def check_state(episodes: Iterable[Episode]) -> list:
 
 def upload_process_hook(filename: str, chunk: int):
     """
-    Allows to handle uploading to Yandex.Cloud (S3) and update redis state (for user's progress).
+    Allows handling uploading to Yandex.Cloud (S3) and update redis state (for user's progress).
     It is called by `s3.upload_file` (`podcast.utils.upload_episode`)
     """
     episode_process_hook(filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk)
@@ -88,7 +88,7 @@ def upload_process_hook(filename: str, chunk: int):
 
 def post_processing_process_hook(filename: str, target_path: str, total_bytes: int):
     """
-    Allows to handle progress for ffmpeg file's preparations
+    Allows handling progress for ffmpeg file's preparations
     """
     processed_bytes = 0
     while processed_bytes < total_bytes:
@@ -109,7 +109,7 @@ def episode_process_hook(
     processed_bytes: int = None,
     chunk: int = 0,
 ):
-    """Allows to handle processes of performing episode's file."""
+    """Allows handling processes of performing episode's file."""
     redis_client = RedisClient()
     filename = os.path.basename(filename)
     event_key = redis_client.get_key_by_filename(filename)
