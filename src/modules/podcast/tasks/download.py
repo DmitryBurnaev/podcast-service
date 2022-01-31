@@ -8,7 +8,7 @@ from core import settings
 from common.storage import StorageS3
 from common.utils import get_logger, download_content
 from common.exceptions import NotFoundError, MaxAttemptsReached
-from modules.podcast.models import Episode
+from modules.podcast.models import Episode, Cookie
 from modules.podcast.tasks.base import RQTask, FinishCode
 from modules.podcast.tasks.rss import GenerateRSSTask
 from modules.providers import utils as youtube_utils
@@ -27,7 +27,9 @@ class DownloadingInterrupted(Exception):
 
 
 class DownloadEpisodeTask(RQTask):
-    """Allows to download media from the source and recreate podcast's rss (by requested episode_id)"""
+    """
+    Allows downloading media from the source and recreate podcast's rss (by requested episode_id)
+    """
 
     storage: StorageS3 = None
 
@@ -58,6 +60,7 @@ class DownloadEpisodeTask(RQTask):
         """
 
         episode = await Episode.async_get(self.db_session, id=episode_id)
+        cookie = await Cookie.async_get(self.db_session, id=episode.cookie_id)
         logger.info(
             "=== [%s] START downloading process URL: %s FILENAME: %s ===",
             episode.source_id,
@@ -68,7 +71,7 @@ class DownloadEpisodeTask(RQTask):
         await self._remove_unfinished(episode)
         await self._update_episodes(episode.source_id, update_data={"status": status.DOWNLOADING})
 
-        result_filename = await self._download_episode(episode)
+        result_filename = await self._download_episode(episode, cookie)
 
         await self._process_file(episode, result_filename)
         await self._upload_file(episode, result_filename)
@@ -106,13 +109,17 @@ class DownloadEpisodeTask(RQTask):
             await self._update_all_rss(episode.source_id)
             raise DownloadingInterrupted(code=FinishCode.SKIP)
 
-    async def _download_episode(self, episode: Episode):
-        """Allows to fetch info from external resource and extract audio from target source"""
+    async def _download_episode(self, episode: Episode, cookie: Cookie):
+        """Allows fetching info from external resource and extract audio from target source"""
 
         await self._update_episodes(episode.source_id, update_data={"status": status.DOWNLOADING})
 
         try:
-            result_filename = youtube_utils.download_audio(episode.watch_url, episode.file_name)
+            result_filename = youtube_utils.download_audio(
+                episode.watch_url,
+                episode.file_name,
+                cookie=cookie
+            )
         except YoutubeDLError as error:
             logger.exception(
                 "=== [%s] Downloading FAILED: Could not download track: %s. "
