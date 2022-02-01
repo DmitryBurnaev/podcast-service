@@ -19,7 +19,7 @@ def get_salt(length=12) -> str:
 
 
 def get_random_hash(size: int) -> str:
-    """ Allows calculating random hash with fixed length """
+    """Allows calculating random hash with fixed length"""
 
     h = hashlib.blake2b(key=get_salt().encode(), digest_size=size)
     h.update(str(uuid.uuid4()).encode())

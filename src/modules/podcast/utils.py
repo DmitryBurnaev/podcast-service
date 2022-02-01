@@ -39,7 +39,7 @@ def get_file_size(file_path: str):
 
 
 async def check_state(episodes: Iterable[Episode]) -> list:
-    """Allows to get info about download progress for requested episodes"""
+    """Allows getting info about download progress for requested episodes"""
 
     redis_client = RedisClient()
     file_names = {redis_client.get_key_by_filename(episode.file_name) for episode in episodes}
@@ -134,7 +134,7 @@ def episode_process_hook(
 
 
 def upload_episode(filename: str, src_path: str = None) -> Optional[str]:
-    """Allows to upload src_path to Yandex.Cloud (aka AWS S3)"""
+    """Allows uploading src_path to Yandex.Cloud (aka AWS S3)"""
 
     src_path = src_path or os.path.join(settings.TMP_AUDIO_PATH, filename)
     episode_process_hook(

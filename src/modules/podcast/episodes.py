@@ -107,9 +107,11 @@ class EpisodeCreator:
         else:
             raise SourceFetchError(f"Extracting data for new Episode failed: {extract_error}")
 
-        new_episode_data.update({
-            "podcast_id": self.podcast_id,
-            "created_by_id": self.user_id,
-            "cookie_id": cookie.id if cookie else None,
-        })
+        new_episode_data.update(
+            {
+                "podcast_id": self.podcast_id,
+                "created_by_id": self.user_id,
+                "cookie_id": cookie.id if cookie else None,
+            }
+        )
         return new_episode_data
