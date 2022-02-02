@@ -60,7 +60,6 @@ class DownloadEpisodeTask(RQTask):
         """
 
         episode = await Episode.async_get(self.db_session, id=episode_id)
-        cookie = await Cookie.async_get(self.db_session, id=episode.cookie_id)
         logger.info(
             "=== [%s] START downloading process URL: %s FILENAME: %s ===",
             episode.source_id,
@@ -71,7 +70,7 @@ class DownloadEpisodeTask(RQTask):
         await self._remove_unfinished(episode)
         await self._update_episodes(episode, update_data={"status": status.DOWNLOADING})
 
-        result_filename = await self._download_episode(episode, cookie)
+        result_filename = await self._download_episode(episode)
 
         await self._process_file(episode, result_filename)
         await self._upload_file(episode, result_filename)
@@ -109,10 +108,15 @@ class DownloadEpisodeTask(RQTask):
             await self._update_all_rss(episode.source_id)
             raise DownloadingInterrupted(code=FinishCode.SKIP)
 
-    async def _download_episode(self, episode: Episode, cookie: Cookie):
+    async def _download_episode(self, episode: Episode):
         """Allows fetching info from external resource and extract audio from target source"""
 
         await self._update_episodes(episode, update_data={"status": status.DOWNLOADING})
+        cookie = (
+            await Cookie.async_get(self.db_session, id=episode.cookie_id)
+            if episode.cookie_id
+            else None
+        )
 
         try:
             result_filename = youtube_utils.download_audio(

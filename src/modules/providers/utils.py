@@ -110,7 +110,7 @@ def download_process_hook(event: dict):
     )
 
 
-def download_audio(source_url: str, filename: str, cookie: Optional[Cookie] = None) -> str:
+def download_audio(source_url: str, filename: str, cookie: Optional[Cookie]) -> str:
     """
     Download providers video and perform to audio (.mp3) file
 
