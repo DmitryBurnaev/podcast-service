@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.testclient import TestClient
 
 from common.db_utils import make_session_maker
+from common.enums import SourceType
 from modules.auth.utils import encode_jwt
 from modules.auth.models import User, UserSession
 from modules.podcast.models import Podcast, Episode
@@ -85,6 +86,7 @@ def get_episode_data(podcast: Podcast = None, status: str = None, creator: User 
     source_id = get_video_id()
     episode_data = {
         "source_id": source_id,
+        "source_type": SourceType.YOUTUBE,
         "title": f"episode_{source_id}",
         "watch_url": f"https://www.youtube.com/watch?v={source_id}",
         "length": random.randint(1, 100),
