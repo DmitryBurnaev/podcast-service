@@ -1,5 +1,6 @@
 import pytest
 
+from common.enums import SourceType
 from common.statuses import ResponseStatus
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks
@@ -24,6 +25,7 @@ def _episode_in_list(episode: Episode):
         "id": episode.id,
         "title": episode.title,
         "status": str(episode.status),
+        "source_type": str(SourceType.YOUTUBE),
         "image_url": episode.image_url,
         "created_at": episode.created_at.isoformat(),
     }
@@ -41,6 +43,7 @@ def _episode_details(episode: Episode):
         "image_url": episode.image_url,
         "file_size": episode.file_size,
         "description": episode.description,
+        "source_type": str(SourceType.YOUTUBE),
         "created_at": episode.created_at.isoformat(),
         "published_at": episode.published_at.isoformat() if episode.published_at else None,
     }
@@ -130,6 +133,22 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         data = {"source_url": "http://link.to.resource/"}
         self.assert_not_found(client.post(url, json=data), podcast)
+
+
+class TestCreateEpisodesWithCookies(BaseTestAPIView):
+
+    def test_specific_source_type(self):
+        ...
+
+    def test_specific_cookie(self):
+        ...
+
+    def test_cookie_from_another_user(self):
+        ...
+
+    def test_use_last_cookie(self):
+        ...
+
 
 
 class TestEpisodeRUDAPIView(BaseTestAPIView):
