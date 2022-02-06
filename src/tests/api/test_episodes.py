@@ -136,7 +136,6 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
 
 
 class TestCreateEpisodesWithCookies(BaseTestAPIView):
-
     def test_specific_source_type(self):
         ...
 
@@ -148,7 +147,6 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
 
     def test_use_last_cookie(self):
         ...
-
 
 
 class TestEpisodeRUDAPIView(BaseTestAPIView):

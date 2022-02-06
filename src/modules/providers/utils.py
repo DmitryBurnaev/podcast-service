@@ -77,13 +77,12 @@ SOURCE_CFG_MAP = {
 def extract_source_info(source_url: Optional[str] = None) -> SourceInfo:
     """Extracts providers (source) info and finds source ID"""
 
-    # TODO: get cookie's object here?
     if not source_url:
         random_hash = get_random_hash(size=6)
         return SourceInfo(id=f"U-{random_hash}", type=SourceType.UPLOAD)
 
     for source_type, source_cfg in SOURCE_CFG_MAP.items():
-        if match := re.match(source_cfg.regexp, source_url):
+        if match := (re.match(source_cfg.regexp, source_url) if source_cfg.regexp else None):
             if source_id := match.groupdict().get("source_id"):
                 return SourceInfo(id=source_id, url=source_url, type=source_cfg.type)
 
