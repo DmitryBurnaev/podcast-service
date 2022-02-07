@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 
 from common.enums import SourceType
@@ -6,6 +8,7 @@ from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks import DownloadEpisodeTask
+from modules.providers.utils import SourceInfo
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import get_video_id, create_user, get_podcast_data, create_episode, await_
 
@@ -136,8 +139,20 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
 
 
 class TestCreateEpisodesWithCookies(BaseTestAPIView):
-    def test_specific_source_type(self):
-        ...
+
+    @patch("modules.providers.utils.extract_source_info")
+    def test_specific_source_type(self, mocked_source_info, client, user, podcast):
+        mocked_source_info.return_value = SourceInfo(
+            id='source-id',
+            type=SourceType.YOUTUBE,
+            url="http://link.to.source/"
+        )
+        client.login(user)
+        url = self.url.format(id=podcast.id)
+        episode_data = {}
+        response = client.post(url, json=episode_data)
+        response_data = self.assert_ok_response(response, status_code=201)
+        assert response_data['source_type'] == SourceType.YOUTUBE
 
     def test_specific_cookie(self):
         ...
