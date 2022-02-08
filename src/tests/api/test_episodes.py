@@ -6,7 +6,7 @@ from common.enums import SourceType
 from common.statuses import ResponseStatus
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks
-from modules.podcast.models import Episode, Podcast
+from modules.podcast.models import Episode, Podcast, Cookie
 from modules.podcast.tasks import DownloadEpisodeTask
 from modules.providers.utils import SourceInfo
 from tests.api.test_base import BaseTestAPIView
@@ -138,29 +138,54 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         self.assert_not_found(client.post(url, json=data), podcast)
 
 
+@patch("modules.providers.utils.extract_source_info")
 class TestCreateEpisodesWithCookies(BaseTestAPIView):
+    source_url = "http://link.to.source/"
 
-    @patch("modules.providers.utils.extract_source_info")
-    def test_specific_source_type(self, mocked_source_info, client, user, podcast):
-        mocked_source_info.return_value = SourceInfo(
-            id='source-id',
-            type=SourceType.YOUTUBE,
-            url="http://link.to.source/"
-        )
+    def _request(self, client, user, podcast) -> dict:
         client.login(user)
         url = self.url.format(id=podcast.id)
-        episode_data = {}
-        response = client.post(url, json=episode_data)
-        response_data = self.assert_ok_response(response, status_code=201)
-        assert response_data['source_type'] == SourceType.YOUTUBE
+        response = client.post(url, json={"source_url": self.source_url})
+        return self.assert_ok_response(response, status_code=201)
 
-    def test_specific_cookie(self):
-        ...
+    def test_specific_source_type(self, mocked_source_info, dbs, client, user, podcast):
+        # TODO: move to common method
+        mocked_source_info.return_value = SourceInfo(
+            id='source-id',
+            url=self.source_url,
+            type=SourceType.YANDEX,
+        )
+        response_data = self._request(client, user, podcast)
+        episode = await_(Episode.async_get(dbs, id=response_data['id']))
+
+        assert response_data['source_type'] == SourceType.YANDEX
+        assert episode.source_id == 'source-id'
+        assert episode.source_type == SourceType.YANDEX
+        assert episode.watch_url == self.source_url
+        mocked_source_info.assert_called_with(self.source_url)
+
+    def test_specific_cookie(self, mocked_source_info, dbs, client, user, podcast):
+        mocked_source_info.return_value = SourceInfo(
+            id='source-id',
+            url=self.source_url,
+            type=SourceType.YANDEX,
+        )
+        cdata = {"data": "cookie in netscape format\n", "created_by_id": user.id}
+        _ = await_(Cookie.async_create(dbs, source_type=SourceType.YOUTUBE, **cdata))
+        cookie_yandex = await_(Cookie.async_create(dbs, source_type=SourceType.YANDEX, **cdata))
+        response_data = self._request(client, user, podcast)
+
+        episode = await_(Episode.async_get(dbs, id=response_data['id']))
+        assert episode.source_type == SourceType.YANDEX
+        assert episode.cookie_id == cookie_yandex.id
 
     def test_cookie_from_another_user(self):
         ...
 
     def test_use_last_cookie(self):
+        ...
+
+    def test_no_cookies_found(self):
         ...
 
 
