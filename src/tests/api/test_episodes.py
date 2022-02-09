@@ -179,14 +179,47 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         assert episode.source_type == SourceType.YANDEX
         assert episode.cookie_id == cookie_yandex.id
 
-    def test_cookie_from_another_user(self):
-        ...
+    def test_cookie_from_another_user(self, mocked_source_info, dbs, client, user, podcast):
+        mocked_source_info.return_value = SourceInfo(
+            id='source-id',
+            url=self.source_url,
+            type=SourceType.YANDEX,
+        )
+        other_user = create_user(dbs)
+        cdata = {"data": "cookie in netscape format\n", "created_by_id": other_user.id}
+        await_(Cookie.async_create(dbs, source_type=SourceType.YANDEX, **cdata))
+        response_data = self._request(client, user, podcast)
 
-    def test_use_last_cookie(self):
-        ...
+        episode = await_(Episode.async_get(dbs, id=response_data['id']))
+        assert episode.source_type == SourceType.YANDEX
+        assert episode.cookie_id is None
 
-    def test_no_cookies_found(self):
-        ...
+    def test_use_last_cookie(self, mocked_source_info, dbs, client, user, podcast):
+        mocked_source_info.return_value = SourceInfo(
+            id='source-id',
+            url=self.source_url,
+            type=SourceType.YANDEX,
+        )
+        cdata = {"data": "cookie in netscape format\n", "created_by_id": user.id}
+        await_(Cookie.async_create(dbs, source_type=SourceType.YANDEX, **cdata))
+        c2 = await_(Cookie.async_create(dbs, source_type=SourceType.YANDEX, **cdata))
+        response_data = self._request(client, user, podcast)
+
+        episode = await_(Episode.async_get(dbs, id=response_data['id']))
+        assert episode.source_type == SourceType.YANDEX
+        assert episode.cookie_id == c2.id
+
+    def test_no_cookies_found(self, mocked_source_info, dbs, client, user, podcast):
+        mocked_source_info.return_value = SourceInfo(
+            id='source-id',
+            url=self.source_url,
+            type=SourceType.YANDEX,
+        )
+        response_data = self._request(client, user, podcast)
+
+        episode = await_(Episode.async_get(dbs, id=response_data['id']))
+        assert episode.source_type == SourceType.YANDEX
+        assert episode.cookie_id is None
 
 
 class TestEpisodeRUDAPIView(BaseTestAPIView):
