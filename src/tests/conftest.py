@@ -13,6 +13,7 @@ from modules.auth.models import UserInvite
 from modules.podcast.models import Podcast, Episode, Cookie
 from common.enums import SourceType
 from modules.providers import utils as youtube_utils
+from modules.providers.utils import SourceInfo
 from tests.helpers import (
     PodcastTestClient,
     get_user_data,
@@ -192,3 +193,18 @@ def user_invite(user, loop, dbs) -> UserInvite:
             created_by_id=user.id,
         )
     )
+
+
+@pytest.fixture()
+def mocked_source_info() -> Mock:
+    mock = Mock()
+    mock.return_value = SourceInfo(
+        id="source-id",
+        url="http://link.to.source/",
+        type=SourceType.YANDEX,
+    )
+    patcher = patch("modules.providers.utils.extract_source_info", new=mock)
+    patcher.start()
+    yield mock
+    del mock
+    patcher.stop()
