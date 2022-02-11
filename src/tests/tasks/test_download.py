@@ -1,4 +1,5 @@
 import uuid
+from pathlib import Path
 from unittest.mock import patch
 from urllib.parse import urljoin
 
@@ -16,13 +17,18 @@ from tests.helpers import get_podcast_data, await_
 
 
 class TestDownloadEpisodeTask(BaseTestCase):
-    def test_download_episode__ok(
-        self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task, dbs
-    ):
+
+    @staticmethod
+    def _source_file(episode: Episode) -> Path:
         file_path = settings.TMP_AUDIO_PATH / episode.file_name
         with open(file_path, "wb") as file:
             file.write(b"EpisodeData")
+        return file_path
 
+    def test_downloading_ok(
+        self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task, dbs
+    ):
+        file_path = self._source_file(episode)
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
         episode = await_(Episode.async_get(dbs, id=episode.id))
 
@@ -39,7 +45,28 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.status == Episode.Status.PUBLISHED
         assert episode.published_at == episode.created_at
 
-    def test_download_episode__file_correct__ignore(
+    def test_downloading__using_cookies__ok(
+        self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task, dbs,
+        cookie
+    ):
+        await_(episode.update(dbs, cookie=cookie))
+        await_(dbs.commit())
+
+        file_path = self._source_file(episode)
+        result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
+        episode = await_(Episode.async_get(dbs, id=episode.id))
+
+        mocked_youtube.download.assert_called_with([episode.watch_url, episode.cookie])
+        mocked_ffmpeg.assert_called_with(src_path=file_path)
+
+        assert result == FinishCode.OK
+        assert episode.status == Episode.Status.PUBLISHED
+        assert episode.published_at == episode.created_at
+
+    def test_skip_postprocessing(self):
+        raise AssertionError('Test skip downloading for specific sources')
+
+    def test_file_correct__skip(
         self,
         episode_data,
         podcast_data,
@@ -77,7 +104,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode_2.status == Episode.Status.PUBLISHED
         assert episode_2.published_at == episode_2.created_at
 
-    def test_download_episode__file_bad_size__ignore(
+    def test_file_bad_size__ignore(
         self,
         episode_data,
         mocked_youtube,
@@ -86,7 +113,6 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_generate_rss_task,
         dbs,
     ):
-
         episode_data.update(
             {
                 "status": "published",
@@ -119,7 +145,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.status == Episode.Status.PUBLISHED
         assert episode.published_at == episode.created_at
 
-    def test_download_episode__downloading_failed__roll_back_changes__ok(
+    def test_downloading_failed__roll_back_changes__ok(
         self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task, dbs
     ):
         file_path = settings.TMP_AUDIO_PATH / episode.file_name
@@ -139,7 +165,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.status == Episode.Status.ERROR
         assert episode.published_at is None
 
-    def test_download_episode__unexpected_error__ok(self, episode, mocked_youtube, dbs):
+    def test_unexpected_error__ok(self, episode, mocked_youtube, dbs):
         mocked_youtube.download.side_effect = RuntimeError("Oops")
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
         episode = await_(Episode.async_get(dbs, id=episode.id))
@@ -147,7 +173,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.status == Episode.Status.ERROR
         assert episode.published_at is None
 
-    def test_download_episode__upload_to_s3_failed__fail(
+    def test_upload_to_s3_failed__fail(
         self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task, dbs
     ):
         file_path = settings.TMP_AUDIO_PATH / episode.file_name
@@ -184,7 +210,7 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
     @patch("modules.podcast.models.Episode.generate_image_name")
     @patch("modules.podcast.tasks.download.ffmpeg_preparation")
     @patch("modules.podcast.tasks.download.download_content")
-    def test_download_image__ok(
+    def test_image_ok(
         self, mocked_download_content, mocked_ffmpeg, mocked_name, episode, mocked_s3, dbs
     ):
         tmp_path = settings.TMP_IMAGE_PATH / f"{episode.source_id}.jpg"
@@ -207,7 +233,7 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
         )
 
     @patch("modules.podcast.tasks.download.download_content")
-    def test_download__image_not_found__use_default(self, mocked_download_content, episode, dbs):
+    def test_image_not_found__use_default(self, mocked_download_content, episode, dbs):
         mocked_download_content.side_effect = NotFoundError()
         result = await_(DownloadEpisodeImageTask(db_session=dbs).run(episode.id))
         await_(dbs.refresh(episode))
@@ -215,7 +241,7 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
         assert episode.image_url == settings.DEFAULT_EPISODE_COVER
 
     @patch("modules.podcast.tasks.download.download_content")
-    def test_download__skip_already_downloaded(self, mocked_download_content, episode, dbs):
+    def test_skip_already_downloaded(self, mocked_download_content, episode, dbs):
         url = urljoin(settings.S3_STORAGE_URL, "images/episode-default.jpg")
         await_(episode.update(dbs, image_url=url))
         result = await_(DownloadEpisodeImageTask(db_session=dbs).run(episode.id))
