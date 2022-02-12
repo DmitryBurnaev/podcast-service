@@ -196,15 +196,13 @@ def user_invite(user, loop, dbs) -> UserInvite:
 
 
 @pytest.fixture()
-def mocked_source_info() -> Mock:
+def mocked_source_info(monkeypatch) -> Mock:
     mock = Mock()
     mock.return_value = SourceInfo(
         id="source-id",
         url="http://link.to.source/",
         type=SourceType.YANDEX,
     )
-    patcher = patch("modules.providers.utils.extract_source_info", new=mock)
-    patcher.start()
+    monkeypatch.setattr(youtube_utils, "extract_source_info", mock)
     yield mock
     del mock
-    patcher.stop()

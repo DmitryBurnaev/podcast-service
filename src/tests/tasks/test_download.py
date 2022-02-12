@@ -56,15 +56,21 @@ class TestDownloadEpisodeTask(BaseTestCase):
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
         episode = await_(Episode.async_get(dbs, id=episode.id))
 
-        mocked_youtube.download.assert_called_with([episode.watch_url, episode.cookie])
+        mocked_youtube.download.assert_called_with([episode.watch_url, cookie])
         mocked_ffmpeg.assert_called_with(src_path=file_path)
 
         assert result == FinishCode.OK
         assert episode.status == Episode.Status.PUBLISHED
         assert episode.published_at == episode.created_at
 
-    def test_skip_postprocessing(self):
-        raise AssertionError('Test skip downloading for specific sources')
+    def test_skip_postprocessing(self, dbs, episode, cookie, mocked_ffmpeg, mocked_source_info):
+        await_(episode.update(dbs, cookie=cookie))
+        await_(dbs.commit())
+
+        result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
+        mocked_ffmpeg.assert_not_called()
+        assert result == FinishCode.OK
+        assert episode.status == Episode.Status.PUBLISHED
 
     def test_file_correct__skip(
         self,

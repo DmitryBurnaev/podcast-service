@@ -137,6 +137,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
 
 
 class TestCreateEpisodesWithCookies(BaseTestAPIView):
+    url = "/api/podcasts/{id}/episodes/"
     source_url = "http://link.to.source/"
     cdata = {"data": "cookie in netscape format", "source_type": SourceType.YANDEX}
 
@@ -155,6 +156,7 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         assert episode.cookie_id == cookie_id
 
     def test_no_cookies_found(self, mocked_source_info, dbs, client, user, podcast):
+        # TODO: mock modules.providers.utils.get_source_media_info
         response_data = self._request(client, user, podcast)
         self._assert_source(response_data, dbs, cookie_id=None)
 

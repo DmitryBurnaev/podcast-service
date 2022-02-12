@@ -11,7 +11,7 @@ from common.exceptions import NotFoundError, MaxAttemptsReached
 from modules.podcast.models import Episode, Cookie
 from modules.podcast.tasks.base import RQTask, FinishCode
 from modules.podcast.tasks.rss import GenerateRSSTask
-from modules.providers import utils as youtube_utils
+from modules.providers import utils as provider_utils
 from modules.podcast import utils as podcast_utils
 from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
 
@@ -119,7 +119,7 @@ class DownloadEpisodeTask(RQTask):
         )
 
         try:
-            result_filename = youtube_utils.download_audio(
+            result_filename = provider_utils.download_audio(
                 episode.watch_url, episode.file_name, cookie=cookie
             )
         except YoutubeDLError as error:
@@ -158,7 +158,7 @@ class DownloadEpisodeTask(RQTask):
         source_config = SOURCE_CFG_MAP[episode.source_type]
         if source_config.need_postprocessing:
             logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
-            youtube_utils.ffmpeg_preparation(src_path=(settings.TMP_AUDIO_PATH / result_filename))
+            provider_utils.ffmpeg_preparation(src_path=(settings.TMP_AUDIO_PATH / result_filename))
             logger.info("=== [%s] POST PROCESSING was done === ", episode.source_id)
         else:
             logger.info("=== [%s] POST PROCESSING SKIP === ", episode.source_id)

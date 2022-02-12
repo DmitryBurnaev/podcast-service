@@ -125,7 +125,7 @@ def download_audio(source_url: str, filename: str, cookie: Optional[Cookie]) -> 
         "progress_hooks": [download_process_hook],
     }
     if cookie:
-        params["cookiefile"] = cookie.save_to_file()
+        params["cookiefile"] = cookie.as_file()
 
     with youtube_dl.YoutubeDL(params) as ydl:
         ydl.download([source_url])
@@ -140,7 +140,7 @@ async def get_source_media_info(source_info: SourceInfo) -> tuple[str, Optional[
     loop = asyncio.get_running_loop()
     params = {"logger": logger, "noplaylist": True}
     if source_info.cookie:
-        params["cookiefile"] = source_info.cookie.save_to_file()
+        params["cookiefile"] = source_info.cookie.as_file()
 
     try:
         with youtube_dl.YoutubeDL(params) as ydl:
