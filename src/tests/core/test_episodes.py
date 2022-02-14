@@ -118,17 +118,23 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         assert episode.source_type == SourceType.YANDEX
         assert episode.cookie_id == cookie_id
 
-    def test_no_cookies_found(self, mocked_source_info, dbs, client, user, podcast):
-        # TODO: mock modules.providers.utils.get_source_media_info
-        response_data = self._request(client, user, podcast)
-        self._assert_source(response_data, dbs, cookie_id=None)
-
-    def test_specific_cookie(self, mocked_source_info, dbs, client, user, podcast):
+    # TODO: fix test and refactor it!
+    def test_specific_cookie(self, mocked_source_info, mocked_youtube, dbs, client, user, podcast):
         cdata = self.cdata | {"created_by_id": user.id}
         await_(Cookie.async_create(dbs, **(cdata | {"source_type": SourceType.YANDEX})))
         cookie_yandex = await_(Cookie.async_create(dbs, **cdata))
-        response_data = self._request(client, user, podcast)
-        self._assert_source(response_data, dbs, cookie_id=cookie_yandex.id)
+
+        episode_creator = EpisodeCreator(
+            dbs,
+            podcast_id=podcast.id,
+            source_url=self.source_url,
+            user_id=user.id,
+        )
+        episode = await_(episode_creator.create())
+        assert episode is not None
+        assert episode.source_id == "source-id"
+        assert episode.source_type == SourceType.YANDEX
+        assert episode.cookie_id == cookie_yandex.id
         mocked_source_info.assert_called_with(self.source_url)
 
     def test_cookie_from_another_user(self, mocked_source_info, dbs, client, user, podcast):
@@ -137,13 +143,32 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         cdata = self.cdata | {"created_by_id": create_user(dbs).id}
         await_(Cookie.async_create(dbs, **cdata))
 
-        response_data = self._request(client, user, podcast)
-        self._assert_source(response_data, dbs, cookie_id=cookie_yandex.id)
+        episode_creator = EpisodeCreator(
+            dbs,
+            podcast_id=podcast.id,
+            source_url=self.source_url,
+            user_id=user.id,
+        )
+        episode = await_(episode_creator.create())
+        assert episode is not None
+        assert episode.source_id == "source-id"
+        assert episode.source_type == SourceType.YANDEX
+        assert episode.cookie_id == cookie_yandex.id
+        mocked_source_info.assert_called_with(self.source_url)
 
     def test_use_last_cookie(self, mocked_source_info, dbs, client, user, podcast):
         cdata = self.cdata | {"created_by_id": user.id}
         await_(Cookie.async_create(dbs, **cdata))
         c2 = await_(Cookie.async_create(dbs, **cdata))
-        response_data = self._request(client, user, podcast)
 
-        self._assert_source(response_data, dbs, cookie_id=c2.id)
+        episode_creator = EpisodeCreator(
+            dbs,
+            podcast_id=podcast.id,
+            source_url=self.source_url,
+            user_id=user.id,
+        )
+        episode = await_(episode_creator.create())
+        assert episode is not None
+        assert episode.source_id == "source-id"
+        assert episode.source_type == SourceType.YANDEX
+        assert episode.cookie_id == c2.id
