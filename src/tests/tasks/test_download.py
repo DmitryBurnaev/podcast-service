@@ -17,7 +17,6 @@ from tests.helpers import get_podcast_data, await_
 
 
 class TestDownloadEpisodeTask(BaseTestCase):
-
     @staticmethod
     def _source_file(episode: Episode) -> Path:
         file_path = settings.TMP_AUDIO_PATH / episode.file_name
@@ -46,8 +45,14 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.published_at == episode.created_at
 
     def test_downloading__using_cookies__ok(
-        self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task, dbs,
-        cookie
+        self,
+        episode,
+        mocked_youtube,
+        mocked_ffmpeg,
+        mocked_s3,
+        mocked_generate_rss_task,
+        dbs,
+        cookie,
     ):
         await_(episode.update(dbs, cookie=cookie))
         await_(dbs.commit())

@@ -39,9 +39,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.source_id == episode.source_id
         assert new_episode.watch_url == episode.watch_url
 
-    def test_same_episode_in_other_podcast__ok(
-        self, podcast, episode, user, mocked_youtube, dbs
-    ):
+    def test_same_episode_in_other_podcast__ok(self, podcast, episode, user, mocked_youtube, dbs):
         mocked_youtube.extract_info.return_value = {
             "id": episode.source_id,
             "title": "Updated title",
@@ -69,9 +67,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.author == "Updated author"
         assert new_episode.length == 123
 
-    def test_same_episode__extract_failed__ok(
-        self, podcast, episode, user, mocked_youtube, dbs
-    ):
+    def test_same_episode__extract_failed__ok(self, podcast, episode, user, mocked_youtube, dbs):
         mocked_youtube.extract_info.side_effect = ExtractorError("Something went wrong here")
         new_podcast = await_(Podcast.async_create(dbs, **get_podcast_data()))
         episode_creator = EpisodeCreator(
@@ -113,6 +109,18 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         return self.assert_ok_response(response, status_code=201)
 
     @staticmethod
+    def assert_called_with(mock_callable, **kwargs):
+        assert mock_callable.called
+        try:
+            mock_call_kwargs = mock_callable.call_args_list[-1].args[1]
+        except IndexError:
+            raise AssertionError(f"Could not fetch call kwargs: {mock_callable.call_args_list}")
+
+        for key, value in kwargs.items():
+            assert key in mock_call_kwargs, mock_call_kwargs
+            assert mock_call_kwargs[key] == value
+
+    @staticmethod
     def assert_source(episode_creator: EpisodeCreator, cookie_id: Optional[int] = None):
         episode = await_(episode_creator.create())
         assert episode.source_id == "source-id"
@@ -132,11 +140,13 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         )
 
         self.assert_source(episode_creator, cookie_yandex.id)
-        # TODO: use assert method for this
-        assert mocked_youtube.target_class.__init__.call_args.args[1]['cookiefile'] == cookie_yandex.as_file()
-        # self.assert_called_with(mocked_youtube.target_class.__init__, cookiefile=cookie_yandex.as_file())
+        self.assert_called_with(
+            mocked_youtube.target_class.__init__, cookiefile=cookie_yandex.as_file()
+        )
 
-    def test_cookie_from_another_user(self, mocked_source_info, mocked_youtube, dbs, client, user, podcast):
+    def test_cookie_from_another_user(
+        self, mocked_source_info, mocked_youtube, dbs, client, user, podcast
+    ):
         cdata = self.cdata | {"created_by_id": user.id}
         cookie_yandex = await_(Cookie.async_create(dbs, **cdata))
         cdata = self.cdata | {"created_by_id": create_user(dbs).id}
@@ -149,7 +159,9 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
             user_id=user.id,
         )
         self.assert_source(episode_creator, cookie_yandex.id)
-        mocked_youtube.extract_info.assert_called_with(self.source_url, download=False, cookiefile=cookie_yandex.as_file())
+        self.assert_called_with(
+            mocked_youtube.target_class.__init__, cookiefile=cookie_yandex.as_file()
+        )
 
     def test_use_last_cookie(self, mocked_source_info, mocked_youtube, dbs, client, user, podcast):
         cdata = self.cdata | {"created_by_id": user.id}
@@ -163,4 +175,4 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
             user_id=user.id,
         )
         self.assert_source(episode_creator, c2.id)
-        mocked_youtube.extract_info.assert_called_with(self.source_url, download=False, cookiefile=cookie_yandex.as_file())
+        self.assert_called_with(mocked_youtube.target_class.__init__, cookiefile=c2.as_file())
