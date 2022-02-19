@@ -61,18 +61,18 @@ class TestDownloadEpisodeTask(BaseTestCase):
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
         episode = await_(Episode.async_get(dbs, id=episode.id))
 
-        # TODO: mocked_youtube.__init__.assert_called_with ...
-        mocked_youtube.download.assert_called_with([episode.watch_url, cookie])
+        mocked_youtube.assert_called_with(cookiefile=cookie.as_file())
         mocked_ffmpeg.assert_called_with(src_path=file_path)
 
         assert result == FinishCode.OK
         assert episode.status == Episode.Status.PUBLISHED
         assert episode.published_at == episode.created_at
 
-    def test_skip_postprocessing(self, dbs, episode, cookie, mocked_ffmpeg, mocked_source_info):
+    def test_skip_postprocessing(self, dbs, episode, cookie, mocked_ffmpeg, mocked_source_info, mocked_youtube):
         await_(episode.update(dbs, cookie_id=cookie.id))
         await_(dbs.commit())
 
+        # TODO: source_type != Yandex!
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
         mocked_ffmpeg.assert_not_called()
         assert result == FinishCode.OK

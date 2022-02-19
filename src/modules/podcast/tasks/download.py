@@ -155,6 +155,7 @@ class DownloadEpisodeTask(RQTask):
     @staticmethod
     async def _process_file(episode: Episode, result_filename: str):
         """Postprocessing for downloaded audio file"""
+        raise RuntimeError(episode.source_type)
         source_config = SOURCE_CFG_MAP[episode.source_type]
         if source_config.need_postprocessing:
             logger.info("=== [%s] POST PROCESSING === ", episode.source_id)

@@ -109,18 +109,6 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         return self.assert_ok_response(response, status_code=201)
 
     @staticmethod
-    def assert_called_with(mock_callable, **kwargs):
-        assert mock_callable.called
-        try:
-            mock_call_kwargs = mock_callable.call_args_list[-1].args[1]
-        except IndexError:
-            raise AssertionError(f"Could not fetch call kwargs: {mock_callable.call_args_list}")
-
-        for key, value in kwargs.items():
-            assert key in mock_call_kwargs, mock_call_kwargs
-            assert mock_call_kwargs[key] == value
-
-    @staticmethod
     def assert_source(episode_creator: EpisodeCreator, cookie_id: Optional[int] = None):
         episode = await_(episode_creator.create())
         assert episode.source_id == "source-id"
@@ -140,9 +128,7 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         )
 
         self.assert_source(episode_creator, cookie_yandex.id)
-        self.assert_called_with(
-            mocked_youtube.target_class.__init__, cookiefile=cookie_yandex.as_file()
-        )
+        mocked_youtube.assert_called_with(cookiefile=cookie_yandex.as_file())
 
     def test_cookie_from_another_user(
         self, mocked_source_info, mocked_youtube, dbs, client, user, podcast
@@ -159,9 +145,7 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
             user_id=user.id,
         )
         self.assert_source(episode_creator, cookie_yandex.id)
-        self.assert_called_with(
-            mocked_youtube.target_class.__init__, cookiefile=cookie_yandex.as_file()
-        )
+        mocked_youtube.assert_called_with(cookiefile=cookie_yandex.as_file())
 
     def test_use_last_cookie(self, mocked_source_info, mocked_youtube, dbs, client, user, podcast):
         cdata = self.cdata | {"created_by_id": user.id}
@@ -175,4 +159,4 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
             user_id=user.id,
         )
         self.assert_source(episode_creator, c2.id)
-        self.assert_called_with(mocked_youtube.target_class.__init__, cookiefile=c2.as_file())
+        mocked_youtube.assert_called_with(cookiefile=c2.as_file())
