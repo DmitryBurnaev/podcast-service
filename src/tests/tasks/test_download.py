@@ -8,7 +8,7 @@ from youtube_dl.utils import DownloadError
 from common.exceptions import NotFoundError
 from core import settings
 from modules.podcast.models import Episode, Podcast
-from common.enums import EpisodeStatus
+from common.enums import EpisodeStatus, SourceType
 from modules.podcast.tasks import DownloadEpisodeTask, DownloadEpisodeImageTask
 from modules.podcast.tasks.base import FinishCode
 from modules.providers.utils import download_process_hook
@@ -69,7 +69,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.published_at == episode.created_at
 
     def test_skip_postprocessing(self, dbs, episode, cookie, mocked_ffmpeg, mocked_source_info, mocked_youtube):
-        await_(episode.update(dbs, cookie_id=cookie.id))
+        await_(episode.update(dbs, cookie_id=cookie.id, source_type=SourceType.YANDEX))
         await_(dbs.commit())
 
         # TODO: source_type != Yandex!
