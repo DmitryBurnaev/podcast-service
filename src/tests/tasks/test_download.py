@@ -68,15 +68,30 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.status == Episode.Status.PUBLISHED
         assert episode.published_at == episode.created_at
 
-    def test_skip_postprocessing(self, dbs, episode, cookie, mocked_ffmpeg, mocked_source_info, mocked_youtube):
+    def test_skip_postprocessing(
+        self,
+        dbs,
+        episode,
+        cookie,
+        mocked_source_info,
+        mocked_youtube,
+        mocked_ffmpeg,
+        mocked_s3,
+    ):
+        file_path = self._source_file(episode)
         await_(episode.update(dbs, cookie_id=cookie.id, source_type=SourceType.YANDEX))
         await_(dbs.commit())
 
-        # TODO: source_type != Yandex!
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
         mocked_ffmpeg.assert_not_called()
         assert result == FinishCode.OK
         assert episode.status == Episode.Status.PUBLISHED
+        # TODO: fix uploading episode to s3
+        self.assert_called_with(
+            mocked_s3.upload_file,
+            src_path=str(file_path),
+            dst_path=settings.S3_BUCKET_AUDIO_PATH,
+        )
 
     def test_file_correct__skip(
         self,
