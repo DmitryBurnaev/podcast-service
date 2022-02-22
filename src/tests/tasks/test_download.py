@@ -71,12 +71,13 @@ class TestDownloadEpisodeTask(BaseTestCase):
     def test_skip_postprocessing(
         self,
         dbs,
-        episode,
         cookie,
-        mocked_source_info,
-        mocked_youtube,
-        mocked_ffmpeg,
+        episode,
         mocked_s3,
+        mocked_ffmpeg,
+        mocked_youtube,
+        mocked_source_info,
+        mocked_generate_rss_task,
     ):
         file_path = self._source_file(episode)
         await_(episode.update(dbs, cookie_id=cookie.id, source_type=SourceType.YANDEX))
@@ -86,7 +87,6 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_ffmpeg.assert_not_called()
         assert result == FinishCode.OK
         assert episode.status == Episode.Status.PUBLISHED
-        # TODO: fix uploading episode to s3
         self.assert_called_with(
             mocked_s3.upload_file,
             src_path=str(file_path),
