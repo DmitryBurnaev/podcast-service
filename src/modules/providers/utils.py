@@ -60,7 +60,7 @@ SOURCE_CFG_MAP = {
         regexp=(
             r"^https://(?:www\.)?"
             r"[(?:youtube\.com)|(?:youtu\.be)]+[/watch\?v=|\/]+"
-            r"(?P<source_id>[0-9a-zA-Z-]{11})"
+            r"(?P<source_id>[0-9a-zA-Z-_]{11})"
         ),
         need_postprocessing=True,
     ),

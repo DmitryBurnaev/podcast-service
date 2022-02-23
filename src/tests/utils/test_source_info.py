@@ -9,7 +9,7 @@ from modules.providers.utils import extract_source_info
     "source_url,source_type,source_id",
     [
         ("https://music.yandex.ru/album/1/track/2/", SourceType.YANDEX, "2"),
-        ("https://www.youtube.com/watch?v=FooBar12345", SourceType.YOUTUBE, "FooBar12345"),
+        ("https://www.youtube.com/watch?v=FooBar_1234", SourceType.YOUTUBE, "FooBar_1234"),
         ("https://youtu.be/FooBar12345", SourceType.YOUTUBE, "FooBar12345"),
     ],
 )
