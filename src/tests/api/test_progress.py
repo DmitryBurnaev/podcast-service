@@ -1,4 +1,5 @@
-from modules.podcast.models import Podcast, Episode, EpisodeStatus
+from modules.podcast.models import Podcast, Episode
+from common.enums import EpisodeStatus
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import get_episode_data, create_user, get_podcast_data, await_, create_episode
 

@@ -9,7 +9,8 @@ from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
 from common.utils import get_logger
-from modules.podcast.models import EpisodeStatus, Episode
+from modules.podcast.models import Episode
+from common.enums import EpisodeStatus
 
 logger = get_logger(__name__)
 
@@ -38,7 +39,7 @@ def get_file_size(file_path: str):
 
 
 async def check_state(episodes: Iterable[Episode]) -> list:
-    """Allows to get info about download progress for requested episodes"""
+    """Allows getting info about download progress for requested episodes"""
 
     redis_client = RedisClient()
     file_names = {redis_client.get_key_by_filename(episode.file_name) for episode in episodes}
@@ -79,7 +80,7 @@ async def check_state(episodes: Iterable[Episode]) -> list:
 
 def upload_process_hook(filename: str, chunk: int):
     """
-    Allows to handle uploading to Yandex.Cloud (S3) and update redis state (for user's progress).
+    Allows handling uploading to Yandex.Cloud (S3) and update redis state (for user's progress).
     It is called by `s3.upload_file` (`podcast.utils.upload_episode`)
     """
     episode_process_hook(filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk)
@@ -87,7 +88,7 @@ def upload_process_hook(filename: str, chunk: int):
 
 def post_processing_process_hook(filename: str, target_path: str, total_bytes: int):
     """
-    Allows to handle progress for ffmpeg file's preparations
+    Allows handling progress for ffmpeg file's preparations
     """
     processed_bytes = 0
     while processed_bytes < total_bytes:
@@ -108,7 +109,7 @@ def episode_process_hook(
     processed_bytes: int = None,
     chunk: int = 0,
 ):
-    """Allows to handle processes of performing episode's file."""
+    """Allows handling processes of performing episode's file."""
     redis_client = RedisClient()
     filename = os.path.basename(filename)
     event_key = redis_client.get_key_by_filename(filename)
@@ -133,7 +134,7 @@ def episode_process_hook(
 
 
 def upload_episode(filename: str, src_path: str = None) -> Optional[str]:
-    """Allows to upload src_path to Yandex.Cloud (aka AWS S3)"""
+    """Allows uploading src_path to Yandex.Cloud (aka AWS S3)"""
 
     src_path = src_path or os.path.join(settings.TMP_AUDIO_PATH, filename)
     episode_process_hook(

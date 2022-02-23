@@ -1,6 +1,7 @@
 *.py[code]
 
 .idea/
+.vscode/
 .env
 .coverage
 .pytest_cache

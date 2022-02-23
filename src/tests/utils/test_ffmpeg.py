@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from core import settings
-from modules.podcast.models import EpisodeStatus
+from common.enums import EpisodeStatus
 from modules.podcast.utils import post_processing_process_hook
 from modules.providers.exceptions import FFMPegPreparationError
 from modules.providers.utils import ffmpeg_preparation

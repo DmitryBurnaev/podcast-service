@@ -20,7 +20,7 @@ __all__ = [
     "CookieResponseSchema",
 ]
 
-from modules.podcast.models import SourceType
+from common.enums import SourceType
 
 
 class BaseLimitOffsetSchema(Schema):
@@ -76,6 +76,7 @@ class EpisodeListSchema(Schema):
     created_at = fields.DateTime(required=True)
     image_url = fields.URL()
     status = fields.Str(required=True)
+    source_type = fields.Str(required=True)
 
 
 class EpisodeListResponseSchema(Schema):
@@ -95,6 +96,7 @@ class EpisodeDetailsSchema(Schema):
     image_url = fields.URL()
     file_size = fields.Int()
     description = fields.Str()
+    source_type = fields.Str(required=True)
     created_at = fields.DateTime(required=True)
     published_at = fields.DateTime(required=True, allow_none=True)
 

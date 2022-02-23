@@ -99,7 +99,7 @@ class StorageS3:
         error_log_level: int = logging.ERROR,
     ) -> Optional[dict]:
         """
-        Allows to find file information (headers) on remote storage (S3)
+        Allows finding file information (headers) on remote storage (S3)
         Headers content info about downloaded file
         """
         dst_path = os.path.join(remote_path, filename)
@@ -115,7 +115,7 @@ class StorageS3:
         self, filename: Optional[str], remote_path: str = settings.S3_BUCKET_AUDIO_PATH
     ) -> int:
         """
-        Allows to find file on remote storage (S3) and calculate size
+        Allows finding file on remote storage (S3) and calculate size
         (content-length / file size)
         """
 

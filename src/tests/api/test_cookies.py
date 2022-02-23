@@ -3,7 +3,8 @@ import io
 import pytest
 
 from common.statuses import ResponseStatus
-from modules.podcast.models import SourceType, Cookie
+from modules.podcast.models import Cookie
+from common.enums import SourceType
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import create_user, await_
 

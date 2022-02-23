@@ -1,4 +1,4 @@
-import enum
+import os
 import uuid
 from hashlib import md5
 from datetime import datetime
@@ -12,33 +12,11 @@ from core import settings
 from core.database import ModelBase
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
+from common.enums import SourceType, EpisodeStatus
+from common.utils import get_logger
 
 
-class EpisodeStatus(enum.Enum):
-    NEW = "new"
-    DOWNLOADING = "downloading"
-    PUBLISHED = "published"
-    ARCHIVED = "archived"
-    ERROR = "error"
-
-    DL_PENDING = "pending"
-    DL_EPISODE_DOWNLOADING = "episode_downloading"
-    DL_EPISODE_POSTPROCESSING = "episode_postprocessing"
-    DL_EPISODE_UPLOADING = "episode_uploading"
-    DL_COVER_DOWNLOADING = "cover_downloading"
-    DL_COVER_UPLOADING = "cover_uploading"
-
-    def __str__(self):
-        return self.value
-
-
-class SourceType(enum.Enum):
-    YOUTUBE = "YOUTUBE"
-    YANDEX = "YANDEX"
-    UPLOAD = "UPLOAD"
-
-    def __str__(self):
-        return self.value
+logger = get_logger(__name__)
 
 
 class Podcast(ModelBase, ModelMixin):
@@ -159,3 +137,15 @@ class Cookie(ModelBase, ModelMixin):
 
     def __str__(self):
         return f'<Cookie #{self.id} "{self.domain}" at {self.created_at}>'
+
+    def as_file(self) -> str:
+        cookies_file = settings.TMP_COOKIES_PATH / f"cookie_{self.source_type}_{self.id}.txt"
+        # TODO: can we use async API for this files IO-operations?
+        if not os.path.exists(cookies_file):
+            logger.info(f"Cookie #{self.id}: Generation cookie file [{cookies_file}]")
+            with open(cookies_file, "wt") as fh:
+                fh.write(self.data)
+        else:
+            logger.info(f"Cookie #{self.id}: Found already generated file [{cookies_file}]")
+
+        return cookies_file

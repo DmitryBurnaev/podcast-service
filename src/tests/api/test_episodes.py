@@ -1,5 +1,6 @@
 import pytest
 
+from common.enums import SourceType
 from common.statuses import ResponseStatus
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks
@@ -7,6 +8,7 @@ from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks import DownloadEpisodeTask
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import get_video_id, create_user, get_podcast_data, create_episode, await_
+
 
 INVALID_UPDATE_DATA = [
     [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],
@@ -24,6 +26,7 @@ def _episode_in_list(episode: Episode):
         "id": episode.id,
         "title": episode.title,
         "status": str(episode.status),
+        "source_type": str(SourceType.YOUTUBE),
         "image_url": episode.image_url,
         "created_at": episode.created_at.isoformat(),
     }
@@ -41,6 +44,7 @@ def _episode_details(episode: Episode):
         "image_url": episode.image_url,
         "file_size": episode.file_size,
         "description": episode.description,
+        "source_type": str(SourceType.YOUTUBE),
         "created_at": episode.created_at.isoformat(),
         "published_at": episode.published_at.isoformat() if episode.published_at else None,
     }

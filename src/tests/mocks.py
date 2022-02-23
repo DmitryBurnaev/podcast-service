@@ -65,6 +65,18 @@ class MockYoutubeDL(BaseMock):
     def mock_init(self, *args, **kwargs):
         self.target_obj.params = {}
 
+    def assert_called_with(self, **kwargs):
+        mock: Mock = self.target_class.__init__  # noqa
+        assert mock.called
+        try:
+            mock_call_kwargs = mock.call_args_list[-1].args[1]
+        except IndexError:
+            raise AssertionError(f"Could not fetch call kwargs: {mock.call_args_list}")
+
+        for key, value in kwargs.items():
+            assert key in mock_call_kwargs, mock_call_kwargs
+            assert mock_call_kwargs[key] == value
+
     @property
     def info(self, *_, **__):
         return {

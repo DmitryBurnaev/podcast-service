@@ -5,17 +5,17 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.utils import get_logger
-from common.exceptions import InvalidParameterError
-from modules.podcast.models import Episode
 from modules.podcast.utils import get_file_name
-from modules.providers.utils import get_source_media_info, get_source_id
+from modules.podcast.models import Episode, Cookie
+from modules.providers.utils import SourceInfo
+from modules.providers import utils as provider_utils
 from modules.providers.exceptions import SourceFetchError
 
 logger = get_logger(__name__)
 
 
 class EpisodeCreator:
-    """Allows to extract info from Source end create episode (if necessary)"""
+    """Allows extracting info from Source end create episode (if necessary)"""
 
     symbols_regex = re.compile("[&^<>*#]")
     http_link_regex = re.compile(
@@ -23,13 +23,11 @@ class EpisodeCreator:
     )
 
     def __init__(self, db_session: AsyncSession, podcast_id: int, source_url: str, user_id: int):
-        self.db_session = db_session
-        self.podcast_id = podcast_id
-        self.user_id = user_id
-        self.source_url = source_url
-        self.source_id, self.source_type = get_source_id(source_url)
-        if not self.source_id:
-            raise InvalidParameterError("Couldn't extract source_id from the source link")
+        self.db_session: AsyncSession = db_session
+        self.podcast_id: int = podcast_id
+        self.user_id: int = user_id
+        self.source_info: SourceInfo = provider_utils.extract_source_info(source_url)
+        self.source_id: str = self.source_info.id
 
     async def create(self) -> Episode:
         """
@@ -38,7 +36,6 @@ class EpisodeCreator:
         :raise: `modules.providers.exceptions.SourceFetchError`
         :return: New <Episode> object
         """
-        # TODO: inject cookie (in netscape format)
         same_episodes: Iterable[Episode] = await Episode.async_filter(
             self.db_session, source_id=self.source_id
         )
@@ -65,7 +62,7 @@ class EpisodeCreator:
 
     async def _get_episode_data(self, same_episode: Optional[Episode]) -> dict:
         """
-        Allows to get information for new episode.
+        Allows getting information for new episode.
         This info can be given from same episode (episode which has same source_id)
         and part information - from ExternalSource (ex.: YouTube)
 
@@ -79,12 +76,19 @@ class EpisodeCreator:
             logger.info(f"New episode for source {self.source_id} will be created.")
             same_episode_data = {}
 
-        extract_error, source_info = await get_source_media_info(self.source_url)
+        cookie = await Cookie.async_get(
+            self.db_session,
+            source_type=self.source_info.type,
+            created_by_id=self.user_id,
+        )
+        self.source_info.cookie = cookie
+        extract_error, source_info = await provider_utils.get_source_media_info(self.source_info)
 
         if source_info:
             logger.info("Episode will be created from the source.")
             new_episode_data = {
                 "source_id": self.source_id,
+                "source_type": self.source_info.type,
                 "watch_url": source_info.watch_url,
                 "title": self._replace_special_symbols(source_info.title),
                 "description": self._replace_special_symbols(source_info.description),
@@ -104,5 +108,11 @@ class EpisodeCreator:
         else:
             raise SourceFetchError(f"Extracting data for new Episode failed: {extract_error}")
 
-        new_episode_data.update({"podcast_id": self.podcast_id, "created_by_id": self.user_id})
+        new_episode_data.update(
+            {
+                "podcast_id": self.podcast_id,
+                "created_by_id": self.user_id,
+                "cookie_id": cookie.id if cookie else None,
+            }
+        )
         return new_episode_data
