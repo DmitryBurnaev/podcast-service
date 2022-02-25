@@ -123,6 +123,7 @@ def download_audio(source_url: str, filename: str, cookie: Optional[Cookie]) -> 
         "outtmpl": os.path.join(settings.TMP_AUDIO_PATH, filename),
         "logger": get_logger("youtube_dl.YoutubeDL"),
         "progress_hooks": [download_process_hook],
+        "no-progress": True,
     }
     if cookie:
         params["cookiefile"] = cookie.as_file()

@@ -23,18 +23,20 @@ class PlayListAPIView(BaseHTTPEndpoint):
         playlist_url = cleaned_data.get("url")
         loop = asyncio.get_running_loop()
 
+        # TODO: use modules.providers.utils.extract_source_info for fetching source info
+
         # TODO: use GoogleAPI instead of this solution (probably, it will be much faster)
         with youtube_dl.YoutubeDL({"logger": logger, "noplaylist": False}) as ydl:
             extract_info = partial(ydl.extract_info, playlist_url, download=False)
             try:
-                youtube_details = await loop.run_in_executor(None, extract_info)
+                source_data = await loop.run_in_executor(None, extract_info)
             except youtube_dl.utils.DownloadError as err:
                 raise InvalidParameterError(f"Couldn't extract playlist: {err}")
 
-        yt_content_type = youtube_details.get("_type")
+        yt_content_type = source_data.get("_type")
         if yt_content_type != "playlist":
             logger.warning("Unknown type of returned providers details: %s", yt_content_type)
-            logger.debug("Returned info: {%s}", youtube_details)
+            logger.debug("Returned info: {%s}", source_data)
             raise InvalidParameterError(
                 details=f"It seems like incorrect playlist. {yt_content_type=}"
             )
@@ -47,7 +49,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
                 "thumbnail_url": video["thumbnails"][0]["url"] if video.get("thumbnails") else "",
                 "url": video["webpage_url"],
             }
-            for video in youtube_details["entries"]
+            for video in source_data["entries"]
         ]
-        res = {"id": youtube_details["id"], "title": youtube_details["title"], "entries": entries}
+        res = {"id": source_data["id"], "title": source_data["title"], "entries": entries}
         return self._response(res)
