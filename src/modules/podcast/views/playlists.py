@@ -2,10 +2,14 @@ import asyncio
 from functools import partial
 
 import youtube_dl
+from starlette.requests import Request
 
-from common.exceptions import InvalidParameterError
-from common.utils import cut_string, get_logger
+from common.enums import SourceType
 from common.views import BaseHTTPEndpoint
+from common.utils import cut_string, get_logger
+from common.exceptions import InvalidParameterError
+from modules.podcast.models import Cookie
+from modules.providers.utils import extract_source_info
 from modules.podcast.schemas import PlayListRequestSchema, PlayListResponseSchema
 
 logger = get_logger(__name__)
@@ -17,16 +21,18 @@ class PlayListAPIView(BaseHTTPEndpoint):
     schema_request = PlayListRequestSchema
     schema_response = PlayListResponseSchema
 
-    async def get(self, request):
+    async def get(self, request: Request):
 
         cleaned_data = await self._validate(request, location="query")
         playlist_url = cleaned_data.get("url")
         loop = asyncio.get_running_loop()
+        source_info = extract_source_info(playlist_url, playlist=True)
 
-        # TODO: use modules.providers.utils.extract_source_info for fetching source info
+        params = {"logger": logger, "noplaylist": False}
+        if cookie := await self._fetch_cookie(request, source_info.type):
+            params['cookiefile'] = cookie.as_file()
 
-        # TODO: use GoogleAPI instead of this solution (probably, it will be much faster)
-        with youtube_dl.YoutubeDL({"logger": logger, "noplaylist": False}) as ydl:
+        with youtube_dl.YoutubeDL(params) as ydl:
             extract_info = partial(ydl.extract_info, playlist_url, download=False)
             try:
                 source_data = await loop.run_in_executor(None, extract_info)
@@ -45,7 +51,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
             {
                 "id": video["id"],
                 "title": video["title"],
-                "description": cut_string(video["description"], 200),
+                "description": self._prepare_description(source_info.type, video),
                 "thumbnail_url": video["thumbnails"][0]["url"] if video.get("thumbnails") else "",
                 "url": video["webpage_url"],
             }
@@ -53,3 +59,21 @@ class PlayListAPIView(BaseHTTPEndpoint):
         ]
         res = {"id": source_data["id"], "title": source_data["title"], "entries": entries}
         return self._response(res)
+
+    async def _fetch_cookie(self, request: Request, source_type: SourceType):
+        cookie = await Cookie.async_get(
+            self.db_session,
+            source_type=source_type,
+            created_by_id=request.user.id,
+        )
+        return cookie
+
+    @staticmethod
+    def _prepare_description(source_type: SourceType, data: dict) -> str:
+        if source_type == SourceType.YOUTUBE:
+            return cut_string(data["description"], 200)
+        elif source_type == SourceType.YANDEX:
+            return (
+                f'Playlist "{data["playlist"]}" '
+                f'| Track #{data["playlist_index"]} of {data["n_entries"]}'
+            )
