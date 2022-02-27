@@ -9,7 +9,8 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
     default_fail_status_code = 400
     default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
 
-    def test_retrieve__ok(self, client, user, mocked_youtube):
+    def test_retrieve__ok(self, client, user, mocked_youtube, mocked_source_info_youtube):
+        # TODO: correct mocking need here
         mocked_youtube.extract_info.return_value = {
             "_type": "playlist",
             "id": "pl1234",
@@ -17,7 +18,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
             "entries": [mocked_youtube.info],
         }
         client.login(user)
-        response = client.get(self.url, data={"url": mocked_youtube.watch_url})
+        response = client.get(self.url, params={"url": "http://link.to.source/"})
         response_data = self.assert_ok_response(response)
         assert response_data == {
             "id": "pl1234",
