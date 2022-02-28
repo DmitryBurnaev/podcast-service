@@ -55,10 +55,10 @@ class MockYoutubeDL(BaseMock):
     target_class = YoutubeDL
 
     def __init__(self, *_, **__):
-        from tests.helpers import get_video_id
+        from tests.helpers import get_source_id
 
-        self.video_id = get_video_id()
-        self.watch_url = f"https://www.youtube.com/watch?v={self.video_id}"
+        self.source_id = get_source_id()
+        self.watch_url = f"https://www.youtube.com/watch?v={self.source_id}"
         self.download = Mock()
         self.extract_info = Mock(return_value=self.info)
 
@@ -80,7 +80,7 @@ class MockYoutubeDL(BaseMock):
     @property
     def info(self, *_, **__):
         return {
-            "id": self.video_id,
+            "id": self.source_id,
             "title": "Test providers video",
             "description": "Test providers video description",
             "webpage_url": self.watch_url,
@@ -89,6 +89,12 @@ class MockYoutubeDL(BaseMock):
             "uploader": "Test author",
             "duration": 110,
         }
+
+#             return (
+#                 f'Playlist "{data["playlist"]}" '
+#                 f'| Track #{data["playlist_index"]} of {data["n_entries"]}'
+#             )
+
 
 
 class MockRedisClient(BaseMock):

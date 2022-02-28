@@ -109,7 +109,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode_data.update(
             {
                 "status": "published",
-                "source_id": mocked_youtube.video_id,
+                "source_id": mocked_youtube.source_id,
                 "watch_url": mocked_youtube.watch_url,
                 "file_size": 1024,
                 "podcast_id": podcast_1.id,
@@ -143,7 +143,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode_data.update(
             {
                 "status": "published",
-                "source_id": mocked_youtube.video_id,
+                "source_id": mocked_youtube.source_id,
                 "watch_url": mocked_youtube.watch_url,
                 "file_size": 1024,
             }

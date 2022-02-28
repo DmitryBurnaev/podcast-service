@@ -9,8 +9,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
     default_fail_status_code = 400
     default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
 
-    def test_retrieve__ok(self, client, user, mocked_youtube, mocked_source_info_youtube):
-        # TODO: correct mocking need here
+    def test_retrieve__ok(self, client, user, mocked_source_info_youtube, mocked_youtube):
         mocked_youtube.extract_info.return_value = {
             "_type": "playlist",
             "id": "pl1234",
@@ -33,6 +32,45 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
                 }
             ],
         }
+
+    def test_retrieve__yandex__ok(self, client, user, mocked_source_info_yandex, mocked_youtube):
+        mocked_youtube.extract_info.return_value = {
+            "_type": "playlist",
+            "id": "pl1234",
+            "title": "Playlist pl1234",
+            "entries": [
+                {
+                    "id": "123456",
+                    "title": "Test providers audio",
+                    "webpage_url": "http://path.to-track.com",
+                    "thumbnail": "http://path.to-image.com",
+                    "thumbnails": [{"url": "http://path.to-image.com"}],
+                    "duration": 110,
+                    "playlist": "Playlist #1",
+                    "playlist_index": 1,
+                    "n_entries": 2,
+                }
+            ],
+        }
+        client.login(user)
+        response = client.get(self.url, params={"url": "http://link.to.source/"})
+        response_data = self.assert_ok_response(response)
+        assert response_data["title"] == "Playlist pl1234"
+        assert response_data["entries"] == [
+            {
+                "id": "123456",
+                "title": "Test providers audio",
+                "description": "Playlist \"Playlist #1\" Track #1 of 2",
+                "thumbnail_url": "http://path.to-image.com",
+                "url": "http://path.to-track.com",
+            }
+        ]
+
+    def test_retrieve__use_cookies(self, client, user, mocked_source_info_yandex, mocked_youtube):
+        raise AssertionError('mock using cookies here!')
+
+
+
 
     def test_retrieve__invalid_playlist_link__fail(self, client, user, mocked_youtube):
         mocked_youtube.extract_info.return_value = {"_type": "video"}

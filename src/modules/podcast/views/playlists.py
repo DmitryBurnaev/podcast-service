@@ -4,12 +4,12 @@ from functools import partial
 import youtube_dl
 from starlette.requests import Request
 
+from modules.providers import utils
 from common.enums import SourceType
 from common.views import BaseHTTPEndpoint
 from common.utils import cut_string, get_logger
 from common.exceptions import InvalidParameterError
 from modules.podcast.models import Cookie
-from modules.providers.utils import extract_source_info
 from modules.podcast.schemas import PlayListRequestSchema, PlayListResponseSchema
 
 logger = get_logger(__name__)
@@ -26,7 +26,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
         cleaned_data = await self._validate(request, location="query")
         playlist_url = cleaned_data.get("url")
         loop = asyncio.get_running_loop()
-        source_info = extract_source_info(playlist_url, playlist=True)
+        source_info = utils.extract_source_info(playlist_url, playlist=True)
 
         params = {"logger": logger, "noplaylist": False}
         if cookie := await self._fetch_cookie(request, source_info.type):

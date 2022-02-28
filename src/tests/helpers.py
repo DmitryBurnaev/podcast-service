@@ -77,13 +77,13 @@ def get_user_data() -> Tuple[str, str]:
     return f"u_{uuid.uuid4().hex[:10]}@test.com", "password"
 
 
-def get_video_id() -> str:
+def get_source_id() -> str:
     """Generate SourceID (ex.: youtube's video-id)"""
     return blake2b(key=bytes(str(time.time()), encoding="utf-8"), digest_size=6).hexdigest()[:11]
 
 
 def get_episode_data(podcast: Podcast = None, status: str = None, creator: User = None) -> dict:
-    source_id = get_video_id()
+    source_id = get_source_id()
     episode_data = {
         "source_id": source_id,
         "source_type": SourceType.YOUTUBE,
@@ -156,7 +156,7 @@ def create_episode(
     file_size: int = 0,
     source_id: str = None,
 ) -> Episode:
-    src_id = source_id or get_video_id()
+    src_id = source_id or get_source_id()
     episode_data.update(
         {
             "podcast_id": podcast.id,

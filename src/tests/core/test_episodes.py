@@ -13,7 +13,7 @@ from tests.helpers import get_podcast_data, await_, create_user
 
 class TestEpisodeCreator(BaseTestAPIView):
     def test_ok(self, podcast, user, mocked_youtube, dbs):
-        source_id = mocked_youtube.video_id
+        source_id = mocked_youtube.source_id
         watch_url = f"https://www.youtube.com/watch?v={source_id}"
         episode_creator = EpisodeCreator(
             dbs,
