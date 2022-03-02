@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import uuid
 from datetime import datetime, timedelta
 from typing import Tuple
@@ -41,6 +42,13 @@ def test_settings():
     settings.APP_DEBUG = True
     settings.MAX_UPLOAD_ATTEMPT = 1
     settings.RETRY_UPLOAD_TIMEOUT = 0
+
+
+@pytest.fixture(autouse=True)
+def cap_log(caplog):
+    # trying to print out logs for failed tests
+    caplog.set_level(logging.INFO)
+    logging.getLogger("modules").setLevel(logging.INFO)
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -195,14 +203,23 @@ def user_invite(user, loop, dbs) -> UserInvite:
     )
 
 
-@pytest.fixture()
-def mocked_source_info(monkeypatch) -> Mock:
+def _mocked_source_info(monkeypatch, source_type) -> Mock:
     mock = Mock()
     mock.return_value = SourceInfo(
         id="source-id",
         url="http://link.to.source/",
-        type=SourceType.YANDEX,
+        type=source_type,
     )
     monkeypatch.setattr(youtube_utils, "extract_source_info", mock)
     yield mock
     del mock
+
+
+@pytest.fixture()
+def mocked_source_info_youtube(monkeypatch) -> Mock:
+    yield from _mocked_source_info(monkeypatch, source_type=SourceType.YOUTUBE)
+
+
+@pytest.fixture()
+def mocked_source_info_yandex(monkeypatch) -> Mock:
+    yield from _mocked_source_info(monkeypatch, source_type=SourceType.YANDEX)

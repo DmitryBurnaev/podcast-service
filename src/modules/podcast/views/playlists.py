@@ -2,10 +2,14 @@ import asyncio
 from functools import partial
 
 import youtube_dl
+from starlette.requests import Request
 
-from common.exceptions import InvalidParameterError
-from common.utils import cut_string, get_logger
+from modules.providers import utils
+from common.enums import SourceType
 from common.views import BaseHTTPEndpoint
+from common.utils import cut_string, get_logger
+from common.exceptions import InvalidParameterError
+from modules.podcast.models import Cookie
 from modules.podcast.schemas import PlayListRequestSchema, PlayListResponseSchema
 
 logger = get_logger(__name__)
@@ -17,24 +21,28 @@ class PlayListAPIView(BaseHTTPEndpoint):
     schema_request = PlayListRequestSchema
     schema_response = PlayListResponseSchema
 
-    async def get(self, request):
+    async def get(self, request: Request):
 
         cleaned_data = await self._validate(request, location="query")
         playlist_url = cleaned_data.get("url")
         loop = asyncio.get_running_loop()
+        source_info = utils.extract_source_info(playlist_url, playlist=True)
 
-        # TODO: use GoogleAPI instead of this solution (probably, it will be much faster)
-        with youtube_dl.YoutubeDL({"logger": logger, "noplaylist": False}) as ydl:
+        params = {"logger": logger, "noplaylist": False}
+        if cookie := await self._fetch_cookie(request, source_info.type):
+            params["cookiefile"] = cookie.as_file()
+
+        with youtube_dl.YoutubeDL(params) as ydl:
             extract_info = partial(ydl.extract_info, playlist_url, download=False)
             try:
-                youtube_details = await loop.run_in_executor(None, extract_info)
+                source_data = await loop.run_in_executor(None, extract_info)
             except youtube_dl.utils.DownloadError as err:
                 raise InvalidParameterError(f"Couldn't extract playlist: {err}")
 
-        yt_content_type = youtube_details.get("_type")
+        yt_content_type = source_data.get("_type")
         if yt_content_type != "playlist":
             logger.warning("Unknown type of returned providers details: %s", yt_content_type)
-            logger.debug("Returned info: {%s}", youtube_details)
+            logger.debug("Returned info: {%s}", source_data)
             raise InvalidParameterError(
                 details=f"It seems like incorrect playlist. {yt_content_type=}"
             )
@@ -43,11 +51,29 @@ class PlayListAPIView(BaseHTTPEndpoint):
             {
                 "id": video["id"],
                 "title": video["title"],
-                "description": cut_string(video["description"], 200),
+                "description": self._prepare_description(source_info.type, video),
                 "thumbnail_url": video["thumbnails"][0]["url"] if video.get("thumbnails") else "",
                 "url": video["webpage_url"],
             }
-            for video in youtube_details["entries"]
+            for video in source_data["entries"]
         ]
-        res = {"id": youtube_details["id"], "title": youtube_details["title"], "entries": entries}
+        res = {"id": source_data["id"], "title": source_data["title"], "entries": entries}
         return self._response(res)
+
+    async def _fetch_cookie(self, request: Request, source_type: SourceType) -> Cookie:
+        cookie = await Cookie.async_get(
+            self.db_session,
+            source_type=source_type,
+            created_by_id=request.user.id,
+        )
+        return cookie
+
+    @staticmethod
+    def _prepare_description(source_type: SourceType, data: dict) -> str:
+        if source_type == SourceType.YOUTUBE:
+            return cut_string(data["description"], 200)
+        elif source_type == SourceType.YANDEX:
+            return (
+                f'Playlist "{data["playlist"]}" '
+                f'| Track #{data["playlist_index"]} of {data["n_entries"]}'
+            )

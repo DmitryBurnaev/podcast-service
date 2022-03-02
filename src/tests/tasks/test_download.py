@@ -76,8 +76,8 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_s3,
         mocked_ffmpeg,
         mocked_youtube,
-        mocked_source_info,
         mocked_generate_rss_task,
+        mocked_source_info_yandex,
     ):
         file_path = self._source_file(episode)
         await_(episode.update(dbs, cookie_id=cookie.id, source_type=SourceType.YANDEX))
@@ -109,7 +109,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode_data.update(
             {
                 "status": "published",
-                "source_id": mocked_youtube.video_id,
+                "source_id": mocked_youtube.source_id,
                 "watch_url": mocked_youtube.watch_url,
                 "file_size": 1024,
                 "podcast_id": podcast_1.id,
@@ -143,7 +143,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode_data.update(
             {
                 "status": "published",
-                "source_id": mocked_youtube.video_id,
+                "source_id": mocked_youtube.source_id,
                 "watch_url": mocked_youtube.watch_url,
                 "file_size": 1024,
             }

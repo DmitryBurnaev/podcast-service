@@ -10,6 +10,7 @@ from unittest.mock import Mock
 import rq
 from youtube_dl import YoutubeDL
 
+from common.enums import SourceType
 from common.redis import RedisClient
 from common.storage import StorageS3
 from modules.podcast.episodes import EpisodeCreator
@@ -55,10 +56,10 @@ class MockYoutubeDL(BaseMock):
     target_class = YoutubeDL
 
     def __init__(self, *_, **__):
-        from tests.helpers import get_video_id
+        from tests.helpers import get_source_id
 
-        self.video_id = get_video_id()
-        self.watch_url = f"https://www.youtube.com/watch?v={self.video_id}"
+        self.source_id = get_source_id()
+        self.watch_url = f"https://www.youtube.com/watch?v={self.source_id}"
         self.download = Mock()
         self.extract_info = Mock(return_value=self.info)
 
@@ -78,17 +79,34 @@ class MockYoutubeDL(BaseMock):
             assert mock_call_kwargs[key] == value
 
     @property
-    def info(self, *_, **__):
-        return {
-            "id": self.video_id,
-            "title": "Test providers video",
-            "description": "Test providers video description",
-            "webpage_url": self.watch_url,
-            "thumbnail": "http://path.to-image.com",
-            "thumbnails": [{"url": "http://path.to-image.com"}],
-            "uploader": "Test author",
-            "duration": 110,
-        }
+    def info(self) -> dict:
+        return self.episode_info(source_type=SourceType.YOUTUBE)
+
+    def episode_info(self, source_type: SourceType) -> dict:
+        match source_type:
+            case SourceType.YOUTUBE:
+                return {
+                    "id": self.source_id,
+                    "title": "Test providers video",
+                    "description": "Test providers video description",
+                    "webpage_url": self.watch_url,
+                    "thumbnail": "http://path.to-image.com",
+                    "thumbnails": [{"url": "http://path.to-image.com"}],
+                    "uploader": "Test author",
+                    "duration": 110,
+                }
+            case SourceType.YANDEX:
+                return {
+                    "id": "123456",
+                    "title": "Test providers audio",
+                    "webpage_url": "http://path.to-track.com",
+                    "thumbnail": "http://path.to-image.com",
+                    "thumbnails": [{"url": "http://path.to-image.com"}],
+                    "duration": 110,
+                    "playlist": "Playlist #1",
+                    "playlist_index": 1,
+                    "n_entries": 2,
+                }
 
 
 class MockRedisClient(BaseMock):

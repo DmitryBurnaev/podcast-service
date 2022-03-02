@@ -7,7 +7,7 @@ from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks import DownloadEpisodeTask
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import get_video_id, create_user, get_podcast_data, create_episode, await_
+from tests.helpers import get_source_id, create_user, get_podcast_data, create_episode, await_
 
 
 INVALID_UPDATE_DATA = [
@@ -212,7 +212,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         delete_called,
         dbs,
     ):
-        source_id = get_video_id()
+        source_id = get_source_id()
 
         user_1 = create_user(dbs)
         user_2 = create_user(dbs)

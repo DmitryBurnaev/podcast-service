@@ -43,6 +43,7 @@ class SourceMediaInfo(NamedTuple):
 class SourceConfig(NamedTuple):
     type: SourceType
     regexp: Optional[str] = None
+    regexp_playlist: Optional[str] = None
     need_postprocessing: bool = False
 
 
@@ -62,11 +63,15 @@ SOURCE_CFG_MAP = {
             r"[(?:youtube\.com)|(?:youtu\.be)]+[/watch\?v=|\/]+"
             r"(?P<source_id>[0-9a-zA-Z-_]{11})"
         ),
+        regexp_playlist=(
+            r"^https://(?:www\.)?youtube\.com/playlist\?list=(?P<source_id>[0-9a-zA-Z-_]+)"
+        ),
         need_postprocessing=True,
     ),
     SourceType.YANDEX: SourceConfig(
         type=SourceType.YANDEX,
         regexp=r"https://music\.yandex\.ru\/[a-z\/0-9]+\/track\/(?P<source_id>[0-9]+)",
+        regexp_playlist=r"^https://music\.yandex\.ru/album/(?P<source_id>[0-9a-zA-Z-_]+)",
     ),
     SourceType.UPLOAD: SourceConfig(
         type=SourceType.UPLOAD,
@@ -74,7 +79,7 @@ SOURCE_CFG_MAP = {
 }
 
 
-def extract_source_info(source_url: Optional[str] = None) -> SourceInfo:
+def extract_source_info(source_url: Optional[str] = None, playlist: bool = False) -> SourceInfo:
     """Extracts providers (source) info and finds source ID"""
 
     if not source_url:
@@ -82,7 +87,8 @@ def extract_source_info(source_url: Optional[str] = None) -> SourceInfo:
         return SourceInfo(id=f"U-{random_hash}", type=SourceType.UPLOAD)
 
     for source_type, source_cfg in SOURCE_CFG_MAP.items():
-        if match := (re.match(source_cfg.regexp, source_url) if source_cfg.regexp else None):
+        regexp = source_cfg.regexp if not playlist else source_cfg.regexp_playlist
+        if match := (re.match(regexp, source_url) if source_cfg.regexp else None):
             if source_id := match.groupdict().get("source_id"):
                 return SourceInfo(id=source_id, url=source_url, type=source_cfg.type)
 
@@ -123,6 +129,7 @@ def download_audio(source_url: str, filename: str, cookie: Optional[Cookie]) -> 
         "outtmpl": os.path.join(settings.TMP_AUDIO_PATH, filename),
         "logger": get_logger("youtube_dl.YoutubeDL"),
         "progress_hooks": [download_process_hook],
+        "no-progress": True,
     }
     if cookie:
         params["cookiefile"] = cookie.as_file()
