@@ -76,8 +76,8 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_s3,
         mocked_ffmpeg,
         mocked_youtube,
-        mocked_source_info,
         mocked_generate_rss_task,
+        mocked_source_info_yandex,
     ):
         file_path = self._source_file(episode)
         await_(episode.update(dbs, cookie_id=cookie.id, source_type=SourceType.YANDEX))

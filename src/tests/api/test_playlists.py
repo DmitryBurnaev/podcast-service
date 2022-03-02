@@ -52,43 +52,49 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
             {
                 "id": "123456",
                 "title": "Test providers audio",
-                "description": "Playlist \"Playlist #1\" | Track #1 of 2",
+                "description": 'Playlist "Playlist #1" | Track #1 of 2',
                 "thumbnail_url": "http://path.to-image.com",
                 "url": "http://path.to-track.com",
             }
         ]
 
-    def test_retrieve__use_cookies(self, dbs, client, user, mocked_source_info_yandex, mocked_youtube):
+    def test_retrieve__use_cookies(
+        self, dbs, client, user, mocked_source_info_yandex, mocked_youtube
+    ):
         # TODO fix remaining tests
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
         cdata = self.cdata | {"created_by_id": user.id}
-        cookie = await_(Cookie.async_create(dbs, **cdata))
+        cookie = await_(Cookie.async_create(dbs, db_commit=True, **cdata))
 
         client.login(user)
         response = client.get(self.url, params={"url": "http://link.to.source/"})
         self.assert_ok_response(response)
         mocked_youtube.assert_called_with(cookiefile=cookie.as_file())
 
-    def test_retrieve__cookies_from_another_user(self, dbs, client, user, mocked_source_info_yandex, mocked_youtube):
+    def test_retrieve__cookies_from_another_user(
+        self, dbs, client, user, mocked_source_info_yandex, mocked_youtube
+    ):
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
 
         cdata = self.cdata | {"created_by_id": create_user(dbs).id}
-        await_(Cookie.async_create(dbs, **cdata))
+        await_(Cookie.async_create(dbs, db_commit=True, **cdata))
 
         cdata = self.cdata | {"created_by_id": user.id}
-        cookie = await_(Cookie.async_create(dbs, **cdata))
+        cookie = await_(Cookie.async_create(dbs, db_commit=True, **cdata))
 
         client.login(user)
         response = client.get(self.url, params={"url": "http://link.to.source/"})
         self.assert_ok_response(response)
         mocked_youtube.assert_called_with(cookiefile=cookie.as_file())
 
-    def test_retrieve__last_cookie(self, dbs, client, user, mocked_source_info_yandex, mocked_youtube):
+    def test_retrieve__last_cookie(
+        self, dbs, client, user, mocked_source_info_yandex, mocked_youtube
+    ):
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
         cdata = self.cdata | {"created_by_id": user.id}
 
-        await_(Cookie.async_create(dbs, **cdata))
-        cookie = await_(Cookie.async_create(dbs, **cdata))
+        await_(Cookie.async_create(dbs, db_commit=True, **cdata))
+        cookie = await_(Cookie.async_create(dbs, db_commit=True, **cdata))
 
         client.login(user)
         response = client.get(self.url, params={"url": "http://link.to.source/"})

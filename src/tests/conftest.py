@@ -48,7 +48,7 @@ def test_settings():
 def cap_log(caplog):
     # trying to print out logs for failed tests
     caplog.set_level(logging.INFO)
-    logging.getLogger('modules').setLevel(logging.INFO)
+    logging.getLogger("modules").setLevel(logging.INFO)
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -223,4 +223,3 @@ def mocked_source_info_youtube(monkeypatch) -> Mock:
 @pytest.fixture()
 def mocked_source_info_yandex(monkeypatch) -> Mock:
     yield from _mocked_source_info(monkeypatch, source_type=SourceType.YANDEX)
-

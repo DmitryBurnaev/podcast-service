@@ -30,7 +30,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
 
         params = {"logger": logger, "noplaylist": False}
         if cookie := await self._fetch_cookie(request, source_info.type):
-            params['cookiefile'] = cookie.as_file()
+            params["cookiefile"] = cookie.as_file()
 
         with youtube_dl.YoutubeDL(params) as ydl:
             extract_info = partial(ydl.extract_info, playlist_url, download=False)
@@ -60,7 +60,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
         res = {"id": source_data["id"], "title": source_data["title"], "entries": entries}
         return self._response(res)
 
-    async def _fetch_cookie(self, request: Request, source_type: SourceType):
+    async def _fetch_cookie(self, request: Request, source_type: SourceType) -> Cookie:
         cookie = await Cookie.async_get(
             self.db_session,
             source_type=source_type,

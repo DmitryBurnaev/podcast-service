@@ -115,7 +115,9 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         assert episode.source_type == SourceType.YANDEX
         assert episode.cookie_id == cookie_id
 
-    def test_specific_cookie(self, mocked_source_info, mocked_youtube, dbs, client, user, podcast):
+    def test_specific_cookie(
+        self, mocked_source_info_yandex, mocked_youtube, dbs, client, user, podcast
+    ):
         cdata = self.cdata | {"created_by_id": user.id}
         await_(Cookie.async_create(dbs, **(cdata | {"source_type": SourceType.YANDEX})))
         cookie_yandex = await_(Cookie.async_create(dbs, **cdata))
@@ -131,7 +133,7 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         mocked_youtube.assert_called_with(cookiefile=cookie_yandex.as_file())
 
     def test_cookie_from_another_user(
-        self, mocked_source_info, mocked_youtube, dbs, client, user, podcast
+        self, mocked_source_info_yandex, mocked_youtube, dbs, client, user, podcast
     ):
         cdata = self.cdata | {"created_by_id": user.id}
         cookie_yandex = await_(Cookie.async_create(dbs, **cdata))
@@ -147,7 +149,9 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         self.assert_source(episode_creator, cookie_yandex.id)
         mocked_youtube.assert_called_with(cookiefile=cookie_yandex.as_file())
 
-    def test_use_last_cookie(self, mocked_source_info, mocked_youtube, dbs, client, user, podcast):
+    def test_use_last_cookie(
+        self, mocked_source_info_yandex, mocked_youtube, dbs, client, user, podcast
+    ):
         cdata = self.cdata | {"created_by_id": user.id}
         await_(Cookie.async_create(dbs, **cdata))
         c2 = await_(Cookie.async_create(dbs, **cdata))
