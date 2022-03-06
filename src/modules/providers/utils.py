@@ -70,7 +70,7 @@ SOURCE_CFG_MAP = {
     ),
     SourceType.YANDEX: SourceConfig(
         type=SourceType.YANDEX,
-        regexp=r"https://music\.yandex\.ru\/[a-z\/0-9]+\/track\/(?P<source_id>[0-9]+)",
+        regexp=r"https?://music\.yandex\.ru\/[a-z\/0-9]+\/track\/(?P<source_id>[0-9]+)",
         regexp_playlist=r"^https://music\.yandex\.ru/album/(?P<source_id>[0-9a-zA-Z-_]+)",
     ),
     SourceType.UPLOAD: SourceConfig(
