@@ -1,6 +1,8 @@
+from functools import partial
+
 import pytest
 
-from common.enums import SourceType
+from common.enums import SourceType, EpisodeStatus
 from common.statuses import ResponseStatus
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks
@@ -59,6 +61,42 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         response = client.get(url)
         response_data = self.assert_ok_response(response)
         assert response_data["items"] == [_episode_in_list(episode)]
+
+    def test_get_list__filter_by_podcast__ok(self, dbs, client, episode, episode_data, user):
+        client.login(user)
+        episode_data |= {"created_by_id": user.id}
+        podcast_data = partial(get_podcast_data, created_by_id=user.id)
+        podcast_1 = await_(Podcast.async_create(dbs, **podcast_data()))
+        podcast_2 = await_(Podcast.async_create(dbs, **podcast_data()))
+        ep = create_episode(dbs, episode_data, podcast=podcast_1)
+        create_episode(dbs, episode_data, podcast=podcast_2)
+        url = self.url.format(id=podcast_1.id)
+        response = client.get(url)
+        response_data = self.assert_ok_response(response)
+        assert response_data["items"] == [_episode_in_list(ep)]
+
+    def test_get_list__filter_status__ok(self, dbs, client, podcast, episode_data, user):
+        client.login(user)
+        episode_data |= {"created_by_id": user.id}
+        ep = create_episode(dbs, episode_data, podcast, status=EpisodeStatus.NEW)
+        create_episode(dbs, episode_data, podcast, status=EpisodeStatus.ERROR)
+
+        url = self.url.format(id=podcast.id)
+        response = client.get(url, params={"status": EpisodeStatus.NEW.value})
+        response_data = self.assert_ok_response(response)
+        assert response_data["items"] == [_episode_in_list(ep)]
+
+    def test_get_list__search_by_title__ok(self, dbs, client, podcast, episode_data, user):
+        client.login(user)
+        episode_data |= {"created_by_id": user.id}
+        ep1 = create_episode(dbs, episode_data | {"title": "Python NEWS"}, podcast)
+        ep2 = create_episode(dbs, episode_data | {"title": "PyPI is free"}, podcast)
+        create_episode(dbs, episode_data | {"title": "Django"}, podcast)
+
+        url = self.url.format(id=podcast.id)
+        response = client.get(url, params={"q": "py"})
+        response_data = self.assert_ok_response(response)
+        assert response_data["items"] == [_episode_in_list(ep2), _episode_in_list(ep1)]
 
     def test_create__ok(
         self,

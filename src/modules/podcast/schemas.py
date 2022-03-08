@@ -20,7 +20,7 @@ __all__ = [
     "CookieResponseSchema",
 ]
 
-from common.enums import SourceType
+from common.enums import SourceType, EpisodeStatus
 
 
 class BaseLimitOffsetSchema(Schema):
@@ -62,6 +62,7 @@ class EpisodeCreateSchema(Schema):
 
 class EpisodeListRequestSchema(BaseLimitOffsetSchema):
     q = fields.Str(load_default="")
+    status = fields.Str(validate=validate.OneOf(EpisodeStatus.members()))
 
 
 class EpisodeUpdateSchema(Schema):
