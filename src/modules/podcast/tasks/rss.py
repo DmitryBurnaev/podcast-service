@@ -13,7 +13,7 @@ __all__ = ["GenerateRSSTask"]
 
 
 class GenerateRSSTask(RQTask):
-    """Allows to recreate and upload RSS for specific podcast or for all of exists"""
+    """Allows recreating and upload RSS for specific podcast or for all of exists"""
 
     storage: StorageS3 = None
 

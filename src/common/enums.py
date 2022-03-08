@@ -26,3 +26,9 @@ class EpisodeStatus(enum.Enum):
 
     def __str__(self):
         return self.value
+
+    @classmethod
+    def members(cls):
+        # TODO: using capitalized values will allow to avoid this hack
+        #       will be replaced -> cls.__members__.keys()
+        return [str(v) for v in cls.__members__.values()]

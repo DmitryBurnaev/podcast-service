@@ -35,13 +35,14 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
 
     async def get(self, request):
         filter_kwargs = {"created_by_id": request.user.id}
-        if podcast_id := request.path_params.get("podcast_id"):
-            filter_kwargs["podcast_id"] = podcast_id
-
         cleaned_data = await self._validate(request, location="query")
         limit, offset = cleaned_data["limit"], cleaned_data["offset"]
+        if podcast_id := request.path_params.get("podcast_id"):
+            filter_kwargs["podcast_id"] = podcast_id
         if search := cleaned_data.get("q"):
             filter_kwargs["title__icontains"] = search
+        if episode_status := cleaned_data.get("status"):
+            filter_kwargs["status"] = episode_status
 
         episodes = await Episode.async_filter(
             self.db_session, limit=limit, offset=offset, **filter_kwargs
