@@ -35,7 +35,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
         stmt = (
             select([Podcast, func_count])
             .outerjoin(Episode, Episode.podcast_id == Podcast.id)
-            .filter(Podcast.created_by_id == request.user.id)
+            .filter(Podcast.owner_id == request.user.id)
             .group_by(Podcast.id)
             .order_by(Podcast.id)
         )
@@ -54,7 +54,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
             name=cleaned_data["name"],
             publish_id=Podcast.generate_publish_id(),
             description=cleaned_data["description"],
-            created_by_id=request.user.id,
+            owner_id=request.user.id,
         )
         return self._response(podcast, status_code=status.HTTP_201_CREATED)
 

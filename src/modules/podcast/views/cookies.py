@@ -26,13 +26,13 @@ class CookieListCreateAPIView(BaseCookieAPIView):
     schema_request = CookieCreateUpdateSchema
 
     async def get(self, request):
-        cookies = await Cookie.async_filter(self.db_session, created_by_id=request.user.id)
+        cookies = await Cookie.async_filter(self.db_session, owner_id=request.user.id)
         return self._response(cookies)
 
     async def post(self, request):
         cleaned_data = await self._validate(request)
         cookie = await Cookie.async_create(
-            db_session=request.db_session, created_by_id=request.user.id, **cleaned_data
+            db_session=request.db_session, owner_id=request.user.id, **cleaned_data
         )
         return self._response(cookie, status_code=status.HTTP_201_CREATED)
 

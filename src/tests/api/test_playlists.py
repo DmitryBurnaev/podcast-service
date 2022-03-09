@@ -63,7 +63,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
     ):
         # TODO fix remaining tests
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
-        cdata = self.cdata | {"created_by_id": user.id}
+        cdata = self.cdata | {"owner_id": user.id}
         cookie = await_(Cookie.async_create(dbs, db_commit=True, **cdata))
 
         client.login(user)
@@ -76,10 +76,10 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
     ):
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
 
-        cdata = self.cdata | {"created_by_id": create_user(dbs).id}
+        cdata = self.cdata | {"owner_id": create_user(dbs).id}
         await_(Cookie.async_create(dbs, db_commit=True, **cdata))
 
-        cdata = self.cdata | {"created_by_id": user.id}
+        cdata = self.cdata | {"owner_id": user.id}
         cookie = await_(Cookie.async_create(dbs, db_commit=True, **cdata))
 
         client.login(user)
@@ -91,7 +91,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         self, dbs, client, user, mocked_source_info_yandex, mocked_youtube
     ):
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
-        cdata = self.cdata | {"created_by_id": user.id}
+        cdata = self.cdata | {"owner_id": user.id}
 
         await_(Cookie.async_create(dbs, db_commit=True, **cdata))
         cookie = await_(Cookie.async_create(dbs, db_commit=True, **cdata))

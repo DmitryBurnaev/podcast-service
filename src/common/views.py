@@ -92,7 +92,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         db_model = db_model or self.db_model
         if not self.request.user.is_superuser:
-            filter_kwargs["created_by_id"] = self.request.user.id
+            filter_kwargs["owner_id"] = self.request.user.id
 
         instance = await db_model.async_get(self.db_session, id=instance_id, **filter_kwargs)
         if not instance:

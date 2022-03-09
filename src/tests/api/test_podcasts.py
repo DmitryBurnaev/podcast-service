@@ -51,11 +51,11 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
 
     def test_get_list__check_episodes_count__ok(self, client, user, loop, dbs):
         dbs = dbs
-        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user.id)))
+        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
         create_episode(dbs, get_episode_data(), podcast_1)
         create_episode(dbs, get_episode_data(), podcast_1)
 
-        podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user.id)))
+        podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
         create_episode(dbs, get_episode_data(), podcast_2)
 
         client.login(user)
@@ -68,16 +68,16 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         }
         assert expected_episodes_counts == actual_episodes_counts
 
-    def test_get_list__filter_by_created_by__ok(self, client, dbs):
+    def test_get_list__filter_by_owner__ok(self, client, dbs):
         user_1 = create_user(dbs)
         user_2 = create_user(dbs)
 
         podcast_data = get_podcast_data()
-        podcast_data["created_by_id"] = user_1.id
+        podcast_data["owner_id"] = user_1.id
         await_(Podcast.async_create(dbs, db_commit=True, **podcast_data))
 
         podcast_data = get_podcast_data()
-        podcast_data["created_by_id"] = user_2.id
+        podcast_data["owner_id"] = user_2.id
         podcast_2 = await_(Podcast.async_create(dbs, db_commit=True, **podcast_data))
 
         client.login(user_2)
@@ -184,7 +184,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         self, client, episode_data, user, mocked_s3, dbs
     ):
         dbs = dbs
-        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user.id)))
+        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
         episode_data["status"] = Episode.Status.PUBLISHED
         episode_data["podcast_id"] = podcast_1.id
         episode_1 = await_(Episode.async_create(dbs, **episode_data))

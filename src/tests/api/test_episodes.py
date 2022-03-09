@@ -64,8 +64,8 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
 
     def test_get_list__filter_by_podcast__ok(self, dbs, client, episode, episode_data, user):
         client.login(user)
-        episode_data |= {"created_by_id": user.id}
-        podcast_data = partial(get_podcast_data, created_by_id=user.id)
+        episode_data |= {"owner_id": user.id}
+        podcast_data = partial(get_podcast_data, owner_id=user.id)
         podcast_1 = await_(Podcast.async_create(dbs, **podcast_data()))
         podcast_2 = await_(Podcast.async_create(dbs, **podcast_data()))
         ep = create_episode(dbs, episode_data, podcast=podcast_1)
@@ -77,7 +77,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
 
     def test_get_list__filter_status__ok(self, dbs, client, podcast, episode_data, user):
         client.login(user)
-        episode_data |= {"created_by_id": user.id}
+        episode_data |= {"owner_id": user.id}
         ep = create_episode(dbs, episode_data, podcast, status=EpisodeStatus.NEW)
         create_episode(dbs, episode_data, podcast, status=EpisodeStatus.ERROR)
 
@@ -88,7 +88,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
 
     def test_get_list__search_by_title__ok(self, dbs, client, podcast, episode_data, user):
         client.login(user)
-        episode_data |= {"created_by_id": user.id}
+        episode_data |= {"owner_id": user.id}
         ep1 = create_episode(dbs, episode_data | {"title": "Python NEWS"}, podcast)
         ep2 = create_episode(dbs, episode_data | {"title": "PyPI is free"}, podcast)
         create_episode(dbs, episode_data | {"title": "Django"}, podcast)
@@ -256,18 +256,18 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         user_2 = create_user(dbs)
 
         podcast_1 = await_(
-            Podcast.async_create(dbs, db_commit=True, **get_podcast_data(created_by_id=user_1.id))
+            Podcast.async_create(dbs, db_commit=True, **get_podcast_data(owner_id=user_1.id))
         )
         podcast_2 = await_(
-            Podcast.async_create(dbs, db_commit=True, **get_podcast_data(created_by_id=user_2.id))
+            Podcast.async_create(dbs, db_commit=True, **get_podcast_data(owner_id=user_2.id))
         )
 
-        episode_data["created_by_id"] = user_1.id
+        episode_data["owner_id"] = user_1.id
         _ = create_episode(
             dbs, episode_data, podcast_1, status=same_episode_status, source_id=source_id
         )
 
-        episode_data["created_by_id"] = user_2.id
+        episode_data["owner_id"] = user_2.id
         episode_2 = create_episode(
             dbs, episode_data, podcast_2, status=Episode.Status.NEW, source_id=source_id
         )
@@ -306,16 +306,16 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
 
     def setup_episodes(self, dbs, user, episode_data):
         self.user_2 = create_user(dbs)
-        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user.id)))
-        podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user.id)))
+        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
+        podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
         podcast_3_from_user_2 = await_(
-            Podcast.async_create(dbs, **get_podcast_data(created_by_id=self.user_2.id))
+            Podcast.async_create(dbs, **get_podcast_data(owner_id=self.user_2.id))
         )
-        episode_data = episode_data | {"created_by_id": user.id}
+        episode_data = episode_data | {"owner_id": user.id}
         self.episode_1 = create_episode(dbs, episode_data, podcast_1)
         self.episode_2 = create_episode(dbs, episode_data, podcast_2)
 
-        episode_data["created_by_id"] = self.user_2.id
+        episode_data["owner_id"] = self.user_2.id
         self.episode_3 = create_episode(dbs, episode_data, podcast_3_from_user_2)
         await_(dbs.commit())
 

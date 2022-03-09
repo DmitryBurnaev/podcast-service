@@ -163,7 +163,7 @@ def episode_data(podcast):
 
 @pytest.fixture
 def podcast(podcast_data, user, loop, dbs):
-    podcast_data["created_by_id"] = user.id
+    podcast_data["owner_id"] = user.id
     podcast = loop.run_until_complete(Podcast.async_create(dbs, **podcast_data))
     loop.run_until_complete(dbs.commit())
     return podcast
@@ -174,7 +174,7 @@ def cookie(user, loop, dbs):
     cookie_data = {
         "source_type": SourceType.YANDEX,
         "data": "Cookie at netscape format\n",
-        "created_by_id": user.id,
+        "owner_id": user.id,
     }
     podcast = loop.run_until_complete(Cookie.async_create(dbs, **cookie_data))
     loop.run_until_complete(dbs.commit())
@@ -198,7 +198,7 @@ def user_invite(user, loop, dbs) -> UserInvite:
             email=f"user_{uuid.uuid4().hex[:10]}@test.com",
             token=f"{uuid.uuid4().hex}",
             expired_at=datetime.utcnow() + timedelta(days=1),
-            created_by_id=user.id,
+            owner_id=user.id,
         )
     )
 

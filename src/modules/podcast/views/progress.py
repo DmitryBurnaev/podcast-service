@@ -16,9 +16,7 @@ class ProgressAPIView(BaseHTTPEndpoint):
     async def get(self, request):
         podcast_items = {
             podcast.id: podcast
-            for podcast in await Podcast.async_filter(
-                self.db_session, created_by_id=request.user.id
-            )
+            for podcast in await Podcast.async_filter(self.db_session, owner_id=request.user.id)
         }
         episodes = {
             episode.id: episode

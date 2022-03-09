@@ -79,7 +79,7 @@ class EpisodeCreator:
         cookie = await Cookie.async_get(
             self.db_session,
             source_type=self.source_info.type,
-            created_by_id=self.user_id,
+            owner_id=self.user_id,
         )
         self.source_info.cookie = cookie
         extract_error, source_info = await provider_utils.get_source_media_info(self.source_info)
@@ -111,7 +111,7 @@ class EpisodeCreator:
         new_episode_data.update(
             {
                 "podcast_id": self.podcast_id,
-                "created_by_id": self.user_id,
+                "owner_id": self.user_id,
                 "cookie_id": cookie.id if cookie else None,
             }
         )

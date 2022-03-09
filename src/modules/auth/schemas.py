@@ -61,7 +61,7 @@ class UserInviteResponseSchema(Schema):
     token = fields.Str(required=True)
     expired_at = fields.DateTime(required=True)
     created_at = fields.DateTime(required=True)
-    created_by_id = fields.Int(required=True)
+    owner_id = fields.Int(required=True)
 
 
 class ResetPasswordRequestSchema(Schema):

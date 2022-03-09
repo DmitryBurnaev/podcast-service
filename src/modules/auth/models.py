@@ -55,7 +55,7 @@ class UserInvite(ModelBase, ModelMixin):
     is_applied = Column(Boolean, default=False, nullable=False)
     expired_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    created_by_id = Column(Integer, ForeignKey("auth_users.id"), nullable=False)
+    owner_id = Column(Integer, ForeignKey("auth_users.id"), nullable=False)
 
     def __repr__(self):
         return f"<UserInvite #{self.id} {self.token}>"
