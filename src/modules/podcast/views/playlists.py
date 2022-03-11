@@ -64,7 +64,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
         cookie = await Cookie.async_get(
             self.db_session,
             source_type=source_type,
-            created_by_id=request.user.id,
+            owner_id=request.user.id,
         )
         return cookie
 

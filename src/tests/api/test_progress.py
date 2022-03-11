@@ -33,10 +33,10 @@ class TestProgressAPIView(BaseTestAPIView):
     url = "/api/progress/"
 
     def test_filter_by_status__ok(self, client, user, episode_data, mocked_redis, dbs):
-        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user.id)))
-        podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user.id)))
+        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
+        podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
 
-        episode_data["created_by_id"] = user.id
+        episode_data["owner_id"] = user.id
         p1_episode_new = create_episode(dbs, episode_data, podcast_1, STATUS.NEW, MB_1)
         p1_episode_down = create_episode(dbs, episode_data, podcast_1, STATUS.DOWNLOADING, MB_2)
         p2_episode_down = create_episode(dbs, episode_data, podcast_2, STATUS.DOWNLOADING, MB_4)
@@ -74,8 +74,8 @@ class TestProgressAPIView(BaseTestAPIView):
         user_1 = create_user(dbs)
         user_2 = create_user(dbs)
 
-        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user_1.id)))
-        podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(created_by_id=user_2.id)))
+        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user_1.id)))
+        podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user_2.id)))
 
         ep_data_1 = get_episode_data(creator=user_1)
         ep_data_2 = get_episode_data(creator=user_2)

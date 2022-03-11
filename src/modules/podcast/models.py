@@ -33,7 +33,7 @@ class Podcast(ModelBase, ModelMixin):
     download_automatically = Column(Boolean, default=True)
     rss_link = Column(String(length=128))
     image_url = Column(String(length=512))
-    created_by_id = Column(Integer(), ForeignKey("auth_users.id"))
+    owner_id = Column(Integer(), ForeignKey("auth_users.id"))
 
     episodes = relationship("Episode")
 
@@ -54,7 +54,7 @@ class Podcast(ModelBase, ModelMixin):
                 "Add new episode -> wait for downloading -> copy podcast RSS-link "
                 "-> past this link to your podcast application -> enjoy".strip()
             ),
-            created_by_id=user_id,
+            owner_id=user_id,
         )
 
     @classmethod
@@ -89,7 +89,7 @@ class Episode(ModelBase, ModelMixin):
     status = EnumTypeColumn(Status, default=Status.NEW, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     published_at = Column(DateTime)
-    created_by_id = Column(Integer, ForeignKey("auth_users.id"), index=True)
+    owner_id = Column(Integer, ForeignKey("auth_users.id"), index=True)
     cookie_id = Column(Integer, ForeignKey("podcast_cookies.id", ondelete="SET NULL"))
 
     class Meta:
@@ -103,7 +103,7 @@ class Episode(ModelBase, ModelMixin):
     async def get_in_progress(cls, db_session: AsyncSession, user_id: int):
         """Return downloading episodes"""
         return await cls.async_filter(
-            db_session, status__in=Episode.PROGRESS_STATUSES, created_by_id=user_id
+            db_session, status__in=Episode.PROGRESS_STATUSES, owner_id=user_id
         )
 
     @property
@@ -130,7 +130,7 @@ class Cookie(ModelBase, ModelMixin):
     data = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    created_by_id = Column(Integer(), ForeignKey("auth_users.id"))
+    owner_id = Column(Integer(), ForeignKey("auth_users.id"))
 
     class Meta:
         order_by = ("-created_at",)

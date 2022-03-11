@@ -257,7 +257,7 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
         await_(dbs.refresh(user_invite))
         assert user_invite.user_id == user.id
         assert user_invite.is_applied
-        assert await_(Podcast.async_get(dbs, created_by_id=user.id)) is not None
+        assert await_(Podcast.async_get(dbs, owner_id=user.id)) is not None
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_SIGN_UP_DATA)
     def test_sign_up__invalid_request__fail(self, client, invalid_data: dict, error_details: dict):
@@ -337,7 +337,7 @@ class TestUserInviteApiView(BaseTestAPIView):
             "id": user_invite.id,
             "token": user_invite.token,
             "email": user_invite.email,
-            "created_by_id": user.id,
+            "owner_id": user.id,
             "created_at": user_invite.created_at.isoformat(),
             "expired_at": user_invite.expired_at.isoformat(),
         }
@@ -389,7 +389,7 @@ class TestUserInviteApiView(BaseTestAPIView):
                 email=self.email,
                 token=old_token,
                 expired_at=old_expired_at,
-                created_by_id=user.id,
+                owner_id=user.id,
             )
         )
 

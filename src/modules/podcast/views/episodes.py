@@ -34,7 +34,7 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
         return schema_map.get(self.request.method.lower())
 
     async def get(self, request):
-        filter_kwargs = {"created_by_id": request.user.id}
+        filter_kwargs = {"owner_id": request.user.id}
         cleaned_data = await self._validate(request, location="query")
         limit, offset = cleaned_data["limit"], cleaned_data["offset"]
         if podcast_id := request.path_params.get("podcast_id"):

@@ -102,7 +102,7 @@ def get_episode_data(podcast: Podcast = None, status: str = None, creator: User 
         episode_data["podcast_id"] = podcast.id
 
     if creator:
-        episode_data["created_by_id"] = creator.id
+        episode_data["owner_id"] = creator.id
 
     return episode_data
 

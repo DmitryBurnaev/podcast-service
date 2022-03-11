@@ -139,7 +139,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         token_collection = await self._create_session(user)
         return self._response(token_collection, status_code=status.HTTP_201_CREATED)
 
-    async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
+    async def _validate(self, request, *_) -> dict:
         cleaned_data = await super()._validate(request)
         email = cleaned_data["email"]
 
@@ -249,7 +249,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
                 email=email,
                 token=token,
                 expired_at=expired_at,
-                created_by_id=request.user.id,
+                owner_id=request.user.id,
             )
 
         logger.info("Invite object %r created. Sending message...", user_invite)
@@ -272,7 +272,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
             html_content=body.strip(),
         )
 
-    async def _validate(self, request, partial_: bool = False, location: str = None) -> dict:
+    async def _validate(self, request, *_) -> dict:
         cleaned_data = await super()._validate(request)
         if exists_user := await User.async_get(self.db_session, email=cleaned_data["email"]):
             raise InvalidParameterError(f"User with email=[{exists_user.email}] already exists.")
@@ -293,7 +293,7 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
         await self._send_email(user, token)
         return self._response(data={"user_id": user.id, "email": user.email, "token": token})
 
-    async def _validate(self, request, partial_: bool = False, location: str = None) -> User:
+    async def _validate(self, request, *_) -> User:
         cleaned_data = await super()._validate(request)
         user = await User.async_get(self.db_session, email=cleaned_data["email"])
         if not user:
