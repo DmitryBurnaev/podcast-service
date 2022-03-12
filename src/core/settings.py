@@ -74,6 +74,12 @@ JWT_ALGORITHM = "HS512"  # see https://pyjwt.readthedocs.io/en/latest/algorithms
 S3_STORAGE_URL = config("S3_STORAGE_URL")
 S3_AWS_ACCESS_KEY_ID = config("S3_AWS_ACCESS_KEY_ID")
 S3_AWS_SECRET_ACCESS_KEY = config("S3_AWS_SECRET_ACCESS_KEY")
+
+# TODO: remove after moving??
+S3_STORAGE_URL__2 = config("S3_STORAGE_URL__2")
+S3_AWS_ACCESS_KEY_ID__2 = config("S3_AWS_ACCESS_KEY_ID__2")
+S3_AWS_SECRET_ACCESS_KEY__2 = config("S3_AWS_SECRET_ACCESS_KEY__2")
+
 S3_BUCKET_NAME = config("S3_BUCKET_NAME", default="podcast")
 S3_BUCKET_AUDIO_PATH = config("S3_BUCKET_AUDIO_PATH", default="audio/")
 S3_BUCKET_RSS_PATH = config("S3_BUCKET_RSS_PATH", default="rss/")
