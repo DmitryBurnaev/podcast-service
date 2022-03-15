@@ -3,10 +3,19 @@ import logging
 
 import aioboto3
 
+import tqdm.asyncio
+from common.utils import get_logger
 from core import settings
 
 # ...S3_CONFIG_FROM
 # ...S3_CONFIG_TO
+
+
+logger = get_logger(__name__)
+
+
+async def progress_as_completed(tasks):
+    return [await task for task in tqdm.asyncio.tqdm.as_completed(tasks)]
 
 
 async def main():
@@ -27,11 +36,19 @@ async def main():
                 objects.append(s3_object)
                 break
 
+    tasks = []
     async with session.client("s3", endpoint_url=settings.S3_STORAGE_URL) as s3:
         for obj in objects:
             with open(settings.PROJECT_ROOT_DIR / 'media/s3' / obj.key, 'wb') as file:
-                await s3.download_fileobj(settings.S3_BUCKET_NAME, obj.key, file)
+                tasks.append(
+                    s3.download_fileobj(settings.S3_BUCKET_NAME, obj.key, file)
+                )
+                # await s3.download_fileobj(settings.S3_BUCKET_NAME, obj.key, file)
                 # await s3.upload_fileobj(spfp, bucket, blob_s3_key)
+
+    # TODO: Limit with max downloads per time
+    await progress_as_completed(tasks)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
