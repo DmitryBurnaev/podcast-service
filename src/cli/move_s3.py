@@ -1,14 +1,19 @@
 import asyncio
 import logging
+from typing import Iterable
 
 import aioboto3
 
 import tqdm.asyncio
+
+from common.enums import EpisodeStatus
 from common.utils import get_logger
 from core import settings
 
 # ...S3_CONFIG_FROM
 # ...S3_CONFIG_TO
+from modules.podcast.models import Episode
+
 DOWNLOAD_DIR = settings.PROJECT_ROOT_DIR / 'media/s3'
 
 logger = get_logger(__name__)
@@ -37,10 +42,40 @@ async def check_object(s3, obj_key: str, expected_size):
 # async def delete_object(s3, obj_key: str):
 #
 
+
 async def process_file(s3, obj_key):
     await download_object(s3, obj_key)
     await upload_object(s3, obj_key)
     await check_object(s3, obj_key, expected_size=10)  # TODO: get expected size from episode
+
+
+async def process_episodes(db_session) -> list[dict]:
+    episodes: Iterable[Episode] = await Episode.async_filter(
+        db_session, status=EpisodeStatus.PUBLISHED
+    )
+    return [
+        {
+            "id": episode.id,
+            "url": episode.remote_url,
+        }
+        for episode in episodes
+    ]
+
+
+async def run():
+    db_session = None
+    episodes = await process_episodes(db_session)
+
+
+
+
+
+
+
+
+
+
+
 
 
 async def main():
