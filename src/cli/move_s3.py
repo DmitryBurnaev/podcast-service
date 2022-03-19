@@ -23,14 +23,14 @@ async def progress_as_completed(tasks):
     return [await task for task in tqdm.asyncio.tqdm.as_completed(tasks)]
 
 
-async def download_object(s3, obj_key: str):
-    await s3.download_file(settings.S3_BUCKET_NAME, obj_key, filename=(DOWNLOAD_DIR / obj_key))
+# async def download_object(s3, obj_key: str):
+#     await s3.download_file(settings.S3_BUCKET_NAME, obj_key, filename=(DOWNLOAD_DIR / obj_key))
     # with open(DOWNLOAD_DIR / obj_key, 'wb') as file:
     #     await s3.download_fileobj(settings.S3_BUCKET_NAME, obj_key, file)
 
 
-async def upload_object(s3, obj_key: str):
-    await s3.upload_file((DOWNLOAD_DIR / obj_key), settings.S3_BUCKET_NAME, obj_key)
+# async def upload_object(s3, obj_key: str):
+#     await s3.upload_file((DOWNLOAD_DIR / obj_key), settings.S3_BUCKET_NAME, obj_key)
 
 
 async def check_object(s3, obj_key: str, expected_size):
@@ -43,10 +43,18 @@ async def check_object(s3, obj_key: str, expected_size):
 #
 
 
-async def process_file(s3, obj_key):
-    await download_object(s3, obj_key)
-    await upload_object(s3, obj_key)
+async def process_file(s3, obj_url: str):
+    if not obj_url.startswith(settings.S3_STORAGE_URL):
+        logger.info("Skip, %s", obj_url)
+        return
+
+    obj_key = obj_url.replace(settings.S3_STORAGE_URL, "")
+    await s3.download_file(settings.S3_BUCKET_NAME, obj_key, filename=(DOWNLOAD_DIR / obj_key))
+    # TODO: check size for downloaded file
+    await s3.upload_file((DOWNLOAD_DIR / obj_key), settings.S3_BUCKET_NAME, obj_key)
+    # TODO: check size for uploaded file
     await check_object(s3, obj_key, expected_size=10)  # TODO: get expected size from episode
+    # TODO: update episode's URL (with transaction)
 
 
 async def process_episodes(db_session) -> list[dict]:
@@ -62,22 +70,6 @@ async def process_episodes(db_session) -> list[dict]:
     ]
 
 
-async def run():
-    db_session = None
-    episodes = await process_episodes(db_session)
-
-
-
-
-
-
-
-
-
-
-
-
-
 async def main():
     print(f" ===== Running moving ===== ")
     session = aioboto3.Session(
@@ -86,23 +78,36 @@ async def main():
         region_name="ru-central1",
     )
     print("session", session)
-
-    objects = []
+    # TODO: DB session
+    db_session = None
+    episode_files = await process_episodes(db_session)
     async with session.resource("s3", endpoint_url=settings.S3_STORAGE_URL) as s3:
-        bucket = await s3.Bucket(settings.S3_BUCKET_NAME)
-        async for s3_object in bucket.objects.all():
-            print(s3_object)
-            if not s3_object.key.endswith('/'):
-                objects.append(s3_object)
-                break
-
-    tasks = []
-    async with session.client("s3", endpoint_url=settings.S3_STORAGE_URL) as s3:
-        for obj in objects:
-            tasks.append(process_file(s3, obj.key))
+        # bucket = await s3.Bucket(settings.S3_BUCKET_NAME)
+        tasks = [
+            process_file(s3, episode_file['url'])
+            for episode_file in episode_files
+        ]
 
     # TODO: Limit with max downloads per time
+    # [await task for task in tqdm.asyncio.tqdm.as_completed(tasks)]
     await progress_as_completed(tasks)
+
+    # objects = []
+    # async with session.resource("s3", endpoint_url=settings.S3_STORAGE_URL) as s3:
+    #     bucket = await s3.Bucket(settings.S3_BUCKET_NAME)
+    #     async for s3_object in bucket.objects.all():
+    #         print(s3_object)
+    #         if not s3_object.key.endswith('/'):
+    #             objects.append(s3_object)
+    #             break
+    #
+    # tasks = []
+    # async with session.client("s3", endpoint_url=settings.S3_STORAGE_URL) as s3:
+    #     for obj in objects:
+    #         tasks.append(process_file(s3, obj.key))
+    #
+    # # TODO: Limit with max downloads per time
+    # await progress_as_completed(tasks)
 
 
 if __name__ == "__main__":
