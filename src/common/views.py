@@ -1,6 +1,6 @@
 import asyncio
 from functools import partial
-from typing import Type, Union, Iterable, Any
+from typing import Type, Union, Iterable, Any, ClassVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
@@ -29,8 +29,8 @@ logger = get_logger(__name__)
 
 
 class PRequest(Request):
-    user_session_id: str = NotImplemented
-    db_session: AsyncSession = NotImplemented
+    user_session_id: str
+    db_session: AsyncSession
 
 
 class BaseHTTPEndpoint(HTTPEndpoint):
@@ -38,13 +38,13 @@ class BaseHTTPEndpoint(HTTPEndpoint):
     Base View witch used as a base class for every API's endpoints
     """
 
-    request: PRequest = None
     app = None
-    db_model: DBModel = NotImplemented
-    db_session: AsyncSession = NotImplemented
+    request: PRequest
+    db_model: ClassVar[DBModel]
+    db_session: AsyncSession
+    schema_request: ClassVar[Type[Schema]]
+    schema_response: ClassVar[Type[Schema]]
     auth_backend = LoginRequiredAuthBackend
-    schema_request: Type[Schema] = NotImplemented
-    schema_response: Type[Schema] = NotImplemented
 
     async def dispatch(self) -> None:
         """

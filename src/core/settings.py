@@ -74,6 +74,7 @@ JWT_ALGORITHM = "HS512"  # see https://pyjwt.readthedocs.io/en/latest/algorithms
 S3_STORAGE_URL = config("S3_STORAGE_URL")
 S3_AWS_ACCESS_KEY_ID = config("S3_AWS_ACCESS_KEY_ID")
 S3_AWS_SECRET_ACCESS_KEY = config("S3_AWS_SECRET_ACCESS_KEY")
+S3_REGION_NAME = config("S3_REGION_NAME")
 
 # TODO: remove after moving??
 # S3_STORAGE_URL__2 = config("S3_STORAGE_URL__2")

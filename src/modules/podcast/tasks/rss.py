@@ -15,7 +15,7 @@ __all__ = ["GenerateRSSTask"]
 class GenerateRSSTask(RQTask):
     """Allows recreating and upload RSS for specific podcast or for all of exists"""
 
-    storage: StorageS3 = None
+    storage: StorageS3
 
     async def run(self, *podcast_ids: int) -> FinishCode:
         """Run process for generation and upload RSS to the cloud (S3)"""

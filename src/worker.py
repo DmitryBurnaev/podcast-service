@@ -12,7 +12,7 @@ from core import settings
 
 
 def run_worker():
-    """Allows to run RQ worker for consuming background tasks (like downloading providers tracks)"""
+    """Runs RQ worker for consuming background tasks (like downloading providers tracks)"""
 
     logging.config.dictConfig(settings.LOGGING)
 

@@ -35,7 +35,7 @@ class StorageS3:
         session = boto3.session.Session(
             aws_access_key_id=settings.S3_AWS_ACCESS_KEY_ID,
             aws_secret_access_key=settings.S3_AWS_SECRET_ACCESS_KEY,
-            region_name="ru-central1",
+            region_name=settings.S3_REGION_NAME,
         )
         logger.debug("Boto3 (s3) Session <%s> created", session)
         self.s3 = session.client(service_name="s3", endpoint_url=settings.S3_STORAGE_URL)

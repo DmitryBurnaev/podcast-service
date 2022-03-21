@@ -20,7 +20,7 @@ class FinishCode(int, enum.Enum):
 class RQTask:
     """Base class for RQ tasks implementation."""
 
-    db_session: AsyncSession = NotImplemented
+    db_session: AsyncSession
 
     def __init__(self, db_session: AsyncSession = None):
         self.db_session = db_session
@@ -40,7 +40,7 @@ class RQTask:
         return isinstance(other, self.__class__) and self.__class__ == other.__class__
 
     async def _perform_and_run(self, *args, **kwargs):
-        """Allows to call `self.run` in transaction block with catching any exceptions"""
+        """Allows calling `self.run` in transaction block with catching any exceptions"""
 
         db_engine = create_async_engine(settings.DATABASE_DSN, echo=settings.DB_ECHO)
         session_maker = sessionmaker(db_engine, expire_on_commit=False, class_=AsyncSession)
