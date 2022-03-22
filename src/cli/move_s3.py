@@ -38,6 +38,10 @@ class EpisodeFileData(NamedTuple):
     content_type: str
 
 
+# TODO: for tests only
+processed_files: list[EpisodeFileData] = []
+
+
 async def progress_as_completed(tasks):
     return [await task for task in tqdm.asyncio.tqdm.as_completed(tasks)]
 
@@ -61,10 +65,11 @@ async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
             content_type=episode.content_type,
         )
         for episode in episodes
-    ][:1]
+    ]
 
 
-async def process_file(s3_from, s3_to, episode_file: EpisodeFileData, dbs: AsyncSession):
+async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: AsyncSession):
+
     if not episode_file.url.startswith(S3_STORAGE_URL_FROM):
         logger.info("Skip episode #%i | url %s", episode_file.id, episode_file.url)
         return
@@ -83,6 +88,9 @@ async def process_file(s3_from, s3_to, episode_file: EpisodeFileData, dbs: Async
             local_file_name, downloaded_size, episode_file.size, episode_file.id
         )
         return
+
+    if len(processed_files) > 1:
+        raise RuntimeError('MAX processed_files')
 
     await s3_to.upload_file(
         local_file_name,
@@ -108,6 +116,7 @@ async def process_file(s3_from, s3_to, episode_file: EpisodeFileData, dbs: Async
         await dbs.rollback()
     else:
         await dbs.commit()
+        processed_files.append(episode_file)
 
 
 async def main():
@@ -130,7 +139,7 @@ async def main():
         async with session_s3_from.resource("s3", endpoint_url=S3_STORAGE_URL_FROM) as s3_from:
             async with session_s3_to.resource("s3", endpoint_url=S3_STORAGE_URL_TO) as s3_to:
                 tasks = [
-                    process_file(s3_from, s3_to, episode_file, db_session)
+                    process_episode(s3_from, s3_to, episode_file, db_session)
                     for episode_file in episode_files
                 ]
                 # TODO: Limit with max downloads per time
