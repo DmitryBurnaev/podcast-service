@@ -19,13 +19,16 @@ DOWNLOAD_DIR = settings.PROJECT_ROOT_DIR / '.misc/s3'
 S3_STORAGE_URL_FROM = settings.config("S3_STORAGE_URL_FROM")
 S3_AWS_ACCESS_KEY_ID_FROM = settings.config("S3_AWS_ACCESS_KEY_ID_FROM")
 S3_AWS_SECRET_ACCESS_KEY_FROM = settings.config("S3_AWS_SECRET_ACCESS_KEY_FROM")
-S3_REGION_FROM = "ru-central1"
+S3_BUCKET_FROM = settings.config("S3_BUCKET_NAME_FROM")
+S3_REGION_FROM = settings.config("S3_REGION_NAME_FROM")
 
 # S3 storage "TO"
 S3_STORAGE_URL_TO = settings.config("S3_STORAGE_URL_TO")
 S3_AWS_ACCESS_KEY_ID_TO = settings.config("S3_AWS_ACCESS_KEY_ID_TO")
 S3_AWS_SECRET_ACCESS_KEY_TO = settings.config("S3_AWS_SECRET_ACCESS_KEY_TO")
-S3_REGION_TO = "ru-central1"
+S3_BUCKET_TO = settings.config("S3_BUCKET_NAME_TO")
+S3_REGION_TO = settings.config("S3_REGION_TO")
+
 
 logger = get_logger(__name__)
 os.makedirs(DOWNLOAD_DIR)
@@ -38,7 +41,6 @@ class EpisodeFileData(NamedTuple):
     content_type: str
 
 
-# TODO: for tests only
 processed_files: list[EpisodeFileData] = []
 
 
@@ -80,7 +82,7 @@ async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: As
         os.makedirs(dirname)
 
     local_file_name = DOWNLOAD_DIR / obj_key
-    await s3_from.download_file(settings.S3_BUCKET_NAME, obj_key, filename=local_file_name)
+    await s3_from.download_file(s3_from.bucket, obj_key, filename=local_file_name)
     downloaded_size = get_file_size(local_file_name)
     if episode_file.size != downloaded_size:
         logger.error(
@@ -89,12 +91,13 @@ async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: As
         )
         return
 
+    # TODO: for tests only
     if len(processed_files) > 1:
         raise RuntimeError('MAX processed_files')
 
     await s3_to.upload_file(
         local_file_name,
-        settings.S3_BUCKET_NAME,
+        s3_to.bucket,
         obj_key,
         # TODO: check "ACL": "public-read" ?
         ExtraArgs={"ContentType": episode_file.content_type},
@@ -138,6 +141,8 @@ async def main():
         episode_files = await get_episode_files(db_session)
         async with session_s3_from.resource("s3", endpoint_url=S3_STORAGE_URL_FROM) as s3_from:
             async with session_s3_to.resource("s3", endpoint_url=S3_STORAGE_URL_TO) as s3_to:
+                s3_from.bucket = S3_BUCKET_FROM
+                s3_to.bucket = S3_BUCKET_TO
                 tasks = [
                     process_episode(s3_from, s3_to, episode_file, db_session)
                     for episode_file in episode_files
