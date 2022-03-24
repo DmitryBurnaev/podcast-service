@@ -108,7 +108,7 @@ async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: As
             dbs,
             filter_kwargs={'id': episode_file.id},
             update_data={
-                'public_url': episode_file.url.replace(S3_STORAGE_URL_FROM, S3_STORAGE_URL_TO)
+                'public_url': episode_file.url.replace(S3_STORAGE_URL_FROM, "")
             }
         )
     except Exception as err:
