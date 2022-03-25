@@ -81,6 +81,7 @@ class StorageS3:
             Bucket=settings.S3_BUCKET_NAME,
             Key=dst_path,
             Callback=callback,
+            # TODO: change with podcast-service/issues/101
             ExtraArgs={"ACL": "public-read", "ContentType": mimetype},
         )
         if code != self.CODE_OK:
@@ -90,6 +91,7 @@ class StorageS3:
             settings.S3_STORAGE_URL, os.path.join(settings.S3_BUCKET_NAME, dst_path)
         )
         logger.info("File %s successful uploaded. Result URL: %s", filename, result_url)
+        # TODO: return dst_path (podcast-service/issues/101)
         return result_url
 
     def get_file_info(

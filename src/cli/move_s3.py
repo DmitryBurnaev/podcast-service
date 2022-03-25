@@ -49,9 +49,7 @@ async def progress_as_completed(tasks):
 
 
 async def check_object(s3, obj_key: str, expected_size):
-    response = await s3.meta.client.head_object(
-        Bucket=settings.S3_BUCKET_NAME, Key=obj_key)
-
+    response = await s3.meta.client.head_object(Bucket=s3.bucket, Key=obj_key)
     assert response.get('ContentLength', 0) == expected_size
 
 
