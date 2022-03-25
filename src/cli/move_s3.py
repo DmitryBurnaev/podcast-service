@@ -27,11 +27,11 @@ S3_STORAGE_URL_TO = settings.config("S3_STORAGE_URL_TO")
 S3_AWS_ACCESS_KEY_ID_TO = settings.config("S3_AWS_ACCESS_KEY_ID_TO")
 S3_AWS_SECRET_ACCESS_KEY_TO = settings.config("S3_AWS_SECRET_ACCESS_KEY_TO")
 S3_BUCKET_TO = settings.config("S3_BUCKET_NAME_TO")
-S3_REGION_TO = settings.config("S3_REGION_TO")
+S3_REGION_TO = settings.config("S3_REGION_NAME_TO")
 
 
 logger = get_logger(__name__)
-os.makedirs(DOWNLOAD_DIR)
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 
 class EpisodeFileData(NamedTuple):
@@ -57,6 +57,7 @@ async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
     episodes: Iterable[Episode] = await Episode.async_filter(
         dbs, status=EpisodeStatus.PUBLISHED
     )
+    # TODO: remove limitation after testing
     return [
         EpisodeFileData(
             id=episode.id,
@@ -65,22 +66,21 @@ async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
             content_type=episode.content_type,
         )
         for episode in episodes
-    ]
+    ][:2]
 
 
 async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: AsyncSession):
-
+    # TODO: move image too
     if not episode_file.url.startswith(S3_STORAGE_URL_FROM):
         logger.info("Skip episode #%i | url %s", episode_file.id, episode_file.url)
         return
 
     obj_key = episode_file.url.replace(S3_STORAGE_URL_FROM, "")
     dirname = DOWNLOAD_DIR / os.path.dirname(obj_key)
-    if not os.path.isdir(dirname):
-        os.makedirs(dirname)
+    os.makedirs(dirname, exist_ok=True)
 
     local_file_name = DOWNLOAD_DIR / obj_key
-    await s3_from.download_file(s3_from.bucket, obj_key, filename=local_file_name)
+    await s3_from.download_fileobj(s3_from.bucket, obj_key, filename=local_file_name)
     downloaded_size = get_file_size(local_file_name)
     if episode_file.size != downloaded_size:
         logger.error(
@@ -93,7 +93,7 @@ async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: As
     if len(processed_files) > 1:
         raise RuntimeError('MAX processed_files')
 
-    await s3_to.upload_file(
+    await s3_to.upload_fileobj(
         local_file_name,
         s3_to.bucket,
         obj_key,
@@ -106,7 +106,7 @@ async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: As
             dbs,
             filter_kwargs={'id': episode_file.id},
             update_data={
-                'public_url': episode_file.url.replace(S3_STORAGE_URL_FROM, "")
+                'public_url': obj_key
             }
         )
     except Exception as err:
