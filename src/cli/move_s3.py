@@ -49,7 +49,7 @@ async def progress_as_completed(tasks):
 
 
 async def check_object(s3, obj_key: str, expected_size):
-    response = await s3.meta.client.head_object(Bucket=s3.bucket, Key=obj_key)
+    response = await s3.head_object(Bucket=s3.bucket, Key=obj_key)
     assert response.get('ContentLength', 0) == expected_size
 
 
@@ -75,12 +75,17 @@ async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: As
         logger.info("Skip episode #%i | url %s", episode_file.id, episode_file.url)
         return
 
-    obj_key = episode_file.url.replace(S3_STORAGE_URL_FROM, "")
+    obj_key = '/'.join(episode_file.url.rsplit('/')[-2:])
+    print(obj_key)
     dirname = DOWNLOAD_DIR / os.path.dirname(obj_key)
     os.makedirs(dirname, exist_ok=True)
 
     local_file_name = DOWNLOAD_DIR / obj_key
-    await s3_from.download_fileobj(s3_from.bucket, obj_key, filename=local_file_name)
+    await s3_from.download_file(
+        Bucket=s3_from.bucket,
+        Key=obj_key,
+        Filename=local_file_name
+    )
     downloaded_size = get_file_size(local_file_name)
     if episode_file.size != downloaded_size:
         logger.error(
@@ -93,10 +98,10 @@ async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: As
     if len(processed_files) > 1:
         raise RuntimeError('MAX processed_files')
 
-    await s3_to.upload_fileobj(
-        local_file_name,
-        s3_to.bucket,
-        obj_key,
+    await s3_to.upload_file(
+        Filename=local_file_name,
+        Bucket=s3_to.bucket,
+        Key=obj_key,
         # TODO: check "ACL": "public-read" ?
         ExtraArgs={"ContentType": episode_file.content_type},
     )
@@ -105,9 +110,7 @@ async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: As
         await Episode.async_update(
             dbs,
             filter_kwargs={'id': episode_file.id},
-            update_data={
-                'public_url': obj_key
-            }
+            update_data={'remote_url': obj_key}
         )
     except Exception as err:
         logger.exception(
@@ -123,13 +126,13 @@ async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: As
 async def main():
     logger.info(f" ===== Running moving ===== ")
     session_s3_from = aioboto3.Session(
-        aws_access_key_id=S3_AWS_SECRET_ACCESS_KEY_FROM,
-        aws_secret_access_key=S3_AWS_ACCESS_KEY_ID_FROM,
+        aws_access_key_id=S3_AWS_ACCESS_KEY_ID_FROM,
+        aws_secret_access_key=S3_AWS_SECRET_ACCESS_KEY_FROM,
         region_name=S3_REGION_FROM,
     )
     session_s3_to = aioboto3.Session(
-        aws_access_key_id=S3_AWS_SECRET_ACCESS_KEY_TO,
-        aws_secret_access_key=S3_AWS_ACCESS_KEY_ID_TO,
+        aws_access_key_id=S3_AWS_ACCESS_KEY_ID_TO,
+        aws_secret_access_key=S3_AWS_SECRET_ACCESS_KEY_TO,
         region_name=S3_REGION_TO,
     )
     db_engine = create_async_engine(settings.DATABASE_DSN, echo=settings.DB_ECHO)
@@ -137,8 +140,8 @@ async def main():
 
     async with session_maker() as db_session:
         episode_files = await get_episode_files(db_session)
-        async with session_s3_from.resource("s3", endpoint_url=S3_STORAGE_URL_FROM) as s3_from:
-            async with session_s3_to.resource("s3", endpoint_url=S3_STORAGE_URL_TO) as s3_to:
+        async with session_s3_from.client("s3", endpoint_url=S3_STORAGE_URL_FROM) as s3_from:
+            async with session_s3_to.client("s3", endpoint_url=S3_STORAGE_URL_TO) as s3_to:
                 s3_from.bucket = S3_BUCKET_FROM
                 s3_to.bucket = S3_BUCKET_TO
                 tasks = [
