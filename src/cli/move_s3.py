@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import asyncio
 from typing import Iterable, NamedTuple
@@ -37,8 +38,9 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 class EpisodeFileData(NamedTuple):
     id: int
     url: str
-    size: int
-    content_type: str
+    size: int = None
+    image_url: str = None
+    content_type: str = None
 
 
 processed_files: list[EpisodeFileData] = []
@@ -48,9 +50,24 @@ async def progress_as_completed(tasks):
     return [await task for task in tqdm.asyncio.tqdm.as_completed(tasks)]
 
 
+def check_size(file_name: str, actual_size: int, expected_size: int = None):
+    if expected_size:
+        if expected_size != actual_size:
+            raise ValueError(
+                f"File {file_name} has incorrect size: "
+                f"{file_name} != {expected_size}"
+            )
+    elif actual_size < 1:
+        raise ValueError(f"File {file_name} has null-like size: {actual_size}")
+
+
 async def check_object(s3, obj_key: str, expected_size):
     response = await s3.head_object(Bucket=s3.bucket, Key=obj_key)
-    assert response.get('ContentLength', 0) == expected_size
+    check_size(
+        obj_key,
+        actual_size=response.get('ContentLength', 0),
+        expected_size=expected_size
+    )
 
 
 async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
@@ -63,19 +80,16 @@ async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
             id=episode.id,
             url=episode.remote_url,
             size=episode.file_size,
+            image_url=episode.image_url,
             content_type=episode.content_type,
         )
         for episode in episodes
-    ][:2]
+    ][:1]
 
 
-async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: AsyncSession):
-    # TODO: move image too
-    if not episode_file.url.startswith(S3_STORAGE_URL_FROM):
-        logger.info("Skip episode #%i | url %s", episode_file.id, episode_file.url)
-        return
-
-    obj_key = '/'.join(episode_file.url.rsplit('/')[-2:])
+async def move_file(s3_from, s3_to, episode_file: EpisodeFileData) -> str:
+    # TODO: fix obj-key here!
+    obj_key = '/'.join(episode_file.url.replace(S3_STORAGE_URL_FROM, '').rsplit('/')[1:])
     print(obj_key)
     dirname = DOWNLOAD_DIR / os.path.dirname(obj_key)
     os.makedirs(dirname, exist_ok=True)
@@ -87,35 +101,59 @@ async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: As
         Filename=local_file_name
     )
     downloaded_size = get_file_size(local_file_name)
-    if episode_file.size != downloaded_size:
-        logger.error(
-            "File %s has incorrect size: %i != %i | episode #%i",
-            local_file_name, downloaded_size, episode_file.size, episode_file.id
-        )
-        return
+    check_size(
+        local_file_name,
+        actual_size=downloaded_size,
+        expected_size=episode_file.size,
+    )
 
-    # TODO: for tests only
-    if len(processed_files) > 1:
-        raise RuntimeError('MAX processed_files')
+    if not (content_type := episode_file.content_type):
+        content_type, _ = mimetypes.guess_type(local_file_name)
 
     await s3_to.upload_file(
         Filename=local_file_name,
         Bucket=s3_to.bucket,
         Key=obj_key,
-        # TODO: check "ACL": "public-read" ?
-        ExtraArgs={"ContentType": episode_file.content_type},
+        ExtraArgs={"ContentType": content_type},
     )
     await check_object(s3_to, obj_key, expected_size=episode_file.size)
+    return obj_key
+
+
+async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: AsyncSession):
+    if not (
+        episode_file.url.startswith(S3_STORAGE_URL_FROM) or
+        episode_file.image_url.startswith(S3_STORAGE_URL_FROM)
+    ):
+        logger.info(
+            "Skip episode #%i | url %s | image url %s",
+            episode_file.id, episode_file.url, episode_file.image_url,
+        )
+        return
+
+    try:
+        audio_obj_key = await move_file(s3_from, s3_to, episode_file)
+        image_obj_key = await move_file(
+            s3_from, s3_to,
+            episode_file=EpisodeFileData(id=episode_file.id, url=episode_file.image_url)
+        )
+    except ValueError as e:
+        logger.error("Couldn't download file: %s | episode %s", e, episode_file.id)
+        return
+
     try:
         await Episode.async_update(
             dbs,
             filter_kwargs={'id': episode_file.id},
-            update_data={'remote_url': obj_key}
+            update_data={
+                'remote_url': audio_obj_key,
+                'image_url': image_obj_key,
+            }
         )
     except Exception as err:
         logger.exception(
-            "Couldn't update episode #%i | %s | err: %s",
-            episode_file.id, obj_key, err
+            "Couldn't update episode #%i | %s | %s | err: %s",
+            episode_file.id, audio_obj_key, image_obj_key, err
         )
         await dbs.rollback()
     else:
