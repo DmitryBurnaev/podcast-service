@@ -1,3 +1,4 @@
+import logging.config
 import mimetypes
 import os
 import asyncio
@@ -15,6 +16,7 @@ from modules.podcast.models import Episode
 from modules.podcast.utils import get_file_size
 
 DOWNLOAD_DIR = settings.PROJECT_ROOT_DIR / '.misc/s3'
+LOG_FILENAME = settings.PROJECT_ROOT_DIR / '.misc/logs/moving.log'
 
 # S3 storage "FROM"
 S3_STORAGE_URL_FROM = settings.config("S3_STORAGE_URL_FROM")
@@ -29,10 +31,31 @@ S3_AWS_ACCESS_KEY_ID_TO = settings.config("S3_AWS_ACCESS_KEY_ID_TO")
 S3_AWS_SECRET_ACCESS_KEY_TO = settings.config("S3_AWS_SECRET_ACCESS_KEY_TO")
 S3_BUCKET_TO = settings.config("S3_BUCKET_NAME_TO")
 S3_REGION_TO = settings.config("S3_REGION_NAME_TO")
-
-
-logger = get_logger(__name__)
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "format": "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+            "datefmt": "%d.%m.%Y %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "file": {
+            "class": "logging.FileHandler",
+            "formatter": "standard",
+            "filename": LOG_FILENAME
+        }
+    },
+    "loggers": {
+        "move_s3": {"handlers": ["file"], "level": "DEBUG", "propagate": False},
+    },
+}
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+os.makedirs(os.path.dirname(LOG_FILENAME), exist_ok=True)
+
+logging.config.dictConfig(LOGGING)
+logger = logging.getLogger("move_s3")
 
 
 class EpisodeFileData(NamedTuple):
@@ -62,6 +85,7 @@ def check_size(file_name: str, actual_size: int, expected_size: int = None):
 
 
 async def check_object(s3, obj_key: str, expected_size):
+    logger.debug('Checking KEY %s | size %s', obj_key, expected_size)
     response = await s3.head_object(Bucket=s3.bucket, Key=obj_key)
     check_size(
         obj_key,
@@ -84,17 +108,21 @@ async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
             content_type=episode.content_type,
         )
         for episode in episodes
-    ][:1]
+    ][:7]
 
 
 async def move_file(s3_from, s3_to, episode_file: EpisodeFileData) -> str:
-    # TODO: fix obj-key here!
+    if not episode_file.url.startswith(S3_STORAGE_URL_FROM):
+        logger.info('Episode %s | Skip %s', episode_file.id, episode_file.url)
+        return episode_file.url
+
+    logger.debug('Episode %s | Moving %s', episode_file.id, episode_file.url)
     obj_key = '/'.join(episode_file.url.replace(S3_STORAGE_URL_FROM, '').rsplit('/')[1:])
-    print(obj_key)
     dirname = DOWNLOAD_DIR / os.path.dirname(obj_key)
     os.makedirs(dirname, exist_ok=True)
 
     local_file_name = DOWNLOAD_DIR / obj_key
+    logger.debug('Episode %s | downloading %s', episode_file.id, episode_file.url)
     await s3_from.download_file(
         Bucket=s3_from.bucket,
         Key=obj_key,
@@ -110,6 +138,7 @@ async def move_file(s3_from, s3_to, episode_file: EpisodeFileData) -> str:
     if not (content_type := episode_file.content_type):
         content_type, _ = mimetypes.guess_type(local_file_name)
 
+    logger.debug('Episode %s | uploading %s', episode_file.id, episode_file.url)
     await s3_to.upload_file(
         Filename=local_file_name,
         Bucket=s3_to.bucket,
@@ -117,6 +146,7 @@ async def move_file(s3_from, s3_to, episode_file: EpisodeFileData) -> str:
         ExtraArgs={"ContentType": content_type},
     )
     await check_object(s3_to, obj_key, expected_size=episode_file.size)
+    logger.debug('Episode %s | moving done %s', episode_file.id, episode_file.url)
     return obj_key
 
 
@@ -126,11 +156,15 @@ async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: As
         episode_file.image_url.startswith(S3_STORAGE_URL_FROM)
     ):
         logger.info(
-            "Skip episode #%i | url %s | image url %s",
+            "Episode %s | Skip | url %s | image url %s",
             episode_file.id, episode_file.url, episode_file.image_url,
         )
         return
 
+    logger.info(
+        "Episode %s | START PROCESSING | url %s | image url %s ",
+        episode_file.id, episode_file.url, episode_file.image_url,
+    )
     try:
         audio_obj_key = await move_file(s3_from, s3_to, episode_file)
         image_obj_key = await move_file(
@@ -152,13 +186,16 @@ async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: As
         )
     except Exception as err:
         logger.exception(
-            "Couldn't update episode #%i | %s | %s | err: %s",
+            "Episode %s | Couldn't update %s | %s | err: %s",
             episode_file.id, audio_obj_key, image_obj_key, err
         )
         await dbs.rollback()
     else:
         await dbs.commit()
-        processed_files.append(episode_file)
+        logger.info(
+            "Episode %s | PROCESSED | url %s | image url %s ",
+            episode_file.id,  audio_obj_key, image_obj_key,
+        )
 
 
 async def main():
