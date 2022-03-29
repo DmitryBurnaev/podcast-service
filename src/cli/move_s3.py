@@ -2,6 +2,7 @@ import logging.config
 import mimetypes
 import os
 import asyncio
+from contextlib import nullcontext
 from typing import Iterable, NamedTuple
 
 import aioboto3
@@ -10,13 +11,13 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from core import settings
-from common.utils import get_logger
 from common.enums import EpisodeStatus
 from modules.podcast.models import Episode
 from modules.podcast.utils import get_file_size
 
 DOWNLOAD_DIR = settings.PROJECT_ROOT_DIR / '.misc/s3'
 LOG_FILENAME = settings.PROJECT_ROOT_DIR / '.misc/logs/moving.log'
+MAX_CONCUR_REQ = 10
 
 # S3 storage "FROM"
 S3_STORAGE_URL_FROM = settings.config("S3_STORAGE_URL_FROM")
@@ -56,6 +57,14 @@ os.makedirs(os.path.dirname(LOG_FILENAME), exist_ok=True)
 
 logging.config.dictConfig(LOGGING)
 logger = logging.getLogger("move_s3")
+
+
+class AsyncNullContext(nullcontext):
+    async def __aenter__(self):
+        return self.__enter__()
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
 
 
 class EpisodeFileData(NamedTuple):
@@ -98,7 +107,6 @@ async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
     episodes: Iterable[Episode] = await Episode.async_filter(
         dbs, status=EpisodeStatus.PUBLISHED
     )
-    # TODO: remove limitation after testing
     return [
         EpisodeFileData(
             id=episode.id,
@@ -108,7 +116,7 @@ async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
             content_type=episode.content_type,
         )
         for episode in episodes
-    ][:7]
+    ]
 
 
 async def move_file(s3_from, s3_to, episode_file: EpisodeFileData) -> str:
@@ -150,7 +158,13 @@ async def move_file(s3_from, s3_to, episode_file: EpisodeFileData) -> str:
     return obj_key
 
 
-async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: AsyncSession):
+async def process_episode(
+    s3_from,
+    s3_to,
+    dbs: AsyncSession,
+    episode_file: EpisodeFileData,
+    semaphore: asyncio.Semaphore = None
+):
     if not (
         episode_file.url.startswith(S3_STORAGE_URL_FROM) or
         episode_file.image_url.startswith(S3_STORAGE_URL_FROM)
@@ -165,12 +179,14 @@ async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: As
         "Episode %s | START PROCESSING | url %s | image url %s ",
         episode_file.id, episode_file.url, episode_file.image_url,
     )
+    semaphore = semaphore or AsyncNullContext()
     try:
-        audio_obj_key = await move_file(s3_from, s3_to, episode_file)
-        image_obj_key = await move_file(
-            s3_from, s3_to,
-            episode_file=EpisodeFileData(id=episode_file.id, url=episode_file.image_url)
-        )
+        async with semaphore:
+            audio_obj_key = await move_file(s3_from, s3_to, episode_file)
+            image_obj_key = await move_file(
+                s3_from, s3_to,
+                episode_file=EpisodeFileData(id=episode_file.id, url=episode_file.image_url)
+            )
     except ValueError as e:
         logger.error("Couldn't download file: %s | episode %s", e, episode_file.id)
         return
@@ -199,7 +215,6 @@ async def process_episode(s3_from, s3_to, episode_file: EpisodeFileData, dbs: As
 
 
 async def main():
-    logger.info(f" ===== Running moving ===== ")
     session_s3_from = aioboto3.Session(
         aws_access_key_id=S3_AWS_ACCESS_KEY_ID_FROM,
         aws_secret_access_key=S3_AWS_SECRET_ACCESS_KEY_FROM,
@@ -219,13 +234,14 @@ async def main():
             async with session_s3_to.client("s3", endpoint_url=S3_STORAGE_URL_TO) as s3_to:
                 s3_from.bucket = S3_BUCKET_FROM
                 s3_to.bucket = S3_BUCKET_TO
+                semaphore = asyncio.Semaphore(MAX_CONCUR_REQ)
                 tasks = [
-                    process_episode(s3_from, s3_to, episode_file, db_session)
+                    process_episode(s3_from, s3_to, db_session, episode_file, semaphore)
                     for episode_file in episode_files
                 ]
-                # TODO: Limit with max downloads per time
-                # [await task for task in tqdm.asyncio.tqdm.as_completed(tasks)]
-                await progress_as_completed(tasks)
+                logger.info(f"==== Moving [{len(tasks)}] episodes ====")
+                for task in tqdm.asyncio.tqdm.as_completed(tasks):
+                    await task
 
 
 if __name__ == "__main__":
