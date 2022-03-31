@@ -49,7 +49,7 @@ LOGGING = {
         "console": {"class": "logging.StreamHandler", "formatter": "standard", "level": "INFO"}
     },
     "loggers": {
-        "move_s3": {"handlers": ["file"], "level": "DEBUG", "propagate": False},
+        "move_s3": {"handlers": ["file", "console"], "level": "DEBUG", "propagate": False},
     },
 }
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -106,6 +106,7 @@ async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
     episodes: Iterable[Episode] = await Episode.async_filter(
         dbs, status=EpisodeStatus.PUBLISHED
     )
+    # TODO: remove limits after testing
     return [
         EpisodeFileData(
             id=episode.id,
@@ -115,7 +116,7 @@ async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
             content_type=episode.content_type,
         )
         for episode in episodes
-    ]
+    ][:5]
 
 
 async def update_episode(dbs: AsyncSession, upload_result: EpisodeUploadData):
