@@ -116,10 +116,10 @@ async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
             content_type=episode.content_type,
         )
         for episode in episodes
-    ][:5]
+    ][:20]
 
 
-async def update_episode(dbs: AsyncSession, upload_result: EpisodeUploadData):
+async def update_episode(dbs: AsyncSession, upload_result: EpisodeUploadData) -> bool:
     try:
         await Episode.async_update(
             dbs,
@@ -136,9 +136,11 @@ async def update_episode(dbs: AsyncSession, upload_result: EpisodeUploadData):
             upload_result.episode_id, upload_result, err
         )
         await dbs.rollback()
-    else:
-        await dbs.commit()
-        logger.info("[episode %s] PROCESSED | %s", upload_result.episode_id, upload_result)
+        return False
+
+    await dbs.commit()
+    logger.info("[episode %s] PROCESSED | %s", upload_result.episode_id, upload_result)
+    return True
 
 
 class S3Moving:
@@ -160,13 +162,17 @@ class S3Moving:
         self.s3_to = session_s3_to.client(service_name="s3", endpoint_url=S3_STORAGE_URL_TO)
 
     async def run(self):
+        # FIXME: probably move session_maker to update operation
+        #  sqlalchemy.exc.DBAPIError: (sqlalchemy.dialects.postgresql.asyncpg.Error)
+        #  <class 'asyncpg.exceptions.ConnectionDoesNotExistError'>: connection was closed
+        #  in the middle of operation
         async with self.session_maker() as db_session:
             episode_files = await get_episode_files(db_session)
             episodes_count = len(episode_files)
             with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCUR_REQ) as executor:
                 futures = {
                     executor.submit(self._move_episode_files, episode_file): episode_file
-                    for episode_file in episode_files
+                    for i, episode_file in enumerate(episode_files, start=1)
                 }
                 logger.info(f"==== Moving [{episodes_count}] episodes ====")
                 for ind, future in enumerate(concurrent.futures.as_completed(futures), start=1):
@@ -178,18 +184,18 @@ class S3Moving:
                         upload_result = future.result()
                     except SkipError as err:
                         upload_result = err.skip_result
-                        logger.info('[episode %i] | SKIP | %s', episode_file.id, upload_result)
+                        logger.info('[episode %i] | SKIP (%i / %i) | %s', episode_file.id, upload_result)
                     except Exception as err:
                         logger.exception(
                             "[episode %i] | ERROR | Couldn't move file: %r | err %s",
                             episode_file.id, episode_file, err
                         )
                     else:
-                        await update_episode(db_session, upload_result)
-                        logger.info(
-                            '[episode %i] | DONE (%i / %i) | %s', episode_file.id, ind,
-                            episodes_count, upload_result
-                        )
+                        if await update_episode(db_session, upload_result):
+                            logger.info(
+                                '[episode %i] | DONE (%i / %i) | %s', episode_file.id, ind,
+                                episodes_count, upload_result
+                            )
 
     def _move_episode_files(self, episode_file: EpisodeFileData) -> EpisodeUploadData:
         if not (
@@ -200,7 +206,13 @@ class S3Moving:
                 "[episode %s] Skip | url %s | image url %s",
                 episode_file.id, episode_file.url, episode_file.image_url,
             )
-            raise SkipError
+            raise SkipError(
+                skip_result=EpisodeUploadData(
+                    episode_id=episode_file.id,
+                    audio_key=episode_file.url,
+                    image_key=episode_file.image_url
+                )
+            )
 
         logger.info(
             "[episode %s] START MOVING | url %s | image url %s ",
