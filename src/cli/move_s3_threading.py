@@ -104,7 +104,7 @@ def check_object(s3, bucket: str, obj_key: str, expected_size):
 
 async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
     episodes: Iterable[Episode] = await Episode.async_filter(
-        dbs, status=EpisodeStatus.PUBLISHED
+        dbs, status=EpisodeStatus.PUBLISHED, remote_url__ne=None
     )
     # TODO: remove limits after testing
     return [
@@ -193,8 +193,8 @@ class S3Moving:
 
     def _move_episode_files(self, episode_file: EpisodeFileData) -> EpisodeUploadData:
         if not (
-            episode_file.url.startswith(S3_STORAGE_URL_FROM) or
-            episode_file.image_url.startswith(S3_STORAGE_URL_FROM)
+            (episode_file.url and episode_file.url.startswith(S3_STORAGE_URL_FROM)) or
+            (episode_file.image_url and episode_file.image_url.startswith(S3_STORAGE_URL_FROM))
         ):
             logger.debug(
                 "[episode %s] Skip | url %s | image url %s",
@@ -226,7 +226,7 @@ class S3Moving:
         dirname = DOWNLOAD_DIR / os.path.dirname(obj_key)
         os.makedirs(dirname, exist_ok=True)
 
-        local_file_name = DOWNLOAD_DIR / obj_key
+        local_file_name = str(DOWNLOAD_DIR / obj_key)
         logger.debug('[episode %s] downloading %s', episode_file.id, episode_file.url)
         self.s3_from.download_file(
             Bucket=S3_BUCKET_FROM,
