@@ -3,6 +3,7 @@ import logging.config
 import mimetypes
 import os
 import asyncio
+from functools import partial
 from typing import Iterable, NamedTuple
 
 import boto3
@@ -92,14 +93,23 @@ def check_size(file_name: str, actual_size: int, expected_size: int = None):
         raise ValueError(f"File {file_name} has null-like size: {actual_size}")
 
 
-def check_object(s3, bucket: str, obj_key: str, expected_size):
+def check_object(s3, bucket: str, obj_key: str, expected_size: int, silent: bool = False) -> bool:
     logger.debug('Checking KEY %s | size %s', obj_key, expected_size)
-    response = s3.head_object(Bucket=bucket, Key=obj_key)
-    check_size(
-        obj_key,
-        actual_size=response.get('ContentLength', 0),
-        expected_size=expected_size
-    )
+
+    try:
+        response = s3.head_object(Bucket=bucket, Key=obj_key)
+        check_size(
+            obj_key,
+            actual_size=response.get('ContentLength', 0),
+            expected_size=expected_size
+        )
+    except Exception as err:
+        if silent:
+            logger.warning('ERROR for checking size: %s', err, exc_info=True)
+            return False
+        raise err
+
+    return True
 
 
 async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
@@ -168,29 +178,32 @@ class S3Moving:
         #  in the middle of operation
         async with self.session_maker() as db_session:
             episode_files = await get_episode_files(db_session)
-            episodes_count = len(episode_files)
-            with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCUR_REQ) as executor:
-                futures = {
-                    executor.submit(self._move_episode_files, episode_file): episode_file
-                    for i, episode_file in enumerate(episode_files, start=1)
-                }
-                logger.info(f"==== Moving [{episodes_count}] episodes ====")
-                for ind, future in enumerate(concurrent.futures.as_completed(futures), start=1):
-                    episode_file = futures[future]
-                    logger.info(
-                        '[episode %i] | START (%i from %i) |', episode_file.id, ind, episodes_count
+
+        episodes_count = len(episode_files)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCUR_REQ) as executor:
+            futures = {
+                executor.submit(self._move_episode_files, episode_file): episode_file
+                for i, episode_file in enumerate(episode_files, start=1)
+            }
+            logger.info(f"==== Moving [{episodes_count}] episodes ====")
+            for ind, future in enumerate(concurrent.futures.as_completed(futures), start=1):
+                episode_file = futures[future]
+                logger.info(
+                    '[episode %i] | START (%i from %i) |', episode_file.id, ind, episodes_count
+                )
+                try:
+                    upload_result = future.result()
+                except SkipError as err:
+                    upload_result = err.skip_result
+                    logger.info('[episode %i] | SKIP (%i / %i) | %s', episode_file.id, upload_result)
+                except Exception as err:
+                    logger.exception(
+                        "[episode %i] | ERROR | Couldn't move file: %r | err %s",
+                        episode_file.id, episode_file, err
                     )
-                    try:
-                        upload_result = future.result()
-                    except SkipError as err:
-                        upload_result = err.skip_result
-                        logger.info('[episode %i] | SKIP (%i / %i) | %s', episode_file.id, upload_result)
-                    except Exception as err:
-                        logger.exception(
-                            "[episode %i] | ERROR | Couldn't move file: %r | err %s",
-                            episode_file.id, episode_file, err
-                        )
-                    else:
+                else:
+                    async with self.session_maker() as db_session:
+                        # TODO: recheck DB session creation
                         if await update_episode(db_session, upload_result):
                             logger.info(
                                 '[episode %i] | DONE (%i / %i) | %s', episode_file.id, ind,
@@ -238,7 +251,17 @@ class S3Moving:
         dirname = DOWNLOAD_DIR / os.path.dirname(obj_key)
         os.makedirs(dirname, exist_ok=True)
 
+        local_file_name = self._download(obj_key, episode_file)
+        self._upload(obj_key, local_file_name, episode_file)
+        return obj_key
+
+    def _download(self, obj_key, episode_file: EpisodeFileData) -> str:
         local_file_name = str(DOWNLOAD_DIR / obj_key)
+        if os.path.exists(local_file_name) and (downloaded_size := get_file_size(local_file_name)):
+            if downloaded_size == episode_file.size:
+                logger.debug('[episode %s] skip downloading %s', episode_file.id, episode_file.url)
+                return local_file_name
+
         logger.debug('[episode %s] downloading %s', episode_file.id, episode_file.url)
         self.s3_from.download_file(
             Bucket=S3_BUCKET_FROM,
@@ -251,6 +274,19 @@ class S3Moving:
             actual_size=downloaded_size,
             expected_size=episode_file.size,
         )
+        return local_file_name
+
+    def _upload(self, obj_key: str, local_file_name: str, episode_file: EpisodeFileData):
+        _check_object = partial(
+            check_object,
+            self.s3_to,
+            bucket=S3_BUCKET_TO,
+            obj_key=obj_key,
+            expected_size=episode_file.size
+        )
+        if _check_object(silent=True):
+            logger.debug('[episode %s] skip uploading %s', episode_file.id, episode_file.url)
+            return
 
         if not (content_type := episode_file.content_type):
             content_type, _ = mimetypes.guess_type(local_file_name)
@@ -262,14 +298,7 @@ class S3Moving:
             Key=obj_key,
             ExtraArgs={"ContentType": content_type},
         )
-        check_object(
-            self.s3_to,
-            bucket=S3_BUCKET_TO,
-            obj_key=obj_key,
-            expected_size=episode_file.size
-        )
-        logger.debug('[episode %s] moving done %s', episode_file.id, episode_file.url)
-        return obj_key
+        _check_object()
 
 
 if __name__ == "__main__":
