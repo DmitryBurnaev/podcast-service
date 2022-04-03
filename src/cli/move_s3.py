@@ -15,8 +15,8 @@ from common.enums import EpisodeStatus
 from modules.podcast.models import Episode
 from modules.podcast.utils import get_file_size
 
-DOWNLOAD_DIR = settings.PROJECT_ROOT_DIR / '.misc/s3'
-LOG_FILENAME = settings.PROJECT_ROOT_DIR / '.misc/logs/moving.log'
+DOWNLOAD_DIR = settings.PROJECT_ROOT_DIR / ".misc/s3"
+LOG_FILENAME = settings.PROJECT_ROOT_DIR / ".misc/logs/moving.log"
 MAX_CONCUR_REQ = 10
 
 # S3 storage "FROM"
@@ -42,12 +42,8 @@ LOGGING = {
         },
     },
     "handlers": {
-        "file": {
-            "class": "logging.FileHandler",
-            "formatter": "standard",
-            "filename": LOG_FILENAME
-        },
-        "console": {"class": "logging.StreamHandler", "formatter": "standard", "level": "INFO"}
+        "file": {"class": "logging.FileHandler", "formatter": "standard", "filename": LOG_FILENAME},
+        "console": {"class": "logging.StreamHandler", "formatter": "standard", "level": "INFO"},
     },
     "loggers": {
         "move_s3": {"handlers": ["file", "console"], "level": "DEBUG", "propagate": False},
@@ -86,26 +82,23 @@ def check_size(file_name: str, actual_size: int, expected_size: int = None):
     if expected_size:
         if expected_size != actual_size:
             raise ValueError(
-                f"File {file_name} has incorrect size: "
-                f"{file_name} != {expected_size}"
+                f"File {file_name} has incorrect size: " f"{file_name} != {expected_size}"
             )
     elif actual_size < 1:
         raise ValueError(f"File {file_name} has null-like size: {actual_size}")
 
 
 def check_object(s3, bucket: str, obj_key: str, expected_size: int, silent: bool = False) -> bool:
-    logger.debug('Checking KEY %s | size %s', obj_key, expected_size)
+    logger.debug("Checking KEY %s | size %s", obj_key, expected_size)
 
     try:
         response = s3.head_object(Bucket=bucket, Key=obj_key)
         check_size(
-            obj_key,
-            actual_size=response.get('ContentLength', 0),
-            expected_size=expected_size
+            obj_key, actual_size=response.get("ContentLength", 0), expected_size=expected_size
         )
     except Exception as err:
         if silent:
-            logger.warning('SKIPPED: ERROR for checking size: %s', err)
+            logger.warning("SKIPPED: ERROR for checking size: %s", err)
             return False
         raise err
 
@@ -133,17 +126,19 @@ async def update_episode(dbs: AsyncSession, upload_result: EpisodeUploadData) ->
     try:
         await Episode.async_update(
             dbs,
-            filter_kwargs={'id': upload_result.episode_id},
+            filter_kwargs={"id": upload_result.episode_id},
             update_data={
-                'remote_url': upload_result.audio_key,
-                'image_url': upload_result.image_key,
-            }
+                "remote_url": upload_result.audio_key,
+                "image_url": upload_result.image_key,
+            },
         )
 
     except Exception as err:
         logger.exception(
             "[episode %s] Couldn't update | %s | err: %s",
-            upload_result.episode_id, upload_result, err
+            upload_result.episode_id,
+            upload_result,
+            err,
         )
         await dbs.rollback()
         return False
@@ -153,7 +148,6 @@ async def update_episode(dbs: AsyncSession, upload_result: EpisodeUploadData) ->
 
 
 class S3Moving:
-
     def __init__(self):
         session_s3_from = boto3.session.Session(
             aws_access_key_id=S3_AWS_ACCESS_KEY_ID_FROM,
@@ -188,60 +182,70 @@ class S3Moving:
                 except SkipError as err:
                     upload_result = err.skip_result
                     logger.info(
-                        '[episode %i] | SKIP (%i / %i) | %s',
-                        episode_file.id, ind, episodes_count, upload_result
+                        "[episode %i] | SKIP (%i / %i) | %s",
+                        episode_file.id,
+                        ind,
+                        episodes_count,
+                        upload_result,
                     )
                 except Exception as err:
                     logger.exception(
                         "[episode %i] | ERROR | Couldn't move file: %r | err %s",
-                        episode_file.id, episode_file, err
+                        episode_file.id,
+                        episode_file,
+                        err,
                     )
                 else:
                     async with self.session_maker() as db_session:
                         if await update_episode(db_session, upload_result):
                             logger.info(
-                                '[episode %i] | DONE (%i / %i) | %s', episode_file.id, ind,
-                                episodes_count, upload_result
+                                "[episode %i] | DONE (%i / %i) | %s",
+                                episode_file.id,
+                                ind,
+                                episodes_count,
+                                upload_result,
                             )
 
     def _move_episode_files(self, episode_file: EpisodeFileData) -> EpisodeUploadData:
         if not (
-            (episode_file.url and episode_file.url.startswith(S3_STORAGE_URL_FROM)) or
-            (episode_file.image_url and episode_file.image_url.startswith(S3_STORAGE_URL_FROM))
+            (episode_file.url and episode_file.url.startswith(S3_STORAGE_URL_FROM))
+            or (episode_file.image_url and episode_file.image_url.startswith(S3_STORAGE_URL_FROM))
         ):
             logger.debug(
                 "[episode %s] Skip | url %s | image url %s",
-                episode_file.id, episode_file.url, episode_file.image_url,
+                episode_file.id,
+                episode_file.url,
+                episode_file.image_url,
             )
             raise SkipError(
                 skip_result=EpisodeUploadData(
                     episode_id=episode_file.id,
                     audio_key=episode_file.url,
-                    image_key=episode_file.image_url
+                    image_key=episode_file.image_url,
                 )
             )
 
         logger.info(
             "[episode %s] START MOVING | url %s | image url %s ",
-            episode_file.id, episode_file.url, episode_file.image_url,
+            episode_file.id,
+            episode_file.url,
+            episode_file.image_url,
         )
         audio_obj_key = self._move_file(episode_file)
         image_obj_key = self._move_file(
             episode_file=EpisodeFileData(id=episode_file.id, url=episode_file.image_url)
         )
         return EpisodeUploadData(
-            episode_id=episode_file.id,
-            audio_key=audio_obj_key,
-            image_key=image_obj_key
+            episode_id=episode_file.id, audio_key=audio_obj_key, image_key=image_obj_key
         )
 
     def _move_file(self, episode_file: EpisodeFileData) -> str:
         if not episode_file.url.startswith(S3_STORAGE_URL_FROM):
-            logger.info('[episode %s] SKIP %s', episode_file.id, episode_file.url)
+            logger.info("[episode %s] SKIP %s", episode_file.id, episode_file.url)
             return episode_file.url
 
-        logger.debug('[episode %s] moving %s', episode_file.id, episode_file.url)
-        obj_key = '/'.join(episode_file.url.replace(S3_STORAGE_URL_FROM, '').rsplit('/')[1:])
+        logger.debug("[episode %s] moving %s", episode_file.id, episode_file.url)
+        obj_key = "/".join(episode_file.url.replace(S3_STORAGE_URL_FROM, "").rsplit("/")[1:])
         dirname = DOWNLOAD_DIR / os.path.dirname(obj_key)
         os.makedirs(dirname, exist_ok=True)
 
@@ -253,15 +257,11 @@ class S3Moving:
         local_file_name = str(DOWNLOAD_DIR / obj_key)
         if os.path.exists(local_file_name) and (downloaded_size := get_file_size(local_file_name)):
             if downloaded_size == episode_file.size:
-                logger.debug('[episode %s] skip downloading %s', episode_file.id, episode_file.url)
+                logger.debug("[episode %s] skip downloading %s", episode_file.id, episode_file.url)
                 return local_file_name
 
-        logger.debug('[episode %s] downloading %s', episode_file.id, episode_file.url)
-        self.s3_from.download_file(
-            Bucket=S3_BUCKET_FROM,
-            Key=obj_key,
-            Filename=local_file_name
-        )
+        logger.debug("[episode %s] downloading %s", episode_file.id, episode_file.url)
+        self.s3_from.download_file(Bucket=S3_BUCKET_FROM, Key=obj_key, Filename=local_file_name)
         downloaded_size = get_file_size(local_file_name)
         check_size(
             local_file_name,
@@ -276,16 +276,16 @@ class S3Moving:
             self.s3_to,
             bucket=S3_BUCKET_TO,
             obj_key=obj_key,
-            expected_size=episode_file.size
+            expected_size=episode_file.size,
         )
         if _check_object(silent=True):
-            logger.debug('[episode %s] skip uploading %s', episode_file.id, episode_file.url)
+            logger.debug("[episode %s] skip uploading %s", episode_file.id, episode_file.url)
             return
 
         if not (content_type := episode_file.content_type):
             content_type, _ = mimetypes.guess_type(local_file_name)
 
-        logger.debug('[episode %s] uploading %s', episode_file.id, episode_file.url)
+        logger.debug("[episode %s] uploading %s", episode_file.id, episode_file.url)
         self.s3_to.upload_file(
             Filename=local_file_name,
             Bucket=S3_BUCKET_TO,
