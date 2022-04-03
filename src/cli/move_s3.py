@@ -1,12 +1,12 @@
+import concurrent.futures
 import logging.config
 import mimetypes
 import os
 import asyncio
-from contextlib import nullcontext
+from functools import partial
 from typing import Iterable, NamedTuple
 
-import aioboto3
-import tqdm.asyncio
+import boto3
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
@@ -37,7 +37,7 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "standard": {
-            "format": "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+            "format": "%(asctime)s | %(threadName)s | %(levelname)s | %(message)s",
             "datefmt": "%d.%m.%Y %H:%M:%S",
         },
     },
@@ -46,10 +46,11 @@ LOGGING = {
             "class": "logging.FileHandler",
             "formatter": "standard",
             "filename": LOG_FILENAME
-        }
+        },
+        "console": {"class": "logging.StreamHandler", "formatter": "standard", "level": "INFO"}
     },
     "loggers": {
-        "move_s3": {"handlers": ["file"], "level": "DEBUG", "propagate": False},
+        "move_s3": {"handlers": ["file", "console"], "level": "DEBUG", "propagate": False},
     },
 }
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -57,14 +58,6 @@ os.makedirs(os.path.dirname(LOG_FILENAME), exist_ok=True)
 
 logging.config.dictConfig(LOGGING)
 logger = logging.getLogger("move_s3")
-
-
-class AsyncNullContext(nullcontext):
-    async def __aenter__(self):
-        return self.__enter__()
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        pass
 
 
 class EpisodeFileData(NamedTuple):
@@ -75,11 +68,18 @@ class EpisodeFileData(NamedTuple):
     content_type: str = None
 
 
-processed_files: list[EpisodeFileData] = []
+class EpisodeUploadData(NamedTuple):
+    episode_id: int
+    audio_key: str
+    image_key: str
+
+    def __str__(self):
+        return f"ep #{self.episode_id} | audio: {self.audio_key} | image: {self.audio_key}"
 
 
-async def progress_as_completed(tasks):
-    return [await task for task in tqdm.asyncio.tqdm.as_completed(tasks)]
+class SkipError(Exception):
+    def __init__(self, skip_result: EpisodeUploadData):
+        self.skip_result = skip_result
 
 
 def check_size(file_name: str, actual_size: int, expected_size: int = None):
@@ -93,20 +93,30 @@ def check_size(file_name: str, actual_size: int, expected_size: int = None):
         raise ValueError(f"File {file_name} has null-like size: {actual_size}")
 
 
-async def check_object(s3, obj_key: str, expected_size):
+def check_object(s3, bucket: str, obj_key: str, expected_size: int, silent: bool = False) -> bool:
     logger.debug('Checking KEY %s | size %s', obj_key, expected_size)
-    response = await s3.head_object(Bucket=s3.bucket, Key=obj_key)
-    check_size(
-        obj_key,
-        actual_size=response.get('ContentLength', 0),
-        expected_size=expected_size
-    )
+
+    try:
+        response = s3.head_object(Bucket=bucket, Key=obj_key)
+        check_size(
+            obj_key,
+            actual_size=response.get('ContentLength', 0),
+            expected_size=expected_size
+        )
+    except Exception as err:
+        if silent:
+            logger.warning('SKIPPED: ERROR for checking size: %s', err)
+            return False
+        raise err
+
+    return True
 
 
 async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
     episodes: Iterable[Episode] = await Episode.async_filter(
-        dbs, status=EpisodeStatus.PUBLISHED
+        dbs, status=EpisodeStatus.PUBLISHED, remote_url__ne=None
     )
+    # TODO: remove limits after testing
     return [
         EpisodeFileData(
             id=episode.id,
@@ -116,133 +126,174 @@ async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
             content_type=episode.content_type,
         )
         for episode in episodes
-    ]
+    ][:25]
 
 
-async def move_file(s3_from, s3_to, episode_file: EpisodeFileData) -> str:
-    if not episode_file.url.startswith(S3_STORAGE_URL_FROM):
-        logger.info('Episode %s | Skip %s', episode_file.id, episode_file.url)
-        return episode_file.url
-
-    logger.debug('Episode %s | Moving %s', episode_file.id, episode_file.url)
-    obj_key = '/'.join(episode_file.url.replace(S3_STORAGE_URL_FROM, '').rsplit('/')[1:])
-    dirname = DOWNLOAD_DIR / os.path.dirname(obj_key)
-    os.makedirs(dirname, exist_ok=True)
-
-    local_file_name = DOWNLOAD_DIR / obj_key
-    logger.debug('Episode %s | downloading %s', episode_file.id, episode_file.url)
-    await s3_from.download_file(
-        Bucket=s3_from.bucket,
-        Key=obj_key,
-        Filename=local_file_name
-    )
-    downloaded_size = get_file_size(local_file_name)
-    check_size(
-        local_file_name,
-        actual_size=downloaded_size,
-        expected_size=episode_file.size,
-    )
-
-    if not (content_type := episode_file.content_type):
-        content_type, _ = mimetypes.guess_type(local_file_name)
-
-    logger.debug('Episode %s | uploading %s', episode_file.id, episode_file.url)
-    await s3_to.upload_file(
-        Filename=local_file_name,
-        Bucket=s3_to.bucket,
-        Key=obj_key,
-        ExtraArgs={"ContentType": content_type},
-    )
-    await check_object(s3_to, obj_key, expected_size=episode_file.size)
-    logger.debug('Episode %s | moving done %s', episode_file.id, episode_file.url)
-    return obj_key
-
-
-async def process_episode(
-    s3_from,
-    s3_to,
-    dbs: AsyncSession,
-    episode_file: EpisodeFileData,
-    semaphore: asyncio.Semaphore = None
-):
-    if not (
-        episode_file.url.startswith(S3_STORAGE_URL_FROM) or
-        episode_file.image_url.startswith(S3_STORAGE_URL_FROM)
-    ):
-        logger.info(
-            "Episode %s | Skip | url %s | image url %s",
-            episode_file.id, episode_file.url, episode_file.image_url,
-        )
-        return
-
-    logger.info(
-        "Episode %s | START PROCESSING | url %s | image url %s ",
-        episode_file.id, episode_file.url, episode_file.image_url,
-    )
-    semaphore = semaphore or AsyncNullContext()
-    try:
-        async with semaphore:
-            audio_obj_key = await move_file(s3_from, s3_to, episode_file)
-            image_obj_key = await move_file(
-                s3_from, s3_to,
-                episode_file=EpisodeFileData(id=episode_file.id, url=episode_file.image_url)
-            )
-    except ValueError as e:
-        logger.error("Couldn't download file: %s | episode %s", e, episode_file.id)
-        return
-
+async def update_episode(dbs: AsyncSession, upload_result: EpisodeUploadData) -> bool:
     try:
         await Episode.async_update(
             dbs,
-            filter_kwargs={'id': episode_file.id},
+            filter_kwargs={'id': upload_result.episode_id},
             update_data={
-                'remote_url': audio_obj_key,
-                'image_url': image_obj_key,
+                'remote_url': upload_result.audio_key,
+                'image_url': upload_result.image_key,
             }
         )
+
     except Exception as err:
         logger.exception(
-            "Episode %s | Couldn't update %s | %s | err: %s",
-            episode_file.id, audio_obj_key, image_obj_key, err
+            "[episode %s] Couldn't update | %s | err: %s",
+            upload_result.episode_id, upload_result, err
         )
         await dbs.rollback()
-    else:
-        await dbs.commit()
+        return False
+
+    await dbs.commit()
+    return True
+
+
+class S3Moving:
+
+    def __init__(self):
+        session_s3_from = boto3.session.Session(
+            aws_access_key_id=S3_AWS_ACCESS_KEY_ID_FROM,
+            aws_secret_access_key=S3_AWS_SECRET_ACCESS_KEY_FROM,
+            region_name=S3_REGION_FROM,
+        )
+        session_s3_to = boto3.session.Session(
+            aws_access_key_id=S3_AWS_ACCESS_KEY_ID_TO,
+            aws_secret_access_key=S3_AWS_SECRET_ACCESS_KEY_TO,
+            region_name=S3_REGION_TO,
+        )
+        db_engine = create_async_engine(settings.DATABASE_DSN, echo=settings.DB_ECHO)
+        self.session_maker = sessionmaker(db_engine, expire_on_commit=False, class_=AsyncSession)
+        self.s3_from = session_s3_from.client(service_name="s3", endpoint_url=S3_STORAGE_URL_FROM)
+        self.s3_to = session_s3_to.client(service_name="s3", endpoint_url=S3_STORAGE_URL_TO)
+
+    async def run(self):
+        async with self.session_maker() as db_session:
+            episode_files = await get_episode_files(db_session)
+
+        episodes_count = len(episode_files)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCUR_REQ) as executor:
+            futures = {
+                executor.submit(self._move_episode_files, episode_file): episode_file
+                for i, episode_file in enumerate(episode_files, start=1)
+            }
+            logger.info(f"==== Moving [{episodes_count}] episodes ====")
+            for ind, future in enumerate(concurrent.futures.as_completed(futures), start=1):
+                episode_file = futures[future]
+                try:
+                    upload_result = future.result()
+                except SkipError as err:
+                    upload_result = err.skip_result
+                    logger.info(
+                        '[episode %i] | SKIP (%i / %i) | %s',
+                        episode_file.id, ind, episodes_count, upload_result
+                    )
+                except Exception as err:
+                    logger.exception(
+                        "[episode %i] | ERROR | Couldn't move file: %r | err %s",
+                        episode_file.id, episode_file, err
+                    )
+                else:
+                    async with self.session_maker() as db_session:
+                        if await update_episode(db_session, upload_result):
+                            logger.info(
+                                '[episode %i] | DONE (%i / %i) | %s', episode_file.id, ind,
+                                episodes_count, upload_result
+                            )
+
+    def _move_episode_files(self, episode_file: EpisodeFileData) -> EpisodeUploadData:
+        if not (
+            (episode_file.url and episode_file.url.startswith(S3_STORAGE_URL_FROM)) or
+            (episode_file.image_url and episode_file.image_url.startswith(S3_STORAGE_URL_FROM))
+        ):
+            logger.debug(
+                "[episode %s] Skip | url %s | image url %s",
+                episode_file.id, episode_file.url, episode_file.image_url,
+            )
+            raise SkipError(
+                skip_result=EpisodeUploadData(
+                    episode_id=episode_file.id,
+                    audio_key=episode_file.url,
+                    image_key=episode_file.image_url
+                )
+            )
+
         logger.info(
-            "Episode %s | PROCESSED | url %s | image url %s ",
-            episode_file.id,  audio_obj_key, image_obj_key,
+            "[episode %s] START MOVING | url %s | image url %s ",
+            episode_file.id, episode_file.url, episode_file.image_url,
+        )
+        audio_obj_key = self._move_file(episode_file)
+        image_obj_key = self._move_file(
+            episode_file=EpisodeFileData(id=episode_file.id, url=episode_file.image_url)
+        )
+        return EpisodeUploadData(
+            episode_id=episode_file.id,
+            audio_key=audio_obj_key,
+            image_key=image_obj_key
         )
 
+    def _move_file(self, episode_file: EpisodeFileData) -> str:
+        if not episode_file.url.startswith(S3_STORAGE_URL_FROM):
+            logger.info('[episode %s] SKIP %s', episode_file.id, episode_file.url)
+            return episode_file.url
 
-async def main():
-    session_s3_from = aioboto3.Session(
-        aws_access_key_id=S3_AWS_ACCESS_KEY_ID_FROM,
-        aws_secret_access_key=S3_AWS_SECRET_ACCESS_KEY_FROM,
-        region_name=S3_REGION_FROM,
-    )
-    session_s3_to = aioboto3.Session(
-        aws_access_key_id=S3_AWS_ACCESS_KEY_ID_TO,
-        aws_secret_access_key=S3_AWS_SECRET_ACCESS_KEY_TO,
-        region_name=S3_REGION_TO,
-    )
-    db_engine = create_async_engine(settings.DATABASE_DSN, echo=settings.DB_ECHO)
-    session_maker = sessionmaker(db_engine, expire_on_commit=False, class_=AsyncSession)
+        logger.debug('[episode %s] moving %s', episode_file.id, episode_file.url)
+        obj_key = '/'.join(episode_file.url.replace(S3_STORAGE_URL_FROM, '').rsplit('/')[1:])
+        dirname = DOWNLOAD_DIR / os.path.dirname(obj_key)
+        os.makedirs(dirname, exist_ok=True)
 
-    async with session_maker() as db_session:
-        episode_files = await get_episode_files(db_session)
-        async with session_s3_from.client("s3", endpoint_url=S3_STORAGE_URL_FROM) as s3_from:
-            async with session_s3_to.client("s3", endpoint_url=S3_STORAGE_URL_TO) as s3_to:
-                s3_from.bucket = S3_BUCKET_FROM
-                s3_to.bucket = S3_BUCKET_TO
-                semaphore = asyncio.Semaphore(MAX_CONCUR_REQ)
-                tasks = [
-                    process_episode(s3_from, s3_to, db_session, episode_file, semaphore)
-                    for episode_file in episode_files
-                ]
-                logger.info(f"==== Moving [{len(tasks)}] episodes ====")
-                for task in tqdm.asyncio.tqdm.as_completed(tasks):
-                    await task
+        local_file_name = self._download(obj_key, episode_file)
+        self._upload(obj_key, local_file_name, episode_file)
+        return obj_key
+
+    def _download(self, obj_key, episode_file: EpisodeFileData) -> str:
+        local_file_name = str(DOWNLOAD_DIR / obj_key)
+        if os.path.exists(local_file_name) and (downloaded_size := get_file_size(local_file_name)):
+            if downloaded_size == episode_file.size:
+                logger.debug('[episode %s] skip downloading %s', episode_file.id, episode_file.url)
+                return local_file_name
+
+        logger.debug('[episode %s] downloading %s', episode_file.id, episode_file.url)
+        self.s3_from.download_file(
+            Bucket=S3_BUCKET_FROM,
+            Key=obj_key,
+            Filename=local_file_name
+        )
+        downloaded_size = get_file_size(local_file_name)
+        check_size(
+            local_file_name,
+            actual_size=downloaded_size,
+            expected_size=episode_file.size,
+        )
+        return local_file_name
+
+    def _upload(self, obj_key: str, local_file_name: str, episode_file: EpisodeFileData):
+        _check_object = partial(
+            check_object,
+            self.s3_to,
+            bucket=S3_BUCKET_TO,
+            obj_key=obj_key,
+            expected_size=episode_file.size
+        )
+        if _check_object(silent=True):
+            logger.debug('[episode %s] skip uploading %s', episode_file.id, episode_file.url)
+            return
+
+        if not (content_type := episode_file.content_type):
+            content_type, _ = mimetypes.guess_type(local_file_name)
+
+        logger.debug('[episode %s] uploading %s', episode_file.id, episode_file.url)
+        self.s3_to.upload_file(
+            Filename=local_file_name,
+            Bucket=S3_BUCKET_TO,
+            Key=obj_key,
+            ExtraArgs={"ContentType": content_type},
+        )
+        _check_object()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(S3Moving().run())
