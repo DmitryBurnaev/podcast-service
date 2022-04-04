@@ -1,8 +1,8 @@
-import concurrent.futures
-import logging.config
-import mimetypes
 import os
 import asyncio
+import mimetypes
+import logging.config
+import concurrent.futures
 from functools import partial
 from typing import Iterable, NamedTuple
 
@@ -109,7 +109,6 @@ async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
     episodes: Iterable[Episode] = await Episode.async_filter(
         dbs, status=EpisodeStatus.PUBLISHED, remote_url__ne=None
     )
-    # TODO: remove limits after testing
     return [
         EpisodeFileData(
             id=episode.id,
@@ -119,7 +118,7 @@ async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
             content_type=episode.content_type,
         )
         for episode in episodes
-    ][:25]
+    ]
 
 
 async def update_episode(dbs: AsyncSession, upload_result: EpisodeUploadData) -> bool:
