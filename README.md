@@ -119,41 +119,42 @@ make lint
 
 ### REQUIRED Variables
 
-| argument                  | description                                       | example               |
-|:------------------------- |:-------------------------------------------------:| ---------------------:|
-| APP_HOST                  | App default host running (used by docker compose) | 127.0.0.1             |
-| APP_PORT                  | App default port running (used by docker compose) | 9000                  |
-| APP_SERVICE               | Run service (web/celery/test) via entrypoint.sh   | web                   |
-| SECRET_KEY                | Django secret key (security)                      | _abc3412j345j1f2d3f_  |
-| SITE_URL                  | Your URL address (is used for email links)        | http://podcast.st.com |
-| DB_HOST                   | PostgreSQL database host                          | 127.0.0.1             |
-| DB_PORT                   | PostgreSQL database port                          | 5432                  |
-| DB_NAME                   | PostgreSQL database name                          | podcast               |
-| DB_USERNAME               | PostgreSQL database username                      | podcast               |
-| DB_PASSWORD               | PostgreSQL database password                      | podcast_asf2342       |
-| S3_STORAGE_URL            | URL to S3-like file storage                       | https://storage.yandexcloud.net/ |
-| S3_ACCESS_KEY_ID          | Public key to S3 storage                          |                       |
-| S3_SECRET_ACCESS_KEY      | Secret key to S3 storage                          |                       |
-| S3_BUCKET_NAME            | S3 bucket                                         |                       |
-| S3_BUCKET_AUDIO_PATH      | S3 dir for episodes                               | files                 |
-| S3_BUCKET_IMAGES_PATH     | S3 dir for images (episode,podcast covers)        | files                 |
-| S3_BUCKET_RSS_PATH        | S3 dir for generated RSS feeds                    | files                 |
+| argument              |                    description                    |                         example |
+|:----------------------|:-------------------------------------------------:|--------------------------------:|
+| APP_HOST              | App default host running (used by docker compose) |                       127.0.0.1 |
+| APP_PORT              | App default port running (used by docker compose) |                            9000 |
+| APP_SERVICE           |  Run service (web/celery/test) via entrypoint.sh  |                             web |
+| SECRET_KEY            |           Django secret key (security)            |            _abc3412j345j1f2d3f_ |
+| SITE_URL              |    Your URL address (is used for email links)     |           http://podcast.st.com |
+| DB_HOST               |             PostgreSQL database host              |                       127.0.0.1 |
+| DB_PORT               |             PostgreSQL database port              |                            5432 |
+| DB_NAME               |             PostgreSQL database name              |                         podcast |
+| DB_USERNAME           |           PostgreSQL database username            |                         podcast |
+| DB_PASSWORD           |           PostgreSQL database password            |                 podcast_asf2342 |
+| S3_STORAGE_URL        |            URL to S3-like file storage            | https://s3.storage.endpoint.net |
+| S3_ACCESS_KEY_ID      |             Public key to S3 storage              |                                 |
+| S3_SECRET_ACCESS_KEY  |             Secret key to S3 storage              |                                 |
+| S3_REGION_NAME        |                     S3 region                     |                                 |
+| S3_BUCKET_NAME        |                     S3 bucket                     |                   podcast-media |
+| S3_BUCKET_AUDIO_PATH  |                S3 dir for episodes                |                           audio |
+| S3_BUCKET_IMAGES_PATH |    S3 dir for images (episode,podcast covers)     |                          images |
+| S3_BUCKET_RSS_PATH    |          S3 dir for generated RSS feeds           |                             rss |
 
 ### OPTIONAL Variables
 
-| argument                  | description                                       | default               |
-|:------------------------- |:-------------------------------------------------:| ---------------------:|
-| JWT_EXPIRES_IN            | Default time for token's lifespan                 | 300 (sec)             |
-| APP_DEBUG                 | Run app in debug mode                             | False                 |
-| LOG_LEVEL                 | Allows to set current logging level               | DEBUG                 |
-| SENTRY_DSN                | Sentry dsn (if not set, error logs won't be sent) |                       |
-| REDIS_HOST                | Redis host                                        | localhost             |
-| REDIS_PORT                | Redis port                                        | 6379                  |
-| REDIS_DB                  | Redis db                                          | 0                     |
-| DB_NAME_TEST              | Custom name for DB name for tests                 | `DB_NAME` + `_test`   |
-| SENDGRID_API_KEY          | Is needed for sending Email (invite, passw., etc) |                       |
-| EMAIL_FROM                | Is needed for sending Email                       |                       |
-| DB_ECHO                   | Sending all db queries to stdout                  | False                 |
+| argument         |                    description                    |             default |
+|:-----------------|:-------------------------------------------------:|--------------------:|
+| JWT_EXPIRES_IN   |         Default time for token's lifespan         |           300 (sec) |
+| APP_DEBUG        |               Run app in debug mode               |               False |
+| LOG_LEVEL        |        Allows to set current logging level        |               DEBUG |
+| SENTRY_DSN       | Sentry dsn (if not set, error logs won't be sent) |                     |
+| REDIS_HOST       |                    Redis host                     |           localhost |
+| REDIS_PORT       |                    Redis port                     |                6379 |
+| REDIS_DB         |                     Redis db                      |                   0 |
+| DB_NAME_TEST     |         Custom name for DB name for tests         | `DB_NAME` + `_test` |
+| SENDGRID_API_KEY | Is needed for sending Email (invite, passw., etc) |                     |
+| EMAIL_FROM       |            Is needed for sending Email            |                     |
+| DB_ECHO          |         Sending all db queries to stdout          |               False |
 
 
 * * *

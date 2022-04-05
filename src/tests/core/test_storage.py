@@ -131,8 +131,8 @@ class TestS3Storage:
         await_(StorageS3().delete_files_async(["test.mp3", "test2.mp3"], "remote-path"))
 
         expected_calls = [
-            {"Key": "remote-path/test.mp3", "Bucket": "test-podcast-media"},
-            {"Key": "remote-path/test2.mp3", "Bucket": "test-podcast-media"},
+            {"Key": "remote-path/test.mp3", "Bucket": "podcast-media"},
+            {"Key": "remote-path/test2.mp3", "Bucket": "podcast-media"},
         ]
         actual_calls = [call.kwargs for call in mock_client.delete_object.call_args_list]
         assert actual_calls == expected_calls
