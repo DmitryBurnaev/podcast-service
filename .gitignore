@@ -6,4 +6,6 @@
 .coverage
 .pytest_cache
 .python-version
+.log
+.misc
 /media

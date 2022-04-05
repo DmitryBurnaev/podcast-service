@@ -74,6 +74,8 @@ JWT_ALGORITHM = "HS512"  # see https://pyjwt.readthedocs.io/en/latest/algorithms
 S3_STORAGE_URL = config("S3_STORAGE_URL")
 S3_AWS_ACCESS_KEY_ID = config("S3_AWS_ACCESS_KEY_ID")
 S3_AWS_SECRET_ACCESS_KEY = config("S3_AWS_SECRET_ACCESS_KEY")
+S3_REGION_NAME = config("S3_REGION_NAME")
+
 S3_BUCKET_NAME = config("S3_BUCKET_NAME", default="podcast")
 S3_BUCKET_AUDIO_PATH = config("S3_BUCKET_AUDIO_PATH", default="audio/")
 S3_BUCKET_RSS_PATH = config("S3_BUCKET_RSS_PATH", default="rss/")

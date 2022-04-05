@@ -31,7 +31,7 @@ class DownloadEpisodeTask(RQTask):
     Allows downloading media from the source and recreate podcast's rss (by requested episode_id)
     """
 
-    storage: StorageS3 = None
+    storage: StorageS3
 
     async def run(self, episode_id: int) -> int:
         self.storage = StorageS3()

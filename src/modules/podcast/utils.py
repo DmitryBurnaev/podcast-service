@@ -80,7 +80,7 @@ async def check_state(episodes: Iterable[Episode]) -> list:
 
 def upload_process_hook(filename: str, chunk: int):
     """
-    Allows handling uploading to Yandex.Cloud (S3) and update redis state (for user's progress).
+    Allows handling uploading to S3 storage and update redis state (for user's progress).
     It is called by `s3.upload_file` (`podcast.utils.upload_episode`)
     """
     episode_process_hook(filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk)
@@ -134,7 +134,7 @@ def episode_process_hook(
 
 
 def upload_episode(filename: str, src_path: str = None) -> Optional[str]:
-    """Allows uploading src_path to Yandex.Cloud (aka AWS S3)"""
+    """Allows uploading src_path to S3 storage"""
 
     src_path = src_path or os.path.join(settings.TMP_AUDIO_PATH, filename)
     episode_process_hook(
