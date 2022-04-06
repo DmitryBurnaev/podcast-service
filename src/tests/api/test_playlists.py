@@ -61,7 +61,6 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
     def test_retrieve__use_cookies(
         self, dbs, client, user, mocked_source_info_yandex, mocked_youtube
     ):
-        # TODO fix remaining tests
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
         cdata = self.cdata | {"owner_id": user.id}
         cookie = await_(Cookie.async_create(dbs, db_commit=True, **cdata))

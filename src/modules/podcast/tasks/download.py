@@ -234,7 +234,7 @@ class DownloadEpisodeImageTask(RQTask):
             if settings.S3_STORAGE_URL in episode.image_url:
                 logger.info("Skip episode %i | image URL: %s", episode.id, episode.image_url)
                 continue
-
+            # TODO: make decision for default images URL
             if tmp_path := await self._crop_image(episode):
                 result_url = await self._upload_cover(episode, tmp_path)
             else:
