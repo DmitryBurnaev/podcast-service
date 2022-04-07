@@ -2,7 +2,6 @@ import os
 import uuid
 from hashlib import md5
 from datetime import datetime
-from xml.sax.saxutils import escape
 
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -58,7 +57,7 @@ class Podcast(ModelBase, ModelMixin):
         )
 
     @classmethod
-    def generate_publish_id(cls):
+    def generate_publish_id(cls) -> str:
         return md5(uuid.uuid4().hex.encode("utf-8")).hexdigest()[::2]
 
     def generate_image_name(self) -> str:
@@ -96,7 +95,7 @@ class Episode(ModelBase, ModelMixin):
         order_by = ("-created_at",)
         db_table = "podcast_episodes"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'<Episode #{self.id} {self.source_id} [{self.status}] "{self.title[:10]}..." >'
 
     @classmethod
@@ -108,7 +107,8 @@ class Episode(ModelBase, ModelMixin):
 
     @property
     def safe_image_url(self) -> str:
-        return escape(self.image_url or "")
+        # TODO: generate image url
+        return self.image_url or settings.DEFAULT_EPISODE_COVER
 
     @property
     def content_type(self) -> str:

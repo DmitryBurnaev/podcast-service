@@ -231,14 +231,14 @@ class DownloadEpisodeImageTask(RQTask):
 
         for index, episode in enumerate(episodes, start=1):
             logger.info("=== Episode %i from %i ===", index, episodes_count)
-            if settings.S3_STORAGE_URL in episode.image_url:
+            if episode.image_url.startswith(settings.S3_BUCKET_IMAGES_PATH):
                 logger.info("Skip episode %i | image URL: %s", episode.id, episode.image_url)
                 continue
-            # TODO: make decision for default images URL
+
             if tmp_path := await self._crop_image(episode):
                 result_url = await self._upload_cover(episode, tmp_path)
             else:
-                result_url = settings.DEFAULT_EPISODE_COVER
+                result_url = ''
 
             logger.info("Saving new image URL: episode %s | url %s", episode.id, result_url)
             await episode.update(self.db_session, image_url=result_url)
@@ -256,8 +256,8 @@ class DownloadEpisodeImageTask(RQTask):
         return tmp_path
 
     async def _upload_cover(self, episode: Episode, tmp_path: Path) -> str:
-        attempt = self.MAX_UPLOAD_ATTEMPT
-        while attempt := (attempt - 1):
+        attempt = 1
+        while attempt <= self.MAX_UPLOAD_ATTEMPT:
             if result_url := self.storage.upload_file(
                 src_path=str(tmp_path),
                 dst_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH,
@@ -265,6 +265,7 @@ class DownloadEpisodeImageTask(RQTask):
             ):
                 return result_url
 
-            await asyncio.sleep(1)
+            attempt += 1
+            await asyncio.sleep(attempt)
 
         raise MaxAttemptsReached("Couldn't upload cover for episode")

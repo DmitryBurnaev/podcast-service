@@ -3,7 +3,7 @@
      xmlns:media="http://search.yahoo.com/mrss/" version="2.0">
     <channel>
         <title>{{ podcast.name }}</title>
-        <link>https://pycoders.com/</link>
+        <link>{{ settings.SITE_URL }}</link>
         <language>ru</language>
         <copyright>Creative Commons - Attribution, Noncommercial, No Derivative Works 3.0 License.</copyright>
         <description>{{ podcast.description }}</description>
