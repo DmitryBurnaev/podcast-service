@@ -1,4 +1,5 @@
 import os
+import urllib.parse
 import uuid
 from hashlib import md5
 from datetime import datetime
@@ -118,6 +119,10 @@ class Episode(ModelBase, ModelMixin):
     @classmethod
     def generate_image_name(cls, source_id: str) -> str:
         return f"{source_id}_{uuid.uuid4().hex}.png"
+
+    def generate_url(self, media_type: str, podcast: Podcast = None):
+        # TODO: generate URL with token here
+        return urllib.parse.urljoin(settings.MEDIA_URL, f'{media_type}/{self.id}')
 
 
 class Cookie(ModelBase, ModelMixin):
