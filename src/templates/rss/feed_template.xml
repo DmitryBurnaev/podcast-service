@@ -5,13 +5,13 @@
         <title>{{ podcast.name }}</title>
         <link>{{ settings.SITE_URL }}</link>
         <language>ru</language>
-        <copyright>Creative Commons - Attribution, Noncommercial, No Derivative Works 3.0 License.</copyright>
+        <copyright>Creative Commons - Attribution, Noncommercial, NoDerivatives 3.0 License.</copyright>
         <description>{{ podcast.description }}</description>
         <itunes:image href="{{ podcast.safe_image_url }}"/>
         <itunes:author>{{ podcast.name }}</itunes:author>
         <itunes:summary>Custom created episodes</itunes:summary>
 
-        <media:copyright>Creative Commons - Attribution, Noncommercial, No Derivative Works 3.0 License.</media:copyright>
+        <media:copyright>Creative Commons - Attribution, Noncommercial, NoDerivatives 3.0 License.</media:copyright>
         <media:thumbnail url="{{ podcast.safe_image_url }}"/>
         <media:keywords>audio</media:keywords>
         <media:category scheme="http://www.itunes.com/dtds/podcast-1.0.dtd">Technology</media:category>

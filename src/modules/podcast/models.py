@@ -83,7 +83,7 @@ class Episode(ModelBase, ModelMixin):
     image_url = Column(String(length=512))
     length = Column(Integer, default=0)
     description = Column(String)
-    file_name = Column(String(length=128))
+    file_path = Column(String(length=128))
     file_size = Column(Integer, default=0)
     author = Column(String(length=256))
     status = EnumTypeColumn(Status, default=Status.NEW, nullable=False)
