@@ -32,3 +32,12 @@ class EpisodeStatus(enum.Enum):
         # TODO: using capitalized values will allow to avoid this hack
         #       will be replaced -> cls.__members__.keys()
         return [str(v) for v in cls.__members__.values()]
+
+
+class FileType(enum.Enum):
+    AUDIO = "AUDIO"
+    IMAGE = "IMAGE"
+    RSS = "RSS"
+
+    def __str__(self):
+        return self.value

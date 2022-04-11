@@ -1,6 +1,6 @@
 import os
-import urllib.parse
 import uuid
+import urllib.parse
 from hashlib import md5
 from datetime import datetime
 
@@ -10,17 +10,17 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, T
 
 from core import settings
 from core.database import ModelBase
+from common.utils import get_logger
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
 from common.enums import SourceType, EpisodeStatus
-from common.utils import get_logger
 
 
 logger = get_logger(__name__)
 
 
 class Podcast(ModelBase, ModelMixin):
-    """Simple schema_request for saving podcast in DB"""
+    """ SQLAlchemy schema for podcast instances """
 
     __tablename__ = "podcast_podcasts"
 
@@ -33,6 +33,7 @@ class Podcast(ModelBase, ModelMixin):
     download_automatically = Column(Boolean, default=True)
     rss_link = Column(String(length=128))
     image_url = Column(String(length=512))
+    image_id = Column(Integer, ForeignKey("media_files.id", ondelete="CASCADE"))
     owner_id = Column(Integer(), ForeignKey("auth_users.id"))
 
     episodes = relationship("Episode")
@@ -66,7 +67,7 @@ class Podcast(ModelBase, ModelMixin):
 
 
 class Episode(ModelBase, ModelMixin):
-    """Simple schema_request for saving episodes in DB"""
+    """ SQLAlchemy schema for episode instances """
 
     __tablename__ = "podcast_episodes"
     Status = EpisodeStatus
@@ -80,10 +81,12 @@ class Episode(ModelBase, ModelMixin):
     title = Column(String(length=256), nullable=False)
     watch_url = Column(String(length=128))
     remote_url = Column(String(length=128))
+    audio_id = Column(Integer, ForeignKey("media_files.id", ondelete="CASCADE"))
     image_url = Column(String(length=512))
+    image_id = Column(Integer, ForeignKey("media_files.id", ondelete="CASCADE"))
     length = Column(Integer, default=0)
     description = Column(String)
-    file_path = Column(String(length=128))
+    file_name = Column(String(length=128))
     file_size = Column(Integer, default=0)
     author = Column(String(length=256))
     status = EnumTypeColumn(Status, default=Status.NEW, nullable=False)
@@ -94,7 +97,6 @@ class Episode(ModelBase, ModelMixin):
 
     class Meta:
         order_by = ("-created_at",)
-        db_table = "podcast_episodes"
 
     def __str__(self) -> str:
         return f'<Episode #{self.id} {self.source_id} [{self.status}] "{self.title[:10]}..." >'
