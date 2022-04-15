@@ -18,13 +18,13 @@ class File(ModelBase, ModelMixin):
     __tablename__ = "media_files"
 
     id = Column(Integer, primary_key=True)
-    type = EnumTypeColumn(FileType)
-    path = Column(String(length=256))
+    type = EnumTypeColumn(FileType, nullable=False)
+    path = Column(String(length=256), nullable=False)
     size = Column(Integer, default=0)
-    source_url = Column(String(length=512))
-    available = Column(Boolean, default=False)
-    access_token = Column(String(length=128), index=True)
-    owner_id = Column(Integer, ForeignKey("auth_users.id"), index=True)
+    source_url = Column(String(length=512), nullable=False, default='')
+    available = Column(Boolean, nullable=False, default=False)
+    access_token = Column(String(length=128), nullable=False, index=True, unique=True)
+    owner_id = Column(Integer, ForeignKey("auth_users.id"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     def __str__(self):
