@@ -11,6 +11,9 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 from sqlalchemy import table, column, String, Integer, select
+from sqlalchemy.engine import Connection
+
+from common.enums import EpisodeStatus
 
 revision = '2c92a9133aaa'
 down_revision = '9e313cd15619'
@@ -28,7 +31,7 @@ episodes = table(
     column("owner_id", sa.Integer),
 )
 
-files = op.create_table(
+files = table(
     'media_files',
     sa.Column('id', sa.Integer),
     sa.Column('type', sa.VARCHAR),
@@ -43,9 +46,11 @@ files = op.create_table(
 
 
 def fill_media():
-    episodes_select = select(episodes).where(episodes.c.status)
+    conn: Connection = op.get_bind()
+    episodes_select = select(episodes).where(episodes.c.status == EpisodeStatus.PUBLISHED)
     episode_items = []
-    for row in op.execute(episodes_select):
+
+    for row in conn.execute(episodes_select):
         episode_items.append({
             "id": row._mapping['id'],
             "audio_path": row._mapping['remote_url'],
@@ -53,7 +58,9 @@ def fill_media():
             "image_path": row._mapping['image_url'],
             "owner_id": row._mapping['owner_id'],
         })
+    print(episode_items[0])
 
+    raise RuntimeError
     d = {
         "episode_id": 1,
         "audio_path": "",
@@ -64,6 +71,7 @@ def fill_media():
 
 
 def upgrade():
+    fill_media()
     pass
 
 
