@@ -33,4 +33,5 @@ class File(ModelBase, ModelMixin):
 
     @classmethod
     def generate_token(cls) -> str:
+        # TODO: generate token here !!!
         return uuid.uuid4().hex
