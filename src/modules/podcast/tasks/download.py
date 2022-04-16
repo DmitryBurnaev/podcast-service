@@ -238,7 +238,7 @@ class DownloadEpisodeImageTask(RQTask):
             if tmp_path := await self._crop_image(episode):
                 result_url = await self._upload_cover(episode, tmp_path)
             else:
-                result_url = ''
+                result_url = ""
 
             logger.info("Saving new image URL: episode %s | url %s", episode.id, result_url)
             await episode.update(self.db_session, image_url=result_url)

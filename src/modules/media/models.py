@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
@@ -13,7 +14,7 @@ logger = get_logger(__name__)
 
 
 class File(ModelBase, ModelMixin):
-    """ Storing files separately allows supporting individual access for them """
+    """Storing files separately allows supporting individual access for them"""
 
     __tablename__ = "media_files"
 
@@ -21,7 +22,7 @@ class File(ModelBase, ModelMixin):
     type = EnumTypeColumn(FileType, nullable=False)
     path = Column(String(length=256), nullable=False)
     size = Column(Integer, default=0)
-    source_url = Column(String(length=512), nullable=False, default='')
+    source_url = Column(String(length=512), nullable=False, default="")
     available = Column(Boolean, nullable=False, default=False)
     access_token = Column(String(length=128), nullable=False, index=True, unique=True)
     owner_id = Column(Integer, ForeignKey("auth_users.id"), nullable=False, index=True)
@@ -30,3 +31,6 @@ class File(ModelBase, ModelMixin):
     def __str__(self):
         return f'<File #{self.id} "{self.path}">'
 
+    @classmethod
+    def generate_token(cls) -> str:
+        return uuid.uuid4().hex

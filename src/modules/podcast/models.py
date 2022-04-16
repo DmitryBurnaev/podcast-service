@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 
 class Podcast(ModelBase, ModelMixin):
-    """ SQLAlchemy schema for podcast instances """
+    """SQLAlchemy schema for podcast instances"""
 
     __tablename__ = "podcast_podcasts"
 
@@ -67,7 +67,7 @@ class Podcast(ModelBase, ModelMixin):
 
 
 class Episode(ModelBase, ModelMixin):
-    """ SQLAlchemy schema for episode instances """
+    """SQLAlchemy schema for episode instances"""
 
     __tablename__ = "podcast_episodes"
     Status = EpisodeStatus
@@ -124,7 +124,7 @@ class Episode(ModelBase, ModelMixin):
 
     def generate_url(self, media_type: str, podcast: Podcast = None):
         # TODO: generate URL with token here
-        return urllib.parse.urljoin(settings.MEDIA_URL, f'{media_type}/{self.id}')
+        return urllib.parse.urljoin(settings.MEDIA_URL, f"{media_type}/{self.id}")
 
 
 class Cookie(ModelBase, ModelMixin):
