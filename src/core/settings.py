@@ -93,7 +93,7 @@ EMAIL_FROM = config("EMAIL_FROM", default="").strip("'\"")
 INVITE_LINK_EXPIRES_IN = 3 * 24 * 3600  # 3 day
 RESET_PASSWORD_LINK_EXPIRES_IN = 3 * 3600  # 3 hours
 
-SITE_URL = config("SITE_URL", default="") or "https://podcast.site.com/"
+SITE_URL = config("SITE_URL", default="") or "https://podcast.site.com"
 SERVICE_URL = config("SERVICE_URL", default="") or "https://podcast-service.site.com/"
 
 DOWNLOAD_EVENT_REDIS_TTL = 60 * 60  # 60 minutes

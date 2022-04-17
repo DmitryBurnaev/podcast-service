@@ -1,4 +1,5 @@
 import os.path
+import urllib.parse
 from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
@@ -38,7 +39,7 @@ class File(ModelBase, ModelMixin):
 
     @property
     def url(self) -> str:
-        return f"{settings.SERVICE_URL}/m/{self.access_token}"
+        return urllib.parse.urljoin(settings.SERVICE_URL, f"/m/{self.access_token}")
 
     @property
     def content_type(self) -> str:

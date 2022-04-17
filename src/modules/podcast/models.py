@@ -13,7 +13,7 @@ from common.utils import get_logger
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
 from common.enums import SourceType, EpisodeStatus
-
+from modules.media.models import File  # noqa (need for sqlalchemy's relationships)
 
 logger = get_logger(__name__)
 
@@ -37,7 +37,7 @@ class Podcast(ModelBase, ModelMixin):
     owner_id = Column(Integer(), ForeignKey("auth_users.id"))
 
     episodes = relationship("Episode")
-    image = relationship("File")
+    image = relationship("File", foreign_keys=[image_id], lazy="joined")
 
     def __str__(self):
         return f'<Podcast #{self.id} "{self.name}">'
@@ -98,8 +98,9 @@ class Episode(ModelBase, ModelMixin):
     created_at = Column(DateTime, default=datetime.utcnow)
     published_at = Column(DateTime)
 
-    image = relationship("File")
-    audio = relationship("File")
+    # TODO: recheck extra queries here
+    image = relationship("File", foreign_keys=[image_id], lazy="joined")
+    audio = relationship("File", foreign_keys=[audio_id], lazy="joined")
 
     class Meta:
         order_by = ("-created_at",)
@@ -114,15 +115,20 @@ class Episode(ModelBase, ModelMixin):
             db_session, status__in=Episode.PROGRESS_STATUSES, owner_id=user_id
         )
 
-    @property
-    def audio_url(self):
-        # TODO: avoid extra SQL calls
-        return self.audio.url
+    # @property
+    # def audio_url(self):
+    #     # TODO: avoid extra SQL calls
+    #     return self.audio.url
 
-    @property
-    def image_url(self) -> str:
-        # TODO: avoid extra SQL calls
-        return self.image.url
+    # @property
+    # def audio_size(self):
+    #     # TODO: avoid extra SQL calls
+    #     return self.audio.size
+    #
+    # @property
+    # def image_url(self) -> str:
+    #     # TODO: avoid extra SQL calls
+    #     return self.image.url
 
     @property
     def content_type(self) -> str:
