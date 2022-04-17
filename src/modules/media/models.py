@@ -1,7 +1,9 @@
+import os.path
 from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 
+from core import settings
 from core.database import ModelBase
 from common.enums import FileType
 from common.utils import get_logger
@@ -33,3 +35,12 @@ class File(ModelBase, ModelMixin):
     @classmethod
     def generate_token(cls) -> str:
         return get_random_hash(48)
+
+    @property
+    def url(self) -> str:
+        return f"{settings.SERVICE_URL}/m/{self.access_token}"
+
+    @property
+    def content_type(self) -> str:
+        file_name = os.path.basename(self.path)
+        return f"{self.type.lower()}/{file_name.split('.')[-1]}"

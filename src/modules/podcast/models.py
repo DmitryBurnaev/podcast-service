@@ -1,6 +1,5 @@
 import os
 import uuid
-import urllib.parse
 from hashlib import md5
 from datetime import datetime
 
@@ -32,18 +31,21 @@ class Podcast(ModelBase, ModelMixin):
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     download_automatically = Column(Boolean, default=True)
     rss_link = Column(String(length=128))
-    image_url = Column(String(length=512))
+    # TODO: remove
+    # image_url = Column(String(length=512))
     image_id = Column(Integer, ForeignKey("media_files.id", ondelete="SET NULL"))
     owner_id = Column(Integer(), ForeignKey("auth_users.id"))
 
     episodes = relationship("Episode")
+    image = relationship("File")
 
     def __str__(self):
         return f'<Podcast #{self.id} "{self.name}">'
 
     @property
-    def safe_image_url(self) -> str:
-        return self.image_url or settings.DEFAULT_PODCAST_COVER
+    def image_url(self) -> str:
+        # TODO: avoid extra SQL calls
+        return self.image.url
 
     @classmethod
     async def create_first_podcast(cls, db_session: AsyncSession, user_id: int):
@@ -75,25 +77,29 @@ class Episode(ModelBase, ModelMixin):
     PROGRESS_STATUSES = (Status.DOWNLOADING,)
 
     id = Column(Integer, primary_key=True)
+    title = Column(String(length=256), nullable=False)
     source_id = Column(String(length=32), index=True, nullable=False)
     source_type = EnumTypeColumn(SourceType, default=SourceType.YOUTUBE, nullable=True)
     podcast_id = Column(Integer, ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True)
-    title = Column(String(length=256), nullable=False)
-    watch_url = Column(String(length=128))
-    remote_url = Column(String(length=128))
     audio_id = Column(Integer, ForeignKey("media_files.id", ondelete="SET NULL"))
-    image_url = Column(String(length=512))
     image_id = Column(Integer, ForeignKey("media_files.id", ondelete="SET NULL"))
+    owner_id = Column(Integer, ForeignKey("auth_users.id"), index=True)
+    cookie_id = Column(Integer, ForeignKey("podcast_cookies.id", ondelete="SET NULL"))
+    watch_url = Column(String(length=128))
+    # TODO: remove that fields (remote_url | image_url) from DB too
+    # remote_url = Column(String(length=128))
+    # image_url = Column(String(length=512))
     length = Column(Integer, default=0)
     description = Column(String)
-    file_name = Column(String(length=128))
-    file_size = Column(Integer, default=0)
+    # file_name = Column(String(length=128))
+    # file_size = Column(Integer, default=0)
     author = Column(String(length=256))
     status = EnumTypeColumn(Status, default=Status.NEW, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     published_at = Column(DateTime)
-    owner_id = Column(Integer, ForeignKey("auth_users.id"), index=True)
-    cookie_id = Column(Integer, ForeignKey("podcast_cookies.id", ondelete="SET NULL"))
+
+    image = relationship("File")
+    audio = relationship("File")
 
     class Meta:
         order_by = ("-created_at",)
@@ -109,22 +115,23 @@ class Episode(ModelBase, ModelMixin):
         )
 
     @property
-    def safe_image_url(self) -> str:
-        # TODO: generate image url
-        return self.image_url or settings.DEFAULT_EPISODE_COVER
+    def audio_url(self):
+        # TODO: avoid extra SQL calls
+        return self.audio.url
+
+    @property
+    def image_url(self) -> str:
+        # TODO: avoid extra SQL calls
+        return self.image.url
 
     @property
     def content_type(self) -> str:
-        file_name = self.file_name or "unknown"
-        return f"audio/{file_name.split('.')[-1]}"
+        # TODO: avoid extra SQL calls
+        return self.audio.content_type
 
     @classmethod
     def generate_image_name(cls, source_id: str) -> str:
         return f"{source_id}_{uuid.uuid4().hex}.png"
-
-    def generate_url(self, media_type: str, podcast: Podcast = None):
-        # TODO: generate URL with token here
-        return urllib.parse.urljoin(settings.MEDIA_URL, f"{media_type}/{self.id}")
 
 
 class Cookie(ModelBase, ModelMixin):
