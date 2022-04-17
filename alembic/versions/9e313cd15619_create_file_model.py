@@ -26,7 +26,7 @@ def upgrade():
         sa.Column("size", sa.Integer(), nullable=True),
         sa.Column("source_url", sa.String(length=512), nullable=False, default=""),
         sa.Column("available", sa.Boolean(), nullable=False, default=False),
-        sa.Column("access_token", sa.String(length=128), nullable=False),
+        sa.Column("access_token", sa.String(length=64), nullable=False),
         sa.Column("owner_id", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(

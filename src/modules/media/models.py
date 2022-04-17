@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
@@ -8,7 +7,7 @@ from common.enums import FileType
 from common.utils import get_logger
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
-
+from modules.auth.hasher import get_random_hash
 
 logger = get_logger(__name__)
 
@@ -24,7 +23,7 @@ class File(ModelBase, ModelMixin):
     size = Column(Integer, default=0)
     source_url = Column(String(length=512), nullable=False, default="")
     available = Column(Boolean, nullable=False, default=False)
-    access_token = Column(String(length=128), nullable=False, index=True, unique=True)
+    access_token = Column(String(length=64), nullable=False, index=True, unique=True)
     owner_id = Column(Integer, ForeignKey("auth_users.id"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
@@ -33,5 +32,4 @@ class File(ModelBase, ModelMixin):
 
     @classmethod
     def generate_token(cls) -> str:
-        # TODO: generate token here !!!
-        return uuid.uuid4().hex
+        return get_random_hash(48)
