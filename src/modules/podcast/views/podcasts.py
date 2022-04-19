@@ -36,7 +36,8 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
             select([Podcast, func_count])
             .outerjoin(Episode, Episode.podcast_id == Podcast.id)
             .filter(Podcast.owner_id == request.user.id)
-            .group_by(Podcast.id)
+            # TODO: fix grouping logic
+            .group_by(Podcast.id, Podcast.image.expression.left)
             .order_by(Podcast.id)
         )
         podcasts = await request.db_session.execute(stmt)
