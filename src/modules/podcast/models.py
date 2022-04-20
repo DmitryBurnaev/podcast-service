@@ -139,6 +139,11 @@ class Episode(ModelBase, ModelMixin):
     def generate_image_name(cls, source_id: str) -> str:
         return f"{source_id}_{uuid.uuid4().hex}.png"
 
+    async def delete(self, db_session: AsyncSession):
+        # TODO:
+        #   - remove files (audio + image)
+        return super().delete(db_session)
+
 
 class Cookie(ModelBase, ModelMixin):
     """Saving cookies (in netscape format) for accessing to auth-only resources"""

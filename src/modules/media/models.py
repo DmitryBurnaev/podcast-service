@@ -3,6 +3,7 @@ import urllib.parse
 from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import settings
 from core.database import ModelBase
@@ -45,3 +46,7 @@ class File(ModelBase, ModelMixin):
     def content_type(self) -> str:
         file_name = os.path.basename(self.path)
         return f"{self.type.lower()}/{file_name.split('.')[-1]}"
+
+    async def delete(self, db_session: AsyncSession):
+        # TODO: remove file from S3 (if does not exists??)
+        return super(File, self).delete(db_session)

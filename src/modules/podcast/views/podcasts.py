@@ -80,7 +80,7 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
     async def delete(self, request):
         podcast_id = int(request.path_params["podcast_id"])
         podcast = await self._get_object(podcast_id)
-
+        # TODO: use Episode.delete instead
         await Episode.async_delete(self.db_session, {"podcast_id": podcast_id})
         await podcast.delete(self.db_session)
         await self._delete_files(podcast)
