@@ -1,6 +1,5 @@
 import asyncio
 from pathlib import Path
-from typing import Iterable
 
 from sqlalchemy import select, func
 from starlette import status
@@ -36,10 +35,9 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
             select([Podcast, func_count])
             .outerjoin(Episode, Episode.podcast_id == Podcast.id)
             .filter(Podcast.owner_id == request.user.id)
-            # TODO: fix grouping logic
-            .group_by(Podcast.id, Podcast.image.expression.left)
             .order_by(Podcast.id)
         )
+        stmt = stmt.group_by(Podcast.id, stmt.froms[0].onclause.left)  # (joined) "media_files_1.id"
         podcasts = await request.db_session.execute(stmt)
         podcast_list = []
         for podcast, episodes_count in podcasts.all():
@@ -82,14 +80,21 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
     async def delete(self, request):
         podcast_id = int(request.path_params["podcast_id"])
         podcast = await self._get_object(podcast_id)
-        episodes = await Episode.async_filter(self.db_session, podcast_id=podcast_id)
 
         await Episode.async_delete(self.db_session, {"podcast_id": podcast_id})
         await podcast.delete(self.db_session)
-        await self._delete_files(podcast, episodes)
+        await self._delete_files(podcast)
         return self._response()
 
-    async def _delete_files(self, podcast: Podcast, episodes: Iterable[Episode]):
+    async def _delete_files(self, podcast: Podcast) -> None:
+        episodes = await Episode.async_filter(self.db_session, podcast_id=podcast.id)
+        # TODO:
+        #   - extract episodes, that does not related to current podcast
+        #   - find file's paths (audio + images) that can be removed from S3
+        #   - remove files from S3
+        #   - remove records from media_files table
+        #   - remove records from episodes table
+
         podcast_file_names = {
             episode.file_name for episode in episodes if episode.status == Episode.Status.PUBLISHED
         }
