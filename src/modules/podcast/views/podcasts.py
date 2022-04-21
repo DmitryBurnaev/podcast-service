@@ -66,25 +66,28 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
     schema_response = PodcastDetailsSchema
 
     async def get(self, request):
-        podcast_id = request.path_params["podcast_id"]
-        podcast = await self._get_object(podcast_id)
+        podcast = await self._get_object(request)
         return self._response(podcast)
 
     async def patch(self, request):
         cleaned_data = await self._validate(request, partial_=True)
-        podcast_id = request.path_params["podcast_id"]
-        podcast = await self._get_object(podcast_id)
+        podcast = await self._get_object(request)
         await podcast.update(self.db_session, **cleaned_data)
         return self._response(podcast)
 
     async def delete(self, request):
-        podcast_id = int(request.path_params["podcast_id"])
-        podcast = await self._get_object(podcast_id)
-        # TODO: use Episode.delete instead
-        await Episode.async_delete(self.db_session, {"podcast_id": podcast_id})
+        podcast = await self._get_object(request)
+        await self._delete_episodes(podcast)
         await podcast.delete(self.db_session)
-        await self._delete_files(podcast)
         return self._response()
+
+    async def _get_object(self, request: Request, **_) -> Podcast:
+        podcast_id = int(request.path_params["podcast_id"])
+        return await super()._get_object(podcast_id)
+
+    async def _delete_episodes(self, podcast: Podcast):
+        episodes = await Episode.async_filter(self.db_session, podcast_id=podcast.id)
+        await asyncio.gather(episode.delete(self.db_session) for episode in episodes)
 
     async def _delete_files(self, podcast: Podcast) -> None:
         episodes = await Episode.async_filter(self.db_session, podcast_id=podcast.id)
