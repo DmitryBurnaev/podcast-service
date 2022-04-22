@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from common.storage import StorageS3
 from core import settings
 from core.database import ModelBase
 from common.enums import FileType
@@ -48,5 +49,21 @@ class File(ModelBase, ModelMixin):
         return f"{self.type.lower()}/{file_name.split('.')[-1]}"
 
     async def delete(self, db_session: AsyncSession):
-        # TODO: remove file from S3 (if does not exists??)
+        same_files = await File.async_filter(
+            db_session,
+            path=self.path,
+            id__ne=self.id,
+            type=self.type,
+            available__is=True
+        )
+        if not same_files.all():
+            await StorageS3().delete_files_async([self.path])
+
+        else:
+            file_infos = [(file.id, file.type) for file in same_files]
+            logger.warning(
+                f"There are another relations for the file {self.path}: {file_infos}."
+                f"Skip file removing."
+            )
+
         return super(File, self).delete(db_session)
