@@ -89,41 +89,6 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         episodes = await Episode.async_filter(self.db_session, podcast_id=podcast.id)
         await asyncio.gather(episode.delete(self.db_session) for episode in episodes)
 
-    async def _delete_files(self, podcast: Podcast) -> None:
-        episodes = await Episode.async_filter(self.db_session, podcast_id=podcast.id)
-        # TODO:
-        #   - extract episodes, that does not related to current podcast
-        #   - find file's paths (audio + images) that can be removed from S3
-        #   - remove files from S3
-        #   - remove records from media_files table
-        #   - remove records from episodes table
-
-        podcast_file_names = {
-            episode.file_name for episode in episodes if episode.status == Episode.Status.PUBLISHED
-        }
-        same_file_episodes = await Episode.async_filter(
-            self.db_session,
-            podcast_id__ne=podcast.id,
-            file_name__in=podcast_file_names,
-            status=Episode.Status.PUBLISHED,
-        )
-        exist_file_names = {episode.file_name for episode in same_file_episodes or []}
-
-        files_to_remove = podcast_file_names - exist_file_names
-        files_to_skip = exist_file_names & podcast_file_names
-        if files_to_skip:
-            logger.warning(
-                "There are another episodes with files %s. Skip this files removing.",
-                files_to_skip,
-            )
-
-        storage = StorageS3()
-        await storage.delete_files_async(
-            [f"{podcast.publish_id}.xml"], remote_path=settings.S3_BUCKET_RSS_PATH
-        )
-        if files_to_remove:
-            await storage.delete_files_async(list(files_to_remove))
-
 
 class PodcastUploadImageAPIView(BaseHTTPEndpoint):
     """Upload image as podcast's cover"""

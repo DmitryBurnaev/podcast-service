@@ -140,8 +140,9 @@ class Episode(ModelBase, ModelMixin):
         return f"{source_id}_{uuid.uuid4().hex}.png"
 
     async def delete(self, db_session: AsyncSession):
-        # TODO:
-        #   - remove files (audio + image)
+        """Removing files associated with requested episode"""
+        await self.image.delete()
+        await self.audio.delete()
         return super().delete(db_session)
 
 
