@@ -30,7 +30,7 @@ def get_file_name(video_id: str) -> str:
     return f"{video_id}_{uuid.uuid4().hex}.mp3"
 
 
-def get_file_size(file_path: str):
+def get_file_size(file_path: str | Path):
     try:
         return os.path.getsize(file_path)
     except FileNotFoundError:

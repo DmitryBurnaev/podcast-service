@@ -85,7 +85,7 @@ class StorageS3:
         if code != self.CODE_OK:
             return None
 
-        logger.info("File %s successful uploaded. Result URL: %s", filename, dst_path)
+        logger.info("File %s successful uploaded. Remote path: %s", filename, dst_path)
         return dst_path
 
     def get_file_info(
