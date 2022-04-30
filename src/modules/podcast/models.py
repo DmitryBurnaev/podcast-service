@@ -30,14 +30,16 @@ class Podcast(ModelBase, ModelMixin):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     download_automatically = Column(Boolean, default=True)
-    rss_link = Column(String(length=128))
-    # TODO: remove
+    # TODO: remove from DB's schema
+    # rss_link = Column(String(length=128))
     # image_url = Column(String(length=512))
+    rss_id = Column(Integer, ForeignKey("media_files.id", ondelete="SET NULL"))
     image_id = Column(Integer, ForeignKey("media_files.id", ondelete="SET NULL"))
-    owner_id = Column(Integer(), ForeignKey("auth_users.id"))
+    owner_id = Column(Integer, ForeignKey("auth_users.id"))
 
     episodes = relationship("Episode")
     image = relationship("File", foreign_keys=[image_id], lazy="joined")
+    rss = relationship("File", foreign_keys=[rss_id], lazy="joined")
 
     def __str__(self):
         return f'<Podcast #{self.id} "{self.name}">'

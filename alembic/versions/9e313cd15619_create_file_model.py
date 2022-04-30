@@ -64,13 +64,22 @@ def upgrade():
         ondelete="SET NULL",
     )
 
-    # Podcast.image_id
+    # Podcast.image_id | Podcast.rss_id
     op.add_column("podcast_podcasts", sa.Column("image_id", sa.Integer(), nullable=True))
     op.create_foreign_key(
         "podcast_podcasts_image_id_fkey",
         "podcast_podcasts",
         "media_files",
         ["image_id"],
+        ["id"],
+        ondelete="SET NULL",
+    )
+    op.add_column("podcast_podcasts", sa.Column("rss_id", sa.Integer(), nullable=True))
+    op.create_foreign_key(
+        "podcast_podcasts_rss_id_fkey",
+        "podcast_podcasts",
+        "media_files",
+        ["rss_id"],
         ["id"],
         ondelete="SET NULL",
     )
@@ -82,7 +91,9 @@ def downgrade():
 
     # Podcast.image_id
     op.drop_constraint("podcast_podcasts_image_id_fkey", "podcast_podcasts", type_="foreignkey")
+    op.drop_constraint("podcast_podcasts_rss_id_fkey", "podcast_podcasts", type_="foreignkey")
     op.drop_column("podcast_podcasts", "image_id")
+    op.drop_column("podcast_podcasts", "rss_id")
 
     # Episode indexes | Episode.audio | Episode.image_id
     op.drop_constraint("podcast_episodes_image_id_fkey", "podcast_episodes", type_="foreignkey")

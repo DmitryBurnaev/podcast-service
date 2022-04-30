@@ -2,11 +2,14 @@ import os
 
 from jinja2 import Template
 
+from common.enums import FileType
 from core import settings
 from common.storage import StorageS3
 from common.utils import get_logger
+from modules.media.models import File
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks.base import RQTask, FinishCode
+from modules.podcast.utils import get_file_size
 
 logger = get_logger(__name__)
 __all__ = ["GenerateRSSTask"]
@@ -45,7 +48,13 @@ class GenerateRSSTask(RQTask):
             logger.error("Couldn't upload RSS file to storage. SKIP")
             return {podcast.id: FinishCode.ERROR}
 
-        await podcast.update(self.db_session, rss_link=str(result_url))
+        rss_file = await File.create(
+            self.db_session, FileType.RSS,
+            path=result_url,
+            owner_id=podcast.owner_id,
+            size=get_file_size(result_path)
+        )
+        await podcast.update(self.db_session, rss_id=rss_file.id)
         logger.info("RSS file uploaded, podcast record updated")
 
         logger.info("FINISH generation for %s | URL: %s", podcast, podcast.rss_link)
