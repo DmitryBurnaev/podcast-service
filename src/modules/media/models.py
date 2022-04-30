@@ -33,7 +33,7 @@ class File(ModelBase, ModelMixin):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     def __str__(self):
-        return f'<File #{self.id} "{self.path}">'
+        return f'<File #{self.id} | {self.type} | "{self.path}">'
 
     @classmethod
     def generate_token(cls) -> str:
@@ -50,11 +50,7 @@ class File(ModelBase, ModelMixin):
 
     async def delete(self, db_session: AsyncSession):
         same_files = await File.async_filter(
-            db_session,
-            path=self.path,
-            id__ne=self.id,
-            type=self.type,
-            available__is=True
+            db_session, path=self.path, id__ne=self.id, type=self.type, available__is=True
         )
         if not same_files.all():
             await StorageS3().delete_files_async([self.path])
@@ -70,22 +66,20 @@ class File(ModelBase, ModelMixin):
 
     @classmethod
     async def create(
-        cls,
-        db_session: AsyncSession,
-        file_type: FileType,
-        owner_id: int,
-        **file_kwargs
+        cls, db_session: AsyncSession, file_type: FileType, owner_id: int, **file_kwargs
     ) -> "File":
         file_kwargs = file_kwargs | {
             "available": True,
             "access_token": File.generate_token(),
             "type": file_type,
         }
+        logger.debug("Creating new file: %s", file_kwargs)
         return await File.async_create(db_session=db_session, owner_id=owner_id, **file_kwargs)
 
     @classmethod
     async def copy(cls, db_session: AsyncSession, file_id: int, owner_id: int) -> "File":
         source_file: File = await File.async_get(db_session, id=file_id)
+        logger.debug("Copying file: source %s | owner_id %s", source_file, owner_id)
         return await File.create(
             db_session,
             source_file.type,

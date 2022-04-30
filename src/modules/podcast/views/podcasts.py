@@ -114,7 +114,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
             path=image_remote_path,
             size=get_file_size(tmp_path),
             available=True,
-            access_token=File.generate_token()
+            access_token=File.generate_token(),
         )
         await podcast.update(self.db_session, image_id=image_file.id)
         await self.db_session.refresh(podcast)
