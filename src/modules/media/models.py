@@ -67,3 +67,30 @@ class File(ModelBase, ModelMixin):
             )
 
         return super(File, self).delete(db_session)
+
+    @classmethod
+    async def create(
+        cls,
+        db_session: AsyncSession,
+        file_type: FileType,
+        owner_id: int,
+        **file_kwargs
+    ) -> "File":
+        file_kwargs = file_kwargs | {
+            "available": True,
+            "access_token": File.generate_token(),
+            "type": file_type,
+        }
+        return await File.async_create(db_session=db_session, owner_id=owner_id, **file_kwargs)
+
+    @classmethod
+    async def copy(cls, db_session: AsyncSession, file_id: int, owner_id: int) -> "File":
+        source_file: File = await File.async_get(db_session, id=file_id)
+        return await File.create(
+            db_session,
+            source_file.type,
+            owner_id=owner_id,
+            path=source_file.path,
+            source_url=source_file.source_url,
+            size=source_file.size,
+        )
