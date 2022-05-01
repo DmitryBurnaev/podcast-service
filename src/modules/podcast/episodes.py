@@ -106,7 +106,13 @@ class EpisodeCreator:
                 owner_id=self.user_id,
                 source_url=source_info.thumbnail_url,
             )
-            audio_file = None
+            audio_file = await File.create(
+                self.db_session,
+                FileType.AUDIO,
+                available=False,
+                owner_id=self.user_id,
+                source_url=source_info.watch_url,
+            )
             new_episode_data = {
                 "source_id": self.source_id,
                 "source_type": self.source_info.type,

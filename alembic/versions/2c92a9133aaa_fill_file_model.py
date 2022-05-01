@@ -39,6 +39,7 @@ episodes = table(
     column("status", sa.String),
     column("remote_url", sa.String),
     column("image_url", sa.String),
+    column("watch_url", sa.String),
     column("file_size", sa.String),
     column("owner_id", sa.Integer),
     column("image_id", sa.Integer),
@@ -72,7 +73,7 @@ def _fill_media(conn: Connection, _table, items: list[dict]):
                 "access_token": File.generate_token(),
                 "owner_id": item["owner_id"],
                 "created_at": datetime.datetime.utcnow(),
-                "source_url": "",
+                "source_url": item["watch_url"],
             }
             _files_map[audio["access_token"]] = item["id"]
             files_data.append(audio)
@@ -124,6 +125,7 @@ def fill_episodes_media(conn: Connection):
         episode_items.append(
             {
                 "id": item["id"],
+                "watch_url": item["watch_url"],
                 "audio_path": item["remote_url"],
                 "audio_size": item["file_size"],
                 "image_path": item["image_url"],

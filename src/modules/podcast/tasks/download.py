@@ -59,7 +59,8 @@ class DownloadEpisodeTask(RQTask):
         :raise: DownloadingInterrupted (if downloading is broken or unnecessary)
         """
 
-        episode = await Episode.async_get(self.db_session, id=episode_id)
+        episode: Episode = await Episode.async_get(self.db_session, id=episode_id)
+
         logger.info(
             "=== [%s] START downloading process URL: %s FILENAME: %s ===",
             episode.source_id,
@@ -90,9 +91,13 @@ class DownloadEpisodeTask(RQTask):
         return FinishCode.OK
 
     async def _check_is_needed(self, episode: Episode):
-        """Allows to find another episodes with same `source_id` which were already downloaded."""
-        stored_file_size = self.storage.get_file_size(episode.file_name)
-        if stored_file_size and stored_file_size == episode.file_size:
+        """Finding another episodes with same `source_id` which were already downloaded."""
+
+        if not (audio_path := episode.audio.path):
+            return
+
+        stored_file_size = self.storage.get_file_size(audio_path)
+        if stored_file_size and stored_file_size == episode.audio.size:
             logger.info(
                 "[%s] Episode already downloaded and file correct. Downloading will be ignored.",
                 episode.source_id,
@@ -101,15 +106,14 @@ class DownloadEpisodeTask(RQTask):
                 episode,
                 update_data={
                     "status": status.PUBLISHED,
-                    "file_size": stored_file_size,
                     "published_at": episode.created_at,
                 },
             )
             await self._update_all_rss(episode.source_id)
             raise DownloadingInterrupted(code=FinishCode.SKIP)
 
-    async def _download_episode(self, episode: Episode):
-        """Allows fetching info from external resource and extract audio from target source"""
+    async def _download_episode(self, episode: Episode) -> str:
+        """Fetching info from external resource and extract audio from target source"""
 
         await self._update_episodes(episode, update_data={"status": status.DOWNLOADING})
         cookie = (
@@ -140,7 +144,10 @@ class DownloadEpisodeTask(RQTask):
         return result_filename
 
     async def _remove_unfinished(self, episode: Episode):
-        """Allows finding unfinished downloading and remove file from the storage (S3)"""
+        """Finding unfinished downloading and remove file from the storage (S3)"""
+
+        if not (audio_path := episode.audio.path):
+            return
 
         if episode.status not in (Episode.Status.NEW, Episode.Status.DOWNLOADING):
             logger.warning(
@@ -148,14 +155,13 @@ class DownloadEpisodeTask(RQTask):
                 "Removing not-correct file %s and reloading it from providers.",
                 episode.source_id,
                 episode.status,
-                episode.file_name,
+                audio_path,
             )
-            self.storage.delete_file(episode.file_name)
+            self.storage.delete_file(audio_path)
 
     @staticmethod
     async def _process_file(episode: Episode, result_filename: str):
         """Postprocessing for downloaded audio file"""
-        # raise RuntimeError(episode.source_type)
         source_config = SOURCE_CFG_MAP[episode.source_type]
         if source_config.need_postprocessing:
             logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
@@ -165,7 +171,7 @@ class DownloadEpisodeTask(RQTask):
             logger.info("=== [%s] POST PROCESSING SKIP === ", episode.source_id)
 
     async def _upload_file(self, episode: Episode, result_filename: str):
-        """Allows uploading file to the storage (S3)"""
+        """Uploading file to the storage (S3)"""
 
         logger.info("=== [%s] UPLOADING === ", episode.source_id)
         remote_url = podcast_utils.upload_episode(result_filename)
@@ -180,7 +186,7 @@ class DownloadEpisodeTask(RQTask):
         logger.info("=== [%s] UPLOADING was done === ", episode.source_id)
 
     async def _update_all_rss(self, source_id: str):
-        """Allows regenerating rss for all podcast with requested episode (by source_id)"""
+        """Regenerating rss for all podcast with requested episode (by source_id)"""
 
         logger.info("Episodes with source #%s: updating rss for all podcast", source_id)
         affected_episodes = await Episode.async_filter(self.db_session, source_id=source_id)
@@ -189,7 +195,7 @@ class DownloadEpisodeTask(RQTask):
         await GenerateRSSTask(db_session=self.db_session).run(*podcast_ids)
 
     async def _update_episodes(self, episode: Episode, update_data: dict):
-        """Allows updating data for episodes (filtered by source_id and source_type)"""
+        """Updating data for episodes (filtered by source_id and source_type)"""
 
         filter_kwargs = {
             "source_id": episode.source_id,

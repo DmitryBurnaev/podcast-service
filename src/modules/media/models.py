@@ -66,10 +66,15 @@ class File(ModelBase, ModelMixin):
 
     @classmethod
     async def create(
-        cls, db_session: AsyncSession, file_type: FileType, owner_id: int, **file_kwargs
+        cls,
+        db_session: AsyncSession,
+        file_type: FileType,
+        owner_id: int,
+        available: bool = True,
+        **file_kwargs
     ) -> "File":
         file_kwargs = file_kwargs | {
-            "available": True,
+            "available": available,
             "access_token": File.generate_token(),
             "type": file_type,
         }
