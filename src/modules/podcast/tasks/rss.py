@@ -49,10 +49,11 @@ class GenerateRSSTask(RQTask):
             return {podcast.id: FinishCode.ERROR}
 
         rss_file = await File.create(
-            self.db_session, FileType.RSS,
+            self.db_session,
+            FileType.RSS,
             path=result_url,
             owner_id=podcast.owner_id,
-            size=get_file_size(result_path)
+            size=get_file_size(result_path),
         )
         await podcast.update(self.db_session, rss_id=rss_file.id)
         logger.info("RSS file uploaded, podcast record updated")

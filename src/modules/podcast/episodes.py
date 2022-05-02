@@ -95,7 +95,9 @@ class EpisodeCreator:
                 file_id=same_episode_data["image_id"],
             )
             audio_file = await File.copy(
-                self.db_session, owner_id=self.user_id, file_id=same_episode_data["audio_id"]
+                self.db_session,
+                file_id=same_episode_data["audio_id"],
+                owner_id=self.user_id,
             )
 
         elif source_info:

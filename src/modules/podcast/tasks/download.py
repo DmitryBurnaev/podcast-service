@@ -8,9 +8,11 @@ from core import settings
 from common.storage import StorageS3
 from common.utils import get_logger, download_content
 from common.exceptions import NotFoundError, MaxAttemptsReached
+from modules.media.models import File
 from modules.podcast.models import Episode, Cookie
 from modules.podcast.tasks.base import RQTask, FinishCode
 from modules.podcast.tasks.rss import GenerateRSSTask
+from modules.podcast.utils import get_filename
 from modules.providers import utils as provider_utils
 from modules.podcast import utils as podcast_utils
 from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
@@ -62,36 +64,34 @@ class DownloadEpisodeTask(RQTask):
         episode: Episode = await Episode.async_get(self.db_session, id=episode_id)
 
         logger.info(
-            "=== [%s] START downloading process URL: %s FILENAME: %s ===",
+            "=== [%s] START downloading process URL: %s ===",
             episode.source_id,
             episode.watch_url,
-            episode.file_name,
         )
         await self._check_is_needed(episode)
         await self._remove_unfinished(episode)
         await self._update_episodes(episode, update_data={"status": status.DOWNLOADING})
+        tmp_audio_path = await self._download_episode(episode)
 
-        result_filename = await self._download_episode(episode)
-
-        await self._process_file(episode, result_filename)
-        await self._upload_file(episode, result_filename)
+        await self._process_file(episode, tmp_audio_path)
+        remote_file_size = await self._upload_file(episode, tmp_audio_path)
         await self._update_episodes(
             episode,
             update_data={
                 "status": status.PUBLISHED,
-                "file_size": self.storage.get_file_size(result_filename),
                 "published_at": episode.created_at,
             },
         )
+        await self._update_files(episode, {"size": remote_file_size})
         await self._update_all_rss(episode.source_id)
 
-        podcast_utils.delete_file(settings.TMP_AUDIO_PATH / result_filename)
+        podcast_utils.delete_file(tmp_audio_path)
 
         logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
         return FinishCode.OK
 
     async def _check_is_needed(self, episode: Episode):
-        """Finding another episodes with same `source_id` which were already downloaded."""
+        """Finding already downloaded file for episode's audio file path"""
 
         if not (audio_path := episode.audio.path):
             return
@@ -109,22 +109,23 @@ class DownloadEpisodeTask(RQTask):
                     "published_at": episode.created_at,
                 },
             )
+            await self._update_files(episode, {"size": stored_file_size})
             await self._update_all_rss(episode.source_id)
             raise DownloadingInterrupted(code=FinishCode.SKIP)
 
-    async def _download_episode(self, episode: Episode) -> str:
+    async def _download_episode(self, episode: Episode) -> Path:
         """Fetching info from external resource and extract audio from target source"""
 
-        await self._update_episodes(episode, update_data={"status": status.DOWNLOADING})
         cookie = (
             await Cookie.async_get(self.db_session, id=episode.cookie_id)
             if episode.cookie_id
             else None
         )
+        filename = episode.audio.name or get_filename(episode.source_id)
 
         try:
-            result_filename = provider_utils.download_audio(
-                episode.watch_url, episode.file_name, cookie=cookie
+            result_path = provider_utils.download_audio(
+                episode.watch_url, filename=filename, cookie=cookie
             )
         except YoutubeDLError as error:
             logger.exception(
@@ -133,15 +134,12 @@ class DownloadEpisodeTask(RQTask):
                 episode.source_id,
                 error,
             )
-            await Episode.async_update(
-                db_session=self.db_session,
-                filter_kwargs={"source_id": episode.source_id},
-                update_data={"status": Episode.Status.ERROR},
-            )
+            await self._update_episodes(episode, {"status": Episode.Status.ERROR})
+            await self._update_files(episode, {"available": False})
             raise DownloadingInterrupted(code=FinishCode.ERROR)
 
         logger.info("=== [%s] DOWNLOADING was done ===", episode.source_id)
-        return result_filename
+        return result_path
 
     async def _remove_unfinished(self, episode: Episode):
         """Finding unfinished downloading and remove file from the storage (S3)"""
@@ -160,30 +158,32 @@ class DownloadEpisodeTask(RQTask):
             self.storage.delete_file(audio_path)
 
     @staticmethod
-    async def _process_file(episode: Episode, result_filename: str):
+    async def _process_file(episode: Episode, tmp_audio_path: Path):
         """Postprocessing for downloaded audio file"""
         source_config = SOURCE_CFG_MAP[episode.source_type]
         if source_config.need_postprocessing:
             logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
-            provider_utils.ffmpeg_preparation(src_path=(settings.TMP_AUDIO_PATH / result_filename))
+            provider_utils.ffmpeg_preparation(src_path=tmp_audio_path)
             logger.info("=== [%s] POST PROCESSING was done === ", episode.source_id)
         else:
             logger.info("=== [%s] POST PROCESSING SKIP === ", episode.source_id)
 
-    async def _upload_file(self, episode: Episode, result_filename: str):
+    async def _upload_file(self, episode: Episode, tmp_audio_path: Path):
         """Uploading file to the storage (S3)"""
 
         logger.info("=== [%s] UPLOADING === ", episode.source_id)
-        remote_url = podcast_utils.upload_episode(result_filename)
-        if not remote_url:
+        remote_path = podcast_utils.upload_episode(tmp_audio_path)
+        if not remote_path:
             logger.warning("=== [%s] UPLOADING was broken === ")
             await self._update_episodes(episode, {"status": status.ERROR, "file_size": 0})
             raise DownloadingInterrupted(code=FinishCode.ERROR)
 
-        await self._update_episodes(
-            episode, {"file_name": result_filename, "remote_url": remote_url}
+        await self._update_files(episode, {"path": remote_path})
+        result_file_size = self.storage.get_file_size(tmp_audio_path.name)
+        logger.info(
+            "=== [%s] UPLOADING was done (%i bytes) === ", episode.source_id, result_file_size
         )
-        logger.info("=== [%s] UPLOADING was done === ", episode.source_id)
+        return result_file_size
 
     async def _update_all_rss(self, source_id: str):
         """Regenerating rss for all podcast with requested episode (by source_id)"""
@@ -205,6 +205,15 @@ class DownloadEpisodeTask(RQTask):
         logger.debug("Episodes update filter: %s | data: %s", filter_kwargs, update_data)
         await Episode.async_update(
             self.db_session, filter_kwargs=filter_kwargs, update_data=update_data
+        )
+
+    async def _update_files(self, episode: Episode, update_data: dict):
+        """Updating data for stored files"""
+
+        source_url = episode.audio.source_url
+        logger.debug("Files update: source_url: %s | data: %s", source_url, update_data)
+        await File.async_update(
+            self.db_session, filter_kwargs={"source_url": source_url}, update_data=update_data
         )
 
 

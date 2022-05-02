@@ -3,6 +3,7 @@ import logging
 import mimetypes
 import os
 from functools import partial
+from pathlib import Path
 from typing import Callable, Optional, Tuple
 
 import boto3
@@ -64,7 +65,7 @@ class StorageS3:
 
     def upload_file(
         self,
-        src_path: str,
+        src_path: str | Path,
         dst_path: str,
         filename: Optional[str] = None,
         callback: Callable = None,

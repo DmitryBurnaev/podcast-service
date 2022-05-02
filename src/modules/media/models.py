@@ -45,8 +45,11 @@ class File(ModelBase, ModelMixin):
 
     @property
     def content_type(self) -> str:
-        file_name = os.path.basename(self.path)
-        return f"{self.type.lower()}/{file_name.split('.')[-1]}"
+        return f"{self.type.lower()}/{self.name.split('.')[-1]}"
+
+    @property
+    def name(self) -> str:
+        return os.path.basename(self.path)
 
     async def delete(self, db_session: AsyncSession):
         same_files = await File.async_filter(
@@ -71,7 +74,7 @@ class File(ModelBase, ModelMixin):
         file_type: FileType,
         owner_id: int,
         available: bool = True,
-        **file_kwargs
+        **file_kwargs,
     ) -> "File":
         file_kwargs = file_kwargs | {
             "available": available,
