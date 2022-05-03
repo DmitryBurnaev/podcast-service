@@ -52,20 +52,22 @@ class File(ModelBase, ModelMixin):
         return os.path.basename(self.path)
 
     async def delete(self, db_session: AsyncSession):
-        same_files = await File.async_filter(
-            db_session, path=self.path, id__ne=self.id, type=self.type, available__is=True
-        )
-        if not same_files.all():
+        same_files = (
+            await File.async_filter(
+                db_session, path=self.path, id__ne=self.id, type=self.type, available__is=True
+            )
+        ).all()
+        if not same_files:
             await StorageS3().delete_files_async([self.path])
 
         else:
-            file_infos = [(file.id, file.type) for file in same_files]
+            file_infos = [(file.id, file.type.value) for file in same_files]
             logger.warning(
-                f"There are another relations for the file {self.path}: {file_infos}."
-                f"Skip file removing."
+                "There are another relations for the file %s: %s. Skip file removing.",
+                self.path, file_infos
             )
 
-        return super(File, self).delete(db_session)
+        return await super(File, self).delete(db_session)
 
     @classmethod
     async def create(

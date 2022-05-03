@@ -38,8 +38,8 @@ class Podcast(ModelBase, ModelMixin):
     owner_id = Column(Integer, ForeignKey("auth_users.id"))
 
     episodes = relationship("Episode")
-    image = relationship("File", foreign_keys=[image_id], lazy="joined")
-    rss = relationship("File", foreign_keys=[rss_id], lazy="joined")
+    rss = relationship("File", foreign_keys=[rss_id], lazy="subquery")
+    image = relationship("File", foreign_keys=[image_id], lazy="subquery")
 
     def __str__(self):
         return f'<Podcast #{self.id} "{self.name}">'
@@ -101,8 +101,8 @@ class Episode(ModelBase, ModelMixin):
     published_at = Column(DateTime)
 
     # TODO: recheck extra queries here
-    image = relationship("File", foreign_keys=[image_id], lazy="joined")
-    audio = relationship("File", foreign_keys=[audio_id], lazy="joined")
+    image = relationship("File", foreign_keys=[image_id], lazy="subquery")
+    audio = relationship("File", foreign_keys=[audio_id], lazy="subquery")
 
     class Meta:
         order_by = ("-created_at",)
@@ -143,9 +143,9 @@ class Episode(ModelBase, ModelMixin):
 
     async def delete(self, db_session: AsyncSession):
         """Removing files associated with requested episode"""
-        await self.image.delete()
-        await self.audio.delete()
-        return super().delete(db_session)
+        await self.image.delete(db_session)
+        await self.audio.delete(db_session)
+        return await super().delete(db_session)
 
 
 class Cookie(ModelBase, ModelMixin):

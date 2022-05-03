@@ -28,16 +28,20 @@ INVALID_CREATE_DATA = INVALID_UPDATE_DATA + [
 
 
 def _podcast(podcast):
-    return {
+    data = {
         "id": podcast.id,
         "name": podcast.name,
         "description": podcast.description,
-        "image_url": podcast.image_url,
         "download_automatically": podcast.download_automatically,
         "created_at": podcast.created_at.isoformat(),
-        "rss_link": podcast.rss_link,
         "episodes_count": 0,
     }
+    if podcast.image:
+        data["image_url"] = podcast.image.url
+    if podcast.rss:
+        data["rss_url"] = podcast.rss.url
+
+    return data
 
 
 class TestPodcastListCreateAPIView(BaseTestAPIView):
@@ -68,16 +72,20 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         }
         assert expected_episodes_counts == actual_episodes_counts
 
-    def test_get_list__filter_by_owner__ok(self, client, dbs):
+    def test_get_list__filter_by_owner__ok(self, client, dbs, image_file, rss_file):
         user_1 = create_user(dbs)
         user_2 = create_user(dbs)
 
         podcast_data = get_podcast_data()
         podcast_data["owner_id"] = user_1.id
+        podcast_data["image_id"] = image_file.id
+        podcast_data["rss_id"] = rss_file.id
         await_(Podcast.async_create(dbs, db_commit=True, **podcast_data))
 
         podcast_data = get_podcast_data()
         podcast_data["owner_id"] = user_2.id
+        podcast_data["image_id"] = image_file.id
+        podcast_data["rss_id"] = rss_file.id
         podcast_2 = await_(Podcast.async_create(dbs, db_commit=True, **podcast_data))
 
         client.login(user_2)

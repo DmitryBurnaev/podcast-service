@@ -6,13 +6,17 @@ from typing import Tuple
 from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
+import sqlalchemy
 from alembic.config import main
+from sqlalchemy.exc import ProgrammingError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.util import concurrency
 
-from core import settings
+from core import settings, database
 from modules.auth.models import UserInvite
+from modules.media.models import File
 from modules.podcast.models import Podcast, Episode, Cookie
-from common.enums import SourceType
+from common.enums import SourceType, FileType
 from modules.providers import utils as youtube_utils
 from modules.providers.utils import SourceInfo
 from tests.helpers import (
@@ -23,7 +27,7 @@ from tests.helpers import (
     get_podcast_data,
     mock_target_class,
     create_user_session,
-    make_db_session,
+    make_db_session, await_,
 )
 from tests.mocks import (
     MockYoutubeDL,
@@ -67,10 +71,61 @@ def dbs(loop) -> AsyncSession:
         yield db_session
 
 
+from sqlalchemy.engine import URL
+
+def db_prep():
+    print("Dropping the old test db…")
+    postgres_db_dsn = URL.create(
+        drivername="postgresql",
+        username=settings.DATABASE["username"],
+        password=settings.DATABASE["password"],
+        host=settings.DATABASE["host"],
+        port=settings.DATABASE["port"],
+        database="postgres",
+    )
+    engine = sqlalchemy.create_engine(postgres_db_dsn)
+    conn = engine.connect()
+    try:
+        conn = conn.execution_options(autocommit=False)
+        conn.execute("ROLLBACK")
+        conn.execute(f"DROP DATABASE {settings.DB_NAME}")
+    except ProgrammingError:
+        print("Could not drop the database, probably does not exist.")
+        conn.execute("ROLLBACK")
+    except OperationalError:
+        print("Could not drop database because it’s being accessed by other users")
+        conn.execute("ROLLBACK")
+
+    print(f"Test db dropped! about to create {settings.DB_NAME}")
+    conn.execute(f"CREATE DATABASE {settings.DB_NAME}")
+    username, password = settings.DATABASE["username"], settings.DATABASE["password"]
+
+    try:
+        conn.execute(f"CREATE USER {username} WITH ENCRYPTED PASSWORD '{password}'")
+    except Exception as e:
+        print(f"User already exists. ({e})")
+        conn.execute(f"GRANT ALL PRIVILEGES ON DATABASE {settings.DB_NAME} TO {username}")
+
+    conn.close()
+
+
 @pytest.fixture(autouse=True, scope="session")
 def db_migration():
-    ini_path = settings.PROJECT_ROOT_DIR / "alembic.ini"
-    main(["--raiseerr", f"-c{ini_path}", "upgrade", "head"])
+    def create_tables():
+        db_prep()
+        print("Creating tables...")
+        engine = sqlalchemy.create_engine(settings.DATABASE_DSN)
+        database.ModelBase.metadata.create_all(engine)
+
+    await_(concurrency.greenlet_spawn(create_tables))
+    print("DB and tables were successful created.")
+
+
+#
+# @pytest.fixture(autouse=True, scope="session")
+# def db_migration():
+#     ini_path = settings.PROJECT_ROOT_DIR / "alembic.ini"
+#     main(["--raiseerr", f"-c{ini_path}", "upgrade", "head"])
 
 
 @pytest.fixture
@@ -164,8 +219,28 @@ def episode_data(podcast):
 @pytest.fixture
 def podcast(podcast_data, user, loop, dbs):
     podcast_data["owner_id"] = user.id
+    image = loop.run_until_complete(
+        File.create(
+            dbs,
+            FileType.IMAGE,
+            owner_id=user.id,
+            path="/remote/path/to/audio/podcast_image.png",
+        )
+    )
+    rss = loop.run_until_complete(
+        File.create(
+            dbs,
+            FileType.RSS,
+            owner_id=user.id,
+            path="/remote/path/to/audio/podcast_rss.xml",
+        )
+    )
+    podcast_data["image_id"] = image.id
+    podcast_data["rss_id"] = rss.id
     podcast = loop.run_until_complete(Podcast.async_create(dbs, **podcast_data))
     loop.run_until_complete(dbs.commit())
+    podcast.image = image
+    podcast.rss = rss
     return podcast
 
 
@@ -182,10 +257,59 @@ def cookie(user, loop, dbs):
 
 
 @pytest.fixture
+def image_file(user, loop, dbs) -> File:
+    image = loop.run_until_complete(
+        File.create(
+            dbs,
+            FileType.IMAGE,
+            owner_id=user.id,
+            path=f"/remote/path/to/audio_file.mp3",
+            size=1,
+        )
+    )
+    loop.run_until_complete(dbs.commit())
+    return image
+
+
+@pytest.fixture
+def rss_file(user, loop, dbs) -> File:
+    image = loop.run_until_complete(
+        File.create(
+            dbs,
+            FileType.RSS,
+            owner_id=user.id,
+            path=f"/remote/path/to/rss_file.mp3",
+        )
+    )
+    loop.run_until_complete(dbs.commit())
+    return image
+
+
+@pytest.fixture
 def episode(podcast, user, loop, dbs) -> Episode:
     episode_data = get_episode_data(podcast, creator=user)
+    audio = loop.run_until_complete(
+        File.create(
+            dbs,
+            FileType.AUDIO,
+            owner_id=user.id,
+            path="/remote/path/to/audio/episode_audio.mp3",
+        )
+    )
+    image = loop.run_until_complete(
+        File.create(
+            dbs,
+            FileType.IMAGE,
+            owner_id=user.id,
+            path="/remote/path/to/audio/episode_image.png",
+        )
+    )
+    episode_data['audio_id'] = audio.id
+    episode_data['image_id'] = image.id
     episode = loop.run_until_complete(Episode.async_create(dbs, **episode_data))
     loop.run_until_complete(dbs.commit())
+    episode.image = image
+    episode.audio = audio
     return episode
 
 

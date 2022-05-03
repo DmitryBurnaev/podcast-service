@@ -12,9 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.testclient import TestClient
 
 from common.db_utils import make_session_maker
-from common.enums import SourceType
+from common.enums import SourceType, FileType
 from modules.auth.utils import encode_jwt
 from modules.auth.models import User, UserSession
+from modules.media.models import File
 from modules.podcast.models import Podcast, Episode
 from tests.mocks import BaseMock
 
@@ -91,9 +92,9 @@ def get_episode_data(podcast: Podcast = None, status: str = None, creator: User 
         "watch_url": f"https://www.youtube.com/watch?v={source_id}",
         "length": random.randint(1, 100),
         "description": f"description_{source_id}",
-        "image_url": f"image_url_{source_id}",
-        "file_name": f"file_name_{source_id}",
-        "file_size": random.randint(1, 100),
+        # "image_url": f"image_url_{source_id}",
+        # "file_name": f"file_name_{source_id}",
+        # "file_size": random.randint(1, 100),
         "author": None,
         "status": status or "new",
     }
@@ -113,7 +114,6 @@ def get_podcast_data(**kwargs):
         "publish_id": uid[:32],
         "name": f"Podcast {uid}",
         "description": f"Description: {uid}",
-        "image_url": f"http://link-to-image/{uid}",
     }
     return podcast_data | kwargs
 
@@ -161,9 +161,31 @@ def create_episode(
         {
             "podcast_id": podcast.id,
             "source_id": src_id,
-            "file_name": f"file_name_{src_id}.mp3",
             "status": status,
-            "file_size": file_size,
         }
     )
-    return await_(Episode.async_create(db_session, db_commit=True, **episode_data))
+    owner_id = episode_data.get("owner_id") or podcast.owner_id
+    audio = await_(
+        File.create(
+            db_session,
+            FileType.AUDIO,
+            owner_id=owner_id,
+            path=f"/remote/path/to/audio/episode_{src_id}.mp3",
+            size=file_size,
+        )
+    )
+    image = await_(
+        File.create(
+            db_session,
+            FileType.IMAGE,
+            owner_id=owner_id,
+            path=f"/remote/path/to/audio/episode_{src_id}.png",
+        )
+    )
+    episode_data['audio_id'] = audio.id
+    episode_data['image_id'] = image.id
+    episode = await_(Episode.async_create(db_session, db_commit=True, **episode_data))
+    episode.audio = audio
+    episode.image = image
+    return episode
+

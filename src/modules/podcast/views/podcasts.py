@@ -38,9 +38,9 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
             select([Podcast, func_count])
             .outerjoin(Episode, Episode.podcast_id == Podcast.id)
             .filter(Podcast.owner_id == request.user.id)
+            .group_by(Podcast.id,)
             .order_by(Podcast.id)
         )
-        stmt = stmt.group_by(Podcast.id, stmt.froms[0].onclause.left)  # (joined) "media_files_1.id"
         podcasts = await request.db_session.execute(stmt)
         podcast_list = []
         for podcast, episodes_count in podcasts.all():
