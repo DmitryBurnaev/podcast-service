@@ -42,11 +42,11 @@ async def check_state(episodes: Iterable[Episode]) -> list:
     """Allows getting info about download progress for requested episodes"""
 
     redis_client = RedisClient()
-    file_names = {redis_client.get_key_by_filename(episode.file_name) for episode in episodes}
+    file_names = {redis_client.get_key_by_filename(episode.audio.name) for episode in episodes}
     current_states = await redis_client.async_get_many(file_names, pkey="event_key")
     result = []
     for episode in episodes:
-        file_name = episode.file_name
+        file_name = episode.audio.name
         if not file_name:
             logger.warning(f"Episode {episode} does not contain filename")
             continue

@@ -30,13 +30,13 @@ class ProgressAPIView(BaseHTTPEndpoint):
             progress_item["episode"] = {
                 "id": episode.id,
                 "title": episode.title,
-                "image_url": episode.image.url,
+                "image_url": episode.image_url,
                 "status": episode.status,
             }
             progress_item["podcast"] = {
                 "id": podcast.id,
                 "name": podcast.name,
-                "image_url": podcast.image.url,
+                "image_url": podcast.image_url,
             }
 
         return self._response(data=progress)

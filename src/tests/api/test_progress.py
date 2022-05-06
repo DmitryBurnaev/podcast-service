@@ -24,7 +24,7 @@ def _progress(podcast: Podcast, episode: Episode, current_size: int, completed: 
             "image_url": podcast.image_url,
         },
         "current_file_size": current_size,
-        "total_file_size": episode.file_size,
+        "total_file_size": episode.audio.size,
         "completed": completed,
     }
 
@@ -45,17 +45,17 @@ class TestProgressAPIView(BaseTestAPIView):
 
         mocked_redis.async_get_many.return_value = mocked_redis.async_return(
             {
-                p1_episode_new.file_name.partition(".")[0]: {
+                p1_episode_new.audio.name.partition(".")[0]: {
                     "status": EpisodeStatus.DL_PENDING,
                     "processed_bytes": 0,
                     "total_bytes": MB_1,
                 },
-                p1_episode_down.file_name.partition(".")[0]: {
+                p1_episode_down.audio.name.partition(".")[0]: {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_2,
                 },
-                p2_episode_down.file_name.partition(".")[0]: {
+                p2_episode_down.audio.name.partition(".")[0]: {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_4,
@@ -65,10 +65,13 @@ class TestProgressAPIView(BaseTestAPIView):
         client.login(user)
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
-        assert response_data == [
-            _progress(podcast_2, p2_episode_down, current_size=MB_1, completed=25.0),
-            _progress(podcast_1, p1_episode_down, current_size=MB_1, completed=50.0),
-        ]
+        assert len(response_data) == 2, response_data
+        assert response_data[0] == (
+            _progress(podcast_2, p2_episode_down, current_size=MB_1, completed=25.0)
+        )
+        assert response_data[1] == (
+            _progress(podcast_1, p1_episode_down, current_size=MB_1, completed=50.0)
+        )
 
     def test_filter_by_user__ok(self, client, episode_data, mocked_redis, dbs):
         user_1 = create_user(dbs)
@@ -86,12 +89,12 @@ class TestProgressAPIView(BaseTestAPIView):
 
         mocked_redis.async_get_many.return_value = mocked_redis.async_return(
             {
-                p1_episode_down.file_name.partition(".")[0]: {
+                p1_episode_down.audio.name.partition(".")[0]: {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_2,
                 },
-                p2_episode_down.file_name.partition(".")[0]: {
+                p2_episode_down.audio.name.partition(".")[0]: {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_4,

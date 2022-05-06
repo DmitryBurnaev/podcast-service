@@ -129,7 +129,7 @@ class ProgressPodcastSchema(Schema):
 class ProgressEpisodeSchema(Schema):
     id = fields.Int()
     title = fields.Str()
-    image_url = fields.URL(attribute="image.url")
+    image_url = fields.URL()
     status = fields.Str()
 
 

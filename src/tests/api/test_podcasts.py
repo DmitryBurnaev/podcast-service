@@ -236,7 +236,7 @@ class TestPodcastGenerateRSSAPIView(BaseTestAPIView):
 
 class TestPodcastUploadImageAPIView(BaseTestAPIView):
     url = "/api/podcasts/{id}/upload-image/"
-    result_url = "https://storage/path-to-file.png"
+    remote_path = "/remote/path-to-file.png"
     default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
 
     @staticmethod
@@ -246,12 +246,12 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
     @patch("common.storage.StorageS3.upload_file")
     def test_upload__ok(self, mocked_upload_file, client, podcast, user, dbs):
         client.login(user)
-        mocked_upload_file.return_value = self.result_url
+        mocked_upload_file.return_value = self.remote_path
         response = client.post(url=self.url.format(id=podcast.id), files={"image": self._file()})
         await_(dbs.refresh(podcast))
         response_data = self.assert_ok_response(response)
-        assert response_data == {"id": podcast.id, "image_url": self.result_url}
-        assert podcast.image_url == self.result_url
+        assert response_data == {"id": podcast.id, "image_url": podcast.image_url}
+        assert podcast.image.path == self.remote_path
 
     @patch("common.storage.StorageS3.upload_file")
     def test_upload__upload_failed__fail(self, mocked_upload_file, client, podcast, user, dbs):

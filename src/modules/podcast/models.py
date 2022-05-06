@@ -46,8 +46,7 @@ class Podcast(ModelBase, ModelMixin):
 
     @property
     def image_url(self) -> str:
-        # TODO: avoid extra SQL calls
-        return self.image.url
+        return self.image.url if self.image else settings.DEFAULT_PODCAST_COVER
 
     @classmethod
     async def create_first_podcast(cls, db_session: AsyncSession, user_id: int):
@@ -127,10 +126,9 @@ class Episode(ModelBase, ModelMixin):
     #     # TODO: avoid extra SQL calls
     #     return self.audio.size
     #
-    # @property
-    # def image_url(self) -> str:
-    #     # TODO: avoid extra SQL calls
-    #     return self.image.url
+    @property
+    def image_url(self) -> str:
+        return self.image.url if self.image else settings.DEFAULT_EPISODE_COVER
 
     @property
     def content_type(self) -> str:
