@@ -15,6 +15,11 @@ from common.db_utils import EnumTypeColumn
 from modules.auth.hasher import get_random_hash
 
 logger = get_logger(__name__)
+REMOTE_PATH_MAP = {
+    FileType.IMAGE: settings.S3_BUCKET_IMAGES_PATH,
+    FileType.AUDIO: settings.S3_BUCKET_AUDIO_PATH,
+    FileType.RSS: settings.S3_BUCKET_RSS_PATH,
+}
 
 
 class File(ModelBase, ModelMixin):
@@ -58,13 +63,15 @@ class File(ModelBase, ModelMixin):
             )
         ).all()
         if not same_files:
-            await StorageS3().delete_files_async([self.path])
+            remote_path = REMOTE_PATH_MAP[self.type]
+            await StorageS3().delete_files_async([self.name], remote_path=remote_path)
 
         else:
             file_infos = [(file.id, file.type.value) for file in same_files]
             logger.warning(
                 "There are another relations for the file %s: %s. Skip file removing.",
-                self.path, file_infos
+                self.path,
+                file_infos,
             )
 
         return await super(File, self).delete(db_session)

@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 import pytest
 
-from core import settings
 from common.statuses import ResponseStatus
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks import GenerateRSSTask
@@ -163,9 +162,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         response = client.delete(url)
         assert response.status_code == 200
         assert await_(Podcast.async_get(dbs, id=podcast.id)) is None
-        mocked_s3.delete_files_async.assert_called_with(
-            [f"{podcast.publish_id}.xml"], remote_path=settings.S3_BUCKET_RSS_PATH
-        )
+        mocked_s3.delete_files_async.assert_called_with([podcast.rss.name], remote_path="rss")
 
     def test_delete__podcast_from_another_user__fail(self, client, podcast, user, dbs):
         user_2 = create_user(dbs)

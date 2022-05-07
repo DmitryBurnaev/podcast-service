@@ -129,9 +129,7 @@ class StorageS3:
         code, result = self.__call(self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME)
         return result
 
-    async def delete_files_async(
-        self, filenames: list[str], remote_path: str = settings.S3_BUCKET_AUDIO_PATH
-    ):
+    async def delete_files_async(self, filenames: list[str], remote_path: str):
         loop = asyncio.get_running_loop()
         for filename in filenames:
             dst_path = os.path.join(remote_path, filename)

@@ -38,7 +38,9 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
             select([Podcast, func_count])
             .outerjoin(Episode, Episode.podcast_id == Podcast.id)
             .filter(Podcast.owner_id == request.user.id)
-            .group_by(Podcast.id,)
+            .group_by(
+                Podcast.id,
+            )
             .order_by(Podcast.id)
         )
         podcasts = await request.db_session.execute(stmt)
@@ -81,6 +83,9 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
     async def delete(self, request):
         podcast = await self._get_object(request)
         await self._delete_episodes(podcast)
+        if podcast.rss:
+            await podcast.rss.delete(self.db_session)
+
         await podcast.delete(self.db_session)
         return self._response()
 

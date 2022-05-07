@@ -237,7 +237,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         "same_episode_status, delete_called",
         [
             (Episode.Status.NEW, True),
-            (Episode.Status.PUBLISHED, False),
+            (Episode.Status.PUBLISHED, True),
             (Episode.Status.DOWNLOADING, False),
         ],
     )

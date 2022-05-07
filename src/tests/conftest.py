@@ -7,10 +7,10 @@ from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
 import sqlalchemy
-from alembic.config import main
-from sqlalchemy.exc import ProgrammingError, OperationalError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.engine import URL
 from sqlalchemy.util import concurrency
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import ProgrammingError, OperationalError
 
 from core import settings, database
 from modules.auth.models import UserInvite
@@ -27,7 +27,9 @@ from tests.helpers import (
     get_podcast_data,
     mock_target_class,
     create_user_session,
-    make_db_session, await_,
+    make_db_session,
+    await_,
+    get_source_id,
 )
 from tests.mocks import (
     MockYoutubeDL,
@@ -70,8 +72,6 @@ def dbs(loop) -> AsyncSession:
     with make_db_session(loop) as db_session:
         yield db_session
 
-
-from sqlalchemy.engine import URL
 
 def db_prep():
     print("Dropping the old test db…")
@@ -232,7 +232,7 @@ def podcast(podcast_data, user, loop, dbs):
             dbs,
             FileType.RSS,
             owner_id=user.id,
-            path="/remote/path/to/audio/podcast_rss.xml",
+            path="/remote/path/to/rss/podcast_rss.xml",
         )
     )
     podcast_data["image_id"] = image.id
@@ -263,7 +263,7 @@ def image_file(user, loop, dbs) -> File:
             dbs,
             FileType.IMAGE,
             owner_id=user.id,
-            path=f"/remote/path/to/audio_file.mp3",
+            path="/remote/path/to/audio_file.mp3",
             size=1,
         )
     )
@@ -278,7 +278,7 @@ def rss_file(user, loop, dbs) -> File:
             dbs,
             FileType.RSS,
             owner_id=user.id,
-            path=f"/remote/path/to/rss_file.mp3",
+            path="/remote/path/to/rss_file.mp3",
         )
     )
     loop.run_until_complete(dbs.commit())
@@ -288,12 +288,13 @@ def rss_file(user, loop, dbs) -> File:
 @pytest.fixture
 def episode(podcast, user, loop, dbs) -> Episode:
     episode_data = get_episode_data(podcast, creator=user)
+    source_id = get_source_id()
     audio = loop.run_until_complete(
         File.create(
             dbs,
             FileType.AUDIO,
             owner_id=user.id,
-            path="/remote/path/to/audio/episode_audio.mp3",
+            path=f"/remote/path/to/audio/episode_{source_id}_audio.mp3",
         )
     )
     image = loop.run_until_complete(
@@ -301,11 +302,11 @@ def episode(podcast, user, loop, dbs) -> Episode:
             dbs,
             FileType.IMAGE,
             owner_id=user.id,
-            path="/remote/path/to/audio/episode_image.png",
+            path=f"/remote/path/to/audio/episode_{source_id}_image.png",
         )
     )
-    episode_data['audio_id'] = audio.id
-    episode_data['image_id'] = image.id
+    episode_data["audio_id"] = audio.id
+    episode_data["image_id"] = image.id
     episode = loop.run_until_complete(Episode.async_create(dbs, **episode_data))
     loop.run_until_complete(dbs.commit())
     episode.image = image

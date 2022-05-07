@@ -156,11 +156,11 @@ def create_episode(
     file_size: int = 0,
     source_id: str = None,
 ) -> Episode:
-    src_id = source_id or get_source_id()
+    source_id = source_id or get_source_id()
     episode_data.update(
         {
             "podcast_id": podcast.id,
-            "source_id": src_id,
+            "source_id": source_id,
             "status": status,
         }
     )
@@ -170,8 +170,9 @@ def create_episode(
             db_session,
             FileType.AUDIO,
             owner_id=owner_id,
-            path=f"/remote/path/to/audio/episode_{src_id}.mp3",
+            path=f"/remote/path/to/audio/episode_{source_id}.mp3",
             size=file_size,
+            available=(status == Episode.Status.PUBLISHED),
         )
     )
     image = await_(
@@ -179,13 +180,13 @@ def create_episode(
             db_session,
             FileType.IMAGE,
             owner_id=owner_id,
-            path=f"/remote/path/to/audio/episode_{src_id}.png",
+            path=f"/remote/path/to/audio/episode_{source_id}.png",
+            available=(status == Episode.Status.PUBLISHED),
         )
     )
-    episode_data['audio_id'] = audio.id
-    episode_data['image_id'] = image.id
+    episode_data["audio_id"] = audio.id
+    episode_data["image_id"] = image.id
     episode = await_(Episode.async_create(db_session, db_commit=True, **episode_data))
     episode.audio = audio
     episode.image = image
     return episode
-

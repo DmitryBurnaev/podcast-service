@@ -141,8 +141,10 @@ class Episode(ModelBase, ModelMixin):
 
     async def delete(self, db_session: AsyncSession):
         """Removing files associated with requested episode"""
-        await self.image.delete(db_session)
-        await self.audio.delete(db_session)
+        if self.image:
+            await self.image.delete(db_session)
+        if self.audio:
+            await self.audio.delete(db_session)
         return await super().delete(db_session)
 
 
