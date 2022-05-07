@@ -4,6 +4,7 @@ import pytest
 
 from common.enums import SourceType, EpisodeStatus
 from common.statuses import ResponseStatus
+from core import settings
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
@@ -225,8 +226,8 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         response = client.delete(url)
         assert response.status_code == 204
         assert await_(Episode.async_get(dbs, id=episode.id)) is None
-        mocked_s3.delete_files_async.assert_any_call([episode.audio.path])
-        mocked_s3.delete_files_async.assert_any_call([episode.image.path])
+        mocked_s3.delete_files_async.assert_any_call([episode.audio.name], remote_path='audio')
+        mocked_s3.delete_files_async.assert_any_call([episode.image.name], remote_path='images')
 
     def test_delete__episode_from_another_user__fail(self, client, episode, user, dbs):
         client.login(create_user(dbs))
@@ -237,8 +238,8 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         "same_episode_status, delete_called",
         [
             (Episode.Status.NEW, True),
-            (Episode.Status.PUBLISHED, True),
-            (Episode.Status.DOWNLOADING, False),
+            (Episode.Status.PUBLISHED, False),
+            (Episode.Status.DOWNLOADING, True),
         ],
     )
     def test_delete__same_episode_exists__ok(
@@ -279,8 +280,12 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         assert response.status_code == 204, f"Delete API is not available: {response.text}"
         assert await_(Episode.async_get(dbs, id=episode_2.id)) is None
         if delete_called:
-            mocked_s3.delete_files_async.assert_any_call([episode_2.audio.path])
-            mocked_s3.delete_files_async.assert_any_call([episode_2.image.path])
+            mocked_s3.delete_files_async.assert_any_call(
+                [episode_2.audio.name], remote_path=settings.S3_BUCKET_AUDIO_PATH
+            )
+            mocked_s3.delete_files_async.assert_any_call(
+                [episode_2.image.name], remote_path=settings.S3_BUCKET_IMAGES_PATH
+            )
         else:
             assert not mocked_s3.delete_files_async.called
 

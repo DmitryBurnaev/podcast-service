@@ -3,7 +3,9 @@ from unittest.mock import patch
 
 import pytest
 
+from common.enums import EpisodeStatus
 from common.statuses import ResponseStatus
+from core import settings
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks import GenerateRSSTask
 from tests.api.test_base import BaseTestAPIView
@@ -162,7 +164,9 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         response = client.delete(url)
         assert response.status_code == 200
         assert await_(Podcast.async_get(dbs, id=podcast.id)) is None
-        mocked_s3.delete_files_async.assert_called_with([podcast.rss.name], remote_path="rss")
+        mocked_s3.delete_files_async.assert_called_with(
+            [podcast.rss.name], remote_path=settings.S3_BUCKET_RSS_PATH
+        )
 
     def test_delete__podcast_from_another_user__fail(self, client, podcast, user, dbs):
         user_2 = create_user(dbs)
@@ -171,8 +175,8 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         self.assert_not_found(client.delete(url), podcast)
 
     def test_delete__episodes_deleted_too__ok(self, client, podcast, user, mocked_s3, dbs):
-        episode_1 = await_(Episode.async_create(dbs, **get_episode_data(podcast)))
-        episode_2 = await_(Episode.async_create(dbs, **get_episode_data(podcast, "published")))
+        episode_1 = self._episode(dbs, podcast)
+        episode_2 = self._episode(dbs, podcast, EpisodeStatus.PUBLISHED)
         await_(dbs.commit())
 
         client.login(user)
@@ -183,8 +187,25 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         assert await_(Episode.async_get(dbs, id=episode_1.id)) is None
         assert await_(Episode.async_get(dbs, id=episode_2.id)) is None
 
-        mocked_s3.delete_files_async.assert_called_with([episode_2.file_name])
+        ra = settings.S3_BUCKET_AUDIO_PATH
+        ri = settings.S3_BUCKET_IMAGES_PATH
 
+        mocked_s3.delete_files_async.assert_any_call([episode_1.audio.name], remote_path=ra)
+        mocked_s3.delete_files_async.assert_any_call([episode_1.image.name], remote_path=ri)
+
+        mocked_s3.delete_files_async.assert_any_call([episode_2.audio.name], remote_path=ra)
+        mocked_s3.delete_files_async.assert_any_call([episode_2.image.name], remote_path=ri)
+
+    @staticmethod
+    def _episode(dbs, podcast: Podcast, episode_status: EpisodeStatus = None, episode_data: dict = None):
+        episode_data = episode_data or get_episode_data(podcast, episode_status)
+        return create_episode(
+            dbs,
+            podcast=podcast,
+            episode_data=episode_data
+        )
+
+    # TODO: fix test! (owner_id)
     def test_delete__episodes_in_another_podcast__ok(
         self, client, episode_data, user, mocked_s3, dbs
     ):
@@ -192,14 +213,14 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
         episode_data["status"] = Episode.Status.PUBLISHED
         episode_data["podcast_id"] = podcast_1.id
-        episode_1 = await_(Episode.async_create(dbs, **episode_data))
-        episode_1_1 = await_(Episode.async_create(dbs, **get_episode_data(podcast_1, "published")))
+        episode_1 = self._episode(dbs, podcast_1)
+        episode_1_1 = self._episode(dbs, podcast_1, EpisodeStatus.PUBLISHED)
 
         podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data()))
         episode_data["status"] = Episode.Status.PUBLISHED
         episode_data["podcast_id"] = podcast_2.id
         # creating episode with same `source_id` in another podcast
-        episode_2 = await_(Episode.async_create(dbs, **episode_data))
+        episode_2 = self._episode(dbs, podcast_2, episode_data)
 
         await_(dbs.commit())
         client.login(user)
@@ -212,7 +233,17 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         assert await_(Podcast.async_get(dbs, id=podcast_2.id)) is not None
         assert await_(Episode.async_get(dbs, id=episode_2.id)) is not None
 
-        mocked_s3.delete_files_async.assert_called_with([episode_1_1.file_name])
+        ra = settings.S3_BUCKET_AUDIO_PATH
+        ri = settings.S3_BUCKET_IMAGES_PATH
+
+        mocked_s3.delete_files_async.assert_any_call([episode_1.audio.name], remote_path=ra)
+        mocked_s3.delete_files_async.assert_any_call([episode_1.image.name], remote_path=ri)
+
+        mocked_s3.delete_files_async.assert_any_call([episode_1_1.audio.name], remote_path=ra)
+        mocked_s3.delete_files_async.assert_any_call([episode_1_1.image.name], remote_path=ri)
+
+        mocked_s3.delete_files_async.assert_any_call([episode_2.audio.name], remote_path=ra)
+        mocked_s3.delete_files_async.assert_any_call([episode_2.image.name], remote_path=ri)
 
 
 class TestPodcastGenerateRSSAPIView(BaseTestAPIView):

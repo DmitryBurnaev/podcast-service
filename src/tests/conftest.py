@@ -219,12 +219,14 @@ def episode_data(podcast):
 @pytest.fixture
 def podcast(podcast_data, user, loop, dbs):
     podcast_data["owner_id"] = user.id
+    publish_id = podcast_data["publish_id"]
     image = loop.run_until_complete(
         File.create(
             dbs,
             FileType.IMAGE,
             owner_id=user.id,
-            path="/remote/path/to/audio/podcast_image.png",
+            path=f"/remote/path/to/audio/podcast_{publish_id}_image.png",
+            available=True,
         )
     )
     rss = loop.run_until_complete(
@@ -232,7 +234,8 @@ def podcast(podcast_data, user, loop, dbs):
             dbs,
             FileType.RSS,
             owner_id=user.id,
-            path="/remote/path/to/rss/podcast_rss.xml",
+            path=f"/remote/path/to/rss/podcast_{publish_id}_rss.xml",
+            available=True,
         )
     )
     podcast_data["image_id"] = image.id
@@ -295,6 +298,7 @@ def episode(podcast, user, loop, dbs) -> Episode:
             FileType.AUDIO,
             owner_id=user.id,
             path=f"/remote/path/to/audio/episode_{source_id}_audio.mp3",
+            available=True,
         )
     )
     image = loop.run_until_complete(
@@ -303,6 +307,7 @@ def episode(podcast, user, loop, dbs) -> Episode:
             FileType.IMAGE,
             owner_id=user.id,
             path=f"/remote/path/to/audio/episode_{source_id}_image.png",
+            available=True,
         )
     )
     episode_data["audio_id"] = audio.id

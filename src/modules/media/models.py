@@ -56,7 +56,7 @@ class File(ModelBase, ModelMixin):
     def name(self) -> str:
         return os.path.basename(self.path)
 
-    async def delete(self, db_session: AsyncSession):
+    async def delete(self, db_session: AsyncSession, db_flush: bool = True):
         same_files = (
             await File.async_filter(
                 db_session, path=self.path, id__ne=self.id, type=self.type, available__is=True
@@ -74,7 +74,7 @@ class File(ModelBase, ModelMixin):
                 file_infos,
             )
 
-        return await super(File, self).delete(db_session)
+        return await super(File, self).delete(db_session, db_flush)
 
     @classmethod
     async def create(

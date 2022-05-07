@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.testclient import TestClient
 
 from common.db_utils import make_session_maker
-from common.enums import SourceType, FileType
+from common.enums import SourceType, FileType, EpisodeStatus
 from modules.auth.utils import encode_jwt
 from modules.auth.models import User, UserSession
 from modules.media.models import File
@@ -83,7 +83,11 @@ def get_source_id() -> str:
     return blake2b(key=bytes(str(time.time()), encoding="utf-8"), digest_size=6).hexdigest()[:11]
 
 
-def get_episode_data(podcast: Podcast = None, status: str = None, creator: User = None) -> dict:
+def get_episode_data(
+    podcast: Podcast = None,
+    status: EpisodeStatus = EpisodeStatus.NEW,
+    creator: User = None
+) -> dict:
     source_id = get_source_id()
     episode_data = {
         "source_id": source_id,
@@ -92,11 +96,8 @@ def get_episode_data(podcast: Podcast = None, status: str = None, creator: User 
         "watch_url": f"https://www.youtube.com/watch?v={source_id}",
         "length": random.randint(1, 100),
         "description": f"description_{source_id}",
-        # "image_url": f"image_url_{source_id}",
-        # "file_name": f"file_name_{source_id}",
-        # "file_size": random.randint(1, 100),
         "author": None,
-        "status": status or "new",
+        "status": status or EpisodeStatus.NEW,
     }
 
     if podcast:

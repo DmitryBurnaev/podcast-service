@@ -139,13 +139,13 @@ class Episode(ModelBase, ModelMixin):
     def generate_image_name(cls, source_id: str) -> str:
         return f"{source_id}_{uuid.uuid4().hex}.png"
 
-    async def delete(self, db_session: AsyncSession):
+    async def delete(self, db_session: AsyncSession, db_flush: bool = True):
         """Removing files associated with requested episode"""
-        if self.image:
-            await self.image.delete(db_session)
-        if self.audio:
-            await self.audio.delete(db_session)
-        return await super().delete(db_session)
+        if self.image_id:
+            await self.image.delete(db_session, db_flush)
+        if self.audio_id:
+            await self.audio.delete(db_session, db_flush)
+        return await super().delete(db_session, db_flush)
 
 
 class Cookie(ModelBase, ModelMixin):

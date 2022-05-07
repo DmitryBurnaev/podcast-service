@@ -83,7 +83,7 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
     async def delete(self, request):
         podcast = await self._get_object(request)
         await self._delete_episodes(podcast)
-        if podcast.rss:
+        if podcast.rss_id:
             await podcast.rss.delete(self.db_session)
 
         await podcast.delete(self.db_session)
@@ -95,7 +95,11 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
 
     async def _delete_episodes(self, podcast: Podcast):
         episodes = await Episode.async_filter(self.db_session, podcast_id=podcast.id)
-        await asyncio.gather(episode.delete(self.db_session) for episode in episodes)
+        del_actions = [
+            episode.delete(self.db_session, db_flush=False)
+            for episode in episodes
+        ]
+        await asyncio.gather(*del_actions)
 
 
 class PodcastUploadImageAPIView(BaseHTTPEndpoint):
