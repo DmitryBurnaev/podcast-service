@@ -3,7 +3,8 @@ from typing import Optional
 import pytest
 from youtube_dl.utils import ExtractorError
 
-from common.enums import SourceType
+from common.enums import SourceType, FileType
+from modules.media.models import File
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast.episodes import EpisodeCreator
 from modules.podcast.models import Podcast, Episode, Cookie
@@ -25,6 +26,20 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert episode is not None
         assert episode.watch_url == watch_url
         assert episode.source_id == source_id
+        assert episode.audio_id is not None
+        assert episode.image_id is not None
+
+        audio = await_(File.async_get(dbs, id=episode.audio_id))
+        assert audio.type == FileType.AUDIO
+        assert audio.source_url == watch_url
+        assert audio.path == ""
+        assert audio.available is False
+
+        image = await_(File.async_get(dbs, id=episode.image_id))
+        assert image.type == FileType.IMAGE
+        assert image.source_url == mocked_youtube.thumbnail_url
+        assert image.path == ""
+        assert image.available is True
 
     def test_same_episode_in_podcast__ok(self, podcast, episode, user, mocked_youtube, dbs):
         episode_creator = EpisodeCreator(

@@ -85,6 +85,7 @@ class EpisodeCreator:
         self.source_info.cookie = cookie
         extract_error, source_info = await provider_utils.get_source_media_info(self.source_info)
 
+        # TODO: fix logic here (update actual data from source_info for already exists episodes)
         if same_episode:
             logger.info("Episode will be copied from other episode with same video.")
             same_episode_data.pop("id", None)

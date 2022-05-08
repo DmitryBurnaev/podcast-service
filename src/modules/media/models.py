@@ -29,7 +29,7 @@ class File(ModelBase, ModelMixin):
 
     id = Column(Integer, primary_key=True)
     type = EnumTypeColumn(FileType, nullable=False)
-    path = Column(String(length=256), nullable=False)
+    path = Column(String(length=256), nullable=False, default="")
     size = Column(Integer, default=0)
     source_url = Column(String(length=512), nullable=False, default="")
     available = Column(Boolean, nullable=False, default=False)

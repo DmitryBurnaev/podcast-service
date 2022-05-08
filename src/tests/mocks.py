@@ -60,6 +60,7 @@ class MockYoutubeDL(BaseMock):
 
         self.source_id = get_source_id()
         self.watch_url = f"https://www.youtube.com/watch?v={self.source_id}"
+        self.thumbnail_url = f"https://test.thumbnails.com/image-{self.source_id}.com"
         self.download = Mock()
         self.extract_info = Mock(return_value=self.info)
 
@@ -90,8 +91,8 @@ class MockYoutubeDL(BaseMock):
                     "title": "Test providers video",
                     "description": "Test providers video description",
                     "webpage_url": self.watch_url,
-                    "thumbnail": "http://path.to-image.com",
-                    "thumbnails": [{"url": "http://path.to-image.com"}],
+                    "thumbnail": self.thumbnail_url,
+                    "thumbnails": [{"url": self.thumbnail_url}],
                     "uploader": "Test author",
                     "duration": 110,
                 }
@@ -100,8 +101,8 @@ class MockYoutubeDL(BaseMock):
                     "id": "123456",
                     "title": "Test providers audio",
                     "webpage_url": "http://path.to-track.com",
-                    "thumbnail": "http://path.to-image.com",
-                    "thumbnails": [{"url": "http://path.to-image.com"}],
+                    "thumbnail": self.thumbnail_url,
+                    "thumbnails": [{"url": self.thumbnail_url}],
                     "duration": 110,
                     "playlist": "Playlist #1",
                     "playlist_index": 1,

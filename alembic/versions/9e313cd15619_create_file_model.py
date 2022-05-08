@@ -22,7 +22,7 @@ def upgrade():
         "media_files",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("type", sa.VARCHAR(16), nullable=False),
-        sa.Column("path", sa.String(length=256), nullable=False),
+        sa.Column("path", sa.String(length=256), nullable=False, default=""),
         sa.Column("size", sa.Integer(), nullable=True),
         sa.Column("source_url", sa.String(length=512), nullable=False, default=""),
         sa.Column("available", sa.Boolean(), nullable=False, default=False),

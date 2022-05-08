@@ -14,7 +14,7 @@ from tests.helpers import (
     get_podcast_data,
     get_episode_data,
     create_episode,
-    await_,
+    await_, get_source_id,
 )
 
 INVALID_UPDATE_DATA = [
@@ -197,35 +197,37 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         mocked_s3.delete_files_async.assert_any_call([episode_2.image.name], remote_path=ri)
 
     @staticmethod
-    def _episode(dbs, podcast: Podcast, episode_status: EpisodeStatus = None, episode_data: dict = None):
+    def _episode(dbs, podcast: Podcast, episode_status: EpisodeStatus = None, episode_data: dict = None, source_id: str = None):
         episode_data = episode_data or get_episode_data(podcast, episode_status)
         return create_episode(
             dbs,
             podcast=podcast,
+            source_id=source_id,
             episode_data=episode_data
         )
 
-    # TODO: fix test! (owner_id)
-    def test_delete__episodes_in_another_podcast__ok(
-        self, client, episode_data, user, mocked_s3, dbs
-    ):
-        dbs = dbs
+    def test_delete__episodes_in_another_podcast__ok(self, client, user, mocked_s3, dbs):
         podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
-        episode_data["status"] = Episode.Status.PUBLISHED
+        episode_data = get_episode_data(podcast_1, creator=user)
+
         episode_data["podcast_id"] = podcast_1.id
-        episode_1 = self._episode(dbs, podcast_1)
-        episode_1_1 = self._episode(dbs, podcast_1, EpisodeStatus.PUBLISHED)
+        episode_1 = self._episode(dbs, podcast_1, episode_data=episode_data, episode_status=Episode.Status.PUBLISHED)
+
+        source_id = get_source_id()
+        episode_1_1 = self._episode(dbs, podcast_1, episode_data=episode_data, source_id=source_id, episode_status=Episode.Status.NEW)
 
         podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data()))
         episode_data["status"] = Episode.Status.PUBLISHED
         episode_data["podcast_id"] = podcast_2.id
         # creating episode with same `source_id` in another podcast
-        episode_2 = self._episode(dbs, podcast_2, episode_data)
+        # not-available files (with same source_id will be deleted too)
+        episode_2 = self._episode(dbs, podcast_2, episode_data=episode_data, source_id=source_id, episode_status=Episode.Status.NEW)
 
         await_(dbs.commit())
         client.login(user)
         url = self.url.format(id=podcast_1.id)
         response = client.delete(url)
+
         assert response.status_code == 200
         assert await_(Podcast.async_get(dbs, id=podcast_1.id)) is None
         assert await_(Episode.async_get(dbs, id=episode_1.id)) is None
