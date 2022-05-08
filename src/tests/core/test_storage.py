@@ -39,11 +39,9 @@ class TestS3Storage:
 
         mock_boto3_session_client.return_value = mock_client
 
-        result_utl = StorageS3().upload_file(local_path, remote_dir, callback=mock_upload_callback)
-        expected_url = urljoin(
-            settings.S3_STORAGE_URL, os.path.join(settings.S3_BUCKET_NAME, remote_path)
-        )
-        assert result_utl == expected_url
+        result_path = StorageS3().upload_file(local_path, remote_dir, callback=mock_upload_callback)
+        expected_remote_path = os.path.join(settings.S3_BUCKET_NAME, remote_path)
+        assert result_path == expected_remote_path
 
         mock_boto3_session_client.assert_called_with(
             service_name="s3", endpoint_url=settings.S3_STORAGE_URL
@@ -53,7 +51,7 @@ class TestS3Storage:
             Bucket=settings.S3_BUCKET_NAME,
             Key=remote_path,
             Callback=mock_upload_callback,
-            ExtraArgs={"ACL": "public-read", "ContentType": "audio/mpeg"},
+            ExtraArgs={"ContentType": "audio/mpeg"},
         )
 
     @patch("boto3.session.Session.client")
@@ -131,8 +129,8 @@ class TestS3Storage:
         await_(StorageS3().delete_files_async(["test.mp3", "test2.mp3"], "remote-path"))
 
         expected_calls = [
-            {"Key": "remote-path/test.mp3", "Bucket": "podcast-media"},
-            {"Key": "remote-path/test2.mp3", "Bucket": "podcast-media"},
+            {"Key": "remote-path/test.mp3", "Bucket": settings.S3_BUCKET_NAME},
+            {"Key": "remote-path/test2.mp3", "Bucket": settings.S3_BUCKET_NAME},
         ]
         actual_calls = [call.kwargs for call in mock_client.delete_object.call_args_list]
         assert actual_calls == expected_calls

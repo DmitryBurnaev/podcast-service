@@ -78,9 +78,30 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.watch_url == "https://new.watch.site/updated/"
         assert new_episode.title == "Updated title"
         assert new_episode.description == "Updated description"
-        assert new_episode.image_url == "https://link.to.image/updated/"
         assert new_episode.author == "Updated author"
         assert new_episode.length == 123
+        assert new_episode.audio_id is not None
+        assert new_episode.image_id is not None
+
+        self._assert_files(dbs, episode, new_episode)
+
+    @staticmethod
+    def _assert_files(dbs, episode: Episode, new_episode: Episode):
+        audio: File = await_(File.async_get(dbs, id=episode.audio_id))
+        new_audio: File = await_(File.async_get(dbs, id=new_episode.audio_id))
+        assert audio.type == new_audio.type
+        assert audio.path == new_audio.path
+        assert audio.size == new_audio.size
+        assert audio.source_url == new_audio.source_url
+        assert audio.available == new_audio.available
+
+        image: File = await_(File.async_get(dbs, id=episode.image_id))
+        new_image: File = await_(File.async_get(dbs, id=new_episode.image_id))
+        assert image.type == new_image.type
+        assert image.path == new_image.path
+        assert image.size == new_image.size
+        assert image.source_url == new_image.source_url
+        assert image.available == new_image.available
 
     def test_same_episode__extract_failed__ok(self, podcast, episode, user, mocked_youtube, dbs):
         mocked_youtube.extract_info.side_effect = ExtractorError("Something went wrong here")
@@ -96,6 +117,8 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.id != episode.id
         assert new_episode.source_id == episode.source_id
         assert new_episode.watch_url == episode.watch_url
+
+        self._assert_files(dbs, episode, new_episode)
 
     def test_extract_failed__fail(self, podcast, episode_data, user, mocked_youtube, dbs):
         ydl_error = ExtractorError("Something went wrong here", video_id=episode_data["source_id"])

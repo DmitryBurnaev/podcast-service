@@ -40,6 +40,15 @@ class File(ModelBase, ModelMixin):
     def __str__(self):
         return f'<File #{self.id} | {self.type} | "{self.path}">'
 
+    def __cmp__(self, other: "File"):
+        return all([
+            self.type == other.type,
+            self.path == other.path,
+            self.size == other.size,
+            self.source_url == other.source_url,
+            self.available == other.available,
+        ])
+
     @classmethod
     def generate_token(cls) -> str:
         return get_random_hash(48)

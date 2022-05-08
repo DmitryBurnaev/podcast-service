@@ -1,6 +1,6 @@
 import re
 from collections.abc import Iterable
-from typing import Optional
+from typing import Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,7 +8,7 @@ from common.enums import FileType
 from common.utils import get_logger
 from modules.media.models import File
 from modules.podcast.models import Episode, Cookie
-from modules.providers.utils import SourceInfo
+from modules.providers.utils import SourceInfo, SourceMediaInfo
 from modules.providers import utils as provider_utils
 from modules.providers.exceptions import SourceFetchError
 
@@ -85,24 +85,53 @@ class EpisodeCreator:
         self.source_info.cookie = cookie
         extract_error, source_info = await provider_utils.get_source_media_info(self.source_info)
 
-        # TODO: fix logic here (update actual data from source_info for already exists episodes)
-        if same_episode:
-            logger.info("Episode will be copied from other episode with same video.")
+        if source_info:
+            new_episode_data = {
+                "source_id": self.source_id,
+                "source_type": self.source_info.type,
+                "watch_url": source_info.watch_url,
+                "title": self._replace_special_symbols(source_info.title),
+                "description": self._replace_special_symbols(source_info.description),
+                "author": source_info.author,
+                "length": source_info.length,
+            }
+
+        elif same_episode:
             same_episode_data.pop("id", None)
             new_episode_data = same_episode_data
+
+        else:
+            raise SourceFetchError(f"Extracting data for new Episode failed: {extract_error}")
+
+        audio_file, image_file = await self._create_files(same_episode, source_info)
+
+        new_episode_data.update(
+            {
+                "podcast_id": self.podcast_id,
+                "owner_id": self.user_id,
+                "cookie_id": cookie.id if cookie else None,
+                "image_id": image_file.id,
+                "audio_id": audio_file.id,
+            }
+        )
+        return new_episode_data
+
+    async def _create_files(
+        self, same_episode: Episode, source_info: SourceMediaInfo
+    ) -> Tuple[File, File]:
+
+        if same_episode:
             image_file = await File.copy(
                 self.db_session,
                 owner_id=self.user_id,
-                file_id=same_episode_data["image_id"],
+                file_id=same_episode.image_id,
             )
             audio_file = await File.copy(
                 self.db_session,
-                file_id=same_episode_data["audio_id"],
+                file_id=same_episode.audio_id,
                 owner_id=self.user_id,
             )
-
         elif source_info:
-            logger.info("Episode will be created from the source.")
             image_file = await File.create(
                 self.db_session,
                 FileType.IMAGE,
@@ -116,26 +145,10 @@ class EpisodeCreator:
                 owner_id=self.user_id,
                 source_url=source_info.watch_url,
             )
-            new_episode_data = {
-                "source_id": self.source_id,
-                "source_type": self.source_info.type,
-                "watch_url": source_info.watch_url,
-                "title": self._replace_special_symbols(source_info.title),
-                "description": self._replace_special_symbols(source_info.description),
-                "author": source_info.author,
-                "length": source_info.length,
-            }
-
         else:
-            raise SourceFetchError(f"Extracting data for new Episode failed: {extract_error}")
+            raise SourceFetchError(
+                f"Creating new files failed: same_episode or source_info required | source_id: "
+                f"{self.source_id}"
+            )
 
-        new_episode_data.update(
-            {
-                "podcast_id": self.podcast_id,
-                "owner_id": self.user_id,
-                "cookie_id": cookie.id if cookie else None,
-                "image_id": image_file.id,
-                "audio_id": audio_file.id if audio_file else None,
-            }
-        )
-        return new_episode_data
+        return audio_file, image_file

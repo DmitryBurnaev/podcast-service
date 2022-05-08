@@ -53,7 +53,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
                 "id": "123456",
                 "title": "Test providers audio",
                 "description": 'Playlist "Playlist #1" | Track #1 of 2',
-                "thumbnail_url": "http://path.to-image.com",
+                "thumbnail_url": mocked_youtube.thumbnail_url,
                 "url": "http://path.to-track.com",
             }
         ]

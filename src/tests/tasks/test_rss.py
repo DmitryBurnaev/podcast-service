@@ -1,9 +1,12 @@
 import os
 from datetime import datetime
 
+from common.enums import FileType
+from modules.media.models import File
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks.base import FinishCode
+from modules.podcast.utils import get_file_size
 from tests.helpers import get_episode_data, get_podcast_data, await_
 
 
@@ -12,8 +15,8 @@ class TestGenerateRSSTask:
 
     def test_generate__single_podcast__ok(self, user, mocked_s3, dbs):
 
-        podcast_1: Podcast = await_(Podcast.async_create(dbs, **get_podcast_data()))
-        podcast_2: Podcast = await_(Podcast.async_create(dbs, **get_podcast_data()))
+        podcast_1: Podcast = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
+        podcast_2: Podcast = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
 
         episode_data = get_episode_data(podcast_1, creator=user)
         episode_data["status"] = Episode.Status.NEW
@@ -50,7 +53,12 @@ class TestGenerateRSSTask:
             assert episode.source_id not in generated_rss_content, f"{episode} in RSS {podcast_1}"
 
         podcast_1 = await_(Podcast.async_get(dbs, id=podcast_1.id))
-        assert podcast_1.rss_link == str(expected_file_path)
+        assert podcast_1.rss_id is not None
+        rss: File = await_(File.async_get(dbs, id=podcast_1.rss_id))
+        assert rss.available is True
+        assert rss.type == FileType.RSS
+        assert rss.path == expected_file_path
+        assert rss.size == get_file_size(expected_file_path)
 
     def test_generate__several_podcasts__ok(self, user, mocked_s3, dbs):
         podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data()))

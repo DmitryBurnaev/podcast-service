@@ -58,7 +58,7 @@ class GenerateRSSTask(RQTask):
         await podcast.update(self.db_session, rss_id=rss_file.id)
         logger.info("RSS file uploaded, podcast record updated")
 
-        logger.info("FINISH generation for %s | URL: %s", podcast, podcast.rss_link)
+        logger.info("FINISH generation for %s | PATH: %s", podcast, podcast.rss.path)
         return {podcast.id: FinishCode.OK}
 
     async def _render_rss_to_file(self, podcast: Podcast) -> str:
