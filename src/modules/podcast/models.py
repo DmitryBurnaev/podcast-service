@@ -116,19 +116,12 @@ class Episode(ModelBase, ModelMixin):
             db_session, status__in=Episode.PROGRESS_STATUSES, owner_id=user_id
         )
 
-    # @property
-    # def audio_url(self):
-    #     # TODO: avoid extra SQL calls
-    #     return self.audio.url
-
-    # @property
-    # def audio_size(self):
-    #     # TODO: avoid extra SQL calls
-    #     return self.audio.size
-    #
     @property
     def image_url(self) -> str:
-        return self.image.url if self.image else settings.DEFAULT_EPISODE_COVER
+        if self.image and self.image.available:
+            return self.image.url
+
+        return settings.DEFAULT_EPISODE_COVER
 
     @property
     def content_type(self) -> str:

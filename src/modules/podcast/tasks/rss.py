@@ -56,16 +56,15 @@ class GenerateRSSTask(RQTask):
             size=get_file_size(result_path),
         )
         await podcast.update(self.db_session, rss_id=rss_file.id)
-        logger.info("RSS file uploaded, podcast record updated")
+        logger.info("Podcast #%i: RSS file uploaded, podcast record updated", podcast.id)
 
-        logger.info("FINISH generation for %s | PATH: %s", podcast, podcast.rss.path)
+        logger.info("FINISH generation for %s | PATH: %s", podcast, rss_file.path)
         return {podcast.id: FinishCode.OK}
 
     async def _render_rss_to_file(self, podcast: Podcast) -> str:
         """Generate rss for Podcast and Episodes marked as "published" """
 
-        logger.info(f"Podcast #{podcast.id}: RSS generation has been started.")
-
+        logger.info("Podcast #%i: RSS generation has been started", podcast.id)
         episodes = await Episode.async_filter(
             self.db_session,
             podcast_id=podcast.id,
@@ -77,10 +76,10 @@ class GenerateRSSTask(RQTask):
             template = Template(fh.read())
 
         rss_filename = os.path.join(settings.TMP_RSS_PATH, f"{podcast.publish_id}.xml")
-        logger.info(f"Podcast #{podcast.publish_id}: Generation new file rss [{rss_filename}]")
+        logger.info("Podcast #%i: Generation new file rss [%s]", podcast.id, rss_filename)
         with open(rss_filename, "w") as fh:
             result_rss = template.render(podcast=podcast, **context)
             fh.write(result_rss)
 
-        logger.info(f"Podcast #{podcast.id}: RSS generation has been finished.")
+        logger.info(f"Podcast #%i: RSS file %s generated.", podcast.id, rss_filename)
         return rss_filename

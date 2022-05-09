@@ -105,6 +105,8 @@ def get_episode_data(
 
     if creator:
         episode_data["owner_id"] = creator.id
+    elif podcast:
+        episode_data["owner_id"] = podcast.owner_id
 
     return episode_data
 
@@ -152,20 +154,21 @@ def create_user_session(db_session, user):
 def create_episode(
     db_session: AsyncSession,
     episode_data: dict,
-    podcast: Podcast,
-    status: Episode.Status = Episode.Status.NEW,
+    podcast: Podcast = None,
+    status: Episode.Status = None,
     file_size: int = 0,
     source_id: str = None,
 ) -> Episode:
-    source_id = source_id or get_source_id()
-    episode_data.update(
-        {
-            "podcast_id": podcast.id,
-            "source_id": source_id,
-            "status": status,
-        }
-    )
-    owner_id = episode_data.get("owner_id") or podcast.owner_id
+    source_id = source_id or episode_data.get("source_id") or get_source_id()
+    status = status or episode_data.get("status") or Episode.Status.NEW
+    podcast_id = podcast.id if podcast else episode_data["podcast_id"]
+    _episode_data = episode_data | {
+        "podcast_id": podcast_id,
+        "source_id": source_id,
+        "status": status,
+    }
+
+    owner_id = episode_data.get("owner_id") or (podcast.owner_id if podcast else None)
     audio = await_(
         File.create(
             db_session,
@@ -185,9 +188,9 @@ def create_episode(
             available=(status == Episode.Status.PUBLISHED),
         )
     )
-    episode_data["audio_id"] = audio.id
-    episode_data["image_id"] = image.id
-    episode = await_(Episode.async_create(db_session, db_commit=True, **episode_data))
+    _episode_data["audio_id"] = audio.id
+    _episode_data["image_id"] = image.id
+    episode = await_(Episode.async_create(db_session, db_commit=True, **_episode_data))
     episode.audio = audio
     episode.image = image
     return episode

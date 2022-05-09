@@ -37,6 +37,8 @@ class TestProgressAPIView(BaseTestAPIView):
         podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
 
         episode_data["owner_id"] = user.id
+        episode_data["source_id"] = None  # should be regenerated for each new episode
+
         p1_episode_new = create_episode(dbs, episode_data, podcast_1, STATUS.NEW, MB_1)
         p1_episode_down = create_episode(dbs, episode_data, podcast_1, STATUS.DOWNLOADING, MB_2)
         p2_episode_down = create_episode(dbs, episode_data, podcast_2, STATUS.DOWNLOADING, MB_4)

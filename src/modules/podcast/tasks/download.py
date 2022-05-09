@@ -246,17 +246,20 @@ class DownloadEpisodeImageTask(RQTask):
 
         for index, episode in enumerate(episodes, start=1):
             logger.info("=== Episode %i from %i ===", index, episodes_count)
-            if episode.image_url.startswith(settings.S3_BUCKET_IMAGES_PATH):
+            image: File = episode.image
+            if image.path.startswith(settings.S3_BUCKET_IMAGES_PATH):
                 logger.info("Skip episode %i | image URL: %s", episode.id, episode.image_url)
                 continue
 
             if tmp_path := await self._crop_image(episode):
-                result_url = await self._upload_cover(episode, tmp_path)
+                remote_path = await self._upload_cover(episode, tmp_path)
+                available = True
             else:
-                result_url = ""
+                remote_path, available = "", False
 
-            logger.info("Saving new image URL: episode %s | url %s", episode.id, result_url)
-            await episode.update(self.db_session, image_url=result_url)
+            logger.info("Saving new image URL: episode %s | remote %s", episode.id, remote_path)
+
+            await image.update(self.db_session, path=remote_path, available=available)
 
         return FinishCode.OK
 
@@ -273,12 +276,12 @@ class DownloadEpisodeImageTask(RQTask):
     async def _upload_cover(self, episode: Episode, tmp_path: Path) -> str:
         attempt = 1
         while attempt <= self.MAX_UPLOAD_ATTEMPT:
-            if result_url := self.storage.upload_file(
+            if remote_path := self.storage.upload_file(
                 src_path=str(tmp_path),
                 dst_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH,
                 filename=Episode.generate_image_name(episode.source_id),
             ):
-                return result_url
+                return remote_path
 
             attempt += 1
             await asyncio.sleep(attempt)
