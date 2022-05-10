@@ -2,10 +2,9 @@
 
 .idea/
 .vscode/
+.misc/
 .env
 .coverage
 .pytest_cache
 .python-version
 .log
-.misc
-/media

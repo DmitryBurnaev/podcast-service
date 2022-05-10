@@ -26,11 +26,11 @@ def delete_file(filepath: Union[str, Path]):
         logger.info(f"File {filepath} deleted")
 
 
-def get_file_name(video_id: str) -> str:
-    return f"{video_id}_{uuid.uuid4().hex}.mp3"
+def get_filename(source_id: str) -> str:
+    return f"{source_id}_{uuid.uuid4().hex}.mp3"
 
 
-def get_file_size(file_path: str):
+def get_file_size(file_path: str | Path):
     try:
         return os.path.getsize(file_path)
     except FileNotFoundError:
@@ -42,11 +42,11 @@ async def check_state(episodes: Iterable[Episode]) -> list:
     """Allows getting info about download progress for requested episodes"""
 
     redis_client = RedisClient()
-    file_names = {redis_client.get_key_by_filename(episode.file_name) for episode in episodes}
+    file_names = {redis_client.get_key_by_filename(episode.audio.name) for episode in episodes}
     current_states = await redis_client.async_get_many(file_names, pkey="event_key")
     result = []
     for episode in episodes:
-        file_name = episode.file_name
+        file_name = episode.audio.name
         if not file_name:
             logger.warning(f"Episode {episode} does not contain filename")
             continue
@@ -133,10 +133,10 @@ def episode_process_hook(
     logger.debug("[%s] for %s: %s", status, filename, progress)
 
 
-def upload_episode(filename: str, src_path: str = None) -> Optional[str]:
+def upload_episode(src_path: str | Path) -> Optional[str]:
     """Allows uploading src_path to S3 storage"""
 
-    src_path = src_path or os.path.join(settings.TMP_AUDIO_PATH, filename)
+    filename = os.path.basename(src_path)
     episode_process_hook(
         filename=filename,
         status=EpisodeStatus.DL_EPISODE_UPLOADING,
@@ -145,16 +145,16 @@ def upload_episode(filename: str, src_path: str = None) -> Optional[str]:
     )
     logger.info("Upload for %s started.", filename)
     storage = StorageS3()
-    result_url = storage.upload_file(
+    remote_path = storage.upload_file(
         src_path=src_path,
         dst_path=settings.S3_BUCKET_AUDIO_PATH,
         callback=partial(upload_process_hook, filename),
     )
-    if not result_url:
+    if not remote_path:
         logger.warning("Couldn't upload file to S3 storage. SKIP")
         episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0)
         return
 
     logger.info("Great! uploading for %s was done!", filename)
-    logger.debug("Finished uploading for file %s. \n Result url is %s", filename, result_url)
-    return result_url
+    logger.debug("Finished uploading for file %s. \n Result url is %s", filename, remote_path)
+    return remote_path

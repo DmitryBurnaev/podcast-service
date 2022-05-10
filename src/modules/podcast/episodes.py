@@ -1,13 +1,14 @@
 import re
 from collections.abc import Iterable
-from typing import Optional
+from typing import Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from common.enums import FileType
 from common.utils import get_logger
-from modules.podcast.utils import get_file_name
+from modules.media.models import File
 from modules.podcast.models import Episode, Cookie
-from modules.providers.utils import SourceInfo
+from modules.providers.utils import SourceInfo, SourceMediaInfo
 from modules.providers import utils as provider_utils
 from modules.providers.exceptions import SourceFetchError
 
@@ -66,7 +67,7 @@ class EpisodeCreator:
         This info can be given from same episode (episode which has same source_id)
         and part information - from ExternalSource (ex.: YouTube)
 
-        :return: dict with information for new episode
+        :return: dict with information for the new episode
         """
 
         if same_episode:
@@ -85,34 +86,69 @@ class EpisodeCreator:
         extract_error, source_info = await provider_utils.get_source_media_info(self.source_info)
 
         if source_info:
-            logger.info("Episode will be created from the source.")
             new_episode_data = {
                 "source_id": self.source_id,
                 "source_type": self.source_info.type,
                 "watch_url": source_info.watch_url,
                 "title": self._replace_special_symbols(source_info.title),
                 "description": self._replace_special_symbols(source_info.description),
-                "image_url": source_info.thumbnail_url,
                 "author": source_info.author,
                 "length": source_info.length,
-                "file_size": same_episode_data.get("file_size"),
-                "file_name": same_episode_data.get("file_name") or get_file_name(self.source_id),
-                "remote_url": same_episode_data.get("remote_url"),
             }
 
         elif same_episode:
-            logger.info("Episode will be copied from other episode with same video.")
             same_episode_data.pop("id", None)
             new_episode_data = same_episode_data
 
         else:
             raise SourceFetchError(f"Extracting data for new Episode failed: {extract_error}")
 
+        audio_file, image_file = await self._create_files(same_episode, source_info)
+
         new_episode_data.update(
             {
                 "podcast_id": self.podcast_id,
                 "owner_id": self.user_id,
                 "cookie_id": cookie.id if cookie else None,
+                "image_id": image_file.id,
+                "audio_id": audio_file.id,
             }
         )
         return new_episode_data
+
+    async def _create_files(
+        self, same_episode: Episode, source_info: SourceMediaInfo
+    ) -> Tuple[File, File]:
+
+        if same_episode:
+            image_file = await File.copy(
+                self.db_session,
+                owner_id=self.user_id,
+                file_id=same_episode.image_id,
+            )
+            audio_file = await File.copy(
+                self.db_session,
+                file_id=same_episode.audio_id,
+                owner_id=self.user_id,
+            )
+        elif source_info:
+            image_file = await File.create(
+                self.db_session,
+                FileType.IMAGE,
+                owner_id=self.user_id,
+                source_url=source_info.thumbnail_url,
+            )
+            audio_file = await File.create(
+                self.db_session,
+                FileType.AUDIO,
+                available=False,
+                owner_id=self.user_id,
+                source_url=source_info.watch_url,
+            )
+        else:
+            raise SourceFetchError(
+                f"Creating new files failed: same_episode or source_info required | source_id: "
+                f"{self.source_id}"
+            )
+
+        return audio_file, image_file

@@ -1,10 +1,9 @@
 from sqlalchemy import exists
 from starlette import status
 
-from common.exceptions import MethodNotAllowedError
-from common.storage import StorageS3
 from common.utils import get_logger
 from common.views import BaseHTTPEndpoint
+from common.exceptions import MethodNotAllowedError
 from modules.podcast import tasks
 from modules.podcast.episodes import EpisodeCreator
 from modules.podcast.models import Episode, Podcast
@@ -95,27 +94,7 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
         episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
         await episode.delete(self.db_session)
-        await self._delete_file(episode)
         return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
-
-    async def _delete_file(self, episode: Episode):
-        """Removing file associated with requested episode"""
-
-        same_file_episodes = await Episode.async_filter(
-            self.db_session,
-            source_id=episode.source_id,
-            status__ne=Episode.Status.NEW,
-            id__ne=episode.id,
-        )
-        if same_file_episodes.all():
-            episode_ids = ",".join([f"#{episode.id}" for episode in same_file_episodes])
-            logger.warning(
-                f"There are another episodes for file {episode.file_name}: {episode_ids}. "
-                f"Skip file removing."
-            )
-            return
-
-        return await StorageS3().delete_files_async([episode.file_name])
 
 
 class EpisodeDownloadAPIView(BaseHTTPEndpoint):

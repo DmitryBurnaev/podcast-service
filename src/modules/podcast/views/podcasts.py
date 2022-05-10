@@ -1,6 +1,5 @@
 import asyncio
 from pathlib import Path
-from typing import Iterable
 
 from sqlalchemy import select, func
 from starlette import status
@@ -9,10 +8,12 @@ from starlette.datastructures import UploadFile
 from starlette.requests import Request
 
 from core import settings
+from common.enums import FileType
 from common.utils import get_logger
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
 from common.exceptions import MaxAttemptsReached, InvalidParameterError
+from modules.media.models import File
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.schemas import (
     PodcastCreateUpdateSchema,
@@ -20,6 +21,7 @@ from modules.podcast.schemas import (
     PodcastUploadImageResponseSchema,
 )
 from modules.podcast.tasks.rss import GenerateRSSTask
+from modules.podcast.utils import get_file_size
 
 logger = get_logger(__name__)
 
@@ -36,7 +38,9 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
             select([Podcast, func_count])
             .outerjoin(Episode, Episode.podcast_id == Podcast.id)
             .filter(Podcast.owner_id == request.user.id)
-            .group_by(Podcast.id)
+            .group_by(
+                Podcast.id,
+            )
             .order_by(Podcast.id)
         )
         podcasts = await request.db_session.execute(stmt)
@@ -67,53 +71,32 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
     schema_response = PodcastDetailsSchema
 
     async def get(self, request):
-        podcast_id = request.path_params["podcast_id"]
-        podcast = await self._get_object(podcast_id)
+        podcast = await self._get_object(request)
         return self._response(podcast)
 
     async def patch(self, request):
         cleaned_data = await self._validate(request, partial_=True)
-        podcast_id = request.path_params["podcast_id"]
-        podcast = await self._get_object(podcast_id)
+        podcast = await self._get_object(request)
         await podcast.update(self.db_session, **cleaned_data)
         return self._response(podcast)
 
     async def delete(self, request):
-        podcast_id = int(request.path_params["podcast_id"])
-        podcast = await self._get_object(podcast_id)
-        episodes = await Episode.async_filter(self.db_session, podcast_id=podcast_id)
+        podcast = await self._get_object(request)
+        await self._delete_episodes(podcast)
+        if podcast.rss_id:
+            await podcast.rss.delete(self.db_session)
 
-        await Episode.async_delete(self.db_session, {"podcast_id": podcast_id})
         await podcast.delete(self.db_session)
-        await self._delete_files(podcast, episodes)
         return self._response()
 
-    async def _delete_files(self, podcast: Podcast, episodes: Iterable[Episode]):
-        podcast_file_names = {
-            episode.file_name for episode in episodes if episode.status == Episode.Status.PUBLISHED
-        }
-        same_file_episodes = await Episode.async_filter(
-            self.db_session,
-            podcast_id__ne=podcast.id,
-            file_name__in=podcast_file_names,
-            status=Episode.Status.PUBLISHED,
-        )
-        exist_file_names = {episode.file_name for episode in same_file_episodes or []}
+    async def _get_object(self, request: Request, **_) -> Podcast:
+        podcast_id = int(request.path_params["podcast_id"])
+        return await super()._get_object(podcast_id)
 
-        files_to_remove = podcast_file_names - exist_file_names
-        files_to_skip = exist_file_names & podcast_file_names
-        if files_to_skip:
-            logger.warning(
-                "There are another episodes with files %s. Skip this files removing.",
-                files_to_skip,
-            )
-
-        storage = StorageS3()
-        await storage.delete_files_async(
-            [f"{podcast.publish_id}.xml"], remote_path=settings.S3_BUCKET_RSS_PATH
-        )
-        if files_to_remove:
-            await storage.delete_files_async(list(files_to_remove))
+    async def _delete_episodes(self, podcast: Podcast):
+        episodes = await Episode.async_filter(self.db_session, podcast_id=podcast.id)
+        del_actions = [episode.delete(self.db_session, db_flush=False) for episode in episodes]
+        await asyncio.gather(*del_actions)
 
 
 class PodcastUploadImageAPIView(BaseHTTPEndpoint):
@@ -122,15 +105,24 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
     db_model = Podcast
     schema_response = PodcastUploadImageResponseSchema
 
-    async def post(self, request: Request):
+    async def post(self, request):
         podcast_id = request.path_params["podcast_id"]
         podcast: Podcast = await self._get_object(podcast_id)
         logger.info("Uploading cover for podcast %s", podcast)
         cleaned_data = await self._validate(request)
         tmp_path = await self._save_uploaded_image(cleaned_data)
 
-        podcast.image_url = await self._upload_cover(podcast, tmp_path)
-        await podcast.update(self.db_session, image_url=podcast.image_url)
+        image_remote_path = await self._upload_cover(podcast, tmp_path)
+        image_file = await File.async_create(
+            db_session=request.db_session,
+            owner_id=request.user.id,
+            type=FileType.IMAGE,
+            path=image_remote_path,
+            size=get_file_size(tmp_path),
+            available=True,
+            access_token=File.generate_token(),
+        )
+        await podcast.update(self.db_session, image_id=image_file.id)
         await self.db_session.refresh(podcast)
         return self._response(podcast)
 
@@ -159,7 +151,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
         attempt = settings.MAX_UPLOAD_ATTEMPT + 1
         while attempt := (attempt - 1):
             try:
-                image_url = await run_in_threadpool(
+                remote_path = await run_in_threadpool(
                     storage.upload_file,
                     src_path=str(tmp_path),
                     dst_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH,
@@ -171,7 +163,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
                 )
                 await asyncio.sleep(settings.RETRY_UPLOAD_TIMEOUT)
             else:
-                return image_url
+                return remote_path
 
         raise MaxAttemptsReached(f"Couldn't upload cover for podcast {podcast.id}")
 

@@ -45,15 +45,15 @@ class PodcastDetailsSchema(Schema):
     name = fields.Str(required=True)
     description = fields.Str(required=True)
     created_at = fields.DateTime(required=True)
-    image_url = fields.URL()
-    rss_link = fields.URL()
+    image_url = fields.URL(attribute="image.url")
+    rss_url = fields.URL(attribute="rss.url")
     download_automatically = fields.Boolean(dump_default=True)
     episodes_count = fields.Integer(dump_default=0)
 
 
 class PodcastUploadImageResponseSchema(Schema):
     id = fields.Int(required=True)
-    image_url = fields.URL()
+    image_url = fields.URL(attribute="image.url")
 
 
 class EpisodeCreateSchema(Schema):
@@ -75,7 +75,7 @@ class EpisodeListSchema(Schema):
     id = fields.Int(required=True)
     title = fields.Str(required=True)
     created_at = fields.DateTime(required=True)
-    image_url = fields.URL()
+    image_url = fields.URL(attribute="image.url")
     status = fields.Str(required=True)
     source_type = fields.Str(required=True)
 
@@ -92,10 +92,10 @@ class EpisodeDetailsSchema(Schema):
     status = fields.Str()
     status_display = fields.Str()
     length = fields.Int(required=True)
+    audio_url = fields.URL(attribute="audio.url")
+    audio_size = fields.Int(attribute="audio.size")
+    image_url = fields.URL(attribute="image.url")
     watch_url = fields.URL()
-    remote_url = fields.URL()
-    image_url = fields.URL()
-    file_size = fields.Int()
     description = fields.Str()
     source_type = fields.Str(required=True)
     created_at = fields.DateTime(required=True)

@@ -3,8 +3,8 @@ import logging
 import mimetypes
 import os
 from functools import partial
+from pathlib import Path
 from typing import Callable, Optional, Tuple
-from urllib.parse import urljoin
 
 import boto3
 import botocore
@@ -65,7 +65,7 @@ class StorageS3:
 
     def upload_file(
         self,
-        src_path: str,
+        src_path: str | Path,
         dst_path: str,
         filename: Optional[str] = None,
         callback: Callable = None,
@@ -81,18 +81,13 @@ class StorageS3:
             Bucket=settings.S3_BUCKET_NAME,
             Key=dst_path,
             Callback=callback,
-            # TODO: change with podcast-service/issues/101
-            ExtraArgs={"ACL": "public-read", "ContentType": mimetype},
+            ExtraArgs={"ContentType": mimetype},
         )
         if code != self.CODE_OK:
             return None
 
-        result_url = urljoin(
-            settings.S3_STORAGE_URL, os.path.join(settings.S3_BUCKET_NAME, dst_path)
-        )
-        logger.info("File %s successful uploaded. Result URL: %s", filename, result_url)
-        # TODO: return dst_path (podcast-service/issues/101)
-        return result_url
+        logger.info("File %s successful uploaded. Remote path: %s", filename, dst_path)
+        return dst_path
 
     def get_file_info(
         self,
@@ -134,9 +129,7 @@ class StorageS3:
         code, result = self.__call(self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME)
         return result
 
-    async def delete_files_async(
-        self, filenames: list[str], remote_path: str = settings.S3_BUCKET_AUDIO_PATH
-    ):
+    async def delete_files_async(self, filenames: list[str], remote_path: str):
         loop = asyncio.get_running_loop()
         for filename in filenames:
             dst_path = os.path.join(remote_path, filename)

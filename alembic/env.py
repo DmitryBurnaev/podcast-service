@@ -12,6 +12,7 @@ from core import settings  # noqa
 from core.database import ModelBase  # noqa
 from modules.podcast import models  # noqa
 from modules.auth import models  # noqa
+from modules.media import models  # noqa
 
 config = context.config
 DB_DSN = "postgresql://{username}:{password}@{host}:{port}/{database}".format(**settings.DATABASE)

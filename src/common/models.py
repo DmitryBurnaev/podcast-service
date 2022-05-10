@@ -79,9 +79,10 @@ class ModelMixin:
             update_data["updated_at"] = datetime.datetime.utcnow()
         await self.async_update(db_session, {"id": self.id}, update_data=update_data)
 
-    async def delete(self, db_session: AsyncSession):
+    async def delete(self, db_session: AsyncSession, db_flush: bool = True):
         await db_session.delete(self)
-        await db_session.flush()
+        if db_flush:
+            await db_session.flush()
 
     def to_dict(self, excluded_fields: list[str] = None) -> dict:
         excluded_fields = excluded_fields or []

@@ -21,9 +21,9 @@ SECRET_KEY = config("SECRET_KEY", default="podcast-project-secret")
 
 TEST_MODE = "test" in sys.argv[0]
 
-db_name = config("DB_NAME", default="podcast")
+DB_NAME = config("DB_NAME", default="podcast")
 if TEST_MODE:
-    db_name = config("DB_NAME_TEST", default="podcast_test")
+    DB_NAME = config("DB_NAME_TEST", default="podcast_test")
 
 DATABASE = {
     "driver": "postgresql+asyncpg",
@@ -31,7 +31,7 @@ DATABASE = {
     "port": config("DB_PORT", cast=int, default=None),
     "username": config("DB_USERNAME", default=None),
     "password": config("DB_PASSWORD", cast=Secret, default=None),
-    "database": db_name,
+    "database": DB_NAME,
     "pool_min_size": config("DB_POOL_MIN_SIZE", cast=int, default=1),
     "pool_max_size": config("DB_POOL_MAX_SIZE", cast=int, default=16),
     "ssl": config("DB_SSL", default=None),
@@ -83,6 +83,7 @@ S3_BUCKET_IMAGES_PATH = config("S3_BUCKET_IMAGES_PATH", default="images/")
 S3_BUCKET_EPISODE_IMAGES_PATH = Path(os.path.join(S3_BUCKET_IMAGES_PATH, "episodes"))
 S3_BUCKET_PODCAST_IMAGES_PATH = Path(os.path.join(S3_BUCKET_IMAGES_PATH, "podcasts"))
 
+# TODO: upload images with persistent public links
 DEFAULT_EPISODE_COVER = config("DEFAULT_EPISODE_COVER", default="episode-default.jpg")
 DEFAULT_PODCAST_COVER = config("DEFAULT_PODCAST_COVER", default="podcast-default.jpg")
 
@@ -92,7 +93,8 @@ EMAIL_FROM = config("EMAIL_FROM", default="").strip("'\"")
 INVITE_LINK_EXPIRES_IN = 3 * 24 * 3600  # 3 day
 RESET_PASSWORD_LINK_EXPIRES_IN = 3 * 3600  # 3 hours
 
-SITE_URL = config("SITE_URL", default="https://podcast.site.com/")
+SITE_URL = config("SITE_URL", default="") or "https://podcast.site.com"
+SERVICE_URL = config("SERVICE_URL", default="") or "https://podcast-service.site.com/"
 
 DOWNLOAD_EVENT_REDIS_TTL = 60 * 60  # 60 minutes
 RQ_DEFAULT_TIMEOUT = 24 * 3600  # 24 hours

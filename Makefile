@@ -6,12 +6,12 @@ run_rq:
 
 migrations_upgrade:
 	. ./.env && echo "Upgrade migrations for: $$DB_NAME" && \
-	PIPENV_DONT_LOAD_ENV=1 DATABASE_NAME=$$DB_NAME \
+	PIPENV_VERBOSITY=-1 PIPENV_DONT_LOAD_ENV=1 DATABASE_NAME=$$DB_NAME \
 	pipenv run alembic upgrade head
 
 migrations_downgrade:
 	. ./.env && echo "Downgrade migration for: $$DB_NAME" && \
-	PIPENV_DONT_LOAD_ENV=1 DATABASE_NAME=$$DB_NAME \
+	PIPENV_VERBOSITY=-1 PIPENV_DONT_LOAD_ENV=1 DATABASE_NAME=$$DB_NAME \
 	pipenv run alembic downgrade "${revision}"
 
 migrations_history:

@@ -53,7 +53,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
                 "id": "123456",
                 "title": "Test providers audio",
                 "description": 'Playlist "Playlist #1" | Track #1 of 2',
-                "thumbnail_url": "http://path.to-image.com",
+                "thumbnail_url": mocked_youtube.thumbnail_url,
                 "url": "http://path.to-track.com",
             }
         ]
@@ -61,7 +61,6 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
     def test_retrieve__use_cookies(
         self, dbs, client, user, mocked_source_info_yandex, mocked_youtube
     ):
-        # TODO fix remaining tests
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
         cdata = self.cdata | {"owner_id": user.id}
         cookie = await_(Cookie.async_create(dbs, db_commit=True, **cdata))
