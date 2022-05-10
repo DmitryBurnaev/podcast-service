@@ -14,7 +14,7 @@ from modules.podcast.tasks import DownloadEpisodeTask, DownloadEpisodeImageTask
 from modules.podcast.tasks.base import FinishCode
 from modules.providers.utils import download_process_hook
 from tests.api.test_base import BaseTestCase
-from tests.helpers import get_podcast_data, await_
+from tests.helpers import get_podcast_data, await_, create_episode
 
 
 class TestDownloadEpisodeTask(BaseTestCase):
@@ -29,7 +29,6 @@ class TestDownloadEpisodeTask(BaseTestCase):
     def test_downloading_ok(
         self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task, dbs
     ):
-        # TODO: create file before
         file_path = self._source_file(dbs, episode)
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
         episode = await_(Episode.async_get(dbs, id=episode.id))
@@ -57,12 +56,12 @@ class TestDownloadEpisodeTask(BaseTestCase):
         dbs,
         cookie,
     ):
+        file_path = self._source_file(dbs, episode)
         await_(episode.update(dbs, cookie_id=cookie.id))
         await_(dbs.commit())
 
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
         episode = await_(Episode.async_get(dbs, id=episode.id))
-        file_path = self._source_file(dbs, episode)
 
         mocked_youtube.assert_called_with(cookiefile=cookie.as_file())
         mocked_ffmpeg.assert_called_with(src_path=file_path)
@@ -82,18 +81,18 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_generate_rss_task,
         mocked_source_info_yandex,
     ):
+        file_path = self._source_file(dbs, episode)
         await_(episode.update(dbs, cookie_id=cookie.id, source_type=SourceType.YANDEX))
         await_(dbs.commit())
 
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
-        file_path = self._source_file(dbs, episode)
 
         mocked_ffmpeg.assert_not_called()
         assert result == FinishCode.OK
         assert episode.status == Episode.Status.PUBLISHED
         self.assert_called_with(
             mocked_s3.upload_file,
-            src_path=str(file_path),
+            src_path=file_path,
             dst_path=settings.S3_BUCKET_AUDIO_PATH,
         )
 
@@ -115,17 +114,20 @@ class TestDownloadEpisodeTask(BaseTestCase):
                 "status": "published",
                 "source_id": mocked_youtube.source_id,
                 "watch_url": mocked_youtube.watch_url,
-                "file_size": 1024,
                 "podcast_id": podcast_1.id,
             }
         )
-        await_(Episode.async_create(dbs, **episode_data))
+        episode = create_episode(dbs, episode_data=episode_data)
+        await_(episode.audio.update(dbs, size=1024))
+
         episode_data["status"] = "new"
         episode_data["podcast_id"] = podcast_2.id
-        episode_2 = await_(Episode.async_create(dbs, **episode_data))
+        episode_2 = create_episode(dbs, episode_data=episode_data)
+        await_(episode_2.audio.update(dbs, size=1024))
+
         await_(dbs.commit())
 
-        mocked_s3.get_file_size.return_value = episode_2.file_size
+        mocked_s3.get_file_size.return_value = 1024
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode_2.id))
         await_(dbs.refresh(episode_2))
         mocked_generate_rss_task.run.assert_called_with(podcast_1.id, podcast_2.id)
@@ -149,22 +151,23 @@ class TestDownloadEpisodeTask(BaseTestCase):
                 "status": "published",
                 "source_id": mocked_youtube.source_id,
                 "watch_url": mocked_youtube.watch_url,
-                "file_size": 1024,
             }
         )
-        episode = await_(Episode.async_create(dbs, db_commit=True, **episode_data))
+        episode = create_episode(dbs, episode_data=episode_data)
+        await_(episode.audio.update(dbs, size=1024))
+
+        file_path = self._source_file(dbs, episode)
 
         mocked_s3.get_file_size.return_value = 32
 
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
-        file_path = self._source_file(dbs, episode)
 
         await_(dbs.refresh(episode))
         mocked_youtube.download.assert_called_with([episode.watch_url])
         mocked_ffmpeg.assert_called_with(src_path=file_path)
         self.assert_called_with(
             mocked_s3.upload_file,
-            src_path=str(file_path),
+            src_path=file_path,
             dst_path=settings.S3_BUCKET_AUDIO_PATH,
         )
         mocked_generate_rss_task.run.assert_called_with(episode.podcast_id)
@@ -176,10 +179,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
     def test_downloading_failed__roll_back_changes__ok(
         self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task, dbs
     ):
-        file_path = settings.TMP_AUDIO_PATH / episode.file_name
-        with open(file_path, "wb") as file:
-            file.write(b"EpisodeData")
-
+        self._source_file(dbs, episode)
         mocked_youtube.download.side_effect = DownloadError("Video is not available")
 
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
@@ -204,9 +204,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
     def test_upload_to_s3_failed__fail(
         self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task, dbs
     ):
-        file_path = settings.TMP_AUDIO_PATH / episode.file_name
-        with open(file_path, "wb") as file:
-            file.write(b"EpisodeData")
+        self._source_file(dbs, episode)
 
         mocked_s3.upload_file.side_effect = lambda *_, **__: ""
 

@@ -14,7 +14,8 @@ from tests.helpers import (
     get_podcast_data,
     get_episode_data,
     create_episode,
-    await_, get_source_id,
+    await_,
+    get_source_id,
 )
 
 INVALID_UPDATE_DATA = [
@@ -175,7 +176,10 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         self.assert_not_found(client.delete(url), podcast)
 
     def test_delete__episodes_deleted_too__ok(self, client, podcast, user, mocked_s3, dbs):
-        episode_1 = create_episode(dbs, get_episode_data(podcast), )
+        episode_1 = create_episode(
+            dbs,
+            get_episode_data(podcast),
+        )
         episode_2 = create_episode(dbs, get_episode_data(podcast), status=EpisodeStatus.PUBLISHED)
         await_(dbs.commit())
 

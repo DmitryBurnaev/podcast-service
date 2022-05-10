@@ -226,8 +226,8 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         response = client.delete(url)
         assert response.status_code == 204
         assert await_(Episode.async_get(dbs, id=episode.id)) is None
-        mocked_s3.delete_files_async.assert_any_call([episode.audio.name], remote_path='audio')
-        mocked_s3.delete_files_async.assert_any_call([episode.image.name], remote_path='images')
+        mocked_s3.delete_files_async.assert_any_call([episode.audio.name], remote_path="audio")
+        mocked_s3.delete_files_async.assert_any_call([episode.image.name], remote_path="images")
 
     def test_delete__episode_from_another_user__fail(self, client, episode, user, dbs):
         client.login(create_user(dbs))

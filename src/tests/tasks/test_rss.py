@@ -77,9 +77,7 @@ class TestGenerateRSSTask:
         mocked_s3.upload_file.side_effect = lambda *_, **__: ""
         await_(
             File.async_update(
-                dbs,
-                filter_kwargs={"id": podcast.rss_id},
-                update_data={"path": old_path}
+                dbs, filter_kwargs={"id": podcast.rss_id}, update_data={"path": old_path}
             )
         )
 

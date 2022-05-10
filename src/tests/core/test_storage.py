@@ -1,7 +1,6 @@
 import logging
 import os
 from unittest.mock import Mock, patch
-from urllib.parse import urljoin
 
 import botocore
 import botocore.exceptions

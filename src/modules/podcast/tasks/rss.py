@@ -81,5 +81,5 @@ class GenerateRSSTask(RQTask):
             result_rss = template.render(podcast=podcast, **context)
             fh.write(result_rss)
 
-        logger.info(f"Podcast #%i: RSS file %s generated.", podcast.id, rss_filename)
+        logger.info("Podcast #%i: RSS file %s generated.", podcast.id, rss_filename)
         return rss_filename

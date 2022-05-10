@@ -84,9 +84,7 @@ def get_source_id() -> str:
 
 
 def get_episode_data(
-    podcast: Podcast = None,
-    status: EpisodeStatus = EpisodeStatus.NEW,
-    creator: User = None
+    podcast: Podcast = None, status: EpisodeStatus = EpisodeStatus.NEW, creator: User = None
 ) -> dict:
     source_id = get_source_id()
     episode_data = {

@@ -95,10 +95,7 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
 
     async def _delete_episodes(self, podcast: Podcast):
         episodes = await Episode.async_filter(self.db_session, podcast_id=podcast.id)
-        del_actions = [
-            episode.delete(self.db_session, db_flush=False)
-            for episode in episodes
-        ]
+        del_actions = [episode.delete(self.db_session, db_flush=False) for episode in episodes]
         await asyncio.gather(*del_actions)
 
 
