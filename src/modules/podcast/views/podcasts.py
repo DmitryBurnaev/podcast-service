@@ -177,4 +177,4 @@ class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):
         podcast_id = request.path_params["podcast_id"]
         podcast = await self._get_object(podcast_id)
         await self._run_task(GenerateRSSTask, podcast.id)
-        return self._response(status_code=status.HTTP_204_NO_CONTENT)
+        return self._response(status_code=status.HTTP_202_ACCEPTED)

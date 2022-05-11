@@ -42,12 +42,12 @@ class GenerateRSSTask(RQTask):
 
         logger.info("START rss generation for %s", podcast)
         result_path = await self._render_rss_to_file(podcast)
-
         result_url = self.storage.upload_file(result_path, dst_path=settings.S3_BUCKET_RSS_PATH)
         if not result_url:
             logger.error("Couldn't upload RSS file to storage. SKIP")
             return {podcast.id: FinishCode.ERROR}
 
+        # TODO: fix problem with file-saving (owner could not be find)
         rss_file = await File.create(
             self.db_session,
             FileType.RSS,

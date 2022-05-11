@@ -81,7 +81,6 @@ class File(ModelBase, ModelMixin):
         cls,
         db_session: AsyncSession,
         file_type: FileType,
-        owner_id: int,
         available: bool = True,
         **file_kwargs,
     ) -> "File":
@@ -91,7 +90,7 @@ class File(ModelBase, ModelMixin):
             "type": file_type,
         }
         logger.debug("Creating new file: %s", file_kwargs)
-        return await File.async_create(db_session=db_session, owner_id=owner_id, **file_kwargs)
+        return await File.async_create(db_session=db_session, **file_kwargs)
 
     @classmethod
     async def copy(cls, db_session: AsyncSession, file_id: int, owner_id: int) -> "File":

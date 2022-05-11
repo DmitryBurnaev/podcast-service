@@ -339,6 +339,7 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
     async def post(self, request):
         """Check is email unique and create new User"""
+        # TODO: recheck logic
         cleaned_data = await self._validate(request)
         user, _, _ = await LoginRequiredAuthBackend(request).authenticate_user(
             jwt_token=cleaned_data["token"],
