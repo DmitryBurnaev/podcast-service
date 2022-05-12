@@ -47,7 +47,6 @@ class GenerateRSSTask(RQTask):
             logger.error("Couldn't upload RSS file to storage. SKIP")
             return {podcast.id: FinishCode.ERROR}
 
-        # TODO: fix problem with file-saving (owner could not be find)
         rss_file = await File.create(
             self.db_session,
             FileType.RSS,
