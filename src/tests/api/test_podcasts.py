@@ -251,7 +251,7 @@ class TestPodcastGenerateRSSAPIView(BaseTestAPIView):
         client.login(user)
         url = self.url.format(id=podcast.id)
         response = client.put(url)
-        assert response.status_code == 204
+        assert response.status_code == 202
         mocked_rq_queue.enqueue.assert_called_with(GenerateRSSTask(), podcast.id)
 
     def test_run_generation__podcast_from_another_user__fail(self, client, podcast, user, dbs):
@@ -270,7 +270,10 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
         return io.BytesIO(b"Binary image data: \x00\x01")
 
     @patch("common.storage.StorageS3.upload_file")
-    def test_upload__ok(self, mocked_upload_file, client, podcast, user, dbs):
+    def test_upload__ok(self, mocked_upload_file, mocked_s3, client, user, dbs):
+        podcast_data = get_podcast_data(owner_id=user.id)
+        podcast = await_(Podcast.async_create(dbs, db_commit=True, **podcast_data))
+
         client.login(user)
         mocked_upload_file.return_value = self.remote_path
         response = client.post(url=self.url.format(id=podcast.id), files={"image": self._file()})
@@ -278,6 +281,29 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert response_data == {"id": podcast.id, "image_url": podcast.image_url}
         assert podcast.image.path == self.remote_path
+        mocked_s3.delete_files_async.assert_not_called()
+
+    @patch("common.storage.StorageS3.upload_file")
+    def test_upload__replace_image__ok(
+        self, mocked_upload_file, mocked_s3, client, podcast, user, dbs
+    ):
+        assert podcast.image_id is not None
+        old_image_id = podcast.image_id
+        old_image_name = podcast.image.name
+        old_image_url = podcast.image.url
+
+        client.login(user)
+        mocked_upload_file.return_value = self.remote_path
+        response = client.post(url=self.url.format(id=podcast.id), files={"image": self._file()})
+        await_(dbs.refresh(podcast))
+        response_data = self.assert_ok_response(response)
+        assert response_data == {"id": podcast.id, "image_url": podcast.image_url}
+        assert podcast.image.path == self.remote_path
+        assert podcast.image_id == old_image_id
+        assert podcast.image_url != old_image_url
+        mocked_s3.delete_files_async.assert_called_with(
+            [old_image_name], remote_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH
+        )
 
     @patch("common.storage.StorageS3.upload_file")
     def test_upload__upload_failed__fail(self, mocked_upload_file, client, podcast, user, dbs):

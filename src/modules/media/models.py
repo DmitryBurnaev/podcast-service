@@ -13,6 +13,7 @@ from common.utils import get_logger
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
 from modules.auth.hasher import get_random_hash
+
 # TODO: fix strange behavior (import is needed for working with FK "owner_id")
 from modules.auth.models import User  # noqa
 

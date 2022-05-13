@@ -128,7 +128,7 @@ async def get_episode_files(dbs: AsyncSession) -> list[EpisodeFileData]:
             url=episode.remote_url,
             size=episode.file_size,
             image_url=episode.image_url,
-            content_type=episode.content_type,
+            content_type=episode.audio.content_type,
         )
         for episode in episodes
     ]

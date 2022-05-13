@@ -123,21 +123,19 @@ class Episode(ModelBase, ModelMixin):
 
         return settings.DEFAULT_EPISODE_COVER
 
-    @property
-    def content_type(self) -> str:
-        # TODO: avoid extra SQL calls
-        return self.audio.content_type
-
     @classmethod
     def generate_image_name(cls, source_id: str) -> str:
         return f"{source_id}_{uuid.uuid4().hex}.png"
 
     async def delete(self, db_session: AsyncSession, db_flush: bool = True):
         """Removing files associated with requested episode"""
+
         if self.image_id:
             await self.image.delete(db_session, db_flush)
+
         if self.audio_id:
             await self.audio.delete(db_session, db_flush)
+
         return await super().delete(db_session, db_flush)
 
 
@@ -151,7 +149,7 @@ class Cookie(ModelBase, ModelMixin):
     data = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    owner_id = Column(Integer(), ForeignKey("auth_users.id"))
+    owner_id = Column(Integer, ForeignKey("auth_users.id"))
 
     class Meta:
         order_by = ("-created_at",)
