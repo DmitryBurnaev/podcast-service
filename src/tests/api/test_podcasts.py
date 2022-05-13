@@ -165,8 +165,11 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         response = client.delete(url)
         assert response.status_code == 200
         assert await_(Podcast.async_get(dbs, id=podcast.id)) is None
-        mocked_s3.delete_files_async.assert_called_with(
+        mocked_s3.delete_files_async.assert_any_call(
             [podcast.rss.name], remote_path=settings.S3_BUCKET_RSS_PATH
+        )
+        mocked_s3.delete_files_async.assert_any_call(
+            [podcast.image.name], remote_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH
         )
 
     def test_delete__podcast_from_another_user__fail(self, client, podcast, user, dbs):

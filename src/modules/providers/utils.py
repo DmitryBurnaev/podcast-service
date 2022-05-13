@@ -127,7 +127,7 @@ def download_audio(source_url: str, filename: str, cookie: Optional[Cookie]) -> 
     result_path = settings.TMP_AUDIO_PATH / filename
     params = {
         "format": "bestaudio/best",
-        "outtmpl": result_path,
+        "outtmpl": str(result_path),
         "logger": get_logger("youtube_dl.YoutubeDL"),
         "progress_hooks": [download_process_hook],
         "no-progress": True,

@@ -19,7 +19,6 @@ from modules.auth.models import User  # noqa
 
 logger = get_logger(__name__)
 REMOTE_PATH_MAP = {
-    FileType.IMAGE: settings.S3_BUCKET_IMAGES_PATH,
     FileType.AUDIO: settings.S3_BUCKET_AUDIO_PATH,
     FileType.RSS: settings.S3_BUCKET_RSS_PATH,
 }
@@ -59,14 +58,19 @@ class File(ModelBase, ModelMixin):
     def name(self) -> str:
         return os.path.basename(self.path)
 
-    async def delete(self, db_session: AsyncSession, db_flush: bool = True):
+    async def delete(
+        self,
+        db_session: AsyncSession,
+        db_flush: bool = True,
+        remote_path: str = None
+    ):
         same_files = (
             await File.async_filter(
                 db_session, path=self.path, id__ne=self.id, type=self.type, available__is=True
             )
         ).all()
         if not same_files:
-            remote_path = REMOTE_PATH_MAP[self.type]
+            remote_path = remote_path or REMOTE_PATH_MAP[self.type]
             await StorageS3().delete_files_async([self.name], remote_path=remote_path)
 
         else:

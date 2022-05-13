@@ -121,13 +121,6 @@ def db_migration():
     print("DB and tables were successful created.")
 
 
-#
-# @pytest.fixture(autouse=True, scope="session")
-# def db_migration():
-#     ini_path = settings.PROJECT_ROOT_DIR / "alembic.ini"
-#     main(["--raiseerr", f"-c{ini_path}", "upgrade", "head"])
-
-
 @pytest.fixture
 def mocked_youtube(monkeypatch) -> MockYoutubeDL:
     yield from mock_target_class(MockYoutubeDL, monkeypatch)
