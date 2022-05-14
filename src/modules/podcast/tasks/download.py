@@ -82,7 +82,7 @@ class DownloadEpisodeTask(RQTask):
                 "published_at": episode.created_at,
             },
         )
-        await self._update_files(episode, {"size": remote_file_size})
+        await self._update_files(episode, {"size": remote_file_size, "available": True})
         await self._update_all_rss(episode.source_id)
 
         podcast_utils.delete_file(tmp_audio_path)
@@ -175,7 +175,7 @@ class DownloadEpisodeTask(RQTask):
         remote_path = podcast_utils.upload_episode(tmp_audio_path)
         if not remote_path:
             logger.warning("=== [%s] UPLOADING was broken === ")
-            await self._update_episodes(episode, {"status": status.ERROR, "file_size": 0})
+            await self._update_episodes(episode, {"status": status.ERROR})
             raise DownloadingInterrupted(code=FinishCode.ERROR)
 
         await self._update_files(episode, {"path": remote_path})

@@ -126,7 +126,6 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
             "path": image_remote_path,
             "size": get_file_size(tmp_path),
             "available": True,
-            "access_token": File.generate_token(),
         }
         if image_file := podcast.image:
             old_image_name = image_file.name
@@ -135,10 +134,10 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
                 [old_image_name], remote_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH
             )
         else:
-            image_file = await File.async_create(
+            image_file = await File.create(
                 db_session=request.db_session,
+                file_type=FileType.IMAGE,
                 owner_id=request.user.id,
-                type=FileType.IMAGE,
                 **image_data,
             )
             await podcast.update(self.db_session, image_id=image_file.id)

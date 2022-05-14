@@ -144,9 +144,8 @@ def upload_episode(src_path: str | Path) -> Optional[str]:
         total_bytes=get_file_size(src_path),
     )
     logger.info("Upload for %s started.", filename)
-    storage = StorageS3()
-    remote_path = storage.upload_file(
-        src_path=src_path,
+    remote_path = StorageS3().upload_file(
+        src_path=str(src_path),
         dst_path=settings.S3_BUCKET_AUDIO_PATH,
         callback=partial(upload_process_hook, filename),
     )
