@@ -59,10 +59,7 @@ class File(ModelBase, ModelMixin):
         return os.path.basename(self.path)
 
     async def delete(
-        self,
-        db_session: AsyncSession,
-        db_flush: bool = True,
-        remote_path: str = None
+        self, db_session: AsyncSession, db_flush: bool = True, remote_path: str = None
     ):
         same_files = (
             await File.async_filter(
@@ -100,14 +97,17 @@ class File(ModelBase, ModelMixin):
         return await File.async_create(db_session=db_session, **file_kwargs)
 
     @classmethod
-    async def copy(cls, db_session: AsyncSession, file_id: int, owner_id: int) -> "File":
+    async def copy(
+        cls, db_session: AsyncSession, file_id: int, owner_id: int, available: bool = True
+    ) -> "File":
         source_file: File = await File.async_get(db_session, id=file_id)
         logger.debug("Copying file: source %s | owner_id %s", source_file, owner_id)
         return await File.create(
             db_session,
             source_file.type,
             owner_id=owner_id,
+            available=available,
             path=source_file.path,
-            source_url=source_file.source_url,
             size=source_file.size,
+            source_url=source_file.source_url,
         )

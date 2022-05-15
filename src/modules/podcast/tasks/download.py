@@ -12,7 +12,7 @@ from modules.media.models import File
 from modules.podcast.models import Episode, Cookie
 from modules.podcast.tasks.base import RQTask, FinishCode
 from modules.podcast.tasks.rss import GenerateRSSTask
-from modules.podcast.utils import get_filename
+from modules.podcast.utils import get_filename, get_file_size
 from modules.providers import utils as provider_utils
 from modules.podcast import utils as podcast_utils
 from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
@@ -254,19 +254,20 @@ class DownloadEpisodeImageTask(RQTask):
             if tmp_path := await self._crop_image(episode):
                 remote_path = await self._upload_cover(episode, tmp_path)
                 available = True
+                size = get_file_size(tmp_path)
             else:
-                remote_path, available = "", False
+                remote_path, available, size = "", False, None
 
             logger.info("Saving new image URL: episode %s | remote %s", episode.id, remote_path)
 
-            await image.update(self.db_session, path=remote_path, available=available)
+            await image.update(self.db_session, path=remote_path, available=available, size=size)
 
         return FinishCode.OK
 
     @staticmethod
     async def _crop_image(episode: Episode) -> Optional[Path]:
         try:
-            tmp_path = await download_content(episode.image_url, file_ext="jpg")
+            tmp_path = await download_content(episode.image.source_url, file_ext="jpg")
         except NotFoundError:
             return None
 

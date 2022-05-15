@@ -84,15 +84,11 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         podcast = await self._get_object(request)
         await self._delete_episodes(podcast)
         if podcast.rss_id:
-            await podcast.rss.delete(
-                self.db_session,
-                remote_path=settings.S3_BUCKET_RSS_PATH
-            )
+            await podcast.rss.delete(self.db_session, remote_path=settings.S3_BUCKET_RSS_PATH)
 
         if podcast.image_id:
             await podcast.image.delete(
-                self.db_session,
-                remote_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH
+                self.db_session, remote_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH
             )
 
         await podcast.delete(self.db_session)

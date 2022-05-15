@@ -195,7 +195,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         assert await_(Episode.async_get(dbs, id=episode_2.id)) is None
 
         ra = settings.S3_BUCKET_AUDIO_PATH
-        ri = settings.S3_BUCKET_IMAGES_PATH
+        ri = settings.S3_BUCKET_EPISODE_IMAGES_PATH
 
         mocked_s3.delete_files_async.assert_any_call([episode_1.audio.name], remote_path=ra)
         mocked_s3.delete_files_async.assert_any_call([episode_1.image.name], remote_path=ri)
@@ -235,7 +235,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         assert await_(Episode.async_get(dbs, id=episode_2.id)) is not None
 
         ra = settings.S3_BUCKET_AUDIO_PATH
-        ri = settings.S3_BUCKET_IMAGES_PATH
+        ri = settings.S3_BUCKET_EPISODE_IMAGES_PATH
 
         mocked_s3.delete_files_async.assert_any_call([episode_1.audio.name], remote_path=ra)
         mocked_s3.delete_files_async.assert_any_call([episode_1.image.name], remote_path=ri)
@@ -300,10 +300,10 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
         response = client.post(url=self.url.format(id=podcast.id), files={"image": self._file()})
         await_(dbs.refresh(podcast))
         response_data = self.assert_ok_response(response)
-        assert response_data == {"id": podcast.id, "image_url": podcast.image_url}
+        assert response_data == {"id": podcast.id, "image_url": podcast.image.url}
         assert podcast.image.path == self.remote_path
         assert podcast.image_id == old_image_id
-        assert podcast.image_url != old_image_url
+        assert podcast.image.url == old_image_url
         mocked_s3.delete_files_async.assert_called_with(
             [old_image_name], remote_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH
         )

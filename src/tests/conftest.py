@@ -299,6 +299,7 @@ def episode(podcast, user, loop, dbs) -> Episode:
             dbs,
             FileType.IMAGE,
             owner_id=user.id,
+            source_url=f"http://link.to.source-image/{source_id}.png",
             path=f"/remote/path/to/images/episode_{source_id}_image.png",
             available=True,
         )

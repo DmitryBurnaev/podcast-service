@@ -134,6 +134,7 @@ class EpisodeCreator:
                 self.db_session,
                 file_id=same_episode.audio_id,
                 owner_id=self.user_id,
+                available=False,
             )
         elif source_info:
             image_file = await File.create(

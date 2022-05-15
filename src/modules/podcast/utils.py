@@ -34,7 +34,7 @@ def get_file_size(file_path: str | Path):
     try:
         return os.path.getsize(file_path)
     except FileNotFoundError:
-        logger.info("File %s not found. Return size 0", file_path)
+        logger.warning("File %s not found. Return size 0", file_path)
         return 0
 
 

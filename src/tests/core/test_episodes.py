@@ -93,7 +93,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert audio.path == new_audio.path
         assert audio.size == new_audio.size
         assert audio.source_url == new_audio.source_url
-        assert audio.available == new_audio.available
+        assert new_audio.available is False
 
         image: File = await_(File.async_get(dbs, id=episode.image_id))
         new_image: File = await_(File.async_get(dbs, id=new_episode.image_id))

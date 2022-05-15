@@ -132,8 +132,7 @@ class Episode(ModelBase, ModelMixin):
 
         if self.image_id:
             await self.image.delete(
-                db_session, db_flush,
-                remote_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
+                db_session, db_flush, remote_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
             )
 
         if self.audio_id:
