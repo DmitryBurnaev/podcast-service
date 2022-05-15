@@ -14,9 +14,11 @@ from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
 from modules.auth.hasher import get_random_hash
 
+# TODO: fix strange behavior (import is needed for working with FK "owner_id")
+from modules.auth.models import User  # noqa
+
 logger = get_logger(__name__)
 REMOTE_PATH_MAP = {
-    FileType.IMAGE: settings.S3_BUCKET_IMAGES_PATH,
     FileType.AUDIO: settings.S3_BUCKET_AUDIO_PATH,
     FileType.RSS: settings.S3_BUCKET_RSS_PATH,
 }
@@ -56,14 +58,16 @@ class File(ModelBase, ModelMixin):
     def name(self) -> str:
         return os.path.basename(self.path)
 
-    async def delete(self, db_session: AsyncSession, db_flush: bool = True):
+    async def delete(
+        self, db_session: AsyncSession, db_flush: bool = True, remote_path: str = None
+    ):
         same_files = (
             await File.async_filter(
                 db_session, path=self.path, id__ne=self.id, type=self.type, available__is=True
             )
         ).all()
         if not same_files:
-            remote_path = REMOTE_PATH_MAP[self.type]
+            remote_path = remote_path or REMOTE_PATH_MAP[self.type]
             await StorageS3().delete_files_async([self.name], remote_path=remote_path)
 
         else:
@@ -81,7 +85,6 @@ class File(ModelBase, ModelMixin):
         cls,
         db_session: AsyncSession,
         file_type: FileType,
-        owner_id: int,
         available: bool = True,
         **file_kwargs,
     ) -> "File":
@@ -91,17 +94,20 @@ class File(ModelBase, ModelMixin):
             "type": file_type,
         }
         logger.debug("Creating new file: %s", file_kwargs)
-        return await File.async_create(db_session=db_session, owner_id=owner_id, **file_kwargs)
+        return await File.async_create(db_session=db_session, **file_kwargs)
 
     @classmethod
-    async def copy(cls, db_session: AsyncSession, file_id: int, owner_id: int) -> "File":
+    async def copy(
+        cls, db_session: AsyncSession, file_id: int, owner_id: int, available: bool = True
+    ) -> "File":
         source_file: File = await File.async_get(db_session, id=file_id)
         logger.debug("Copying file: source %s | owner_id %s", source_file, owner_id)
         return await File.create(
             db_session,
             source_file.type,
             owner_id=owner_id,
+            available=available,
             path=source_file.path,
-            source_url=source_file.source_url,
             size=source_file.size,
+            source_url=source_file.source_url,
         )

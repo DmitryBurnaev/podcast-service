@@ -75,7 +75,7 @@ class EpisodeListSchema(Schema):
     id = fields.Int(required=True)
     title = fields.Str(required=True)
     created_at = fields.DateTime(required=True)
-    image_url = fields.URL(attribute="image.url")
+    image_url = fields.URL()
     status = fields.Str(required=True)
     source_type = fields.Str(required=True)
 

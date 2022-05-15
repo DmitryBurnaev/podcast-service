@@ -59,6 +59,22 @@ class TestGenerateRSSTask:
         assert rss.path == str(expected_file_path)
         assert rss.size == get_file_size(expected_file_path)
 
+    def test_regenerate__replace_rss(self, podcast, mocked_s3, dbs):
+        old_rss_id = podcast.rss_id
+        expected_file_path = mocked_s3.tmp_upload_dir / f"{podcast.publish_id}.xml"
+        generate_rss_task = tasks.GenerateRSSTask(db_session=dbs)
+        result_code = await_(generate_rss_task.run(podcast.id))
+        assert result_code == FinishCode.OK
+
+        await_(dbs.refresh(podcast))
+        assert podcast.rss_id == old_rss_id
+
+        rss: File = await_(File.async_get(dbs, id=podcast.rss_id))
+        assert rss.available is True
+        assert rss.type == FileType.RSS
+        assert rss.path == str(expected_file_path)
+        assert rss.size == get_file_size(expected_file_path)
+
     def test_generate__several_podcasts__ok(self, user, mocked_s3, dbs):
         podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
         podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))

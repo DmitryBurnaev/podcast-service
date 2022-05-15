@@ -84,7 +84,12 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         podcast = await self._get_object(request)
         await self._delete_episodes(podcast)
         if podcast.rss_id:
-            await podcast.rss.delete(self.db_session)
+            await podcast.rss.delete(self.db_session, remote_path=settings.S3_BUCKET_RSS_PATH)
+
+        if podcast.image_id:
+            await podcast.image.delete(
+                self.db_session, remote_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH
+            )
 
         await podcast.delete(self.db_session)
         return self._response()
@@ -113,17 +118,27 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
         tmp_path = await self._save_uploaded_image(cleaned_data)
 
         image_remote_path = await self._upload_cover(podcast, tmp_path)
-        image_file = await File.async_create(
-            db_session=request.db_session,
-            owner_id=request.user.id,
-            type=FileType.IMAGE,
-            path=image_remote_path,
-            size=get_file_size(tmp_path),
-            available=True,
-            access_token=File.generate_token(),
-        )
-        await podcast.update(self.db_session, image_id=image_file.id)
-        await self.db_session.refresh(podcast)
+        image_data = {
+            "path": image_remote_path,
+            "size": get_file_size(tmp_path),
+            "available": True,
+        }
+        if image_file := podcast.image:
+            old_image_name = image_file.name
+            await image_file.update(self.db_session, **image_data)
+            await StorageS3().delete_files_async(
+                [old_image_name], remote_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH
+            )
+        else:
+            image_file = await File.create(
+                db_session=request.db_session,
+                file_type=FileType.IMAGE,
+                owner_id=request.user.id,
+                **image_data,
+            )
+            await podcast.update(self.db_session, image_id=image_file.id)
+            await self.db_session.refresh(podcast)
+
         return self._response(podcast)
 
     async def _validate(self, request, **_) -> dict:
@@ -177,4 +192,4 @@ class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):
         podcast_id = request.path_params["podcast_id"]
         podcast = await self._get_object(podcast_id)
         await self._run_task(GenerateRSSTask, podcast.id)
-        return self._response(status_code=status.HTTP_204_NO_CONTENT)
+        return self._response(status_code=status.HTTP_202_ACCEPTED)

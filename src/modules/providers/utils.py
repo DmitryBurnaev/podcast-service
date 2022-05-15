@@ -7,7 +7,7 @@ from pathlib import Path
 from functools import partial
 from contextlib import suppress
 from multiprocessing import Process
-from typing import Optional, NamedTuple, Union
+from typing import Optional, NamedTuple
 
 import youtube_dl
 from youtube_dl.utils import YoutubeDLError
@@ -127,7 +127,7 @@ def download_audio(source_url: str, filename: str, cookie: Optional[Cookie]) -> 
     result_path = settings.TMP_AUDIO_PATH / filename
     params = {
         "format": "bestaudio/best",
-        "outtmpl": result_path,
+        "outtmpl": str(result_path),
         "logger": get_logger("youtube_dl.YoutubeDL"),
         "progress_hooks": [download_process_hook],
         "no-progress": True,
@@ -172,13 +172,13 @@ async def get_source_media_info(source_info: SourceInfo) -> tuple[str, Optional[
 
 
 def ffmpeg_preparation(
-    src_path: Union[str, Path], ffmpeg_params: list[str] = None, call_process_hook: bool = True
+    src_path: str | Path, ffmpeg_params: list[str] = None, call_process_hook: bool = True
 ) -> None:
     """
     FFmpeg allows fixing problem with length of audio track
     (in metadata value for this is incorrect, but fact length is fully correct)
     """
-    filename = os.path.basename(src_path)
+    filename = os.path.basename(str(src_path))
     logger.info(f"Start FFMPEG preparations for {filename} === ")
     total_bytes = get_file_size(src_path)
     if call_process_hook:

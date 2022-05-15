@@ -121,13 +121,6 @@ def db_migration():
     print("DB and tables were successful created.")
 
 
-#
-# @pytest.fixture(autouse=True, scope="session")
-# def db_migration():
-#     ini_path = settings.PROJECT_ROOT_DIR / "alembic.ini"
-#     main(["--raiseerr", f"-c{ini_path}", "upgrade", "head"])
-
-
 @pytest.fixture
 def mocked_youtube(monkeypatch) -> MockYoutubeDL:
     yield from mock_target_class(MockYoutubeDL, monkeypatch)
@@ -207,17 +200,17 @@ def user_session(user, loop, dbs):
 
 
 @pytest.fixture
-def podcast_data():
+def podcast_data() -> dict:
     return get_podcast_data()
 
 
 @pytest.fixture
-def episode_data(podcast):
+def episode_data(podcast) -> dict:
     return get_episode_data(podcast)
 
 
 @pytest.fixture
-def podcast(podcast_data, user, loop, dbs):
+def podcast(podcast_data, user, loop, dbs) -> Podcast:
     podcast_data["owner_id"] = user.id
     publish_id = podcast_data["publish_id"]
     image = loop.run_until_complete(
@@ -248,7 +241,7 @@ def podcast(podcast_data, user, loop, dbs):
 
 
 @pytest.fixture
-def cookie(user, loop, dbs):
+def cookie(user, loop, dbs) -> Cookie:
     cookie_data = {
         "source_type": SourceType.YANDEX,
         "data": "Cookie at netscape format\n",
@@ -306,6 +299,7 @@ def episode(podcast, user, loop, dbs) -> Episode:
             dbs,
             FileType.IMAGE,
             owner_id=user.id,
+            source_url=f"http://link.to.source-image/{source_id}.png",
             path=f"/remote/path/to/images/episode_{source_id}_image.png",
             available=True,
         )

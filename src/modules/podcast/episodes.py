@@ -55,7 +55,10 @@ class EpisodeCreator:
             return episode_in_podcast
 
         episode_data = await self._get_episode_data(same_episode=last_same_episode)
-        return await Episode.async_create(self.db_session, **episode_data)
+        audio, image = episode_data.pop("audio"), episode_data.pop("image")
+        episode = await Episode.async_create(self.db_session, **episode_data)
+        episode.audio, episode.image = audio, image
+        return episode
 
     def _replace_special_symbols(self, value):
         res = self.http_link_regex.sub("[LINK]", value)
@@ -104,7 +107,6 @@ class EpisodeCreator:
             raise SourceFetchError(f"Extracting data for new Episode failed: {extract_error}")
 
         audio_file, image_file = await self._create_files(same_episode, source_info)
-
         new_episode_data.update(
             {
                 "podcast_id": self.podcast_id,
@@ -112,6 +114,8 @@ class EpisodeCreator:
                 "cookie_id": cookie.id if cookie else None,
                 "image_id": image_file.id,
                 "audio_id": audio_file.id,
+                "image": image_file,
+                "audio": audio_file,
             }
         )
         return new_episode_data
@@ -130,6 +134,7 @@ class EpisodeCreator:
                 self.db_session,
                 file_id=same_episode.audio_id,
                 owner_id=self.user_id,
+                available=False,
             )
         elif source_info:
             image_file = await File.create(

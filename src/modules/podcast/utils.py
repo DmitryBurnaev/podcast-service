@@ -34,7 +34,7 @@ def get_file_size(file_path: str | Path):
     try:
         return os.path.getsize(file_path)
     except FileNotFoundError:
-        logger.info("File %s not found. Return size 0", file_path)
+        logger.warning("File %s not found. Return size 0", file_path)
         return 0
 
 
@@ -144,9 +144,8 @@ def upload_episode(src_path: str | Path) -> Optional[str]:
         total_bytes=get_file_size(src_path),
     )
     logger.info("Upload for %s started.", filename)
-    storage = StorageS3()
-    remote_path = storage.upload_file(
-        src_path=src_path,
+    remote_path = StorageS3().upload_file(
+        src_path=str(src_path),
         dst_path=settings.S3_BUCKET_AUDIO_PATH,
         callback=partial(upload_process_hook, filename),
     )

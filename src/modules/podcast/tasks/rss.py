@@ -41,21 +41,32 @@ class GenerateRSSTask(RQTask):
         """Render RSS and upload it"""
 
         logger.info("START rss generation for %s", podcast)
-        result_path = await self._render_rss_to_file(podcast)
-
-        result_url = self.storage.upload_file(result_path, dst_path=settings.S3_BUCKET_RSS_PATH)
-        if not result_url:
+        local_path = await self._render_rss_to_file(podcast)
+        remote_path = self.storage.upload_file(local_path, dst_path=settings.S3_BUCKET_RSS_PATH)
+        if not remote_path:
             logger.error("Couldn't upload RSS file to storage. SKIP")
             return {podcast.id: FinishCode.ERROR}
 
-        rss_file = await File.create(
-            self.db_session,
-            FileType.RSS,
-            path=result_url,
-            owner_id=podcast.owner_id,
-            size=get_file_size(result_path),
-        )
-        await podcast.update(self.db_session, rss_id=rss_file.id)
+        rss_data = {
+            "path": remote_path,
+            "size": get_file_size(local_path),
+            "available": True,
+        }
+        if rss_file := podcast.rss:
+            old_rss_name = rss_file.name
+            await rss_file.update(self.db_session, **rss_data)
+            await StorageS3().delete_files_async(
+                [old_rss_name], remote_path=settings.S3_BUCKET_RSS_PATH
+            )
+        else:
+            rss_file = await File.create(
+                self.db_session,
+                file_type=FileType.RSS,
+                owner_id=podcast.owner_id,
+                **rss_data,
+            )
+            await podcast.update(self.db_session, rss_id=rss_file.id)
+
         logger.info("Podcast #%i: RSS file uploaded, podcast record updated", podcast.id)
 
         logger.info("FINISH generation for %s | PATH: %s", podcast, rss_file.path)

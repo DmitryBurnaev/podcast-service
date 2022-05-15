@@ -37,7 +37,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_ffmpeg.assert_called_with(src_path=file_path)
         self.assert_called_with(
             mocked_s3.upload_file,
-            src_path=file_path,
+            src_path=str(file_path),
             dst_path=settings.S3_BUCKET_AUDIO_PATH,
         )
         mocked_generate_rss_task.run.assert_called_with(episode.podcast_id)
@@ -92,7 +92,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.status == Episode.Status.PUBLISHED
         self.assert_called_with(
             mocked_s3.upload_file,
-            src_path=file_path,
+            src_path=str(file_path),
             dst_path=settings.S3_BUCKET_AUDIO_PATH,
         )
 
@@ -167,7 +167,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_ffmpeg.assert_called_with(src_path=file_path)
         self.assert_called_with(
             mocked_s3.upload_file,
-            src_path=file_path,
+            src_path=str(file_path),
             dst_path=settings.S3_BUCKET_AUDIO_PATH,
         )
         mocked_generate_rss_task.run.assert_called_with(episode.podcast_id)
@@ -234,17 +234,27 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
 class TestDownloadEpisodeImageTask(BaseTestCase):
     @patch("modules.podcast.models.Episode.generate_image_name")
+    @patch("modules.podcast.tasks.download.get_file_size")
     @patch("modules.podcast.tasks.download.ffmpeg_preparation")
     @patch("modules.podcast.tasks.download.download_content")
     def test_image_ok(
-        self, mocked_download_content, mocked_ffmpeg, mocked_name, episode, mocked_s3, dbs
+        self,
+        mocked_download_content,
+        mocked_ffmpeg,
+        mocked_file_size,
+        mocked_name,
+        episode,
+        mocked_s3,
+        dbs,
     ):
         tmp_path = settings.TMP_IMAGE_PATH / f"{episode.source_id}.jpg"
         mocked_download_content.return_value = tmp_path
-        old_image_url = episode.image_url
+        mocked_file_size.return_value = 25
+
+        source_image_url = episode.image.source_url
         new_remote_path = f"/remote/path/to/images/episode_{uuid.uuid4().hex}_image.png"
         mocked_s3.upload_file.side_effect = lambda *_, **__: new_remote_path
-        mocked_name.return_value = "episode-test-random-name.jpg"
+        mocked_name.return_value = f"episode-image-name-{episode.source_id}.jpg"
 
         result = await_(DownloadEpisodeImageTask(db_session=dbs).run(episode.id))
         await_(dbs.refresh(episode))
@@ -253,13 +263,15 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
 
         image = await_(File.async_get(dbs, id=episode.image_id))
         assert image.path == new_remote_path
+        assert image.available is True
+        assert image.size == 25
 
         mocked_ffmpeg.assert_called_with(src_path=tmp_path, ffmpeg_params=["-vf", "scale=600:-1"])
-        mocked_download_content.assert_called_with(old_image_url, file_ext="jpg")
+        mocked_download_content.assert_called_with(source_image_url, file_ext="jpg")
         mocked_s3.upload_file.assert_called_with(
             src_path=str(tmp_path),
             dst_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH,
-            filename="episode-test-random-name.jpg",
+            filename=f"episode-image-name-{episode.source_id}.jpg",
         )
 
     @patch("modules.podcast.tasks.download.download_content")

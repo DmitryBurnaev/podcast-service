@@ -30,7 +30,7 @@ def _episode_in_list(episode: Episode):
         "title": episode.title,
         "status": str(episode.status),
         "source_type": str(SourceType.YOUTUBE),
-        "image_url": episode.image.url,
+        "image_url": episode.image_url,
         "created_at": episode.created_at.isoformat(),
     }
 
@@ -227,7 +227,9 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         assert response.status_code == 204
         assert await_(Episode.async_get(dbs, id=episode.id)) is None
         mocked_s3.delete_files_async.assert_any_call([episode.audio.name], remote_path="audio")
-        mocked_s3.delete_files_async.assert_any_call([episode.image.name], remote_path="images")
+        mocked_s3.delete_files_async.assert_any_call(
+            [episode.image.name], remote_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
+        )
 
     def test_delete__episode_from_another_user__fail(self, client, episode, user, dbs):
         client.login(create_user(dbs))
@@ -284,7 +286,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
                 [episode_2.audio.name], remote_path=settings.S3_BUCKET_AUDIO_PATH
             )
             mocked_s3.delete_files_async.assert_any_call(
-                [episode_2.image.name], remote_path=settings.S3_BUCKET_IMAGES_PATH
+                [episode_2.image.name], remote_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
             )
         else:
             assert not mocked_s3.delete_files_async.called
