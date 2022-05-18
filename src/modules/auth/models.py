@@ -5,7 +5,6 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from common.views import PRequest
 from core.database import ModelBase
 from common.models import ModelMixin
 from modules.auth.hasher import PBKDF2PasswordHasher
@@ -95,19 +94,3 @@ class UserIP(ModelBase, ModelMixin):
 
     def __repr__(self):
         return f"<UserIP {self.ip_address} user: {self.user_id}>"
-
-    @staticmethod
-    async def register(db_session: AsyncSession, user_id: int, request: PRequest):
-        logger.debug(
-            'Requested register IP from: user_id: %i | request.headers: %s',
-            user_id, request.headers
-        )
-        if ip_address := request.headers.get('X-Real-IP'):
-            ip_data = {
-                'user_id': user_id,
-                'ip_address': ip_address
-            }
-
-            # TODO: use upsert if possible
-            if not await UserIP.async_get(db_session, **ip_data):
-                await UserIP.async_create(db_session, **ip_data)

@@ -13,7 +13,7 @@ from core import settings
 from common.views import BaseHTTPEndpoint
 from common.utils import send_email, get_logger
 from common.exceptions import AuthenticationFailedError, InvalidParameterError
-from modules.auth.models import User, UserSession, UserInvite, UserIP
+from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
 from modules.auth.utils import (
@@ -98,7 +98,6 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         cleaned_data = await self._validate(request)
         user = await self.authenticate(cleaned_data["email"], cleaned_data["password"])
         token_collection = await self._create_session(user)
-        await UserIP.register(self.db_session, user_id=user.id, request=request)
         return self._response(token_collection)
 
     async def authenticate(self, email: str, password: str) -> User:
@@ -138,7 +137,6 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         await user_invite.update(self.db_session, is_applied=True, user_id=user.id)
         await Podcast.create_first_podcast(self.db_session, user.id)
         token_collection = await self._create_session(user)
-        await UserIP.register(self.db_session, user_id=user.id, request=request)
         return self._response(token_collection, status_code=status.HTTP_201_CREATED)
 
     async def _validate(self, request, *_) -> dict:
@@ -351,7 +349,6 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         await user.update(self.db_session, password=new_password)
 
         token_collection = await self._create_session(user)
-        await UserIP.register(self.db_session, user_id=user.id, request=request)
         return self._response(token_collection)
 
 
