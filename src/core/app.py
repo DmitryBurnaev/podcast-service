@@ -16,7 +16,7 @@ from core import settings
 from core.routes import routes
 from common.utils import custom_exception_handler
 from common.exceptions import BaseApplicationError
-from modules.auth.middleware import RegisterUserIPMiddleware
+from modules.auth.middlewares import RegisterUserIPMiddleware
 
 exception_handlers = {
     BaseApplicationError: custom_exception_handler,

@@ -9,6 +9,7 @@ from typing import Tuple, Type
 from unittest import mock
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
 from starlette.testclient import TestClient
 
 from common.db_utils import make_session_maker
@@ -192,3 +193,10 @@ def create_episode(
     episode.audio = audio
     episode.image = image
     return episode
+
+
+def prepare_request(db_session: AsyncSession, headers: dict = None) -> Request:
+    scope = {"type": "http", "headers": list(headers.items() or {})}
+    request = Request(scope)
+    request.db_session = db_session
+    return request

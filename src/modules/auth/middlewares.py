@@ -1,10 +1,9 @@
 import logging
 
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
-from common.db_utils import make_session_maker
 from modules.auth.models import UserIP
 
 logger = logging.getLogger(__name__)
@@ -36,8 +35,7 @@ class RegisterUserIPMiddleware(BaseHTTPMiddleware):
         ip_data = {"user_id": request.user.id, "ip_address": ip_address}
 
         try:
-            session_maker = make_session_maker()
-            async with session_maker() as db_session:
+            async with request.app.session_maker() as db_session:
                 # TODO: use upsert if possible
                 if await UserIP.async_get(db_session, **ip_data):
                     logger.debug("Found UserIP record for: %s", ip_data)
