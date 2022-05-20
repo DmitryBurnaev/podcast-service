@@ -1,15 +1,19 @@
+import logging
+from typing import Tuple
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Tuple
 
 import jwt
 
+from common.request import PRequest
 from core import settings
-
+from modules.auth.models import UserIP
 
 TOKEN_TYPE_ACCESS = "access"
 TOKEN_TYPE_REFRESH = "refresh"
 TOKEN_TYPE_RESET_PASSWORD = "reset_password"
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -44,3 +48,29 @@ def decode_jwt(encoded_jwt: str) -> dict:
     """Allows to decode received JWT token to payload"""
 
     return jwt.decode(encoded_jwt, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+
+
+async def register_ip(request: PRequest):
+    """Allows registration new IP for requested user"""
+
+    # TODO: remove logging after testing issue #100
+    logger.debug(
+        "Requested register IP from: user: %i | headers: %s", request.user.id, request.headers
+    )
+
+    if not (ip_address := request.headers.get(settings.REQUEST_IP_HEADER)):
+        logger.warning(
+            "Not found ip-header (%s) for user: %i | headers: %s",
+            settings.REQUEST_IP_HEADER,
+            request.user.id,
+            request.headers,
+        )
+        return
+
+    ip_data = {"user_id": request.user.id, "ip_address": ip_address}
+
+    if await UserIP.async_get(request.db_session, **ip_data):
+        logger.debug("Found UserIP record for: %s", ip_data)
+    else:
+        await UserIP.async_create(request.db_session, **ip_data)
+        logger.debug("Created NEW UserIP record for: %s", ip_data)

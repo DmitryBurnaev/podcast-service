@@ -16,7 +16,6 @@ from core import settings
 from core.routes import routes
 from common.utils import custom_exception_handler
 from common.exceptions import BaseApplicationError
-from modules.auth.middlewares import RegisterUserIPMiddleware
 
 exception_handlers = {
     BaseApplicationError: custom_exception_handler,
@@ -45,7 +44,7 @@ def get_app():
         routes=routes,
         exception_handlers=exception_handlers,
         debug=settings.APP_DEBUG,
-        middleware=[Middleware(SentryAsgiMiddleware), Middleware(RegisterUserIPMiddleware)],
+        middleware=[Middleware(SentryAsgiMiddleware)],
     )
     logging.config.dictConfig(settings.LOGGING)
     if settings.SENTRY_DSN:

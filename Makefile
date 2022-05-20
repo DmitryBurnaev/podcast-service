@@ -35,3 +35,9 @@ lint:
 	pipenv run black . --exclude migrations --line-length 100
 	pipenv run flake8
 	make clean-pyc
+
+test:
+	cd src && \
+		pipenv run flake8 --count && \
+		pipenv run coverage run --concurrency=thread,greenlet -m pytest && \
+		pipenv run converage report
