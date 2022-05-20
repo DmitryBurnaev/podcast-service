@@ -40,4 +40,4 @@ test:
 	cd src && \
 		pipenv run flake8 --count && \
 		pipenv run coverage run --concurrency=thread,greenlet -m pytest && \
-		pipenv run converage report
+		pipenv run coverage report

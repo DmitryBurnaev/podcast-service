@@ -3,7 +3,7 @@ import json
 import uuid
 from uuid import UUID
 from datetime import datetime, timedelta
-from typing import Tuple, Optional, Union
+from typing import Tuple, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
@@ -48,7 +48,7 @@ class JWTSessionMixin:
     db_session: AsyncSession = NotImplemented
 
     @staticmethod
-    def _get_tokens(user: User, session_id: Union[str, UUID]) -> TokenCollection:
+    def _get_tokens(user: User, session_id: str | UUID) -> TokenCollection:
         token_payload = {"user_id": user.id, "session_id": str(session_id)}
         access_token, access_token_expired_at = encode_jwt(token_payload)
         refresh_token, refresh_token_expired_at = encode_jwt(
@@ -76,12 +76,8 @@ class JWTSessionMixin:
         await register_ip(request)
         return token_collection
 
-    async def _update_session(self, user: User, session_id: Union[str, UUID]) -> TokenCollection:
-        user_session = await UserSession.async_get(self.db_session, public_id=str(session_id))
-        if not user_session:
-            return await self._create_session(user)
-
-        token_collection = self._get_tokens(user, session_id=session_id)
+    async def _update_session(self, user: User, user_session: UserSession) -> TokenCollection:
+        token_collection = self._get_tokens(user, session_id=user_session.public_id)
         await user_session.update(
             self.db_session,
             refresh_token=token_collection.refresh_token,
@@ -219,7 +215,7 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         if user_session.refresh_token != refresh_token:
             raise AuthenticationFailedError("Refresh token does not match with user session.")
 
-        token_collection = await self._update_session(user, session_id)
+        token_collection = await self._update_session(user, user_session)
         return self._response(token_collection)
 
     async def _validate(self, request, *args, **kwargs) -> Tuple[User, str, Optional[str]]:
@@ -363,4 +359,5 @@ class ProfileApiView(BaseHTTPEndpoint):
     schema_response = UserResponseSchema
 
     async def get(self, request):
+        await register_ip(request)
         return self._response(request.user)
