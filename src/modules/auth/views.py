@@ -98,7 +98,6 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         cleaned_data = await self._validate(request)
         user = await self.authenticate(cleaned_data["email"], cleaned_data["password"])
         token_collection = await self._create_session(request, user)
-        await register_ip(request)
         return self._response(token_collection)
 
     async def authenticate(self, email: str, password: str) -> User:
