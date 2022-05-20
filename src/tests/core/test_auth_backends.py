@@ -10,17 +10,14 @@ from common.exceptions import (
 from modules.auth.backend import BaseAuthJWTBackend, AdminRequiredAuthBackend
 from modules.auth.models import User, UserSession
 from modules.auth.utils import encode_jwt, TOKEN_TYPE_RESET_PASSWORD, TOKEN_TYPE_REFRESH
-from tests.helpers import await_
+from tests.helpers import await_, prepare_request
 
 
 class TestBackendAuth:
     @staticmethod
-    def _prepare_request(db_session: AsyncSession, user: User, user_session: UserSession):
+    def _prepare_request(dbs: AsyncSession, user: User, user_session: UserSession) -> Request:
         jwt, _ = encode_jwt({"user_id": user.id, "session_id": user_session.public_id})
-        scope = {"type": "http", "headers": [(b"authorization", f"Bearer {jwt}".encode("latin-1"))]}
-        request = Request(scope)
-        request.db_session = db_session
-        return request
+        return prepare_request(dbs, headers={"authorization": f"Bearer {jwt}"})
 
     def test_check_auth__ok(self, client, user, user_session, dbs):
         request = self._prepare_request(dbs, user, user_session)

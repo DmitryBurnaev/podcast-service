@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import datetime
 
@@ -7,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import ModelBase
 from common.models import ModelMixin
 from modules.auth.hasher import PBKDF2PasswordHasher
+
+logger = logging.getLogger(__name__)
 
 
 class User(ModelBase, ModelMixin):
@@ -79,3 +82,15 @@ class UserSession(ModelBase, ModelMixin):
 
     def __repr__(self):
         return f"<UserSession #{self.id} {self.user_id}>"
+
+
+class UserIP(ModelBase, ModelMixin):
+    __tablename__ = "auth_user_ips"
+
+    id = Column(Integer, primary_key=True)
+    ip_address = Column(String(length=16), index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("auth_users.id"))
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<UserIP {self.ip_address} user: {self.user_id}>"

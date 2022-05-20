@@ -13,6 +13,7 @@ from starlette.testclient import TestClient
 
 from common.db_utils import make_session_maker
 from common.enums import SourceType, FileType, EpisodeStatus
+from common.request import PRequest
 from modules.auth.utils import encode_jwt
 from modules.auth.models import User, UserSession
 from modules.media.models import File
@@ -192,3 +193,14 @@ def create_episode(
     episode.audio = audio
     episode.image = image
     return episode
+
+
+def prepare_request(db_session: AsyncSession, headers: dict = None, path: str = "/") -> PRequest:
+    scope = {
+        "path": path,
+        "type": "http",
+        "headers": [(h.lower().encode(), v.encode("latin-1")) for h, v in (headers or {}).items()],
+    }
+    request = PRequest(scope)
+    request.db_session = db_session
+    return request

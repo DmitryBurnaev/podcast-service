@@ -17,7 +17,6 @@ from core.routes import routes
 from common.utils import custom_exception_handler
 from common.exceptions import BaseApplicationError
 
-
 exception_handlers = {
     BaseApplicationError: custom_exception_handler,
     WebargsHTTPException: custom_exception_handler,

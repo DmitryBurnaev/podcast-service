@@ -5,7 +5,6 @@ from typing import Type, Union, Iterable, Any, ClassVar
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from starlette.exceptions import HTTPException
-from starlette.requests import Request
 from starlette.endpoints import HTTPEndpoint
 from marshmallow import Schema, ValidationError, fields
 from starlette.responses import JSONResponse, Response
@@ -17,6 +16,7 @@ from common.exceptions import (
     BaseApplicationError,
     InvalidParameterError,
 )
+from common.request import PRequest
 from common.statuses import ResponseStatus
 from common.models import DBModel
 from common.utils import get_logger
@@ -26,11 +26,6 @@ from modules.auth.utils import TokenCollection
 from modules.auth.backend import LoginRequiredAuthBackend
 
 logger = get_logger(__name__)
-
-
-class PRequest(Request):
-    user_session_id: str
-    db_session: AsyncSession
 
 
 class BaseHTTPEndpoint(HTTPEndpoint):

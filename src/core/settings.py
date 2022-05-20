@@ -102,6 +102,7 @@ FFMPEG_TIMEOUT = 2 * 60 * 60  # 2 hours
 DEFAULT_LIMIT_LIST_API = 20
 MAX_UPLOAD_ATTEMPT = config("MAX_UPLOAD_ATTEMPT", default=5, cast=int)
 RETRY_UPLOAD_TIMEOUT = 1  # 1 second
+REQUEST_IP_HEADER = config("REQUEST_IP_HEADER", default="X-Real-IP", cast=str)
 
 SENTRY_DSN = config("SENTRY_DSN", default=None)
 LOG_LEVEL = config("LOG_LEVEL", default="INFO")

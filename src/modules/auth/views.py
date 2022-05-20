@@ -3,11 +3,12 @@ import json
 import uuid
 from uuid import UUID
 from datetime import datetime, timedelta
-from typing import Tuple, Optional, Union
+from typing import Tuple, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from common.request import PRequest
 from common.statuses import ResponseStatus
 from core import settings
 from common.views import BaseHTTPEndpoint
@@ -21,6 +22,7 @@ from modules.auth.utils import (
     TokenCollection,
     TOKEN_TYPE_REFRESH,
     TOKEN_TYPE_RESET_PASSWORD,
+    register_ip,
 )
 from modules.auth.schemas import (
     SignInSchema,
@@ -46,7 +48,7 @@ class JWTSessionMixin:
     db_session: AsyncSession = NotImplemented
 
     @staticmethod
-    def _get_tokens(user: User, session_id: Union[str, UUID]) -> TokenCollection:
+    def _get_tokens(user: User, session_id: str | UUID) -> TokenCollection:
         token_payload = {"user_id": user.id, "session_id": str(session_id)}
         access_token, access_token_expired_at = encode_jwt(token_payload)
         refresh_token, refresh_token_expired_at = encode_jwt(
@@ -60,7 +62,8 @@ class JWTSessionMixin:
             access_token_expired_at=access_token_expired_at,
         )
 
-    async def _create_session(self, user: User) -> TokenCollection:
+    async def _create_session(self, request: PRequest, user: User) -> TokenCollection:
+        request.scope["user"] = user
         session_id = uuid.uuid4()
         token_collection = self._get_tokens(user, session_id)
         await UserSession.async_create(
@@ -70,14 +73,11 @@ class JWTSessionMixin:
             refresh_token=token_collection.refresh_token,
             expired_at=token_collection.refresh_token_expired_at,
         )
+        await register_ip(request)
         return token_collection
 
-    async def _update_session(self, user: User, session_id: Union[str, UUID]) -> TokenCollection:
-        user_session = await UserSession.async_get(self.db_session, public_id=str(session_id))
-        if not user_session:
-            return await self._create_session(user)
-
-        token_collection = self._get_tokens(user, session_id=session_id)
+    async def _update_session(self, user: User, user_session: UserSession) -> TokenCollection:
+        token_collection = self._get_tokens(user, session_id=user_session.public_id)
         await user_session.update(
             self.db_session,
             refresh_token=token_collection.refresh_token,
@@ -97,7 +97,8 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     async def post(self, request):
         cleaned_data = await self._validate(request)
         user = await self.authenticate(cleaned_data["email"], cleaned_data["password"])
-        token_collection = await self._create_session(user)
+        token_collection = await self._create_session(request, user)
+        await register_ip(request)
         return self._response(token_collection)
 
     async def authenticate(self, email: str, password: str) -> User:
@@ -136,7 +137,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         )
         await user_invite.update(self.db_session, is_applied=True, user_id=user.id)
         await Podcast.create_first_podcast(self.db_session, user.id)
-        token_collection = await self._create_session(user)
+        token_collection = await self._create_session(request, user)
         return self._response(token_collection, status_code=status.HTTP_201_CREATED)
 
     async def _validate(self, request, *_) -> dict:
@@ -214,7 +215,7 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         if user_session.refresh_token != refresh_token:
             raise AuthenticationFailedError("Refresh token does not match with user session.")
 
-        token_collection = await self._update_session(user, session_id)
+        token_collection = await self._update_session(user, user_session)
         return self._response(token_collection)
 
     async def _validate(self, request, *args, **kwargs) -> Tuple[User, str, Optional[str]]:
@@ -348,7 +349,7 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         new_password = User.make_password(cleaned_data["password_1"])
         await user.update(self.db_session, password=new_password)
 
-        token_collection = await self._create_session(user)
+        token_collection = await self._create_session(request, user)
         return self._response(token_collection)
 
 
@@ -358,4 +359,5 @@ class ProfileApiView(BaseHTTPEndpoint):
     schema_response = UserResponseSchema
 
     async def get(self, request):
+        await register_ip(request)
         return self._response(request.user)

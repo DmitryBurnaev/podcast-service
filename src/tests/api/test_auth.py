@@ -6,19 +6,21 @@ from datetime import datetime, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from common.request import PRequest
 from common.statuses import ResponseStatus
 from core import settings
-from modules.auth.models import User, UserSession, UserInvite
+from modules.auth.models import User, UserSession, UserInvite, UserIP
 from modules.auth.utils import (
     decode_jwt,
     encode_jwt,
     TOKEN_TYPE_RESET_PASSWORD,
     TOKEN_TYPE_REFRESH,
     TOKEN_TYPE_ACCESS,
+    register_ip,
 )
 from modules.podcast.models import Podcast
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import await_
+from tests.helpers import await_, prepare_request
 
 INVALID_SIGN_IN_DATA = [
     [{"email": "fake-email"}, {"email": "Not a valid email address."}],
@@ -637,3 +639,55 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
     def test_invalid_request__fail(self, client, invalid_data: dict, error_details: dict):
         client.logout()
         self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
+
+
+class TestUserIPRegistration(BaseTestAPIView):
+    IP = "172.17.0.1"
+
+    def _request(self, user: User, ip_address: str = None) -> PRequest:
+        dbs = self.client.db_session
+        ip_address = ip_address or self.IP
+        request = prepare_request(dbs, headers={"X-Real-IP": ip_address})
+        request.scope["user"] = user
+        return request
+
+    def test_register_success(self, client, user, user_session):
+        self.client = client
+        request = self._request(user=user)
+        await_(register_ip(request))
+
+        user_ip = await_(UserIP.async_get(client.db_session, user_id=user.id, ip_address=self.IP))
+        assert user_ip is not None
+
+    def test_register_ip_already_exists(self, client, user, user_session):
+        self.client, dbs = client, client.db_session
+        old_user_ip = await_(UserIP.async_create(dbs, user_id=user.id, ip_address=self.IP))
+        await_(dbs.commit())
+
+        request = self._request(user=user, ip_address=self.IP)
+        await_(register_ip(request))
+
+        new_user_ip = await_(UserIP.async_get(dbs, user_id=user.id, ip_address=self.IP))
+        assert new_user_ip is not None
+        assert new_user_ip.id == old_user_ip.id
+
+    def test_register_ip_several_requests(self, client, user, user_session):
+        self.client = client
+        request_1 = self._request(user=user, ip_address="172.17.0.1")
+        request_2 = self._request(user=user, ip_address="172.17.0.2")
+        await_(register_ip(request_1))
+        await_(register_ip(request_2))
+
+        user_ips = await_(UserIP.async_filter(client.db_session, user_id=user.id))
+        actual_ips = [user_ip.ip_address for user_ip in user_ips]
+        assert actual_ips == ["172.17.0.1", "172.17.0.2"]
+
+    def test_register_missed_ip_header(self, client, user, user_session):
+        request = prepare_request(client.db_session, headers={"WRONG-X-Real-IP": "172.17.0.1"})
+        request.scope["user"] = user
+        await_(register_ip(request))
+
+        user_ip = await_(
+            UserIP.async_get(client.db_session, user_id=user.id, ip_address="172.17.0.1")
+        )
+        assert user_ip is None
