@@ -17,8 +17,7 @@ class TestBackendAuth:
     @staticmethod
     def _prepare_request(dbs: AsyncSession, user: User, user_session: UserSession) -> Request:
         jwt, _ = encode_jwt({"user_id": user.id, "session_id": user_session.public_id})
-        headers = {b"authorization": f"Bearer {jwt}".encode("latin-1")}
-        return prepare_request(dbs, headers)
+        return prepare_request(dbs, headers={"authorization": f"Bearer {jwt}"})
 
     def test_check_auth__ok(self, client, user, user_session, dbs):
         request = self._prepare_request(dbs, user, user_session)

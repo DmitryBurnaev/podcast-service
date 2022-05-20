@@ -2,6 +2,7 @@ import base64
 import json
 import uuid
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -642,51 +643,65 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
 
 
 class TestUserIPRegistrationMiddleware(BaseTestAPIView):
+    IP = "172.17.0.1"
+    URL_PATH = RegisterUserIPMiddleware.allowed_paths[0]
 
-    @staticmethod
-    async def mock_call_next():
-        # TODO: use magic mock to check calling
-        pass
+    def _request(self, user: User, ip_address: str = None, path: str = URL_PATH) -> Request:
+        dbs = self.client.db_session
+        ip_address = ip_address or self.IP
+        request = prepare_request(dbs, headers={"X-Real-IP": ip_address}, path=path)
+        request.scope["app"] = self.client.app
+        request.scope["user"] = user
+        return request
 
-    @staticmethod
-    def _request(dbs, ip_address: str) -> Request:
-        return prepare_request(dbs, headers={"X-Real-IP": ip_address})
+    @pytest.mark.parametrize("path", RegisterUserIPMiddleware.allowed_paths)
+    def test_register_success(self, client, user, user_session, path):
+        self.client = client
+        mock_call_next = AsyncMock()
 
-    def test_register_success(self, client, dbs, user, user_session):
-        request = self._request(dbs, ip_address="172.17.0.1")
+        request = self._request(user=user, path=path)
         middleware = RegisterUserIPMiddleware(client.app)
-        await_(middleware.dispatch(request, self.mock_call_next))
+        await_(middleware.dispatch(request, mock_call_next))
 
-        user_ip = await_(UserIP.async_get(dbs, user_id=user.id, ip_address="172.17.0.1"))
+        user_ip = await_(UserIP.async_get(client.db_session, user_id=user.id, ip_address=self.IP))
         assert user_ip is not None
+        mock_call_next.assert_awaited_once()
 
     def test_register_ip_already_exists(self, client, dbs, user, user_session):
+        self.client = client
         old_user_ip = await_(
-            UserIP.async_create(dbs, user_id=user.id, ip_address="172.17.0.1", db_commit=True)
+            UserIP.async_create(dbs, user_id=user.id, ip_address=self.IP, db_commit=True)
         )
-        request = self._request(dbs, ip_address="172.17.0.1")
+        request = self._request(user=user, ip_address=self.IP)
         middleware = RegisterUserIPMiddleware(client.app)
-        await_(middleware.dispatch(request, self.mock_call_next))
+        await_(middleware.dispatch(request, AsyncMock()))
 
-        new_user_ip = await_(UserIP.async_get(dbs, user_id=user.id, ip_address="172.17.0.1"))
+        new_user_ip = await_(UserIP.async_get(dbs, user_id=user.id, ip_address=self.IP))
         assert new_user_ip is not None
         assert new_user_ip.id == old_user_ip.id
 
     def test_register_ip_several_requests(self, client, dbs, user, user_session):
-        request_1 = self._request(dbs, ip_address="172.17.0.1")
-        request_2 = self._request(dbs, ip_address="172.17.0.2")
+        self.client = client
+        mock_call_next = AsyncMock()
+
+        request_1 = self._request(user=user, ip_address="172.17.0.1")
+        request_2 = self._request(user=user, ip_address="172.17.0.2")
         middleware = RegisterUserIPMiddleware(client.app)
-        await_(middleware.dispatch(request_1, self.mock_call_next))
-        await_(middleware.dispatch(request_2, self.mock_call_next))
+        await_(middleware.dispatch(request_1, mock_call_next))
+        await_(middleware.dispatch(request_2, mock_call_next))
 
         user_ips = await_(UserIP.async_filter(dbs, user_id=user.id))
         actual_ips = [user_ip.ip_address for user_ip in user_ips]
         assert actual_ips == ["172.17.0.1", "172.17.0.2"]
+        mock_call_next.assert_awaited()
 
     def test_register_missed_ip_header(self, client, dbs, user, user_session):
+        mock_call_next = AsyncMock()
+
         request = prepare_request(dbs, headers={"WRONG-X-Real-IP": "172.17.0.1"})
         middleware = RegisterUserIPMiddleware(client.app)
-        await_(middleware.dispatch(request, self.mock_call_next))
+        await_(middleware.dispatch(request, mock_call_next))
 
         user_ip = await_(UserIP.async_get(dbs, user_id=user.id, ip_address="172.17.0.1"))
         assert user_ip is None
+        mock_call_next.assert_awaited_once()

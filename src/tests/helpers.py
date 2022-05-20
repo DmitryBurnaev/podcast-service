@@ -195,8 +195,12 @@ def create_episode(
     return episode
 
 
-def prepare_request(db_session: AsyncSession, headers: dict = None) -> Request:
-    scope = {"type": "http", "headers": [(h.encode(), v) for h, v in (headers or {}).items()]}
+def prepare_request(db_session: AsyncSession, headers: dict = None, path: str = "/") -> Request:
+    scope = {
+        "path": path,
+        "type": "http",
+        "headers": [(h.lower().encode(), v.encode("latin-1")) for h, v in (headers or {}).items()],
+    }
     request = Request(scope)
     request.db_session = db_session
     return request
