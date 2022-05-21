@@ -22,6 +22,7 @@ REMOTE_PATH_MAP = {
     FileType.AUDIO: settings.S3_BUCKET_AUDIO_PATH,
     FileType.RSS: settings.S3_BUCKET_RSS_PATH,
 }
+TOKEN_LENGTH = 48
 
 
 class File(ModelBase, ModelMixin):
@@ -44,11 +45,16 @@ class File(ModelBase, ModelMixin):
 
     @classmethod
     def generate_token(cls) -> str:
-        return get_random_hash(48)
+        return get_random_hash(TOKEN_LENGTH)
+
+    @classmethod
+    def token_is_correct(cls, token: str) -> bool:
+        return token.isalnum() and len(token) == TOKEN_LENGTH
 
     @property
     def url(self) -> str:
-        return urllib.parse.urljoin(settings.SERVICE_URL, f"/m/{self.access_token}")
+        path = f"/r/{self.access_token}" if self.type == FileType.RSS else f"/m/{self.access_token}"
+        return urllib.parse.urljoin(settings.SERVICE_URL, path)
 
     @property
     def content_type(self) -> str:

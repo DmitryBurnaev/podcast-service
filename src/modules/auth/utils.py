@@ -1,5 +1,5 @@
 import logging
-from typing import Tuple
+from typing import Tuple, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -50,6 +50,21 @@ def decode_jwt(encoded_jwt: str) -> dict:
     return jwt.decode(encoded_jwt, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
 
 
+def extract_ip_address(request: PRequest) -> Optional[str]:
+    """Find IP address from request Headers"""
+
+    if ip_address := request.headers.get(settings.REQUEST_IP_HEADER):
+        return ip_address
+
+    logger.warning(
+        "Not found ip-header (%s) for user: %i | headers: %s",
+        settings.REQUEST_IP_HEADER,
+        request.user.id,
+        request.headers,
+    )
+    return
+
+
 async def register_ip(request: PRequest):
     """Allows registration new IP for requested user"""
 
@@ -57,14 +72,7 @@ async def register_ip(request: PRequest):
     logger.debug(
         "Requested register IP from: user: %i | headers: %s", request.user.id, request.headers
     )
-
-    if not (ip_address := request.headers.get(settings.REQUEST_IP_HEADER)):
-        logger.warning(
-            "Not found ip-header (%s) for user: %i | headers: %s",
-            settings.REQUEST_IP_HEADER,
-            request.user.id,
-            request.headers,
-        )
+    if not (ip_address := extract_ip_address(request)):
         return
 
     ip_data = {"user_id": request.user.id, "ip_address": ip_address}
