@@ -51,9 +51,17 @@ class FileRedirectApiView(BaseHTTPEndpoint):
 
 
 class RSSRedirectAPIView(FileRedirectApiView):
-    async def _check_ip_address(self, ip_address: str, file: File):
-        if await UserIP.async_filter(self.db_session, user_id=file.owner_id):
-            # TODO: implement checking for RSS access
-            return True
 
-        return super()._check_ip_address(ip_address, file)
+    async def _check_ip_address(self, ip_address: str, file: File):
+        try:
+            await super()._check_ip_address(ip_address, file)
+        except AuthenticationFailedError as e:
+            if not await UserIP.async_get(self.db_session, registed_by=file.access_token):
+                await UserIP.async_create(
+                    self.db_session,
+                    user_id=file.owner_id,
+                    ip_address=ip_address,
+                    registed_by=file.access_token
+                )
+            else:
+                raise e
