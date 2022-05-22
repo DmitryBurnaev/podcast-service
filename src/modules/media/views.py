@@ -44,7 +44,10 @@ class FileRedirectApiView(BaseHTTPEndpoint):
         return file
 
     async def _check_ip_address(self, ip_address: str, file: File):
-        allowed_ips = await UserIP.async_filter(self.db_session, user_id=file.owner_id)
+        allowed_ips = {
+            user_ip.ip_address
+            for user_ip in await UserIP.async_filter(self.db_session, user_id=file.owner_id)
+        }
         if ip_address not in allowed_ips:
             logger.warning("Unknown user's IP: %s | allowed: %s", ip_address, allowed_ips)
             raise AuthenticationFailedError(f"Invalid IP address: {ip_address}")
