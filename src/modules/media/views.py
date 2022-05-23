@@ -15,8 +15,9 @@ class FileRedirectApiView(BaseHTTPEndpoint):
     """Check access to file's via token (by requested IP address)"""
 
     async def get(self, request):
+        # TODO: redirect response only for allowed by IP requests
         file = await self._get_file(request)
-        return RedirectResponse(file.url, status_code=302)
+        return RedirectResponse(await file.remote_url, status_code=302)
 
     async def head(self, request):
         file = await self._get_file(request)

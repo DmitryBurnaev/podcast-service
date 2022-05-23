@@ -57,6 +57,12 @@ class File(ModelBase, ModelMixin):
         return urllib.parse.urljoin(settings.SERVICE_URL, path)
 
     @property
+    async def remote_url(self) -> str:
+        url = await StorageS3().get_file_url(self.path)
+        logger.debug("Generated URL for %s: %s", self, url)
+        return url
+
+    @property
     def content_type(self) -> str:
         return f"{self.type.lower()}/{self.name.split('.')[-1]}"
 
