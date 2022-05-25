@@ -15,7 +15,7 @@ psycopg2-binary = "==2.9.2" # for alembic only
 sqlalchemy = "==1.4.27"
 alembic = "==1.7.5"
 
-PyJWT = "==2.3.0"
+PyJWT = "==2.4.0"
 httpx = "==0.22.0"
 redis = "==4.0.2"
 boto3 = "==1.21.18"
