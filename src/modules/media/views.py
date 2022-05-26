@@ -15,15 +15,17 @@ class FileRedirectApiView(BaseHTTPEndpoint):
     """Check access to file's via token (by requested IP address)"""
 
     async def get(self, request):
-        # TODO: redirect response only for allowed by IP requests
-        file = await self._get_file(request)
+        file, user_has_ip = await self._get_file(request)
+        if not user_has_ip:
+            return Response(headers=file.headers)
+
         return RedirectResponse(await file.remote_url, status_code=302)
 
     async def head(self, request):
-        file = await self._get_file(request)
-        return Response(headers={"content-length": file.size})
+        file, _ = await self._get_file(request)
+        return Response(headers=file.headers)
 
-    async def _get_file(self, request: PRequest) -> File:
+    async def _get_file(self, request: PRequest) -> tuple[File, bool]:
         access_token = request.path_params["access_token"]
         logger.debug("Finding file with access_token: %s", access_token)
         try:
@@ -36,15 +38,15 @@ class FileRedirectApiView(BaseHTTPEndpoint):
             if not (file := await File.async_get(self.db_session, access_token=access_token)):
                 raise NotFoundError("File not found")
 
-            await self._check_ip_address(ip_address, file)
+            user_has_ip = await self._check_ip_address(ip_address, file)
 
         except Exception as e:
             logger.exception("Couldn't allow access token to fetch file: %r", e)
             raise NotFoundError
 
-        return file
+        return file, user_has_ip
 
-    async def _check_ip_address(self, ip_address: str, file: File):
+    async def _check_ip_address(self, ip_address: str, file: File) -> bool:
         allowed_ips = {
             user_ip.ip_address
             for user_ip in await UserIP.async_filter(self.db_session, user_id=file.owner_id)
@@ -53,8 +55,14 @@ class FileRedirectApiView(BaseHTTPEndpoint):
             logger.warning("Unknown user's IP: %s | allowed: %s", ip_address, allowed_ips)
             raise AuthenticationFailedError(f"Invalid IP address: {ip_address}")
 
+        return True
 
 class RSSRedirectAPIView(FileRedirectApiView):
+    """ RSS endpoint (register IP for new fetching) """
+
+    async def get(self, request):
+        file, _ = await self._get_file(request)
+        return RedirectResponse(await file.remote_url, status_code=302)
 
     async def _check_ip_address(self, ip_address: str, file: File):
         try:
@@ -67,5 +75,6 @@ class RSSRedirectAPIView(FileRedirectApiView):
                     ip_address=ip_address,
                     registed_by=file.access_token
                 )
-            else:
-                raise e
+                return False
+
+            raise e

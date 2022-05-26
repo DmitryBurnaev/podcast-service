@@ -67,6 +67,13 @@ class File(ModelBase, ModelMixin):
         return f"{self.type.lower()}/{self.name.split('.')[-1]}"
 
     @property
+    def headers(self) -> dict:
+        return {
+            "content-length": self.size,
+            "content-type": self.content_type
+        }
+
+    @property
     def name(self) -> str:
         return os.path.basename(self.path)
 
