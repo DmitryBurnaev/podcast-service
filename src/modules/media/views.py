@@ -47,6 +47,7 @@ class FileRedirectApiView(BaseHTTPEndpoint):
         return file, user_has_ip
 
     async def _check_ip_address(self, ip_address: str, file: File) -> bool:
+        # TODO: can we check that logged-in user has superuser privileges?
         allowed_ips = {
             user_ip.ip_address
             for user_ip in await UserIP.async_filter(self.db_session, user_id=file.owner_id)
@@ -57,8 +58,9 @@ class FileRedirectApiView(BaseHTTPEndpoint):
 
         return True
 
+
 class RSSRedirectAPIView(FileRedirectApiView):
-    """ RSS endpoint (register IP for new fetching) """
+    """RSS endpoint (register IP for new fetching)"""
 
     async def get(self, request):
         file, _ = await self._get_file(request)
@@ -73,7 +75,7 @@ class RSSRedirectAPIView(FileRedirectApiView):
                     self.db_session,
                     user_id=file.owner_id,
                     ip_address=ip_address,
-                    registed_by=file.access_token
+                    registed_by=file.access_token,
                 )
                 return False
 

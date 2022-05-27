@@ -68,10 +68,7 @@ class File(ModelBase, ModelMixin):
 
     @property
     def headers(self) -> dict:
-        return {
-            "content-length": self.size,
-            "content-type": self.content_type
-        }
+        return {"content-length": self.size, "content-type": self.content_type}
 
     @property
     def name(self) -> str:
