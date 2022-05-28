@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from common.exceptions import NotSupportedError
 from common.storage import StorageS3
 from core import settings
 from core.database import ModelBase
@@ -58,17 +59,20 @@ class File(ModelBase, ModelMixin):
 
     @property
     async def remote_url(self) -> str:
+        if self.available and not self.path:
+            raise NotSupportedError(f'Remote file {self} available but has not remote path.')
+
         url = await StorageS3().get_file_url(self.path)
         logger.debug("Generated URL for %s: %s", self, url)
         return url
 
     @property
     def content_type(self) -> str:
-        return f"{self.type.lower()}/{self.name.split('.')[-1]}"
+        return f"{self.type.value.lower()}/{self.name.split('.')[-1]}"
 
     @property
     def headers(self) -> dict:
-        return {"content-length": self.size, "content-type": self.content_type}
+        return {"content-length": str(self.size or 0), "content-type": self.content_type}
 
     @property
     def name(self) -> str:

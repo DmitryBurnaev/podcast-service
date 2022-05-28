@@ -35,14 +35,15 @@ class FileRedirectApiView(BaseHTTPEndpoint):
             if not File.token_is_correct(access_token):
                 raise AuthenticationFailedError("Access token is invalid")
 
-            if not (file := await File.async_get(self.db_session, access_token=access_token)):
+            file = await File.async_get(self.db_session, access_token=access_token, available=True)
+            if not file:
                 raise NotFoundError("File not found")
 
             user_has_ip = await self._check_ip_address(ip_address, file)
 
         except Exception as e:
             logger.exception("Couldn't allow access token to fetch file: %r", e)
-            raise NotFoundError
+            raise NotFoundError("File not found")
 
         return file, user_has_ip
 

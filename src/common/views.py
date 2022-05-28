@@ -50,7 +50,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         self.request = PRequest(self.scope, receive=self.receive)
         self.app = self.scope.get("app")
 
-        handler_name = "get" if self.request.method == "HEAD" else self.request.method.lower()
+        handler_name = self.request.method.lower()
         handler = getattr(self, handler_name, self.method_not_allowed)
 
         try:

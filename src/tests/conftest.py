@@ -259,7 +259,7 @@ def image_file(user, loop, dbs) -> File:
             dbs,
             FileType.IMAGE,
             owner_id=user.id,
-            path="/remote/path/to/audio_file.mp3",
+            path="/remote/path/to/image_file.png",
             size=1,
         )
     )
