@@ -7,7 +7,7 @@ from modules.media.routes import routes as media_routes
 
 routes = [
     Mount("/api", routes=(auth_routes + podcast_routes)),
-    Mount("", routes=media_routes),
     Route("/health_check/", HealthCheckAPIView),
     Route("/sentry_check/", SentryCheckAPIView),
+    Mount("", routes=media_routes),
 ]

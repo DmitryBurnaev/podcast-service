@@ -60,7 +60,7 @@ class File(ModelBase, ModelMixin):
     @property
     async def remote_url(self) -> str:
         if self.available and not self.path:
-            raise NotSupportedError(f'Remote file {self} available but has not remote path.')
+            raise NotSupportedError(f"Remote file {self} available but has not remote path.")
 
         url = await StorageS3().get_file_url(self.path)
         logger.debug("Generated URL for %s: %s", self, url)

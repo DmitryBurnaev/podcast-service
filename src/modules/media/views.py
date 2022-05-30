@@ -1,4 +1,4 @@
-from typing import Optional, ClassVar
+from typing import ClassVar
 
 from starlette.responses import RedirectResponse, Response
 
@@ -14,23 +14,20 @@ from modules.media.models import File
 logger = get_logger(__name__)
 
 
-class FileRedirectApiView(BaseHTTPEndpoint):
+class BaseFileRedirectApiView(BaseHTTPEndpoint):
     """Check access to file's via token (by requested IP address)"""
 
     file_type: ClassVar[FileType] = None
 
     async def get(self, request):
-        file, user_ip = await self._get_file(request, file_type=self.file_type)
-        if user_ip.registered_by != "":
-            return Response(headers=file.headers)
-
+        file, _ = await self._get_file(request)
         return RedirectResponse(await file.remote_url, status_code=302)
 
     async def head(self, request):
-        file, _ = await self._get_file(request, file_type=self.file_type)
+        file, _ = await self._get_file(request)
         return Response(headers=file.headers)
 
-    async def _get_file(self, request: PRequest, file_type: Optional[FileType] = None) -> tuple[File, UserIP]:
+    async def _get_file(self, request: PRequest) -> tuple[File, UserIP]:
         access_token = request.path_params["access_token"]
         logger.debug("Finding file with access_token: %s", access_token)
         try:
@@ -44,8 +41,8 @@ class FileRedirectApiView(BaseHTTPEndpoint):
                 "access_token": access_token,
                 "available": True,
             }
-            if file_type:
-                filter_kwargs["type"] = file_type
+            if self.file_type:
+                filter_kwargs["type"] = self.file_type
 
             logger.debug("Finding file for filters: %s", filter_kwargs)
             file = await File.async_get(self.db_session, **filter_kwargs)
@@ -73,26 +70,38 @@ class FileRedirectApiView(BaseHTTPEndpoint):
         return user_ip
 
 
-class RSSRedirectAPIView(FileRedirectApiView):
+class MediaFileRedirectAPIView(BaseFileRedirectApiView):
+    async def get(self, request):
+        file, user_ip = await self._get_file(request)
+        if user_ip.registered_by != "":
+            return Response(headers=file.headers)
+
+        return RedirectResponse(await file.remote_url, status_code=302)
+
+
+class RSSRedirectAPIView(BaseFileRedirectApiView):
     """RSS endpoint (register IP for new fetching)"""
 
     file_type = FileType.RSS
 
-    async def get(self, request):
-        file, _ = await self._get_file(request, file_type=self.file_type)
-        return RedirectResponse(await file.remote_url, status_code=302)
+    async def _get_file(self, request: PRequest) -> tuple[File, UserIP]:
+        file, user_ip = await super()._get_file(request)
+        if user_ip.registered_by and user_ip.registered_by != file.access_token:
+            raise NotFoundError()
 
-    async def _check_ip_address(self, ip_address: str, file: File):
+        return file, user_ip
+
+    async def _check_ip_address(self, ip_address: str, file: File) -> UserIP:
         try:
-            await super()._check_ip_address(ip_address, file)
+            return await super()._check_ip_address(ip_address, file)
         except AuthenticationFailedError as e:
             if not await UserIP.async_get(self.db_session, registered_by=file.access_token):
-                await UserIP.async_create(
+                user_ip = await UserIP.async_create(
                     self.db_session,
                     user_id=file.owner_id,
                     ip_address=ip_address,
                     registered_by=file.access_token,
                 )
-                return False
+                return user_ip
 
             raise e
