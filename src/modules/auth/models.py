@@ -90,6 +90,7 @@ class UserIP(ModelBase, ModelMixin):
     id = Column(Integer, primary_key=True)
     ip_address = Column(String(length=16), index=True, nullable=False)
     user_id = Column(Integer, ForeignKey("auth_users.id"))
+    registered_by = Column(String(length=128), index=True, nullable=False, default="")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     def __repr__(self):

@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from common.exceptions import NotSupportedError
 from common.storage import StorageS3
 from core import settings
 from core.database import ModelBase
@@ -22,6 +23,7 @@ REMOTE_PATH_MAP = {
     FileType.AUDIO: settings.S3_BUCKET_AUDIO_PATH,
     FileType.RSS: settings.S3_BUCKET_RSS_PATH,
 }
+TOKEN_LENGTH = 48
 
 
 class File(ModelBase, ModelMixin):
@@ -44,15 +46,33 @@ class File(ModelBase, ModelMixin):
 
     @classmethod
     def generate_token(cls) -> str:
-        return get_random_hash(48)
+        return get_random_hash(TOKEN_LENGTH)
+
+    @classmethod
+    def token_is_correct(cls, token: str) -> bool:
+        return token.isalnum() and len(token) == TOKEN_LENGTH
 
     @property
     def url(self) -> str:
-        return urllib.parse.urljoin(settings.SERVICE_URL, f"/m/{self.access_token}")
+        path = f"/r/{self.access_token}" if self.type == FileType.RSS else f"/m/{self.access_token}"
+        return urllib.parse.urljoin(settings.SERVICE_URL, path)
+
+    @property
+    async def remote_url(self) -> str:
+        if self.available and not self.path:
+            raise NotSupportedError(f"Remote file {self} available but has not remote path.")
+
+        url = await StorageS3().get_file_url(self.path)
+        logger.debug("Generated URL for %s: %s", self, url)
+        return url
 
     @property
     def content_type(self) -> str:
-        return f"{self.type.lower()}/{self.name.split('.')[-1]}"
+        return f"{self.type.value.lower()}/{self.name.split('.')[-1]}"
+
+    @property
+    def headers(self) -> dict:
+        return {"content-length": str(self.size or 0), "content-type": self.content_type}
 
     @property
     def name(self) -> str:

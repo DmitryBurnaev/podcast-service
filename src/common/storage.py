@@ -142,3 +142,14 @@ class StorageS3:
                     Bucket=self.BUCKET_NAME,
                 ),
             )
+
+    async def get_file_url(self, remote_path: str):
+        # TODO: make async call
+        #  https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html
+        code, result = self.__call(
+            self.s3.generate_presigned_url,
+            ClientMethod="get_object",
+            Params={"Bucket": settings.S3_BUCKET_NAME, "Key": remote_path},
+            ExpiresIn=settings.S3_LINK_EXPIRES_IN,
+        )
+        return result

@@ -1,3 +1,4 @@
+from json import JSONDecodeError
 from typing import Union, Optional
 
 from requests import Response
@@ -27,7 +28,11 @@ class BaseTestAPIView(BaseTestCase):
 
     @staticmethod
     def assert_ok_response(response: Response, status_code: int = 200) -> Union[dict, list]:
-        response_data = response.json()
+        try:
+            response_data = response.json()
+        except JSONDecodeError:
+            raise AssertionError(f"Unexpected non-json response: {response.content}")
+
         assert response.status_code == status_code
         assert "payload" in response_data, response_data
         assert response_data["status"] == ResponseStatus.OK
