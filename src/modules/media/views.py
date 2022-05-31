@@ -18,6 +18,7 @@ class BaseFileRedirectApiView(BaseHTTPEndpoint):
     """Check access to file's via token (by requested IP address)"""
 
     file_type: ClassVar[FileType] = None
+    auth_backend = None
 
     async def get(self, request):
         file, _ = await self._get_file(request)
