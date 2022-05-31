@@ -54,7 +54,9 @@ class File(ModelBase, ModelMixin):
 
     @property
     def url(self) -> str:
-        path = f"/r/{self.access_token}" if self.type == FileType.RSS else f"/m/{self.access_token}"
+        path = (
+            f"/r/{self.access_token}/" if self.type == FileType.RSS else f"/m/{self.access_token}/"
+        )
         return urllib.parse.urljoin(settings.SERVICE_URL, path)
 
     @property
