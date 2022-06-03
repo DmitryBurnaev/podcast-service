@@ -22,7 +22,7 @@ class BaseFileRedirectApiView(BaseHTTPEndpoint):
 
     async def get(self, request):
         file, _ = await self._get_file(request)
-        return RedirectResponse(await file.remote_url, status_code=302)
+        return RedirectResponse(await file.presigned_url, status_code=302)
 
     async def head(self, request):
         file, _ = await self._get_file(request)
@@ -77,7 +77,7 @@ class MediaFileRedirectAPIView(BaseFileRedirectApiView):
         if user_ip.registered_by != "":
             return Response(headers=file.headers)
 
-        return RedirectResponse(await file.remote_url, status_code=302)
+        return RedirectResponse(await file.presigned_url, status_code=302)
 
 
 class RSSRedirectAPIView(BaseFileRedirectApiView):

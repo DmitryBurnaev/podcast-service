@@ -189,3 +189,11 @@ class TestRSSFileAPIView(BaseTestAPIView):
 
         response = client.get(url, allow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
+
+
+class TestFileURL:
+    def test_public_url(self, image_file):
+        ...
+
+    def test_presigned_url(self):
+        ...

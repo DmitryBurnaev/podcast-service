@@ -40,6 +40,7 @@ class File(ModelBase, ModelMixin):
     access_token = Column(String(length=64), nullable=False, index=True, unique=True)
     owner_id = Column(Integer, ForeignKey("auth_users.id"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    public = Column(Boolean, nullable=False, default=False)
 
     def __str__(self):
         return f'<File #{self.id} | {self.type} | "{self.path}">'
@@ -54,13 +55,24 @@ class File(ModelBase, ModelMixin):
 
     @property
     def url(self) -> str:
-        path = (
-            f"/r/{self.access_token}/" if self.type == FileType.RSS else f"/m/{self.access_token}/"
-        )
-        return urllib.parse.urljoin(settings.SERVICE_URL, path)
+        if self.public:
+            if self.source_url:
+                # TODO: upload with acl instead
+                return self.source_url
+
+            return urllib.parse.urljoin(
+                settings.S3_STORAGE_URL, f"{settings.S3_BUCKET_NAME}/{self.path}"
+            )
+
+        pattern = {
+            FileType.RSS: f"/r/{self.access_token}/",
+            FileType.IMAGE: f"/m/{self.access_token}/",
+            FileType.AUDIO: f"/m/{self.access_token}/",
+        }
+        return urllib.parse.urljoin(settings.SERVICE_URL, pattern[self.type])
 
     @property
-    async def remote_url(self) -> str:
+    async def presigned_url(self) -> str:
         if self.available and not self.path:
             raise NotSupportedError(f"Remote file {self} available but has not remote path.")
 
