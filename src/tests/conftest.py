@@ -220,6 +220,7 @@ def podcast(podcast_data, user, loop, dbs) -> Podcast:
             owner_id=user.id,
             path=f"/remote/path/to/audio/podcast_{publish_id}_image.png",
             available=True,
+            public=True,
         )
     )
     rss = loop.run_until_complete(
