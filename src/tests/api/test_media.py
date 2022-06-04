@@ -159,9 +159,10 @@ class TestRSSFileAPIView(BaseTestAPIView):
         assert response.status_code == 302
         assert response.headers["location"] == self.temp_link
 
-    def test_get_rss__user_ip_already_registered_by__with_another_file__fail(
-        self, client, rss_file, user
+    def test_get_rss__user_ip_already_registered_by__with_another_file__ok(
+        self, client, rss_file, user, mocked_s3
     ):
+        mocked_s3.get_file_url.return_value = mocked_s3.async_return(self.temp_link)
         await_(
             UserIP.async_create(
                 client.db_session,
@@ -176,10 +177,11 @@ class TestRSSFileAPIView(BaseTestAPIView):
         client.login(user)
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
-        assert response.status_code == 404
+        assert response.status_code == 200
 
         response = client.get(url, allow_redirects=False, headers={"X-Real-IP": self.user_ip})
-        assert response.status_code == 404
+        assert response.status_code == 302
+        assert response.headers["location"] == self.temp_link
 
     def test_get_not_rss__fail(self, client, image_file, user):
         client.login(user)
