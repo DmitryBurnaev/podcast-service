@@ -60,6 +60,9 @@ class BaseFileRedirectApiView(BaseHTTPEndpoint):
 
     async def _check_ip_address(self, ip_address: str, file: File) -> UserIP:
         # TODO: can we check that logged-in user has superuser privileges?
+        logger.debug(
+            "Finding UserIP with filters: ip_address %s | user_id %s", ip_address, file.owner_id
+        )
         allowed_ips = {
             user_ip.ip_address: user_ip
             for user_ip in await UserIP.async_filter(self.db_session, user_id=file.owner_id)
@@ -85,18 +88,18 @@ class RSSRedirectAPIView(BaseFileRedirectApiView):
 
     file_type = FileType.RSS
 
-    async def _get_file(self, request: PRequest) -> tuple[File, UserIP]:
-        file, user_ip = await super()._get_file(request)
-        if user_ip.registered_by and user_ip.registered_by != file.access_token:
-            raise NotFoundError()
-
-        return file, user_ip
-
     async def _check_ip_address(self, ip_address: str, file: File) -> UserIP:
         try:
             return await super()._check_ip_address(ip_address, file)
         except AuthenticationFailedError as e:
+            logger.debug("Finding registrations for access token %s", file.access_token)
             if not await UserIP.async_get(self.db_session, registered_by=file.access_token):
+                logger.debug(
+                    "UserIPs not found. Create new: user_id %s | ip_address %s | registered_by %s",
+                    file.owner_id,
+                    ip_address,
+                    file.access_token,
+                )
                 user_ip = await UserIP.async_create(
                     self.db_session,
                     user_id=file.owner_id,
