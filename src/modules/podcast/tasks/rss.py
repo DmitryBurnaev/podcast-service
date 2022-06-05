@@ -52,12 +52,8 @@ class GenerateRSSTask(RQTask):
             "size": get_file_size(local_path),
             "available": True,
         }
-        if rss_file := podcast.rss:
-            old_rss_name = rss_file.name
-            await rss_file.update(self.db_session, **rss_data)
-            await StorageS3().delete_files_async(
-                [old_rss_name], remote_path=settings.S3_BUCKET_RSS_PATH
-            )
+        if podcast.rss_id:
+            await File.async_update(self.db_session, {"id": podcast.rss_id}, rss_data)
         else:
             rss_file = await File.create(
                 self.db_session,
@@ -68,8 +64,7 @@ class GenerateRSSTask(RQTask):
             await podcast.update(self.db_session, rss_id=rss_file.id)
 
         logger.info("Podcast #%i: RSS file uploaded, podcast record updated", podcast.id)
-
-        logger.info("FINISH generation for %s | PATH: %s", podcast, rss_file.path)
+        logger.info("FINISH generation for %s | PATH: %s", podcast, remote_path)
         return {podcast.id: FinishCode.OK}
 
     async def _render_rss_to_file(self, podcast: Podcast) -> str:

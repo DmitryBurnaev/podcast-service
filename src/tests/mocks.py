@@ -5,7 +5,7 @@ import shutil
 import tempfile
 from argparse import ArgumentParser
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, AsyncMock
 
 import rq
 from youtube_dl import YoutubeDL
@@ -128,7 +128,7 @@ class MockS3Client(BaseMock):
         self.delete_file = Mock(return_value=self.CODE_OK)
         self.get_file_size = Mock(return_value=0)
         self.get_file_info = Mock(return_value={})
-        self.delete_files_async = Mock(return_value=self.async_return(self.CODE_OK))
+        self.delete_files_async = AsyncMock(return_value=self.async_return(self.CODE_OK))
         self.upload_file = Mock(side_effect=self.upload_file_mock)
         self.get_file_url = Mock(return_value=self.async_return("https://s3.storage/link"))
 

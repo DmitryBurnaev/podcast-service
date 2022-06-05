@@ -74,6 +74,7 @@ class TestGenerateRSSTask:
         assert rss.type == FileType.RSS
         assert rss.path == str(expected_file_path)
         assert rss.size == get_file_size(expected_file_path)
+        mocked_s3.delete_files_async.assert_not_awaited()
 
     def test_generate__several_podcasts__ok(self, user, mocked_s3, dbs):
         podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
