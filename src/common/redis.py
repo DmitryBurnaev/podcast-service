@@ -9,11 +9,13 @@ import redis
 from common.utils import get_logger
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = os.getenv("REDIS_PORT", "6379")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 
 logger = get_logger(__name__)
 
+JSONT = Union[list[Any], dict[str, Any], str]
 
+# TODO: make async redis
 class RedisClient:
     """The class is used to create a redis connection in a single instance."""
 
@@ -26,10 +28,10 @@ class RedisClient:
 
         return cls.__instance
 
-    def set(self, key: str, value, ttl: int = 120):
+    def set(self, key: str, value: JSONT, ttl: int = 120) -> None:
         self.redis.set(key, json.dumps(value), ttl)
 
-    def get(self, key: str) -> Union[list[Any], dict[str, Any]]:
+    def get(self, key: str) -> JSONT:
         return json.loads(self.redis.get(key) or "null")
 
     def get_many(self, keys: Iterable[str], pkey: str) -> dict:
@@ -49,6 +51,16 @@ class RedisClient:
             result = {}
 
         return result
+
+    async def async_get(self, key: str) -> JSONT:
+        loop = asyncio.get_running_loop()
+        handler = partial(self.get, key)
+        return await loop.run_in_executor(None, handler)
+
+    async def async_set(self, key: str, value: JSONT, ttl: int = 120) -> None:
+        loop = asyncio.get_running_loop()
+        handler = partial(self.set, key, value, ttl)
+        return await loop.run_in_executor(None, handler)
 
     async def async_get_many(self, keys: Iterable[str], pkey: str) -> dict:
         loop = asyncio.get_running_loop()

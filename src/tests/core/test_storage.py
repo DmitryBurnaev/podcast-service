@@ -133,3 +133,20 @@ class TestS3Storage:
         ]
         actual_calls = [call.kwargs for call in mock_client.delete_object.call_args_list]
         assert actual_calls == expected_calls
+
+    @patch("boto3.session.Session.client")
+    def test_get_presigned_url__ok(self, mock_boto3_session_client):
+        # TODO: extend tests
+        mock_client = MockedClient()
+        test_size = 1234
+        file_info = {"ResponseMetadata": {"HTTPHeaders": {"content-length": test_size}}}
+
+        mock_boto3_session_client.return_value = mock_client
+        mock_client.head_object.return_value = file_info
+        actual_size = StorageS3().get_file_size("test.mp3", "remote-path")
+        assert actual_size == test_size
+
+        mock_client.head_object.assert_called_with(
+            Key="remote-path/test.mp3",
+            Bucket=settings.S3_BUCKET_NAME,
+        )

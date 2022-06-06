@@ -9,6 +9,7 @@ from typing import Callable, Optional, Tuple
 import boto3
 import botocore
 
+from common.redis import RedisClient
 from common.utils import get_logger
 from core import settings
 
@@ -143,13 +144,18 @@ class StorageS3:
                 ),
             )
 
-    async def get_file_url(self, remote_path: str):
+    async def get_presigned_url(self, remote_path: str) -> str:
         # TODO: make async call
         #  https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html
-        code, result = self.__call(
-            self.s3.generate_presigned_url,
-            ClientMethod="get_object",
-            Params={"Bucket": settings.S3_BUCKET_NAME, "Key": remote_path},
-            ExpiresIn=settings.S3_LINK_EXPIRES_IN,
-        )
-        return result
+
+        redis = RedisClient()
+        if not (url := await redis.async_get(remote_path)):
+            _, url = self.__call(
+                self.s3.generate_presigned_url,
+                ClientMethod="get_object",
+                Params={"Bucket": settings.S3_BUCKET_NAME, "Key": remote_path},
+                ExpiresIn=settings.S3_LINK_EXPIRES_IN,
+            )
+            await redis.async_set(remote_path, value=url, ttl=settings.S3_LINK_CACHE_EXPIRES_IN)
+
+        return url

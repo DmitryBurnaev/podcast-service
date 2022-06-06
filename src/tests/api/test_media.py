@@ -193,7 +193,9 @@ class TestRSSFileAPIView(BaseTestAPIView):
         assert response.status_code == 404
 
 
+# TODO: Add tests
 class TestFileURL:
+
     def test_public_url(self, image_file):
         ...
 
