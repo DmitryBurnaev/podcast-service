@@ -115,9 +115,12 @@ class MockRedisClient(BaseMock):
 
     def __init__(self, content=None):
         self._content = content or {}
+        # TODO: refactor and use AsyncMock instead
         self.async_get_many = Mock(return_value=self.async_return(self._content))
         self.get = Mock()
         self.set = Mock()
+        self.async_set = AsyncMock()
+        self.async_get = AsyncMock(return_value=None)
 
 
 class MockS3Client(BaseMock):

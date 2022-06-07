@@ -19,6 +19,7 @@ class MockedClient:
         self.upload_file = self.MyMock()
         self.head_object = self.MyMock()
         self.delete_object = self.MyMock()
+        self.generate_presigned_url = self.MyMock()
 
 
 def mock_upload_callback(*_, **__):
@@ -135,18 +136,37 @@ class TestS3Storage:
         assert actual_calls == expected_calls
 
     @patch("boto3.session.Session.client")
-    def test_get_presigned_url__ok(self, mock_boto3_session_client):
-        # TODO: extend tests
+    def test_get_presigned_url__ok(self, mock_boto3_session_client, mocked_redis):
         mock_client = MockedClient()
-        test_size = 1234
-        file_info = {"ResponseMetadata": {"HTTPHeaders": {"content-length": test_size}}}
+        presigned_url = "https://presigned.url"
 
         mock_boto3_session_client.return_value = mock_client
-        mock_client.head_object.return_value = file_info
-        actual_size = StorageS3().get_file_size("test.mp3", "remote-path")
-        assert actual_size == test_size
+        mock_client.generate_presigned_url.return_value = presigned_url
+        url = await_(StorageS3().get_presigned_url("remote-path/test.mp3"))
+        assert url == presigned_url
 
-        mock_client.head_object.assert_called_with(
-            Key="remote-path/test.mp3",
-            Bucket=settings.S3_BUCKET_NAME,
+        mock_client.generate_presigned_url.assert_called_with(
+            ClientMethod="get_object",
+            Params={"Bucket": settings.S3_BUCKET_NAME, "Key": "remote-path/test.mp3"},
+            ExpiresIn=settings.S3_LINK_EXPIRES_IN,
         )
+        mocked_redis.async_set.assert_awaited_with(
+            "remote-path/test.mp3",
+            value=presigned_url,
+            ttl=settings.S3_LINK_CACHE_EXPIRES_IN
+        )
+
+    @patch("boto3.session.Session.client")
+    def test_get_presigned_url__cached_result__ok(self, mock_boto3_session_client, mocked_redis):
+        mock_client = MockedClient()
+        mock_boto3_session_client.return_value = mock_client
+
+        presigned_url = "https://presigned.url"
+        mocked_redis.async_get.return_value = presigned_url
+
+        url = await_(StorageS3().get_presigned_url("remote-path/test.mp3"))
+        assert url == presigned_url
+
+        mock_client.generate_presigned_url.assert_not_called()
+        mocked_redis.async_get.assert_awaited_with("remote-path/test.mp3")
+        mocked_redis.async_set.assert_not_awaited()
