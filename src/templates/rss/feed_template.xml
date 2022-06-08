@@ -20,6 +20,7 @@
             <item>
                 <title>{{ episode.title }}</title>
                 <description>
+<!--                    TODO: fix description!!!-->
                     <![CDATA[
                     <p><img src="{{ episode.image_url }}" alt=""></p>
                     <p>{{ episode.description }}</p>
