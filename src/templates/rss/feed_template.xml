@@ -7,6 +7,7 @@
         <language>ru</language>
         <copyright>Creative Commons - Attribution, Noncommercial, NoDerivatives 3.0 License.</copyright>
         <description>{{ podcast.description }}</description>
+        <itunes:explicit>no</itunes:explicit>
         <itunes:image href="{{ podcast.image_url }}"/>
         <itunes:author>{{ podcast.name }}</itunes:author>
         <itunes:summary>Custom created episodes</itunes:summary>
@@ -21,10 +22,15 @@
                 <description>{{ episode.description }}</description>
                 <link>{{ episode.watch_url }}</link>
                 <guid>{{ episode.watch_url }}</guid>
-                <pubDate>{{ episode.published_at.strftime('%a, %d %b %Y %H:%M:%S %Z') }}</pubDate>
-                <enclosure url="{{ episode.remote_url }}" type="{{ episode.audio.content_type }}" length="{{ episode.file_size }}"/>
+                <pubDate>{{ episode.published_at.strftime('%a, %d %b %Y %H:%M:%S UTC') }}</pubDate>
+                <itunes:author>{{ podcast.name }}</itunes:author>
+                <itunes:summary><![CDATA[<p><img src="{{ episode.image_url }}" alt=""></p><p>{{ episode.description }}</p>]]></itunes:summary>
+                <itunes:image href="{{ episode.image_url }}" />
+                <enclosure url="{{ episode.audio.url }}" type="{{ episode.audio.content_type }}" length="{{ episode.audio.size }}"/>
                 <author>{{ episode.author }}</author>
                 <media:content url="{{ episode.audio.url }}" fileSize="{{ episode.audio.size }}" type="{{ episode.audio.content_type }}"/>
+                <itunes:explicit>no</itunes:explicit>
+                <itunes:subtitle>Podcast "{{ podcast.name }}"</itunes:subtitle>
             </item>
         {% endfor %}
         <media:credit role="author">PodcastOwner</media:credit>

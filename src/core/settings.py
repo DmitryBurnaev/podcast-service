@@ -82,7 +82,8 @@ S3_BUCKET_RSS_PATH = config("S3_BUCKET_RSS_PATH", default="rss/")
 S3_BUCKET_IMAGES_PATH = config("S3_BUCKET_IMAGES_PATH", default="images/")
 S3_BUCKET_EPISODE_IMAGES_PATH = Path(os.path.join(S3_BUCKET_IMAGES_PATH, "episodes"))
 S3_BUCKET_PODCAST_IMAGES_PATH = Path(os.path.join(S3_BUCKET_IMAGES_PATH, "podcasts"))
-S3_LINK_EXPIRES_IN = config("S3_LINK_EXPIRES_IN", default=60, cast=int)
+S3_LINK_EXPIRES_IN = config("S3_LINK_EXPIRES_IN", default=600, cast=int)
+S3_LINK_CACHE_EXPIRES_IN = config("S3_LINK_CACHE_EXPIRES_IN", default=120, cast=int)
 
 # TODO: upload images with persistent public links
 DEFAULT_EPISODE_COVER = config("DEFAULT_EPISODE_COVER", default="episode-default.jpg")

@@ -115,9 +115,12 @@ class MockRedisClient(BaseMock):
 
     def __init__(self, content=None):
         self._content = content or {}
+        # TODO: refactor and use AsyncMock instead
         self.async_get_many = Mock(return_value=self.async_return(self._content))
         self.get = Mock()
         self.set = Mock()
+        self.async_set = AsyncMock()
+        self.async_get = AsyncMock(return_value=None)
 
 
 class MockS3Client(BaseMock):
@@ -130,7 +133,7 @@ class MockS3Client(BaseMock):
         self.get_file_info = Mock(return_value={})
         self.delete_files_async = AsyncMock(return_value=self.async_return(self.CODE_OK))
         self.upload_file = Mock(side_effect=self.upload_file_mock)
-        self.get_file_url = Mock(return_value=self.async_return("https://s3.storage/link"))
+        self.get_presigned_url = Mock(return_value=self.async_return("https://s3.storage/link"))
 
     def upload_file_mock(self, src_path, *_, **__):
         target_path = self.tmp_upload_dir / os.path.basename(src_path)
