@@ -195,7 +195,6 @@ class TestRSSFileAPIView(BaseTestAPIView):
 
 # TODO: Add tests
 class TestFileURL:
-
     def test_public_url(self, image_file):
         ...
 

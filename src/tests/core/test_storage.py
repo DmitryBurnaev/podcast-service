@@ -151,9 +151,7 @@ class TestS3Storage:
             ExpiresIn=settings.S3_LINK_EXPIRES_IN,
         )
         mocked_redis.async_set.assert_awaited_with(
-            "remote-path/test.mp3",
-            value=presigned_url,
-            ttl=settings.S3_LINK_CACHE_EXPIRES_IN
+            "remote-path/test.mp3", value=presigned_url, ttl=settings.S3_LINK_CACHE_EXPIRES_IN
         )
 
     @patch("boto3.session.Session.client")

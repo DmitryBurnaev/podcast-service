@@ -15,6 +15,7 @@ logger = get_logger(__name__)
 
 JSONT = Union[list[Any], dict[str, Any], str]
 
+
 # TODO: make async redis
 class RedisClient:
     """The class is used to create a redis connection in a single instance."""

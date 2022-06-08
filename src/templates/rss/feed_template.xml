@@ -19,25 +19,14 @@
         {% for episode in episodes %}
             <item>
                 <title>{{ episode.title }}</title>
-                <description>
-<!--                    TODO: fix description!!!-->
-                    <![CDATA[
-                    <p><img src="{{ episode.image_url }}" alt=""></p>
-                    <p>{{ episode.description }}</p>
-                    ]]>
-                </description>
+                <description>{{ episode.description }}</description>
                 <link>{{ episode.watch_url }}</link>
                 <guid>{{ episode.watch_url }}</guid>
-                <pubDate>{{ episode.published_at.strftime('%a, %d %b %Y %H:%M:%S %Z') }}</pubDate>
+                <pubDate>{{ episode.published_at.strftime('%a, %d %b %Y %H:%M:%S UTC') }}</pubDate>
                 <itunes:author>{{ podcast.name }}</itunes:author>
-                <itunes:summary>
-                    <![CDATA[
-                    <p><img src="{{ episode.image_url }}" alt=""></p>
-                    <p>{{ episode.description }}</p>
-                    ]]>
-                </itunes:summary>
+                <itunes:summary><![CDATA[<p><img src="{{ episode.image_url }}" alt=""></p><p>{{ episode.description }}</p>]]></itunes:summary>
                 <itunes:image href="{{ episode.image_url }}" />
-                <enclosure url="{{ episode.remote_url }}" type="{{ episode.audio.content_type }}" length="{{ episode.file_size }}"/>
+                <enclosure url="{{ episode.audio.url }}" type="{{ episode.audio.content_type }}" length="{{ episode.audio.size }}"/>
                 <author>{{ episode.author }}</author>
                 <media:content url="{{ episode.audio.url }}" fileSize="{{ episode.audio.size }}" type="{{ episode.audio.content_type }}"/>
                 <itunes:explicit>no</itunes:explicit>
