@@ -55,6 +55,14 @@ class File(ModelBase, ModelMixin):
 
     @property
     def url(self) -> str:
+        # TODO: optimize logic here
+        if all([
+            self.type == FileType.IMAGE,
+            not self.available,
+            self.source_url
+        ]):
+            return self.source_url
+
         if self.public:
             if self.source_url:
                 # TODO: upload with acl instead
