@@ -1,5 +1,8 @@
+import uuid
+
 import pytest
 
+from common.enums import FileType
 from modules.auth.models import UserIP
 from modules.media.models import File
 from tests.api.test_base import BaseTestAPIView
@@ -83,21 +86,21 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.get(url, allow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
-    def test_get_image_file_not_allowed_but_has_source_url__ok(self, client, image_file, user, mocked_s3):
-        url = self.url.format(token=image_file.access_token)
-        client.login(user)
-        source_url = f"https://test.source.url/{image_file.access_token}.jpg"
-        await_(image_file.update(client.db_session, available=False, source_url=source_url))
-        await_(UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip))
-        await_(client.db_session.commit())
+    def test_get_public_image_file__ok(self, dbs, user, mocked_s3):
+        source_url = f"https://test.source.url/{uuid.uuid4().hex}.jpg"
+        image_file = await_(
+            File.create(
+                dbs,
+                FileType.IMAGE,
+                owner_id=user.id,
+                source_url=source_url,
+                public=True,
+            )
+        )
+        await_(dbs.commit())
 
-        response = client.head(url, headers={"X-Real-IP": self.user_ip})
-        assert response.status_code == 200
-        assert response.headers == image_file.headers
-
-        response = client.get(url, headers={"X-Real-IP": self.user_ip}, allow_redirects=False)
-        assert response.status_code == 302
-        assert response.headers["location"] == source_url
+        await_(dbs.refresh(image_file))
+        assert image_file.url == source_url
 
     def test_get_media_file_unknown_user_ip__fail(self, client, image_file, user, mocked_s3):
         url = self.url.format(token=image_file.access_token)

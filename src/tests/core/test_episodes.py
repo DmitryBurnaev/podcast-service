@@ -13,6 +13,24 @@ from tests.helpers import get_podcast_data, await_, create_user
 
 
 class TestEpisodeCreator(BaseTestAPIView):
+    @staticmethod
+    def assert_files(dbs, episode: Episode, new_episode: Episode):
+        audio: File = await_(File.async_get(dbs, id=episode.audio_id))
+        new_audio: File = await_(File.async_get(dbs, id=new_episode.audio_id))
+        assert audio.type == new_audio.type
+        assert audio.path == new_audio.path
+        assert audio.size == new_audio.size
+        assert audio.source_url == new_audio.source_url
+        assert new_audio.available is False
+
+        image: File = await_(File.async_get(dbs, id=episode.image_id))
+        new_image: File = await_(File.async_get(dbs, id=new_episode.image_id))
+        assert image.type == new_image.type
+        assert image.path == new_image.path
+        assert image.size == new_image.size
+        assert image.source_url == new_image.source_url
+        assert image.available == new_image.available
+
     def test_ok(self, podcast, user, mocked_youtube, dbs):
         source_id = mocked_youtube.source_id
         watch_url = f"https://www.youtube.com/watch?v={source_id}"
@@ -39,7 +57,8 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert image.type == FileType.IMAGE
         assert image.source_url == mocked_youtube.thumbnail_url
         assert image.path == ""
-        assert image.available is True
+        assert image.available is False
+        assert image.public is True
 
     def test_same_episode_in_podcast__ok(self, podcast, episode, user, mocked_youtube, dbs):
         episode_creator = EpisodeCreator(
@@ -83,25 +102,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.audio_id is not None
         assert new_episode.image_id is not None
 
-        self._assert_files(dbs, episode, new_episode)
-
-    @staticmethod
-    def _assert_files(dbs, episode: Episode, new_episode: Episode):
-        audio: File = await_(File.async_get(dbs, id=episode.audio_id))
-        new_audio: File = await_(File.async_get(dbs, id=new_episode.audio_id))
-        assert audio.type == new_audio.type
-        assert audio.path == new_audio.path
-        assert audio.size == new_audio.size
-        assert audio.source_url == new_audio.source_url
-        assert new_audio.available is False
-
-        image: File = await_(File.async_get(dbs, id=episode.image_id))
-        new_image: File = await_(File.async_get(dbs, id=new_episode.image_id))
-        assert image.type == new_image.type
-        assert image.path == new_image.path
-        assert image.size == new_image.size
-        assert image.source_url == new_image.source_url
-        assert image.available == new_image.available
+        self.assert_files(dbs, episode, new_episode)
 
     def test_same_episode__extract_failed__ok(self, podcast, episode, user, mocked_youtube, dbs):
         mocked_youtube.extract_info.side_effect = ExtractorError("Something went wrong here")
@@ -118,7 +119,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.source_id == episode.source_id
         assert new_episode.watch_url == episode.watch_url
 
-        self._assert_files(dbs, episode, new_episode)
+        self.assert_files(dbs, episode, new_episode)
 
     def test_extract_failed__fail(self, podcast, episode_data, user, mocked_youtube, dbs):
         ydl_error = ExtractorError("Something went wrong here", video_id=episode_data["source_id"])

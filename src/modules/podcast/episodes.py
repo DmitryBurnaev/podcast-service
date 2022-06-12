@@ -140,6 +140,8 @@ class EpisodeCreator:
             image_file = await File.create(
                 self.db_session,
                 FileType.IMAGE,
+                public=True,
+                available=False,
                 owner_id=self.user_id,
                 source_url=source_info.thumbnail_url,
             )
