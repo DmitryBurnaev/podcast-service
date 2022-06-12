@@ -30,7 +30,7 @@ def _episode_in_list(episode: Episode):
         "title": episode.title,
         "status": str(episode.status),
         "source_type": str(SourceType.YOUTUBE),
-        "image_url": episode.image_url,
+        "image_url": episode.image.url,
         "created_at": episode.created_at.isoformat(),
     }
 
