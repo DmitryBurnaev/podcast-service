@@ -81,15 +81,15 @@ class SkipError(Exception):
         self.skip_result = skip_result
 
 
-def check_size(file_name: str, actual_size: int, expected_size: int = None, silent: bool = False):
+def check_size(filename: str, actual_size: int, expected_size: int = None, silent: bool = False):
     try:
         if expected_size:
             if expected_size != actual_size:
                 raise ValueError(
-                    f"File {file_name} has incorrect size: " f"{expected_size} != {actual_size}"
+                    f"File {filename} has incorrect size: " f"{expected_size} != {actual_size}"
                 )
         elif actual_size < 1:
-            raise ValueError(f"File {file_name} has null-like size: {actual_size}")
+            raise ValueError(f"File {filename} has null-like size: {actual_size}")
 
     except ValueError as err:
         if silent:
@@ -266,12 +266,12 @@ class S3Moving:
         dirname = DOWNLOAD_DIR / os.path.dirname(obj_key)
         os.makedirs(dirname, exist_ok=True)
 
-        local_file_name, episode_file.size = self._download(obj_key, episode_file)
-        self._upload(obj_key, local_file_name, episode_file)
+        local_filename, episode_file.size = self._download(obj_key, episode_file)
+        self._upload(obj_key, local_filename, episode_file)
         return obj_key, episode_file.size
 
     def _download(self, obj_key, episode_file: EpisodeFileData) -> tuple[str, int]:
-        local_file_name = str(DOWNLOAD_DIR / obj_key)
+        local_filename = str(DOWNLOAD_DIR / obj_key)
         remote_file_size = int(
             self.s3_from.head_object(Key=obj_key, Bucket=S3_BUCKET_FROM)["ResponseMetadata"][
                 "HTTPHeaders"
@@ -287,25 +287,25 @@ class S3Moving:
             )
 
         if check_size(
-            local_file_name,
-            actual_size=get_file_size(local_file_name),
+            local_filename,
+            actual_size=get_file_size(local_filename),
             expected_size=file_size,
             silent=True,
         ):
             logger.debug("[episode %s] skip downloading %s", episode_file.id, episode_file.url)
-            return local_file_name, file_size
+            return local_filename, file_size
 
         logger.debug("[episode %s] downloading %s", episode_file.id, episode_file.url)
-        self.s3_from.download_file(Bucket=S3_BUCKET_FROM, Key=obj_key, Filename=local_file_name)
-        downloaded_size = get_file_size(local_file_name)
+        self.s3_from.download_file(Bucket=S3_BUCKET_FROM, Key=obj_key, Filename=local_filename)
+        downloaded_size = get_file_size(local_filename)
         check_size(
-            local_file_name,
+            local_filename,
             actual_size=downloaded_size,
             expected_size=file_size,
         )
-        return local_file_name, file_size
+        return local_filename, file_size
 
-    def _upload(self, obj_key: str, local_file_name: str, episode_file: EpisodeFileData):
+    def _upload(self, obj_key: str, local_filename: str, episode_file: EpisodeFileData):
         _check_object = partial(
             check_object,
             self.s3_to,
@@ -318,11 +318,11 @@ class S3Moving:
             return
 
         if not (content_type := episode_file.content_type):
-            content_type, _ = mimetypes.guess_type(local_file_name)
+            content_type, _ = mimetypes.guess_type(local_filename)
 
         logger.debug("[episode %s] uploading %s", episode_file.id, episode_file.url)
         self.s3_to.upload_file(
-            Filename=local_file_name,
+            Filename=local_filename,
             Bucket=S3_BUCKET_TO,
             Key=obj_key,
             ExtraArgs={"ContentType": content_type},

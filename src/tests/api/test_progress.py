@@ -1,5 +1,6 @@
 from modules.podcast.models import Podcast, Episode
 from common.enums import EpisodeStatus
+from modules.podcast.utils import get_filename
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import get_episode_data, create_user, get_podcast_data, await_, create_episode
 
@@ -29,6 +30,10 @@ def _progress(podcast: Podcast, episode: Episode, current_size: int, completed: 
     }
 
 
+def _redis_key(source_id: str) -> str:
+    return get_filename(source_id).partition(".")[0]
+
+
 class TestProgressAPIView(BaseTestAPIView):
     url = "/api/progress/"
 
@@ -47,17 +52,17 @@ class TestProgressAPIView(BaseTestAPIView):
 
         mocked_redis.async_get_many.return_value = mocked_redis.async_return(
             {
-                p1_episode_new.audio.name.partition(".")[0]: {
+                _redis_key(p1_episode_new.source_id): {
                     "status": EpisodeStatus.DL_PENDING,
                     "processed_bytes": 0,
                     "total_bytes": MB_1,
                 },
-                p1_episode_down.audio.name.partition(".")[0]: {
+                _redis_key(p1_episode_down.source_id): {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_2,
                 },
-                p2_episode_down.audio.name.partition(".")[0]: {
+                _redis_key(p2_episode_down.source_id): {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_4,
@@ -91,12 +96,12 @@ class TestProgressAPIView(BaseTestAPIView):
 
         mocked_redis.async_get_many.return_value = mocked_redis.async_return(
             {
-                p1_episode_down.audio.name.partition(".")[0]: {
+                _redis_key(p1_episode_down.source_id): {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_2,
                 },
-                p2_episode_down.audio.name.partition(".")[0]: {
+                _redis_key(p2_episode_down.source_id): {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_4,
