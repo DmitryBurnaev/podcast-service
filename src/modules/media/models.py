@@ -42,7 +42,7 @@ class File(ModelBase, ModelMixin):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     public = Column(Boolean, nullable=False, default=False)
 
-    def __str__(self):
+    def __repr__(self):
         return f'<File #{self.id} | {self.type} | "{self.path}">'
 
     @classmethod

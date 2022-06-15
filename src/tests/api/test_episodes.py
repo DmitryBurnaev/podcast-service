@@ -267,7 +267,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         create_episode(dbs, episode_data, podcast_1, status=same_episode_status)
 
         episode_data["owner_id"] = user_2.id
-        episode_2 = create_episode(dbs, episode_data, podcast_2, status=Episode.Status.NEW)
+        episode_2 = create_episode(dbs, episode_data, podcast_2, status=Episode.Status.PUBLISHED)
         await_(dbs.commit())
 
         url = self.url.format(id=episode_2.id)
@@ -279,11 +279,10 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
             mocked_s3.delete_files_async.assert_any_call(
                 [episode_2.audio.name], remote_path=settings.S3_BUCKET_AUDIO_PATH
             )
-            mocked_s3.delete_files_async.assert_any_call(
-                [episode_2.image.name], remote_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
-            )
-        else:
-            assert not mocked_s3.delete_files_async.called
+
+        mocked_s3.delete_files_async.assert_any_call(
+            [episode_2.image.name], remote_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
+        )
 
 
 class TestEpisodeDownloadAPIView(BaseTestAPIView):

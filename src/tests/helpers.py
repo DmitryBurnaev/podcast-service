@@ -160,10 +160,8 @@ def create_episode(
 ) -> Episode:
     source_id = source_id or episode_data.get("source_id") or get_source_id()
     status = status or episode_data.get("status") or Episode.Status.NEW
-    audio_path = (
-        f"/remote/path/to/audio/episode_{source_id}.mp3"
-        if status == Episode.Status.PUBLISHED
-        else ""
+    audio_path = episode_data.pop("audio_path", "") or (
+        f"/remote/path/to/audio/{source_id}.mp3" if status == Episode.Status.PUBLISHED else ""
     )
     podcast_id = podcast.id if podcast else episode_data["podcast_id"]
     _episode_data = episode_data | {
@@ -188,7 +186,7 @@ def create_episode(
             db_session,
             FileType.IMAGE,
             owner_id=owner_id,
-            path=f"/remote/path/to/audio/episode_{source_id}.png",
+            path=f"images/ep_{source_id}_{uuid.uuid4().hex}.png",
             available=(status == Episode.Status.PUBLISHED),
         )
     )
