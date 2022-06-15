@@ -12,7 +12,7 @@ from modules.media.models import File
 from modules.podcast.models import Episode, Cookie
 from modules.podcast.tasks.base import RQTask, FinishCode
 from modules.podcast.tasks.rss import GenerateRSSTask
-from modules.podcast.utils import get_filename, get_file_size
+from modules.podcast.utils import get_file_size
 from modules.providers import utils as provider_utils
 from modules.podcast import utils as podcast_utils
 from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
@@ -121,11 +121,10 @@ class DownloadEpisodeTask(RQTask):
             if episode.cookie_id
             else None
         )
-        filename = episode.audio.name or get_filename(episode.source_id)
 
         try:
             result_path = provider_utils.download_audio(
-                episode.watch_url, filename=filename, cookie=cookie
+                episode.watch_url, filename=episode.audio_filename, cookie=cookie
             )
         except YoutubeDLError as error:
             logger.exception(

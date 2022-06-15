@@ -1,6 +1,5 @@
 import os
 import time
-import uuid
 from functools import partial
 from pathlib import Path
 from typing import Union, Iterable, Optional
@@ -26,10 +25,6 @@ def delete_file(filepath: Union[str, Path]):
         logger.info(f"File {filepath} deleted")
 
 
-def get_filename(source_id: str) -> str:
-    return f"{source_id}_{uuid.uuid4().hex}.mp3"
-
-
 def get_file_size(file_path: str | Path):
     try:
         return os.path.getsize(file_path)
@@ -42,16 +37,12 @@ async def check_state(episodes: Iterable[Episode]) -> list:
     """Allows getting info about download progress for requested episodes"""
 
     redis_client = RedisClient()
-    file_names = {redis_client.get_key_by_filename(episode.audio.name) for episode in episodes}
-    current_states = await redis_client.async_get_many(file_names, pkey="event_key")
+    filenames = {redis_client.get_key_by_filename(episode.audio_filename) for episode in episodes}
+    current_states = await redis_client.async_get_many(filenames, pkey="event_key")
     result = []
     for episode in episodes:
-        file_name = episode.audio.name
-        if not file_name:
-            logger.warning(f"Episode {episode} does not contain filename")
-            continue
-
-        event_key = redis_client.get_key_by_filename(file_name)
+        filename = episode.audio_filename
+        event_key = redis_client.get_key_by_filename(filename)
         current_state = current_states.get(event_key)
         if current_state:
             current_file_size = current_state["processed_bytes"]

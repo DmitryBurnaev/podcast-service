@@ -259,22 +259,16 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         user_1 = create_user(dbs)
         user_2 = create_user(dbs)
 
-        podcast_1 = await_(
-            Podcast.async_create(dbs, db_commit=True, **get_podcast_data(owner_id=user_1.id))
-        )
-        podcast_2 = await_(
-            Podcast.async_create(dbs, db_commit=True, **get_podcast_data(owner_id=user_2.id))
-        )
+        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user_1.id)))
+        podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user_2.id)))
 
+        episode_data["source_id"] = source_id
         episode_data["owner_id"] = user_1.id
-        create_episode(
-            dbs, episode_data, podcast_1, status=same_episode_status, source_id=source_id
-        )
+        create_episode(dbs, episode_data, podcast_1, status=same_episode_status)
 
         episode_data["owner_id"] = user_2.id
-        episode_2 = create_episode(
-            dbs, episode_data, podcast_2, status=Episode.Status.NEW, source_id=source_id
-        )
+        episode_2 = create_episode(dbs, episode_data, podcast_2, status=Episode.Status.PUBLISHED)
+        await_(dbs.commit())
 
         url = self.url.format(id=episode_2.id)
         client.login(user_2)
@@ -285,11 +279,10 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
             mocked_s3.delete_files_async.assert_any_call(
                 [episode_2.audio.name], remote_path=settings.S3_BUCKET_AUDIO_PATH
             )
-            mocked_s3.delete_files_async.assert_any_call(
-                [episode_2.image.name], remote_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
-            )
-        else:
-            assert not mocked_s3.delete_files_async.called
+
+        mocked_s3.delete_files_async.assert_any_call(
+            [episode_2.image.name], remote_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
+        )
 
 
 class TestEpisodeDownloadAPIView(BaseTestAPIView):

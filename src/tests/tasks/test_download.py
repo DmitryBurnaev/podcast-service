@@ -111,7 +111,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
         episode_data.update(
             {
-                "status": "published",
+                "status": EpisodeStatus.PUBLISHED,
                 "source_id": mocked_youtube.source_id,
                 "watch_url": mocked_youtube.watch_url,
                 "podcast_id": podcast_1.id,
@@ -122,6 +122,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
         episode_data["status"] = "new"
         episode_data["podcast_id"] = podcast_2.id
+        episode_data["audio_path"] = episode.audio.path
         episode_2 = create_episode(dbs, episode_data=episode_data)
         await_(episode_2.audio.update(dbs, size=1024))
 
@@ -148,7 +149,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
     ):
         episode_data.update(
             {
-                "status": "published",
+                "status": EpisodeStatus.PUBLISHED,
                 "source_id": mocked_youtube.source_id,
                 "watch_url": mocked_youtube.watch_url,
             }

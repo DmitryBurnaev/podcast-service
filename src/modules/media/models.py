@@ -42,7 +42,7 @@ class File(ModelBase, ModelMixin):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     public = Column(Boolean, nullable=False, default=False)
 
-    def __str__(self):
+    def __repr__(self):
         return f'<File #{self.id} | {self.type} | "{self.path}">'
 
     @classmethod
@@ -95,22 +95,22 @@ class File(ModelBase, ModelMixin):
     async def delete(
         self, db_session: AsyncSession, db_flush: bool = True, remote_path: str = None
     ):
-        same_files = (
-            await File.async_filter(
-                db_session, path=self.path, id__ne=self.id, type=self.type, available__is=True
-            )
-        ).all()
-        if not same_files:
-            remote_path = remote_path or REMOTE_PATH_MAP[self.type]
-            await StorageS3().delete_files_async([self.name], remote_path=remote_path)
-
-        else:
+        filter_kwargs = {"path": self.path, "id__ne": self.id, "available__is": True}
+        if same_files := (await File.async_filter(db_session, **filter_kwargs)).all():
             file_infos = [(file.id, file.type.value) for file in same_files]
             logger.warning(
                 "There are another relations for the file %s: %s. Skip file removing.",
                 self.path,
                 file_infos,
             )
+
+        elif not self.available:
+            logger.debug("Skip deleting not-available file: %s", self)
+
+        else:
+            remote_path = remote_path or REMOTE_PATH_MAP[self.type]
+            logger.debug("Removing file from S3: %s | called by: %s", remote_path, self)
+            await StorageS3().delete_files_async([self.name], remote_path=remote_path)
 
         return await super(File, self).delete(db_session, db_flush)
 

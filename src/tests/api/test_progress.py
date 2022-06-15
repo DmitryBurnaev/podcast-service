@@ -29,6 +29,10 @@ def _progress(podcast: Podcast, episode: Episode, current_size: int, completed: 
     }
 
 
+def _redis_key(filename: str) -> str:
+    return filename.partition(".")[0]
+
+
 class TestProgressAPIView(BaseTestAPIView):
     url = "/api/progress/"
 
@@ -47,17 +51,17 @@ class TestProgressAPIView(BaseTestAPIView):
 
         mocked_redis.async_get_many.return_value = mocked_redis.async_return(
             {
-                p1_episode_new.audio.name.partition(".")[0]: {
+                _redis_key(p1_episode_new.audio_filename): {
                     "status": EpisodeStatus.DL_PENDING,
                     "processed_bytes": 0,
                     "total_bytes": MB_1,
                 },
-                p1_episode_down.audio.name.partition(".")[0]: {
+                _redis_key(p1_episode_down.audio_filename): {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_2,
                 },
-                p2_episode_down.audio.name.partition(".")[0]: {
+                _redis_key(p2_episode_down.audio_filename): {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_4,
@@ -91,12 +95,12 @@ class TestProgressAPIView(BaseTestAPIView):
 
         mocked_redis.async_get_many.return_value = mocked_redis.async_return(
             {
-                p1_episode_down.audio.name.partition(".")[0]: {
+                _redis_key(p1_episode_down.audio_filename): {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_2,
                 },
-                p2_episode_down.audio.name.partition(".")[0]: {
+                _redis_key(p2_episode_down.audio_filename): {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
                     "processed_bytes": MB_1,
                     "total_bytes": MB_4,

@@ -105,6 +105,8 @@ DEFAULT_LIMIT_LIST_API = 20
 MAX_UPLOAD_ATTEMPT = config("MAX_UPLOAD_ATTEMPT", default=5, cast=int)
 RETRY_UPLOAD_TIMEOUT = 1  # 1 second
 REQUEST_IP_HEADER = config("REQUEST_IP_HEADER", default="X-Real-IP", cast=str)
+# TODO: add salt to the env
+FILENAME_SALT = config("FILENAME_SALT", default="HH78NyP4EXsGy99")
 
 SENTRY_DSN = config("SENTRY_DSN", default=None)
 LOG_LEVEL = config("LOG_LEVEL", default="INFO")
