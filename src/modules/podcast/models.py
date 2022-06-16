@@ -31,9 +31,7 @@ class Podcast(ModelBase, ModelMixin):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     download_automatically = Column(Boolean, default=True)
-    # TODO: remove from DB's schema
-    # rss_link = Column(String(length=128))
-    # image_url = Column(String(length=512))
+
     rss_id = Column(Integer, ForeignKey("media_files.id", ondelete="SET NULL"))
     image_id = Column(Integer, ForeignKey("media_files.id", ondelete="SET NULL"))
     owner_id = Column(Integer, ForeignKey("auth_users.id"))
@@ -88,13 +86,8 @@ class Episode(ModelBase, ModelMixin):
     owner_id = Column(Integer, ForeignKey("auth_users.id"), index=True)
     cookie_id = Column(Integer, ForeignKey("podcast_cookies.id", ondelete="SET NULL"))
     watch_url = Column(String(length=128))
-    # TODO: remove that fields (remote_url | image_url) from DB too
-    # remote_url = Column(String(length=128))
-    # image_url = Column(String(length=512))
     length = Column(Integer, default=0)
     description = Column(String)
-    # file_name = Column(String(length=128))
-    # file_size = Column(Integer, default=0)
     author = Column(String(length=256))
     status = EnumTypeColumn(Status, default=Status.NEW, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
