@@ -128,7 +128,7 @@ class DownloadEpisodeTask(RQTask):
             )
         except YoutubeDLError as error:
             logger.exception(
-                "=== [%s] Downloading FAILED: Could not download track: %s. "
+                "=== [%s] Downloading FAILED: Could not download track: %r. "
                 "All episodes will be moved to the ERROR state",
                 episode.source_id,
                 error,

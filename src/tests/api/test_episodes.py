@@ -1,3 +1,4 @@
+import os.path
 from functools import partial
 
 import pytest
@@ -10,8 +11,8 @@ from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks import DownloadEpisodeTask
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import get_source_id, create_user, get_podcast_data, create_episode, await_
-
+from tests.helpers import get_source_id, create_user, get_podcast_data, create_episode, await_, \
+    create_file
 
 INVALID_UPDATE_DATA = [
     [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],
@@ -173,6 +174,46 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         data = {"source_url": "http://link.to.resource/"}
         self.assert_not_found(client.post(url, json=data), podcast)
+
+
+class TestEpisodeUploadAPIView(BaseTestAPIView):
+    url = "/api/podcasts/{id}/episodes/upload/"
+
+    def test_upload_file__ok(self, dbs, client, podcast, user, mocked_rq_queue):
+        file = create_file(b"image-test-data")
+        client.login(user)
+        response = client.post(self.url.format(id=podcast.id), files={"audio": file})
+        response_data = self.assert_ok_response(response, status_code=201)
+
+        episode = await_(Episode.async_get(dbs, id=response_data["id"]))
+        assert response_data == _episode_in_list(episode), response.json()
+
+        assert os.path.exists(episode.path)
+        with open(episode.path, 'rb') as file:
+            assert file.read() == b"image-test-data"
+
+        mocked_rq_queue.enqueue.assert_called_with(
+            tasks.UploadedEpisodeImageTask(), episode_id=episode.id
+        )
+
+    def test_upload_file__empty_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
+        file = create_file(b"")
+        client.login(user)
+        response = client.post(self.url.format(id=podcast.id), files={"audio": file})
+        self.assert_bad_request(response, error_details={"audio": "File is empty"})
+
+    def test_upload_file__too_big_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
+        file = create_file(b"image-test-data-too-big" * 10)
+        client.login(user)
+        response = client.post(self.url.format(id=podcast.id), files={"audio": file})
+        response_data = self.assert_fail_response(response, status_code=413)
+        assert response_data == {"audio": "File is too big"}
+
+    def test_upload_file__missed_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
+        file = create_file(b"")
+        client.login(user)
+        response = client.post(self.url.format(id=podcast.id), files={"fake": file})
+        self.assert_bad_request(response, error_details={"audio": "File is missing"})
 
 
 class TestEpisodeRUDAPIView(BaseTestAPIView):

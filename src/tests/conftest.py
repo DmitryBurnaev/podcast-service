@@ -47,6 +47,7 @@ from tests.mocks import (
 def test_settings():
     settings.APP_DEBUG = True
     settings.MAX_UPLOAD_ATTEMPT = 1
+    settings.MAX_UPLOAD_SIZE = 32
     settings.RETRY_UPLOAD_TIMEOUT = 0
 
 

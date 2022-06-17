@@ -45,6 +45,7 @@ class SourceConfig(NamedTuple):
     regexp: Optional[str] = None
     regexp_playlist: Optional[str] = None
     need_postprocessing: bool = False
+    need_downloading: bool = True
 
 
 @dataclasses.dataclass

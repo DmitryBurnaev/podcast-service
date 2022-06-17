@@ -113,3 +113,15 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
         await episode.update(self.db_session, status=episode.status)
         await self._run_task(tasks.DownloadEpisodeTask, episode_id=episode.id)
         return self._response(episode)
+
+
+# Upload file as a new episode
+# 1) create new endpoint for uploading file
+# 2) save file to tmp directory
+# 3) create episode + audio (without image, use default instead)
+#       link episode with downloaded file in tmp dir (ex.: save local path to "path" field)
+# 4) run task for uploading to s3 storage (or reuse DownloadEpisodeTask instead: override )
+# 5) task: upload file to S3 (without postprocessing)
+# 6) task: update episode, audio + regenerate RSS
+# 7) task: remove tmp file
+

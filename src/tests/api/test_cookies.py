@@ -6,7 +6,7 @@ from common.statuses import ResponseStatus
 from modules.podcast.models import Cookie
 from common.enums import SourceType
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import create_user, await_
+from tests.helpers import create_user, await_, create_file
 
 INVALID_UPDATE_DATA = [
     [{"source_type": "FAKE-TYPE"}, {"source_type": "Must be one of: YOUTUBE, YANDEX, UPLOAD."}],
@@ -27,8 +27,8 @@ def _cookie(cookie):
     }
 
 
-def _file(text="Cookie at netscape format\n") -> io.BytesIO:
-    return io.BytesIO(bytes(text.encode()))
+def _cookie_file(text="Cookie at netscape format\n") -> io.BytesIO:
+    return create_file(text)
 
 
 class TestCookieListCreateAPIView(BaseTestAPIView):
@@ -43,7 +43,7 @@ class TestCookieListCreateAPIView(BaseTestAPIView):
     def test_create__ok(self, client, user, dbs):
         cookie_data = {"source_type": SourceType.YANDEX}
         client.login(user)
-        response = client.post(self.url, data=cookie_data, files={"file": _file()})
+        response = client.post(self.url, data=cookie_data, files={"file": _cookie_file()})
         response_data = self.assert_ok_response(response, status_code=201)
         cookie = await_(Cookie.async_get(dbs, id=response_data["id"]))
         assert cookie is not None
@@ -76,7 +76,7 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         client.login(user)
         url = self.url.format(id=cookie.id)
         data = {"source_type": SourceType.YANDEX}
-        response = client.put(url, data=data, files={"file": _file("updated cookie data")})
+        response = client.put(url, data=data, files={"file": _cookie_file("updated cookie data")})
         await_(dbs.refresh(cookie))
         response_data = self.assert_ok_response(response)
         assert response_data == _cookie(cookie)
@@ -87,7 +87,7 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         client.login(create_user(dbs))
         url = self.url.format(id=cookie.id)
         data = {"source_type": SourceType.YANDEX}
-        self.assert_not_found(client.put(url, data=data, files={"file": _file()}), cookie)
+        self.assert_not_found(client.put(url, data=data, files={"file": _cookie_file()}), cookie)
 
     def test_update__invalid_request__fail(self, client, cookie, user):
         client.login(user)

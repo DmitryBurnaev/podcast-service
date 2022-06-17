@@ -1,4 +1,5 @@
 import asyncio
+import io
 import random
 import time
 import uuid
@@ -132,6 +133,13 @@ def make_db_session(loop):
 def create_user(db_session):
     email, password = get_user_data()
     return await_(User.async_create(db_session, db_commit=True, email=email, password=password))
+
+
+def create_file(content: str | bytes) -> io.BytesIO:
+    if not isinstance(content, bytes):
+        content = content.encode()
+
+    return io.BytesIO(content)
 
 
 def create_user_session(db_session, user):
