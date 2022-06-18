@@ -19,7 +19,7 @@ from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
 
 logger = get_logger(__name__)
 status = Episode.Status
-__all__ = ["DownloadEpisodeTask", "DownloadEpisodeImageTask"]
+__all__ = ["DownloadEpisodeTask", "UploadedEpisodeImageTask", "DownloadEpisodeImageTask"]
 
 
 class DownloadingInterrupted(Exception):
@@ -214,6 +214,15 @@ class DownloadEpisodeTask(RQTask):
         await File.async_update(
             self.db_session, filter_kwargs={"source_url": source_url}, update_data=update_data
         )
+
+
+class UploadedEpisodeImageTask(DownloadEpisodeTask):
+
+    async def _download_episode(self, episode: Episode) -> Path:
+        if not (tmp_path := episode.audio.path):
+            tmp_path = await super()._download_episode(episode)
+
+        return tmp_path
 
 
 class DownloadEpisodeImageTask(RQTask):
