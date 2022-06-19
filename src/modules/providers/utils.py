@@ -46,7 +46,7 @@ class SourceConfig(NamedTuple):
     regexp_playlist: Optional[str] = None
     need_postprocessing: bool = False
     # TODO: are we need to have this field?
-    # need_downloading: bool = True
+    need_downloading: bool = True
 
 
 @dataclasses.dataclass
@@ -69,6 +69,7 @@ SOURCE_CFG_MAP = {
             r"^https://(?:www\.)?youtube\.com/playlist\?list=(?P<source_id>[0-9a-zA-Z-_]+)"
         ),
         need_postprocessing=True,
+
     ),
     SourceType.YANDEX: SourceConfig(
         type=SourceType.YANDEX,
@@ -77,6 +78,7 @@ SOURCE_CFG_MAP = {
     ),
     SourceType.UPLOAD: SourceConfig(
         type=SourceType.UPLOAD,
+        need_downloading=False,
     ),
 }
 

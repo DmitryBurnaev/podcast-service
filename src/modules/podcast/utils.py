@@ -4,6 +4,9 @@ from functools import partial
 from pathlib import Path
 from typing import Union, Iterable, Optional
 
+from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import UploadFile
+
 from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
@@ -148,3 +151,13 @@ def upload_episode(src_path: str | Path) -> Optional[str]:
     logger.info("Great! uploading for %s was done!", filename)
     logger.debug("Finished uploading for file %s. \n Result url is %s", filename, remote_path)
     return remote_path
+
+
+async def save_uploaded_image(uploaded_file: UploadFile, prefix: str) -> Path:
+    contents = await uploaded_file.read()
+    file_ext = uploaded_file.filename.rpartition(".")[-1]
+    result_file_path = settings.TMP_IMAGE_PATH / f"{prefix}.{file_ext}"
+    with open(result_file_path, "wb") as f:
+        await run_in_threadpool(f.write, contents)
+
+    return result_file_path

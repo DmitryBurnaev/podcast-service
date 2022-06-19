@@ -8,6 +8,7 @@ routes = [
     Route("/podcasts/{podcast_id:int}/", views.PodcastRUDAPIView),
     Route("/podcasts/{podcast_id:int}/upload-image/", views.PodcastUploadImageAPIView),
     Route("/podcasts/{podcast_id:int}/episodes/", views.EpisodeListCreateAPIView),
+    Route("/podcasts/{podcast_id:int}/episodes/upload/", views.EpisodeFileUploadAPIView),
     Route("/podcasts/{podcast_id:int}/generate-rss/", views.PodcastGenerateRSSAPIView),
     # episodes
     Route("/episodes/", views.EpisodeListCreateAPIView),

@@ -187,13 +187,14 @@ class TestEpisodeUploadAPIView(BaseTestAPIView):
 
         episode = await_(Episode.async_get(dbs, id=response_data["id"]))
         assert response_data == _episode_in_list(episode), response.json()
+        assert episode.source_type == SourceType.UPLOAD
 
         assert os.path.exists(episode.path)
         with open(episode.path, 'rb') as file:
             assert file.read() == b"image-test-data"
 
         mocked_rq_queue.enqueue.assert_called_with(
-            tasks.UploadedEpisodeImageTask(), episode_id=episode.id
+            tasks.DownloadEpisodeTask(), episode_id=episode.id
         )
 
     def test_upload_file__empty_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
