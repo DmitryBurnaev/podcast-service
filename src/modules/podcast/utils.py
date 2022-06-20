@@ -7,6 +7,7 @@ from typing import Union, Iterable, Optional
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
+from common.exceptions import InvalidParameterError
 from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
@@ -159,5 +160,9 @@ async def save_uploaded_image(uploaded_file: UploadFile, prefix: str) -> Path:
     result_file_path = settings.TMP_IMAGE_PATH / f"{prefix}.{file_ext}"
     with open(result_file_path, "wb") as f:
         await run_in_threadpool(f.write, contents)
+
+    file_size = get_file_size(result_file_path)
+    if file_size < 1:
+        raise InvalidParameterError(details="result file-size is less than allowed")
 
     return result_file_path

@@ -1,7 +1,10 @@
 import os.path
 from functools import partial
+from io import BytesIO
+from typing import Optional
 
 import pytest
+from requests import Response
 
 from common.enums import SourceType, EpisodeStatus
 from common.statuses import ResponseStatus
@@ -24,14 +27,24 @@ INVALID_CREATE_DATA = [
     [{}, {"source_url": "Missing data for required field."}],
 ]
 
+INVALID_UPLOAD_DATA = [
+    [{}, {
+        "title": "Missing data for required field.",
+        "length": "Missing data for required field.",
+    }],
+    [{"title": ""}, {"title": 'Length must be between 1 and 256.'}],
+    [{"length": "-f"}, {"length": "Not a valid integer."}],
+    [{"length": -10}, {"length": "Must be greater than or equal to 1."}],
+]
+
 
 def _episode_in_list(episode: Episode):
     return {
         "id": episode.id,
         "title": episode.title,
         "status": str(episode.status),
-        "source_type": str(SourceType.YOUTUBE),
-        "image_url": episode.image.url,
+        "source_type": str(episode.source_type),
+        "image_url": episode.image.url if episode.image_id else settings.DEFAULT_EPISODE_COVER,
         "created_at": episode.created_at.isoformat(),
     }
 
@@ -178,39 +191,60 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
 
 class TestEpisodeUploadAPIView(BaseTestAPIView):
     url = "/api/podcasts/{id}/episodes/upload/"
+    request_data = {
+        "title": "Test episode title",
+        "length": 110
+    }
 
-    def test_upload_file__ok(self, dbs, client, podcast, user, mocked_rq_queue):
+    def _request(self, client, url, file: BytesIO, data: Optional[dict] = None) -> Response:
+        files = {"audio": file} if file else {}
+        data = self.request_data if data is None else data
+        return client.post(url, files=files, data=data)
+
+    def test_upload__ok(self, dbs, client, podcast, user, mocked_rq_queue):
         file = create_file(b"image-test-data")
         client.login(user)
-        response = client.post(self.url.format(id=podcast.id), files={"audio": file})
+        response = self._request(client, url=self.url.format(id=podcast.id), file=file)
         response_data = self.assert_ok_response(response, status_code=201)
 
         episode = await_(Episode.async_get(dbs, id=response_data["id"]))
         assert response_data == _episode_in_list(episode), response.json()
         assert episode.source_type == SourceType.UPLOAD
 
-        assert os.path.exists(episode.path)
-        with open(episode.path, 'rb') as file:
+        assert os.path.exists(episode.audio.path)
+        with open(episode.audio.path, 'rb') as file:
             assert file.read() == b"image-test-data"
 
         mocked_rq_queue.enqueue.assert_called_with(
             tasks.DownloadEpisodeTask(), episode_id=episode.id
         )
 
-    def test_upload_file__empty_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
+    @pytest.mark.parametrize("invalid_data, error_details", INVALID_UPLOAD_DATA)
+    def test_upload__invalid_request__fail(
+        self, client, podcast, user, invalid_data: dict, error_details: dict
+    ):
+        file = create_file(b"image-test-data")
+        client.login(user)
+        url = self.url.format(id=podcast.id)
+        response = self._request(client, url, file, data=invalid_data)
+        self.assert_bad_request(response, error_details)
+
+    def test_upload__empty_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
         file = create_file(b"")
         client.login(user)
-        response = client.post(self.url.format(id=podcast.id), files={"audio": file})
-        self.assert_bad_request(response, error_details={"audio": "File is empty"})
+        url = self.url.format(id=podcast.id)
+        response = self._request(client, url, file)
+        self.assert_bad_request(response, {"audio": "File can not be empty"})
 
-    def test_upload_file__too_big_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
+    def test_upload__too_big_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
         file = create_file(b"image-test-data-too-big" * 10)
         client.login(user)
-        response = client.post(self.url.format(id=podcast.id), files={"audio": file})
+        url = self.url.format(id=podcast.id)
+        response = self._request(client, url, file=file)
         response_data = self.assert_fail_response(response, status_code=413)
         assert response_data == {"audio": "File is too big"}
 
-    def test_upload_file__missed_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
+    def test_upload__missed_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
         file = create_file(b"")
         client.login(user)
         response = client.post(self.url.format(id=podcast.id), files={"fake": file})

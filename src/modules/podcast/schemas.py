@@ -18,6 +18,7 @@ __all__ = [
     "PodcastUploadImageResponseSchema",
     "CookieCreateUpdateSchema",
     "CookieResponseSchema",
+    "EpisodeUploadSchema",
 ]
 
 from common.enums import SourceType, EpisodeStatus
@@ -71,11 +72,17 @@ class EpisodeUpdateSchema(Schema):
     author = fields.Str(validate=validate.Length(max=256))
 
 
+class EpisodeUploadSchema(Schema):
+    audio = fields.Raw(required=True)
+    title = fields.Str(required=True, validate=validate.Length(min=1, max=256))
+    length = fields.Int(required=True, validate=validate.Range(min=1))
+
+
 class EpisodeListSchema(Schema):
     id = fields.Int(required=True)
     title = fields.Str(required=True)
     created_at = fields.DateTime(required=True)
-    image_url = fields.URL(attribute="image.url")
+    image_url = fields.URL()
     status = fields.Str(required=True)
     source_type = fields.Str(required=True)
 

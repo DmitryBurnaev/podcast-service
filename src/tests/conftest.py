@@ -349,3 +349,8 @@ def mocked_source_info_youtube(monkeypatch) -> Mock:
 @pytest.fixture()
 def mocked_source_info_yandex(monkeypatch) -> Mock:
     yield from _mocked_source_info(monkeypatch, source_type=SourceType.YANDEX)
+
+
+@pytest.fixture()
+def mocked_source_info_upload(monkeypatch) -> Mock:
+    yield from _mocked_source_info(monkeypatch, source_type=SourceType.UPLOAD)

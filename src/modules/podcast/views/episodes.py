@@ -20,6 +20,7 @@ from modules.podcast.schemas import (
     EpisodeListRequestSchema,
     EpisodeListResponseSchema,
     EpisodeListSchema,
+    EpisodeUploadSchema,
 )
 from modules.podcast.utils import save_uploaded_image
 from tests.helpers import get_source_id
@@ -80,58 +81,64 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
 
 
 class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
-    required_fields = ("audio", "title", "length")
-    cleaned_data = namedtuple("cleaned_data", required_fields)
+    schema_request = EpisodeUploadSchema
+    schema_response = EpisodeListSchema
+    db_model = Podcast
 
     async def post(self, request):
         podcast: Podcast = await self._get_object(request.path_params["podcast_id"])
         logger.info("Uploading file for episode for podcast %s", podcast)
 
-        cleaned_data = await self._validate(request)
+        cleaned_data = await self._validate(request, location="form")
         tmp_path = await save_uploaded_image(
-            uploaded_file=cleaned_data.audio,
+            uploaded_file=cleaned_data["audio"],
             prefix=f"uploaded_episode_{uuid.uuid4().hex}"
         )
         episode = await self._create_episode(
             podcast_id=podcast.id,
             uploaded_file=tmp_path,
-            data=cleaned_data,
+            cleaned_data=cleaned_data,
         )
         await self._run_task(tasks.DownloadEpisodeTask, episode_id=episode.id)
         return self._response(episode, status_code=status.HTTP_201_CREATED)
 
-    async def _create_episode(self, podcast_id: int, uploaded_file: Path, data: cleaned_data):
+    async def _create_episode(self, podcast_id: int, uploaded_file: Path, cleaned_data: dict) -> Episode:
         audio_file = await File.create(
             self.db_session,
             FileType.AUDIO,
             available=False,
             owner_id=self.request.user.id,
             source_url="",
-            path=uploaded_file,
+            path=str(uploaded_file),
         )
         episode = await Episode.async_create(
             self.db_session,
-            title=data.title,
+            title=cleaned_data["title"],
             source_id=get_source_id(),
             source_type=SourceType.UPLOAD,
             podcast_id=podcast_id,
             audio_id=audio_file.id,
             watch_url="",
-            length=data.length,
-            description=f"[uploaded] {data.title}",
+            length=cleaned_data["length"],
+            description=f"[uploaded] {cleaned_data['title']}",
             author="",
         )
         return episode
 
-    async def _validate(self, request, **_) -> cleaned_data:
-        form = await request.form()
-        for field in self.required_fields:
-            if not form.get("field"):
-                raise InvalidParameterError(details=f"{field} is required field")
+    async def _validate(self, request, **_) -> dict:
+        cleaned_data = await super()._validate(request, location="form")
+        # if cleaned_data["audio"].length
+        # cleaned_data["data"] = (await cleaned_data.pop("file").read()).decode()
+        return cleaned_data
 
-        return self.cleaned_data(**{
-            field: form[field] for field in self.required_fields
-        })
+        # form = await request.form()
+        # for field in self.required_fields:
+        #     if not form.get(field):
+        #         raise InvalidParameterError(details={field: f"Missing data for required field."})
+        #
+        # return self.cleaned_data(**{
+        #     field: form[field] for field in self.required_fields
+        # })
 
 
 class EpisodeRUDAPIView(BaseHTTPEndpoint):
