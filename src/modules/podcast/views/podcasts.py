@@ -116,8 +116,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
         logger.info("Uploading cover for podcast %s", podcast)
         cleaned_data = await self._validate(request)
         tmp_path = await save_uploaded_image(
-            uploaded_file=cleaned_data["image"],
-            prefix=f"podcast_cover_{uuid.uuid4().hex}"
+            uploaded_file=cleaned_data["image"], prefix=f"podcast_cover_{uuid.uuid4().hex}"
         )
 
         image_remote_path = await self._upload_cover(podcast, tmp_path)

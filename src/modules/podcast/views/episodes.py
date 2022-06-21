@@ -1,5 +1,4 @@
 import uuid
-from collections import namedtuple
 from pathlib import Path
 
 from sqlalchemy import exists
@@ -8,7 +7,7 @@ from starlette import status
 from common.enums import FileType, SourceType
 from common.utils import get_logger
 from common.views import BaseHTTPEndpoint
-from common.exceptions import MethodNotAllowedError, InvalidParameterError
+from common.exceptions import MethodNotAllowedError
 from modules.media.models import File
 from modules.podcast import tasks
 from modules.podcast.episodes import EpisodeCreator
@@ -91,8 +90,7 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
 
         cleaned_data = await self._validate(request, location="form")
         tmp_path = await save_uploaded_image(
-            uploaded_file=cleaned_data["audio"],
-            prefix=f"uploaded_episode_{uuid.uuid4().hex}"
+            uploaded_file=cleaned_data["audio"], prefix=f"uploaded_episode_{uuid.uuid4().hex}"
         )
         episode = await self._create_episode(
             podcast_id=podcast.id,
@@ -102,7 +100,9 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
         await self._run_task(tasks.DownloadEpisodeTask, episode_id=episode.id)
         return self._response(episode, status_code=status.HTTP_201_CREATED)
 
-    async def _create_episode(self, podcast_id: int, uploaded_file: Path, cleaned_data: dict) -> Episode:
+    async def _create_episode(
+        self, podcast_id: int, uploaded_file: Path, cleaned_data: dict
+    ) -> Episode:
         audio_file = await File.create(
             self.db_session,
             FileType.AUDIO,
@@ -194,4 +194,3 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
 # 5) task: upload file to S3 (without postprocessing)
 # 6) task: update episode, audio + regenerate RSS
 # 7) task: remove tmp file
-

@@ -121,7 +121,7 @@ class DownloadEpisodeTask(RQTask):
             else:
                 raise DownloadingInterrupted(
                     code=FinishCode.ERROR,
-                    message="Episode [source: UPLOAD] does not contain audio with predefined path"
+                    message="Episode [source: UPLOAD] does not contain audio with predefined path",
                 )
 
         cookie = (

@@ -31,9 +31,6 @@ class BaseTestCase:
                     [call_args.kwargs.get(key) == value for key, value in kwargs.items()]
                 )
                 assert not all(asserts)
-                # assert call_args.args != args
-                # for key, value in kwargs.items():
-                #     assert call_args.kwargs.get(key) != value
             except AssertionError as e:
                 raise AssertionError(
                     f"Found unexpected call with args: {args} | kwargs {kwargs}: %r", e

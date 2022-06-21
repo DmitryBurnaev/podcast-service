@@ -14,8 +14,14 @@ from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks import DownloadEpisodeTask
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import get_source_id, create_user, get_podcast_data, create_episode, await_, \
-    create_file
+from tests.helpers import (
+    get_source_id,
+    create_user,
+    get_podcast_data,
+    create_episode,
+    await_,
+    create_file,
+)
 
 INVALID_UPDATE_DATA = [
     [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],
@@ -28,11 +34,14 @@ INVALID_CREATE_DATA = [
 ]
 
 INVALID_UPLOAD_DATA = [
-    [{}, {
-        "title": "Missing data for required field.",
-        "length": "Missing data for required field.",
-    }],
-    [{"title": ""}, {"title": 'Length must be between 1 and 256.'}],
+    [
+        {},
+        {
+            "title": "Missing data for required field.",
+            "length": "Missing data for required field.",
+        },
+    ],
+    [{"title": ""}, {"title": "Length must be between 1 and 256."}],
     [{"length": "-f"}, {"length": "Not a valid integer."}],
     [{"length": -10}, {"length": "Must be greater than or equal to 1."}],
 ]
@@ -191,10 +200,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
 
 class TestEpisodeUploadAPIView(BaseTestAPIView):
     url = "/api/podcasts/{id}/episodes/upload/"
-    request_data = {
-        "title": "Test episode title",
-        "length": 110
-    }
+    request_data = {"title": "Test episode title", "length": 110}
 
     def _request(self, client, url, file: BytesIO, data: Optional[dict] = None) -> Response:
         files = {"audio": file} if file else {}
@@ -212,7 +218,7 @@ class TestEpisodeUploadAPIView(BaseTestAPIView):
         assert episode.source_type == SourceType.UPLOAD
 
         assert os.path.exists(episode.audio.path)
-        with open(episode.audio.path, 'rb') as file:
+        with open(episode.audio.path, "rb") as file:
             assert file.read() == b"image-test-data"
 
         mocked_rq_queue.enqueue.assert_called_with(

@@ -69,7 +69,6 @@ SOURCE_CFG_MAP = {
             r"^https://(?:www\.)?youtube\.com/playlist\?list=(?P<source_id>[0-9a-zA-Z-_]+)"
         ),
         need_postprocessing=True,
-
     ),
     SourceType.YANDEX: SourceConfig(
         type=SourceType.YANDEX,
