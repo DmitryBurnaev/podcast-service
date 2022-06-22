@@ -240,7 +240,8 @@ class TestEpisodeUploadAPIView(BaseTestAPIView):
         client.login(user)
         url = self.url.format(id=podcast.id)
         response = self._request(client, url, file)
-        self.assert_bad_request(response, {"audio": "File can not be empty"})
+        response_data = self.assert_fail_response(response, status_code=400)
+        assert response_data == {"audio": "File-size less than allowed"}
 
     def test_upload__too_big_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
         file = create_file(b"image-test-data-too-big" * 10)
@@ -248,7 +249,7 @@ class TestEpisodeUploadAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         response = self._request(client, url, file=file)
         response_data = self.assert_fail_response(response, status_code=413)
-        assert response_data == {"audio": "File is too big"}
+        assert response_data == {"audio": "File-size more than allowed"}
 
     def test_upload__missed_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
         file = create_file(b"")
