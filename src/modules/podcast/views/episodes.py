@@ -89,9 +89,6 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
         logger.info("Uploading file for episode for podcast %s", podcast)
 
         cleaned_data = await self._validate(request, location="form")
-        tmp_path = await save_uploaded_image(
-            uploaded_file=cleaned_data["audio"], prefix=f"uploaded_episode_{uuid.uuid4().hex}"
-        )
         episode = await self._create_episode(
             podcast_id=podcast.id,
             uploaded_file=tmp_path,
@@ -127,6 +124,7 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
 
     async def _validate(self, request, **_) -> dict:
         cleaned_data = await super()._validate(request, location="form")
+        #         TODO: check filesize before saving (may be custom headers?)
         # if cleaned_data["audio"].length
         # cleaned_data["data"] = (await cleaned_data.pop("file").read()).decode()
         return cleaned_data

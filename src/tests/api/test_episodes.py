@@ -240,22 +240,20 @@ class TestEpisodeUploadAPIView(BaseTestAPIView):
         client.login(user)
         url = self.url.format(id=podcast.id)
         response = self._request(client, url, file)
-        response_data = self.assert_fail_response(response, status_code=400)
-        assert response_data == {"audio": "File-size less than allowed"}
+        self.assert_bad_request(response, {"audio": "File-size less than allowed"})
 
     def test_upload__too_big_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
         file = create_file(b"image-test-data-too-big" * 10)
         client.login(user)
         url = self.url.format(id=podcast.id)
         response = self._request(client, url, file=file)
-        response_data = self.assert_fail_response(response, status_code=413)
-        assert response_data == {"audio": "File-size more than allowed"}
+        self.assert_bad_request(response, {"audio": "File-size less than allowed"}, status_code=413)
 
     def test_upload__missed_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
         file = create_file(b"")
         client.login(user)
         response = client.post(self.url.format(id=podcast.id), files={"fake": file})
-        self.assert_bad_request(response, error_details={"audio": "File is missing"})
+        self.assert_bad_request(response, {"audio": "Missing data for required field."})
 
 
 class TestEpisodeRUDAPIView(BaseTestAPIView):

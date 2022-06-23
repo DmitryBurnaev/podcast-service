@@ -65,9 +65,9 @@ class BaseTestAPIView(BaseTestCase):
         return response_data["payload"]
 
     @staticmethod
-    def assert_bad_request(response: Response, error_details: dict):
+    def assert_bad_request(response: Response, error_details: dict, status_code: int = 400):
         response_data = response.json()
-        assert response.status_code == 400
+        assert response.status_code == status_code
         assert "payload" in response_data, response_data
         response_data = response_data["payload"]
         assert response_data["error"] == "Requested data is not valid."
