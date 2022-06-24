@@ -21,7 +21,7 @@ from modules.podcast.schemas import (
     PodcastUploadImageResponseSchema,
 )
 from modules.podcast.tasks.rss import GenerateRSSTask
-from modules.podcast.utils import get_file_size, save_uploaded_image
+from modules.podcast.utils import get_file_size, save_uploaded_file
 
 logger = get_logger(__name__)
 
@@ -115,8 +115,11 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
         podcast: Podcast = await self._get_object(podcast_id)
         logger.info("Uploading cover for podcast %s", podcast)
         cleaned_data = await self._validate(request)
-        tmp_path = await save_uploaded_image(
-            uploaded_file=cleaned_data["image"], prefix=f"podcast_cover_{uuid.uuid4().hex}"
+        # TODO: ValueError
+        tmp_path = await save_uploaded_file(
+            uploaded_file=cleaned_data["image"],
+            prefix=f"podcast_cover_{uuid.uuid4().hex}",
+            max_file_size=settings.MAX_UPLOAD_IMAGE_FILESIZE,
         )
 
         image_remote_path = await self._upload_cover(podcast, tmp_path)

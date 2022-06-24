@@ -3,11 +3,13 @@ from pathlib import Path
 
 from sqlalchemy import exists
 from starlette import status
+from starlette.datastructures import UploadFile
 
 from common.enums import FileType, SourceType
 from common.utils import get_logger
 from common.views import BaseHTTPEndpoint
-from common.exceptions import MethodNotAllowedError
+from common.exceptions import MethodNotAllowedError, InvalidParameterError
+from core import settings
 from modules.media.models import File
 from modules.podcast import tasks
 from modules.podcast.episodes import EpisodeCreator
@@ -21,7 +23,7 @@ from modules.podcast.schemas import (
     EpisodeListSchema,
     EpisodeUploadSchema,
 )
-from modules.podcast.utils import save_uploaded_image
+from modules.podcast.utils import save_uploaded_file
 from tests.helpers import get_source_id
 
 logger = get_logger(__name__)
@@ -89,6 +91,7 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
         logger.info("Uploading file for episode for podcast %s", podcast)
 
         cleaned_data = await self._validate(request, location="form")
+        tmp_path = await self._save_audio(cleaned_data["audio"])
         episode = await self._create_episode(
             podcast_id=podcast.id,
             uploaded_file=tmp_path,
@@ -96,6 +99,19 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
         )
         await self._run_task(tasks.DownloadEpisodeTask, episode_id=episode.id)
         return self._response(episode, status_code=status.HTTP_201_CREATED)
+
+    @staticmethod
+    async def _save_audio(upload_file: UploadFile) -> Path:
+        try:
+            tmp_path = await save_uploaded_file(
+                uploaded_file=upload_file,
+                prefix=f"uploaded_episode_{uuid.uuid4().hex}",
+                max_file_size=settings.MAX_UPLOAD_AUDIO_FILESIZE
+            )
+        except ValueError as e:
+            raise InvalidParameterError(details={"audio": str(e)})
+
+        return tmp_path
 
     async def _create_episode(
         self, podcast_id: int, uploaded_file: Path, cleaned_data: dict
@@ -124,7 +140,6 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
 
     async def _validate(self, request, **_) -> dict:
         cleaned_data = await super()._validate(request, location="form")
-        #         TODO: check filesize before saving (may be custom headers?)
         # if cleaned_data["audio"].length
         # cleaned_data["data"] = (await cleaned_data.pop("file").read()).decode()
         return cleaned_data

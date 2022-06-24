@@ -154,7 +154,7 @@ def upload_episode(src_path: str | Path) -> Optional[str]:
     return remote_path
 
 
-async def save_uploaded_image(uploaded_file: UploadFile, prefix: str) -> Path:
+async def save_uploaded_file(uploaded_file: UploadFile, prefix: str, max_file_size: int) -> Path:
     contents = await uploaded_file.read()
     file_ext = uploaded_file.filename.rpartition(".")[-1]
     result_file_path = settings.TMP_IMAGE_PATH / f"{prefix}.{file_ext}"
@@ -163,6 +163,9 @@ async def save_uploaded_image(uploaded_file: UploadFile, prefix: str) -> Path:
 
     file_size = get_file_size(result_file_path)
     if file_size < 1:
-        raise InvalidParameterError(details="result file-size is less than allowed")
+        raise ValueError("result file-size is less than allowed")
+
+    if file_size > max_file_size:
+        raise ValueError("result file-size is less than allowed")
 
     return result_file_path
