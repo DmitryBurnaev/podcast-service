@@ -166,6 +166,6 @@ async def save_uploaded_file(uploaded_file: UploadFile, prefix: str, max_file_si
         raise ValueError("result file-size is less than allowed")
 
     if file_size > max_file_size:
-        raise ValueError("result file-size is less than allowed")
+        raise ValueError("result file-size is more than allowed")
 
     return result_file_path

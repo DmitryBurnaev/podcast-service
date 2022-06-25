@@ -92,7 +92,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         podcast_data = partial(get_podcast_data, owner_id=user.id)
         podcast_1 = await_(Podcast.async_create(dbs, **podcast_data()))
         podcast_2 = await_(Podcast.async_create(dbs, **podcast_data()))
-        ep = create_episode(dbs, episode_data, podcast=podcast_1)
+        ep = create_episode(dbs, episode_data, podcast=podcast_1, status=EpisodeStatus.PUBLISHED)
         create_episode(dbs, episode_data, podcast=podcast_2)
         url = self.url.format(id=podcast_1.id)
         response = client.get(url)
@@ -102,17 +102,17 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
     def test_get_list__filter_status__ok(self, dbs, client, podcast, episode_data, user):
         client.login(user)
         episode_data |= {"owner_id": user.id}
-        ep = create_episode(dbs, episode_data, podcast, status=EpisodeStatus.NEW)
+        ep = create_episode(dbs, episode_data, podcast, status=EpisodeStatus.PUBLISHED)
         create_episode(dbs, episode_data, podcast, status=EpisodeStatus.ERROR)
 
         url = self.url.format(id=podcast.id)
-        response = client.get(url, params={"status": EpisodeStatus.NEW.value})
+        response = client.get(url, params={"status": EpisodeStatus.PUBLISHED.value})
         response_data = self.assert_ok_response(response)
         assert response_data["items"] == [_episode_in_list(ep)]
 
     def test_get_list__search_by_title__ok(self, dbs, client, podcast, episode_data, user):
         client.login(user)
-        episode_data |= {"owner_id": user.id}
+        episode_data |= {"owner_id": user.id, "status": EpisodeStatus.PUBLISHED}
         ep1 = create_episode(dbs, episode_data | {"title": "Python NEWS"}, podcast)
         ep2 = create_episode(dbs, episode_data | {"title": "PyPI is free"}, podcast)
         create_episode(dbs, episode_data | {"title": "Django"}, podcast)
@@ -240,14 +240,14 @@ class TestEpisodeUploadAPIView(BaseTestAPIView):
         client.login(user)
         url = self.url.format(id=podcast.id)
         response = self._request(client, url, file)
-        self.assert_bad_request(response, {"audio": "File-size less than allowed"})
+        self.assert_bad_request(response, {"audio": "result file-size is less than allowed"})
 
     def test_upload__too_big_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
         file = create_file(b"image-test-data-too-big" * 10)
         client.login(user)
         url = self.url.format(id=podcast.id)
         response = self._request(client, url, file=file)
-        self.assert_bad_request(response, {"audio": "File-size less than allowed"}, status_code=413)
+        self.assert_bad_request(response, {"audio": "result file-size is more than allowed"})
 
     def test_upload__missed_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
         file = create_file(b"")

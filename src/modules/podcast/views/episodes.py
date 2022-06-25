@@ -138,21 +138,6 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
         )
         return episode
 
-    async def _validate(self, request, **_) -> dict:
-        cleaned_data = await super()._validate(request, location="form")
-        # if cleaned_data["audio"].length
-        # cleaned_data["data"] = (await cleaned_data.pop("file").read()).decode()
-        return cleaned_data
-
-        # form = await request.form()
-        # for field in self.required_fields:
-        #     if not form.get(field):
-        #         raise InvalidParameterError(details={field: f"Missing data for required field."})
-        #
-        # return self.cleaned_data(**{
-        #     field: form[field] for field in self.required_fields
-        # })
-
 
 class EpisodeRUDAPIView(BaseHTTPEndpoint):
     """Retrieve, Update, Delete API for episodes"""
