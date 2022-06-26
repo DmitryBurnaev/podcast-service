@@ -138,6 +138,15 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
         )
         return episode
 
+    async def _validate(self, request, **_) -> dict:
+        cleaned_data = await super()._validate(request, location="form")
+        # TODO: extract data from file: title, length (if available)
+        cleaned_data.update({
+            "title": "",
+            "length": 1,
+        })
+        return cleaned_data
+
 
 class EpisodeRUDAPIView(BaseHTTPEndpoint):
     """Retrieve, Update, Delete API for episodes"""
