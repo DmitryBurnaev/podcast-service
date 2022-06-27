@@ -141,6 +141,7 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
     async def _validate(self, request, **_) -> dict:
         cleaned_data = await super()._validate(request, location="form")
         # TODO: extract data from file: title, length (if available)
+        # ffmpeg -i audio.mp3  |& awk '/Duration:/ {print $2}'
         cleaned_data.update({
             "title": "",
             "length": 1,

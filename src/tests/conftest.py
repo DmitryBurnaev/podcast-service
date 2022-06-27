@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import tempfile
 import uuid
 from datetime import datetime, timedelta
 from typing import Tuple
@@ -171,6 +172,14 @@ def mocked_ffmpeg(monkeypatch) -> Mock:
 
 
 @pytest.fixture
+def mocked_audio_duration(monkeypatch) -> Mock:
+    mocked_function = Mock()
+    monkeypatch.setattr(youtube_utils, "audio_duration", mocked_function)
+    yield mocked_function
+    del mocked_function
+
+
+@pytest.fixture
 def mocked_auth_send() -> AsyncMock:
     mocked_send_email = AsyncMock()
     patcher = patch("modules.auth.views.send_email", new=mocked_send_email)
@@ -327,6 +336,16 @@ def user_invite(user, loop, dbs) -> UserInvite:
             owner_id=user.id,
         )
     )
+
+
+@pytest.fixture
+def audio_file():
+    content = b"test-file-content"
+    # filename = "testfile.mp3"
+    with tempfile.NamedTemporaryFile() as file:
+        file.write(content)
+        file.content = content
+        yield file
 
 
 def _mocked_source_info(monkeypatch, source_type) -> Mock:
