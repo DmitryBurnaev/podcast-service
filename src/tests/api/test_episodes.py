@@ -186,7 +186,17 @@ class TestEpisodeUploadAPIView(BaseTestAPIView):
     url = "/api/podcasts/{id}/episodes/upload/"
 
     @pytest.mark.parametrize("auto_start_task", (True, False))
-    def test_upload__ok(self, dbs, client, podcast, user, audio_file, mocked_rq_queue, mocked_audio_duration, auto_start_task):
+    def test_upload__ok(
+        self,
+        dbs,
+        client,
+        podcast,
+        user,
+        audio_file,
+        mocked_rq_queue,
+        mocked_audio_duration,
+        auto_start_task,
+    ):
         audio_duration = 90
         mocked_audio_duration.return_value = audio_duration
         await_(podcast.update(dbs, download_automatically=auto_start_task))

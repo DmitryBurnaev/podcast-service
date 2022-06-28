@@ -7,7 +7,6 @@ from typing import Union, Iterable, Optional
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
-from common.exceptions import InvalidParameterError
 from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3

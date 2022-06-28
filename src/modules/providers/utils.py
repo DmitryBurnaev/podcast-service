@@ -244,3 +244,52 @@ def ffmpeg_preparation(
             processed_bytes=total_file_size,
         )
     logger.info("FFMPEG Preparation for %s was done", filename)
+
+
+def audio_duration(file_path: Path) -> int:
+    """ Calculates (via ffmpeg) length of audio track and returns number of seconds """
+
+    try:
+        parse_params = ["|&", "awk", "'/Duration:/ {print $2}'"]
+        completed_proc = subprocess.run(
+            ["ffmpeg", "-y", "-i", file_path, *parse_params],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=True,
+            timeout=settings.FFMPEG_TIMEOUT,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
+        err_details = f"FFMPEG failed with errors: {err}"
+        if stdout := getattr(err, "stdout", ""):
+            err_details += f"\n{str(stdout, encoding='utf-8')}"
+
+        raise FFMPegPreparationError(err_details)
+
+    duration_str = str(completed_proc.stdout, encoding="utf-8")
+    logger.debug(
+        "FFMPEG success done extracting duration from the file %s:\n%s",
+        file_path,
+        duration_str,
+    )
+    res_duration = _human_time_to_sec(duration_str.rstrip(','))
+
+    return res_duration
+
+
+def _human_time_to_sec(time_str: str) -> int:
+    """
+    Converts human time like '01:01:20.23' to seconds count 3680
+
+    >>> _human_time_to_sec('00:01:16.75')
+    77
+    >>> _human_time_to_sec('01:01:20.232443')
+    3680
+
+    """
+
+    time_items = time_str.rstrip(',').split(':')
+    res_time = 0
+    for index, time_item in enumerate(reversed(time_items)):
+        res_time += round(float(time_item), 0) * pow(60, index)
+
+    return int(res_time)

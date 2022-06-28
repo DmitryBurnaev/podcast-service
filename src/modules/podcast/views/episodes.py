@@ -106,7 +106,7 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
             tmp_path = await save_uploaded_file(
                 uploaded_file=upload_file,
                 prefix=f"uploaded_episode_{uuid.uuid4().hex}",
-                max_file_size=settings.MAX_UPLOAD_AUDIO_FILESIZE
+                max_file_size=settings.MAX_UPLOAD_AUDIO_FILESIZE,
             )
         except ValueError as e:
             raise InvalidParameterError(details={"audio": str(e)})
@@ -142,10 +142,12 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
         cleaned_data = await super()._validate(request, location="form")
         # TODO: extract data from file: title, length (if available)
         # ffmpeg -i audio.mp3  |& awk '/Duration:/ {print $2}'
-        cleaned_data.update({
-            "title": "",
-            "length": 1,
-        })
+        cleaned_data.update(
+            {
+                "title": "",
+                "length": 1,
+            }
+        )
         return cleaned_data
 
 
