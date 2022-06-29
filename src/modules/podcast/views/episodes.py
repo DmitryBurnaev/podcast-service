@@ -142,6 +142,7 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
         cleaned_data = await super()._validate(request, location="form")
         # TODO: extract data from file: title, length (if available)
         # ffmpeg -i audio.mp3  |& awk '/Duration:/ {print $2}'
+        # TODO: think about proxying files to S3 directly
         cleaned_data.update(
             {
                 "title": "",

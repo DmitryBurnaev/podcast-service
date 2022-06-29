@@ -266,7 +266,7 @@ class DownloadEpisodeImageTask(RQTask):
                 remote_path, available, size = "", False, None
 
             logger.info("Saving new image URL: episode %s | remote %s", episode.id, remote_path)
-
+            # TODO: public=False (issue #134)
             await image.update(self.db_session, path=remote_path, available=available, size=size)
 
         return FinishCode.OK
