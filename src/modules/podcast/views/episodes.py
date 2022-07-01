@@ -24,6 +24,7 @@ from modules.podcast.schemas import (
     EpisodeUploadSchema,
 )
 from modules.podcast.utils import save_uploaded_file
+from modules.providers.utils import audio_duration
 from tests.helpers import get_source_id
 
 logger = get_logger(__name__)
@@ -87,14 +88,15 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
     db_model = Podcast
 
     async def post(self, request):
+        # TODO: think about proxying files to S3 directly
+
         podcast: Podcast = await self._get_object(request.path_params["podcast_id"])
         logger.info("Uploading file for episode for podcast %s", podcast)
 
         cleaned_data = await self._validate(request, location="form")
-        tmp_path = await self._save_audio(cleaned_data["audio"])
         episode = await self._create_episode(
             podcast_id=podcast.id,
-            uploaded_file=tmp_path,
+            uploaded_file=cleaned_data['path'],
             cleaned_data=cleaned_data,
         )
         await self._run_task(tasks.DownloadEpisodeTask, episode_id=episode.id)
@@ -140,16 +142,13 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
 
     async def _validate(self, request, **_) -> dict:
         cleaned_data = await super()._validate(request, location="form")
-        # TODO: extract data from file: title, length (if available)
-        # ffmpeg -i audio.mp3  |& awk '/Duration:/ {print $2}'
-        # TODO: think about proxying files to S3 directly
-        cleaned_data.update(
-            {
-                "title": "",
-                "length": 1,
-            }
-        )
-        return cleaned_data
+        tmp_path = await self._save_audio(cleaned_data["audio"])
+        length = audio_duration(tmp_path)
+        return {
+            "title": tmp_path.name,
+            "length": length,
+            "path": tmp_path,
+        }
 
 
 class EpisodeRUDAPIView(BaseHTTPEndpoint):

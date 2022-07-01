@@ -341,7 +341,6 @@ def user_invite(user, loop, dbs) -> UserInvite:
 @pytest.fixture
 def audio_file():
     content = b"test-file-content"
-    # filename = "testfile.mp3"
     with tempfile.NamedTemporaryFile() as file:
         file.write(content)
         file.content = content

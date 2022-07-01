@@ -201,6 +201,10 @@ class TestEpisodeUploadAPIView(BaseTestAPIView):
         mocked_audio_duration.return_value = audio_duration
         await_(podcast.update(dbs, download_automatically=auto_start_task))
         await_(dbs.commit())
+        # TODO: fix temp's file content!
+        raise RuntimeError(audio_file.read())
+        # with open(episode.audio.path, "rb") as uploaded_file:
+        #     assert uploaded_file.read() == audio_file.content
 
         client.login(user)
         url = self.url.format(id=podcast.id)
