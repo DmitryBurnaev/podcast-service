@@ -6,7 +6,7 @@ from common.enums import FileType
 from modules.auth.models import UserIP
 from modules.media.models import File
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import await_
+from tests.helpers import await_, create_file
 
 
 class TestMediaFileAPIView(BaseTestAPIView):
@@ -233,3 +233,52 @@ class TestFileURL:
 
     def test_presigned_url(self):
         ...
+
+
+class TestEpisodeUploadAPIView(BaseTestAPIView):
+    url = "/api/media/upload/{type}/"
+
+    def test_upload__ok(
+        self,
+        client,
+        user,
+        audio_file,
+        mocked_audio_duration,
+        mocked_s3
+    ):
+        audio_duration = 90
+        remote_tmp_path = f"remote/tmp/{uuid.uuid4().hex}.mp3"
+
+        mocked_audio_duration.return_value = audio_duration
+        mocked_s3.upload_file.return_value = remote_tmp_path
+
+        client.login(user)
+        url = self.url.format(type=FileType.AUDIO)
+
+        response = client.post(url, files={"file": audio_file})
+        response_data = self.assert_ok_response(response)
+
+        assert response_data["title"] == audio_file.name
+        assert response_data["length"] == audio_duration
+        assert response_data["path"] == remote_tmp_path
+
+        mocked_audio_duration.assert_called()
+
+    def test_upload__empty_file__fail(self, client, user):
+        client.login(user)
+        url = self.url.format(type=FileType.AUDIO)
+        response = client.post(url, files={"file": create_file(b"")})
+        self.assert_bad_request(response, {"file": "result file-size is less than allowed"})
+
+    def test_upload__too_big_file__fail(self, client, user):
+        file = create_file(b"test-data-too-big" * 10)
+        client.login(user)
+        url = self.url.format(type=FileType.AUDIO)
+        response = client.post(url, files={"file": file})
+        self.assert_bad_request(response, {"file": "result file-size is more than allowed"})
+
+    def test_upload__missed_file__fail(self, client, user):
+        client.login(user)
+        url = self.url.format(type=FileType.AUDIO)
+        response = client.post(url, files={"fake": create_file(b"")})
+        self.assert_bad_request(response, {"file": "Missing data for required field."})

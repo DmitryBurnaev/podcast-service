@@ -1,4 +1,4 @@
-import os.path
+import uuid
 from functools import partial
 
 import pytest
@@ -17,7 +17,6 @@ from tests.helpers import (
     get_podcast_data,
     create_episode,
     await_,
-    create_file,
 )
 
 INVALID_UPDATE_DATA = [
@@ -182,71 +181,46 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         self.assert_not_found(client.post(url, json=data), podcast)
 
 
-class TestEpisodeUploadAPIView(BaseTestAPIView):
-    url = "/api/podcasts/{id}/episodes/upload/"
+class TestCreateEpisodeFromUploadFileAPIView(BaseTestAPIView):
+    url = "/api/podcasts/{id}/episodes/uploaded/"
 
     @pytest.mark.parametrize("auto_start_task", (True, False))
-    def test_upload__ok(
+    def test_create_uploaded__ok(
         self,
         dbs,
         client,
         podcast,
         user,
-        audio_file,
         mocked_rq_queue,
-        mocked_audio_duration,
         auto_start_task,
     ):
-        audio_duration = 90
-        mocked_audio_duration.return_value = audio_duration
+        audio_length = 90
         await_(podcast.update(dbs, download_automatically=auto_start_task))
         await_(dbs.commit())
-        # TODO: fix temp's file content!
-        raise RuntimeError(audio_file.read())
-        # with open(episode.audio.path, "rb") as uploaded_file:
-        #     assert uploaded_file.read() == audio_file.content
 
         client.login(user)
         url = self.url.format(id=podcast.id)
-        response = client.post(url, files={"audio": audio_file})
+        data = {
+            "path": f"remote/tmp/{uuid.uuid4().hex}.mp3",
+            "length": audio_length,
+            "title": "test-episode-title"
+        }
+        response = client.post(url, json=data)
         response_data = self.assert_ok_response(response, status_code=201)
 
         episode = await_(Episode.async_get(dbs, id=response_data["id"]))
         assert response_data == _episode_in_list(episode), response.json()
         assert episode.source_type == SourceType.UPLOAD
-        assert episode.title == audio_file.name
-        assert episode.length == audio_duration
+        assert episode.title == "test-episode-title"
+        assert episode.length == audio_length
+        assert episode.path == f"remote/tmp/{uuid.uuid4().hex}.mp3"
 
-        assert os.path.exists(episode.audio.path)
-        with open(episode.audio.path, "rb") as uploaded_file:
-            assert uploaded_file.read() == audio_file.content
-
-        mocked_audio_duration.assert_called()
         if auto_start_task:
             mocked_rq_queue.enqueue.assert_called_with(
                 tasks.DownloadEpisodeTask(), episode_id=episode.id
             )
         else:
             mocked_rq_queue.enqueue.assert_not_called()
-
-    def test_upload__empty_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
-        client.login(user)
-        url = self.url.format(id=podcast.id)
-        response = client.post(url, files={"audio": create_file(b"")})
-        self.assert_bad_request(response, {"audio": "result file-size is less than allowed"})
-
-    def test_upload__too_big_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
-        file = create_file(b"image-test-data-too-big" * 10)
-        client.login(user)
-        url = self.url.format(id=podcast.id)
-        response = client.post(url, files={"audio": file})
-        self.assert_bad_request(response, {"audio": "result file-size is more than allowed"})
-
-    def test_upload__missed_file__fail(self, dbs, client, podcast, user, mocked_rq_queue):
-        client.login(user)
-        url = self.url.format(id=podcast.id)
-        response = client.post(url, files={"fake": create_file(b"")})
-        self.assert_bad_request(response, {"audio": "Missing data for required field."})
 
 
 class TestEpisodeRUDAPIView(BaseTestAPIView):

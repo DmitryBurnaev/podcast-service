@@ -344,6 +344,7 @@ def audio_file():
     with tempfile.NamedTemporaryFile() as file:
         file.write(content)
         file.content = content
+        file.seek(0)
         yield file
 
 
