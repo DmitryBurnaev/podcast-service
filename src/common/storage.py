@@ -90,6 +90,22 @@ class StorageS3:
         logger.info("File %s successful uploaded. Remote path: %s", filename, dst_path)
         return dst_path
 
+    async def upload_file_async(
+        self,
+        src_path: str | Path,
+        dst_path: str,
+        filename: Optional[str] = None,
+        callback: Callable = None,
+    ):
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            partial(
+                self.upload_file,
+                src_path=src_path, dst_path=dst_path, filename=filename, callback=callback
+            )
+        )
+
     def get_file_info(
         self,
         filename: str,

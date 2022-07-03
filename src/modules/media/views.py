@@ -1,15 +1,29 @@
+import uuid
+from pathlib import Path
 from typing import ClassVar
 
+from starlette.datastructures import UploadFile
 from starlette.responses import RedirectResponse, Response
 
 from common.enums import FileType
-from common.exceptions import AuthenticationFailedError, NotFoundError
+from common.exceptions import (
+    NotFoundError,
+    S3UploadingError,
+    InvalidParameterError,
+    AuthenticationFailedError,
+)
 from common.request import PRequest
+from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
 from common.utils import get_logger
+from core import settings
 from modules.auth.models import UserIP
 from modules.auth.utils import extract_ip_address
 from modules.media.models import File
+from modules.media.schemas import FileUploadSchema, AudioFileResponseSchema
+from modules.podcast.utils import save_uploaded_file
+from modules.providers import utils as provider_utils
+
 
 logger = get_logger(__name__)
 
@@ -109,3 +123,38 @@ class RSSRedirectAPIView(BaseFileRedirectApiView):
                 return user_ip
 
             raise e
+
+
+class AudioFileUploadAPIView(BaseHTTPEndpoint):
+    schema_request = FileUploadSchema
+    schema_response = AudioFileResponseSchema
+
+    async def post(self, request):
+        cleaned_data = await self._validate(request, location="form")
+        tmp_path, filename = await self._save_audio(cleaned_data["file"])
+        duration = provider_utils.audio_duration(tmp_path)
+        remote_path = await StorageS3().upload_file_async(
+            src_path=tmp_path,
+            dst_path=settings.S3_BUCKET_TMP_AUDIO_PATH
+        )
+        if not remote_path:
+            raise S3UploadingError("Couldn't upload audio file")
+
+        return self._response({
+            "title": filename,
+            "duration": duration,
+            "path": remote_path,
+        })
+
+    @staticmethod
+    async def _save_audio(upload_file: UploadFile) -> tuple[Path, str]:
+        try:
+            tmp_path = await save_uploaded_file(
+                uploaded_file=upload_file,
+                prefix=f"uploaded_episode_{uuid.uuid4().hex}",
+                max_file_size=settings.MAX_UPLOAD_AUDIO_FILESIZE,
+            )
+        except ValueError as e:
+            raise InvalidParameterError(details={"file": str(e)})
+
+        return tmp_path, upload_file.filename

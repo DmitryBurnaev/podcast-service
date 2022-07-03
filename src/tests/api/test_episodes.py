@@ -9,7 +9,7 @@ from core import settings
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
-from modules.podcast.tasks import DownloadEpisodeTask
+from modules.podcast.tasks import DownloadEpisodeTask, UploadedEpisodeTask
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import (
     get_source_id,
@@ -194,7 +194,7 @@ class TestCreateEpisodeFromUploadFileAPIView(BaseTestAPIView):
         mocked_rq_queue,
         auto_start_task,
     ):
-        audio_length = 90
+        audio_duration = 90
         await_(podcast.update(dbs, download_automatically=auto_start_task))
         await_(dbs.commit())
 
@@ -202,7 +202,7 @@ class TestCreateEpisodeFromUploadFileAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         data = {
             "path": f"remote/tmp/{uuid.uuid4().hex}.mp3",
-            "length": audio_length,
+            "duration": audio_duration,
             "title": "test-episode-title"
         }
         response = client.post(url, json=data)
@@ -212,12 +212,12 @@ class TestCreateEpisodeFromUploadFileAPIView(BaseTestAPIView):
         assert response_data == _episode_in_list(episode), response.json()
         assert episode.source_type == SourceType.UPLOAD
         assert episode.title == "test-episode-title"
-        assert episode.length == audio_length
+        assert episode.length == audio_duration
         assert episode.path == f"remote/tmp/{uuid.uuid4().hex}.mp3"
 
         if auto_start_task:
             mocked_rq_queue.enqueue.assert_called_with(
-                tasks.DownloadEpisodeTask(), episode_id=episode.id
+                tasks.UploadedEpisodeTask(), episode_id=episode.id
             )
         else:
             mocked_rq_queue.enqueue.assert_not_called()
@@ -336,14 +336,24 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
 class TestEpisodeDownloadAPIView(BaseTestAPIView):
     url = "/api/episodes/{id}/download/"
 
-    def test_download__ok(self, client, episode, user, mocked_rq_queue, dbs):
+    @pytest.mark.parametrize(
+        'source_type, task_class', (
+             (SourceType.YOUTUBE, DownloadEpisodeTask),
+             (SourceType.YANDEX, DownloadEpisodeTask),
+             (SourceType.UPLOAD, UploadedEpisodeTask),
+        )
+    )
+    def test_download__ok(self, client, episode, user, mocked_rq_queue, dbs, source_type, task_class):
+        await_(episode.update(dbs, source_type=source_type))
+        await_(dbs.commit())
+
         client.login(user)
         url = self.url.format(id=episode.id)
         response = client.put(url)
         await_(dbs.refresh(episode))
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_details(episode)
-        mocked_rq_queue.enqueue.assert_called_with(DownloadEpisodeTask(), episode_id=episode.id)
+        mocked_rq_queue.enqueue.assert_called_with(task_class(), episode_id=episode.id)
 
     def test_download__episode_from_another_user__fail(self, client, episode, user, dbs):
         client.login(create_user(dbs))

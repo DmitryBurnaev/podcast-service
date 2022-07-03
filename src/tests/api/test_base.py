@@ -44,12 +44,15 @@ class BaseTestAPIView(BaseTestCase):
 
     @staticmethod
     def assert_ok_response(response: Response, status_code: int = 200) -> Union[dict, list]:
+        assert response.status_code == status_code, (
+            f"Unexpected status code. Response: {response.content}"
+        )
+
         try:
             response_data = response.json()
         except JSONDecodeError:
             raise AssertionError(f"Unexpected non-json response: {response.content}")
 
-        assert response.status_code == status_code
         assert "payload" in response_data, response_data
         assert response_data["status"] == ResponseStatus.OK
         return response_data["payload"]
@@ -58,16 +61,22 @@ class BaseTestAPIView(BaseTestCase):
         self, response: Response, status_code: int = None, response_status: str = None
     ) -> Union[dict, list]:
 
+        assert response.status_code == (status_code or self.default_fail_status_code), (
+            f"Unexpected status code. Response: {response.content}"
+        )
+
         response_data = response.json()
-        assert response.status_code == (status_code or self.default_fail_status_code)
         assert "payload" in response_data, response_data
         assert response_data["status"] == (response_status or self.default_fail_response_status)
         return response_data["payload"]
 
     @staticmethod
     def assert_bad_request(response: Response, error_details: dict, status_code: int = 400):
+        assert response.status_code == status_code, (
+            f"Unexpected status code. Response: {response.content}"
+        )
+
         response_data = response.json()
-        assert response.status_code == status_code
         assert "payload" in response_data, response_data
         response_data = response_data["payload"]
         assert response_data["error"] == "Requested data is not valid."
