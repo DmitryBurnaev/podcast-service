@@ -95,56 +95,56 @@ class TestDownloadEpisodeTask(BaseTestCase):
             src_path=str(file_path),
             dst_path=settings.S3_BUCKET_AUDIO_PATH,
         )
-
-    def test_skip_downloading(
-        self,
-        dbs,
-        episode,
-        mocked_s3,
-        mocked_ffmpeg,
-        mocked_youtube,
-        mocked_generate_rss_task,
-        mocked_source_info_upload,
-    ):
-        file_path = self._source_file(dbs, episode)
-        await_(episode.update(dbs, source_type=SourceType.UPLOAD))
-        await_(episode.audio.update(dbs, path=str(file_path)))
-        await_(dbs.commit())
-
-        result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
-
-        mocked_ffmpeg.assert_not_called()
-        mocked_source_info_upload.assert_not_called()
-        mocked_youtube.download.assert_not_called()
-        assert result == FinishCode.OK
-        assert episode.status == Episode.Status.PUBLISHED
-        self.assert_called_with(
-            mocked_s3.upload_file,
-            src_path=str(file_path),
-            dst_path=settings.S3_BUCKET_AUDIO_PATH,
-        )
-
-    def test_skip_downloading__path_not_set(
-        self,
-        dbs,
-        episode,
-        mocked_s3,
-        mocked_ffmpeg,
-        mocked_youtube,
-        mocked_generate_rss_task,
-        mocked_source_info_upload,
-    ):
-        await_(episode.update(dbs, source_type=SourceType.UPLOAD))
-        await_(episode.audio.update(dbs, path=""))
-        await_(dbs.commit())
-
-        result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
-        assert result == FinishCode.ERROR
-
-        mocked_ffmpeg.assert_not_called()
-        mocked_source_info_upload.assert_not_called()
-        mocked_youtube.download.assert_not_called()
-        mocked_s3.upload_file.assert_not_called()
+    #
+    # def _test_skip_downloading(
+    #     self,
+    #     dbs,
+    #     episode,
+    #     mocked_s3,
+    #     mocked_ffmpeg,
+    #     mocked_youtube,
+    #     mocked_generate_rss_task,
+    #     mocked_source_info_upload,
+    # ):
+    #     file_path = self._source_file(dbs, episode)
+    #     await_(episode.update(dbs, source_type=SourceType.UPLOAD))
+    #     await_(episode.audio.update(dbs, path=str(file_path)))
+    #     await_(dbs.commit())
+    #
+    #     result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
+    #
+    #     mocked_ffmpeg.assert_not_called()
+    #     mocked_source_info_upload.assert_not_called()
+    #     mocked_youtube.download.assert_not_called()
+    #     assert result == FinishCode.OK
+    #     assert episode.status == Episode.Status.PUBLISHED
+    #     self.assert_called_with(
+    #         mocked_s3.upload_file,
+    #         src_path=str(file_path),
+    #         dst_path=settings.S3_BUCKET_AUDIO_PATH,
+    #     )
+    #
+    # def test_skip_downloading__path_not_set(
+    #     self,
+    #     dbs,
+    #     episode,
+    #     mocked_s3,
+    #     mocked_ffmpeg,
+    #     mocked_youtube,
+    #     mocked_generate_rss_task,
+    #     mocked_source_info_upload,
+    # ):
+    #     await_(episode.update(dbs, source_type=SourceType.UPLOAD))
+    #     await_(episode.audio.update(dbs, path=""))
+    #     await_(dbs.commit())
+    #
+    #     result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
+    #     assert result == FinishCode.ERROR
+    #
+    #     mocked_ffmpeg.assert_not_called()
+    #     mocked_source_info_upload.assert_not_called()
+    #     mocked_youtube.download.assert_not_called()
+    #     mocked_s3.upload_file.assert_not_called()
 
     def test_file_correct__skip(
         self,
@@ -280,6 +280,45 @@ class TestDownloadEpisodeTask(BaseTestCase):
             filename="test-episode.mp3",
             total_bytes=1024,
             processed_bytes=24,
+        )
+
+
+class TestUploadedEpisodeTask(BaseTestCase):
+
+    def test_in_storage_moving(
+        self,
+        dbs,
+        episode,
+        mocked_s3,
+        mocked_ffmpeg,
+        mocked_youtube,
+        mocked_generate_rss_task,
+        mocked_source_info_upload,
+    ):
+        res_filename = f"episode_{episode.source_id}_audio.mp3"
+        remote_file_path = f"/tmp/remote/path/to/audio/{res_filename}"
+        mocked_s3.move_file.return_value = f"/remote/path/to/audio/{res_filename}"
+
+        await_(episode.update(dbs, source_type=SourceType.UPLOAD, path=remote_file_path))
+        await_(dbs.commit())
+
+        result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
+        await_(dbs.refresh(episode))
+
+        mocked_ffmpeg.assert_not_called()
+        mocked_source_info_upload.assert_not_called()
+        mocked_youtube.download.assert_not_called()
+        assert result == FinishCode.OK
+        assert episode.status == Episode.Status.PUBLISHED
+        assert episode.published_at == episode.created_at
+        assert episode.audio_id is not None
+        assert episode.audio.path == f"/remote/path/to/audio/{res_filename}"
+        assert episode.audio.available is True
+
+        self.assert_called_with(
+            mocked_s3.move_file,
+            src_path=remote_file_path,
+            dst_path=settings.S3_BUCKET_AUDIO_PATH,
         )
 
 
