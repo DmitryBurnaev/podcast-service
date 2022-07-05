@@ -90,6 +90,27 @@ class StorageS3:
         logger.info("File %s successful uploaded. Remote path: %s", filename, dst_path)
         return dst_path
 
+    def move_file(
+        self,
+        src_path: str | Path,
+        dst_path: str,
+    ) -> Optional[str]:
+        """Upload file to S3 storage"""
+
+        filename = os.path.basename(src_path)
+        dst_path = os.path.join(dst_path, filename)
+        code, result = self.__call(
+            self.s3.move_file, # >?????
+            Filename=src_path,
+            Bucket=settings.S3_BUCKET_NAME,
+            Key=dst_path,
+        )
+        if code != self.CODE_OK:
+            return None
+
+        logger.info("File %s successful moved. Remote path now: %s", filename, dst_path)
+        return dst_path
+
     async def upload_file_async(
         self,
         src_path: str | Path,
@@ -142,6 +163,11 @@ class StorageS3:
         return 0
 
     def delete_file(self, filename: str, remote_path: str = settings.S3_BUCKET_AUDIO_PATH):
+        dst_path = os.path.join(remote_path, filename)
+        code, result = self.__call(self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME)
+        return result
+
+    def move_file(self, filename: str, remote_path: str = settings.S3_BUCKET_AUDIO_PATH):
         dst_path = os.path.join(remote_path, filename)
         code, result = self.__call(self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME)
         return result
