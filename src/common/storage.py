@@ -43,7 +43,7 @@ class StorageS3:
         logger.debug("S3 client %s created", self.s3)
 
     def __call(
-        self, handler: Callable, error_log_level=logging.ERROR, **handler_kwargs
+        self, handler: Callable, error_log_level: int = logging.ERROR, **handler_kwargs
     ) -> Tuple[int, Optional[dict]]:
         try:
             logger.info("Executing request (%s) to S3 kwargs: %s", handler.__name__, handler_kwargs)
@@ -163,11 +163,6 @@ class StorageS3:
         return 0
 
     def delete_file(self, filename: str, remote_path: str = settings.S3_BUCKET_AUDIO_PATH):
-        dst_path = os.path.join(remote_path, filename)
-        code, result = self.__call(self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME)
-        return result
-
-    def move_file(self, filename: str, remote_path: str = settings.S3_BUCKET_AUDIO_PATH):
         dst_path = os.path.join(remote_path, filename)
         code, result = self.__call(self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME)
         return result

@@ -1,4 +1,6 @@
+import os
 import uuid
+from contextlib import suppress
 from pathlib import Path
 from typing import ClassVar
 
@@ -21,7 +23,7 @@ from modules.auth.models import UserIP
 from modules.auth.utils import extract_ip_address
 from modules.media.models import File
 from modules.media.schemas import FileUploadSchema, AudioFileResponseSchema
-from modules.podcast.utils import save_uploaded_file
+from modules.podcast.utils import save_uploaded_file, get_file_size
 from modules.providers import utils as provider_utils
 
 
@@ -133,6 +135,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         cleaned_data = await self._validate(request, location="form")
         tmp_path, filename = await self._save_audio(cleaned_data["file"])
         duration = provider_utils.audio_duration(tmp_path)
+        file_size = get_file_size(tmp_path)
         remote_path = await StorageS3().upload_file_async(
             src_path=tmp_path,
             dst_path=settings.S3_BUCKET_TMP_AUDIO_PATH
@@ -140,10 +143,14 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         if not remote_path:
             raise S3UploadingError("Couldn't upload audio file")
 
+        with suppress(FileNotFoundError):
+            os.remove(tmp_path)
+
         return self._response({
             "title": filename,
             "duration": duration,
             "path": remote_path,
+            "size": file_size,
         })
 
     @staticmethod

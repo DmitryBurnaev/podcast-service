@@ -245,7 +245,7 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         user,
         audio_file,
         mocked_audio_duration,
-        mocked_s3
+        mocked_s3,
     ):
         audio_duration = 90
         remote_tmp_path = f"remote/tmp/{uuid.uuid4().hex}.mp3"
@@ -260,6 +260,7 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         assert response_data["title"] == os.path.basename(audio_file.name)
         assert response_data["duration"] == audio_duration
         assert response_data["path"] == remote_tmp_path
+        assert response_data["size"] == audio_file.size
 
         mocked_audio_duration.assert_called()
 

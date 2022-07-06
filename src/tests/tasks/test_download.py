@@ -300,6 +300,7 @@ class TestUploadedEpisodeTask(BaseTestCase):
         mocked_s3.move_file.return_value = f"/remote/path/to/audio/{res_filename}"
 
         await_(episode.update(dbs, source_type=SourceType.UPLOAD, path=remote_file_path))
+        await_(episode.audio.update(dbs, path=remote_file_path, available=False))
         await_(dbs.commit())
 
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))

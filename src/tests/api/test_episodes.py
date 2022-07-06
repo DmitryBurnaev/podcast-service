@@ -203,7 +203,8 @@ class TestCreateEpisodeFromUploadFileAPIView(BaseTestAPIView):
         data = {
             "path": f"remote/tmp/{uuid.uuid4().hex}.mp3",
             "duration": audio_duration,
-            "title": "test-episode-title"
+            "title": "test-episode-title",
+            "size": 50,
         }
         response = client.post(url, json=data)
         response_data = self.assert_ok_response(response, status_code=201)
@@ -213,7 +214,10 @@ class TestCreateEpisodeFromUploadFileAPIView(BaseTestAPIView):
         assert episode.source_type == SourceType.UPLOAD
         assert episode.title == "test-episode-title"
         assert episode.length == audio_duration
-        assert episode.path == f"remote/tmp/{uuid.uuid4().hex}.mp3"
+
+        assert episode.audio.path == f"remote/tmp/{uuid.uuid4().hex}.mp3"
+        assert episode.audio.size == 50
+        assert episode.audio.available is False
 
         if auto_start_task:
             mocked_rq_queue.enqueue.assert_called_with(

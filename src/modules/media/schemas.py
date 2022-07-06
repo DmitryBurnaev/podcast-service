@@ -15,3 +15,4 @@ class AudioFileResponseSchema(Schema):
     title = fields.Str()
     duration = fields.Int()
     path = fields.Str()
+    size = fields.Int()
