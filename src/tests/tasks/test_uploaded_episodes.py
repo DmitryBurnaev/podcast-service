@@ -1,6 +1,7 @@
 import os.path
 import uuid
 from pathlib import Path
+from typing import Coroutine
 from unittest.mock import patch
 
 from youtube_dl.utils import DownloadError
@@ -21,16 +22,17 @@ from tests.helpers import get_podcast_data, await_, create_episode, get_episode_
 class TestUploadedEpisodeTask(BaseTestCase):
 
     @staticmethod
-    async def _episode(dbs, podcast: Podcast, creator: User) -> Episode:
+    async def _episode(dbs, podcast: Podcast, creator: User, file_size: int = 32) -> Episode:
         episode_data = get_episode_data(podcast, creator=creator)
         episode_data["source_type"] = SourceType.UPLOAD
         episode_data["watch_url"] = ""
         audio = await File.create(
             dbs,
             FileType.AUDIO,
+            size=file_size,
+            available=False,
             owner_id=creator.id,
             path=f"/tmp/remote/episode_{episode_data['source_id']}.mp3",
-            available=False,
         )
         episode_data["audio_id"] = audio.id
         episode = await Episode.async_create(dbs, **episode_data)
@@ -64,42 +66,25 @@ class TestUploadedEpisodeTask(BaseTestCase):
 
     def test_file_bad_size__ignore(
         self,
-        episode_data,
-        mocked_youtube,
-        mocked_ffmpeg,
+        dbs,
+        user,
+        podcast,
         mocked_s3,
         mocked_generate_rss_task,
-        dbs,
     ):
-        episode_data.update(
-            {
-                "status": EpisodeStatus.PUBLISHED,
-                "source_id": mocked_youtube.source_id,
-                "watch_url": mocked_youtube.watch_url,
-            }
-        )
-        episode = create_episode(dbs, episode_data=episode_data)
-        await_(episode.audio.update(dbs, size=1024))
-
-        file_path = self._source_file(dbs, episode)
-
+        episode = await_(self._episode(dbs, podcast, user, file_size=1024))
         mocked_s3.get_file_size.return_value = 32
 
-        result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
-
+        result = await_(UploadedEpisodeTask(db_session=dbs).run(episode.id))
         await_(dbs.refresh(episode))
-        mocked_youtube.download.assert_called_with([episode.watch_url])
-        mocked_ffmpeg.assert_called_with(src_path=file_path)
-        self.assert_called_with(
-            mocked_s3.upload_file,
-            src_path=str(file_path),
-            dst_path=settings.S3_BUCKET_AUDIO_PATH,
-        )
-        mocked_generate_rss_task.run.assert_called_with(episode.podcast_id)
 
-        assert result == FinishCode.OK
-        assert episode.status == Episode.Status.PUBLISHED
-        assert episode.published_at == episode.created_at
+        assert result == FinishCode.ERROR
+        assert episode.status == Episode.Status.NEW
+        assert episode.published_at is None
+        assert episode.audio.available is False
+
+        mocked_s3.upload_file.assert_not_called()
+        mocked_generate_rss_task.run.assert_not_called()
 
     def test_unexpected_error__ok(self, episode, mocked_youtube, dbs):
         mocked_youtube.download.side_effect = RuntimeError("Oops")
