@@ -264,6 +264,9 @@ class TestUploadAudioAPIView(BaseTestAPIView):
 
         mocked_audio_duration.assert_called()
 
+    def test_crop_title__ok(self):
+        raise AssertionError
+
     def test_upload__empty_file__fail(self, client, user):
         client.login(user)
         response = client.post(self.url, files={"file": create_file(b"")})

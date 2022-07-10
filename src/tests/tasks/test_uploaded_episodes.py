@@ -77,7 +77,7 @@ class TestUploadedEpisodeTask(BaseTestCase):
         mocked_s3.upload_file.assert_not_called()
         mocked_generate_rss_task.run.assert_not_called()
 
-    def test_move_s3_failed__fail(self, dbs, podcast, user, mocked_s3, mocked_generate_rss_task):
+    def test_move_s3_failed__error(self, dbs, podcast, user, mocked_s3, mocked_generate_rss_task):
         mocked_s3.get_file_size.return_value = 1024
         mocked_s3.move_file.side_effect = RuntimeError("Oops")
         episode = await_(self._episode(dbs, podcast, user, file_size=1024))

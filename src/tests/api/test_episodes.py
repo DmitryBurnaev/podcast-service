@@ -29,6 +29,13 @@ INVALID_CREATE_DATA = [
     [{}, {"source_url": "Missing data for required field."}],
 ]
 
+INVALID_UPLOADED_EPISODES_DATA = [
+    [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],
+    [{"path": "path" * 100}, {"path": "Longer than maximum length 256."}],
+    [{"duration": "fake-int"}, {"duration": "Longer than maximum length 256."}],
+    [{"size": "fake-int"}, {"size": "Longer than maximum length 256."}],
+]
+
 
 def _episode_in_list(episode: Episode):
     return {
@@ -53,7 +60,7 @@ def _episode_details(episode: Episode):
         "watch_url": episode.watch_url,
         "image_url": episode.image.url,
         "description": episode.description,
-        "source_type": str(SourceType.YOUTUBE),
+        "source_type": str(episode.source_type),
         "created_at": episode.created_at.isoformat(),
         "published_at": episode.published_at.isoformat() if episode.published_at else None,
     }
@@ -215,7 +222,7 @@ class TestCreateEpisodeFromUploadFileAPIView(BaseTestAPIView):
         assert episode.title == "test-episode-title"
         assert episode.length == audio_duration
 
-        assert episode.audio.path == f"remote/tmp/{uuid.uuid4().hex}.mp3"
+        assert episode.audio.path == data["path"]
         assert episode.audio.size == 50
         assert episode.audio.available is False
 
@@ -225,6 +232,9 @@ class TestCreateEpisodeFromUploadFileAPIView(BaseTestAPIView):
             )
         else:
             mocked_rq_queue.enqueue.assert_not_called()
+
+    def test_invalid_data__fail(self):
+        raise AssertionError("test_invalid_data__fail")
 
 
 class TestEpisodeRUDAPIView(BaseTestAPIView):

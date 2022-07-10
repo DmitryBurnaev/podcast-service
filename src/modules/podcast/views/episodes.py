@@ -88,43 +88,25 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
     db_model = Podcast
 
     async def post(self, request):
-        # TODO: think about proxying files to S3 directly
-
         podcast: Podcast = await self._get_object(request.path_params["podcast_id"])
-        logger.info("Uploading file for episode for podcast %s", podcast)
+        logger.info("Creating episode for uploaded file for podcast %s", podcast)
 
-        cleaned_data = await self._validate(request, location="form")
-        episode = await self._create_episode(
-            podcast_id=podcast.id,
-            uploaded_file=cleaned_data['path'],
-            cleaned_data=cleaned_data,
-        )
-        await self._run_task(tasks.DownloadEpisodeTask, episode_id=episode.id)
+        cleaned_data = await self._validate(request)
+        episode = await self._create_episode(podcast_id=podcast.id, cleaned_data=cleaned_data)
+        if podcast.download_automatically:
+            await self._run_task(tasks.UploadedEpisodeTask, episode_id=episode.id)
+
         return self._response(episode, status_code=status.HTTP_201_CREATED)
 
-    @staticmethod
-    async def _save_audio(upload_file: UploadFile) -> Path:
-        try:
-            tmp_path = await save_uploaded_file(
-                uploaded_file=upload_file,
-                prefix=f"uploaded_episode_{uuid.uuid4().hex}",
-                max_file_size=settings.MAX_UPLOAD_AUDIO_FILESIZE,
-            )
-        except ValueError as e:
-            raise InvalidParameterError(details={"audio": str(e)})
-
-        return tmp_path
-
-    async def _create_episode(
-        self, podcast_id: int, uploaded_file: Path, cleaned_data: dict
-    ) -> Episode:
+    async def _create_episode(self, podcast_id: int, cleaned_data: dict) -> Episode:
         audio_file = await File.create(
             self.db_session,
             FileType.AUDIO,
             available=False,
             owner_id=self.request.user.id,
             source_url="",
-            path=str(uploaded_file),
+            path=cleaned_data["path"],
+            size=cleaned_data["size"],
         )
         episode = await Episode.async_create(
             self.db_session,
@@ -134,21 +116,11 @@ class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
             podcast_id=podcast_id,
             audio_id=audio_file.id,
             watch_url="",
-            length=cleaned_data["length"],
+            length=cleaned_data["duration"],
             description=f"[uploaded] {cleaned_data['title']}",
             author="",
         )
         return episode
-
-    async def _validate(self, request, **_) -> dict:
-        cleaned_data = await super()._validate(request, location="form")
-        tmp_path = await self._save_audio(cleaned_data["audio"])
-        length = audio_duration(tmp_path)
-        return {
-            "title": tmp_path.name,
-            "length": length,
-            "path": tmp_path,
-        }
 
 
 class EpisodeRUDAPIView(BaseHTTPEndpoint):
@@ -183,6 +155,11 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
     db_model = Episode
     schema_request = EpisodeUpdateSchema
     schema_response = EpisodeDetailsSchema
+    perform_tasks_map = {
+        SourceType.YOUTUBE: tasks.DownloadEpisodeTask,
+        SourceType.YANDEX: tasks.DownloadEpisodeTask,
+        SourceType.UPLOAD: tasks.UploadedEpisodeTask,
+    }
 
     async def put(self, request):
         episode_id = request.path_params["episode_id"]
@@ -191,7 +168,8 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
         logger.info(f'Start download process for "{episode.watch_url}"')
         episode.status = Episode.Status.DOWNLOADING
         await episode.update(self.db_session, status=episode.status)
-        await self._run_task(tasks.DownloadEpisodeTask, episode_id=episode.id)
+        task_class = self.perform_tasks_map.get(episode.source_type)
+        await self._run_task(task_class, episode_id=episode.id)
         return self._response(episode)
 
 

@@ -73,9 +73,10 @@ class EpisodeUpdateSchema(Schema):
 
 
 class EpisodeUploadSchema(Schema):
-    audio = fields.Raw(required=True)
-    # title = fields.Str(required=True, validate=validate.Length(min=1, max=256))
-    # length = fields.Int(required=True, validate=validate.Range(min=1))
+    path = fields.Str(required=True, validate=validate.Length(max=256))
+    duration = fields.Int(required=True)
+    title = fields.Str(required=True, validate=validate.Length(max=256))
+    size = fields.Int(required=True)
 
 
 class EpisodeListSchema(Schema):
