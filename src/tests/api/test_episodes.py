@@ -188,7 +188,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         self.assert_not_found(client.post(url, json=data), podcast)
 
 
-class TestCreateEpisodeFromUploadFileAPIView(BaseTestAPIView):
+class TestUploadedEpisodesAPIView(BaseTestAPIView):
     url = "/api/podcasts/{id}/episodes/uploaded/"
 
     @pytest.mark.parametrize("auto_start_task", (True, False))
@@ -233,8 +233,13 @@ class TestCreateEpisodeFromUploadFileAPIView(BaseTestAPIView):
         else:
             mocked_rq_queue.enqueue.assert_not_called()
 
-    def test_invalid_data__fail(self):
-        raise AssertionError("test_invalid_data__fail")
+    @pytest.mark.parametrize("invalid_data, error_details", INVALID_UPLOADED_EPISODES_DATA)
+    def test_create__invalid_request__fail(
+        self, client, episode, user, invalid_data: dict, error_details: dict
+    ):
+        client.login(user)
+        url = self.url.format(id=episode.id)
+        self.assert_bad_request(client.patch(url, json=invalid_data), error_details)
 
 
 class TestEpisodeRUDAPIView(BaseTestAPIView):
@@ -357,14 +362,14 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
              (SourceType.UPLOAD, UploadedEpisodeTask),
         )
     )
-    def test_download__ok(self, client, episode, user, mocked_rq_queue, dbs, source_type, task_class):
-        await_(episode.update(dbs, source_type=source_type))
-        await_(dbs.commit())
+    def test_download__ok(self, client, episode, user, mocked_rq_queue, source_type, task_class):
+        await_(episode.update(client.db_session, source_type=source_type))
+        await_(client.db_session.commit())
 
         client.login(user)
         url = self.url.format(id=episode.id)
         response = client.put(url)
-        await_(dbs.refresh(episode))
+        await_(client.db_session.refresh(episode))
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_details(episode)
         mocked_rq_queue.enqueue.assert_called_with(task_class(), episode_id=episode.id)

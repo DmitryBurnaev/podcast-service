@@ -82,7 +82,7 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
         return self._response(episode, status_code=status.HTTP_201_CREATED)
 
 
-class EpisodeFileUploadAPIView(BaseHTTPEndpoint):
+class UploadedEpisodesAPIView(BaseHTTPEndpoint):
     schema_request = EpisodeUploadSchema
     schema_response = EpisodeListSchema
     db_model = Podcast
