@@ -17,7 +17,7 @@ from common.exceptions import (
 from common.request import PRequest
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
-from common.utils import get_logger
+from common.utils import get_logger, cut_string
 from core import settings
 from modules.auth.models import UserIP
 from modules.auth.utils import extract_ip_address
@@ -130,6 +130,7 @@ class RSSRedirectAPIView(BaseFileRedirectApiView):
 class AudioFileUploadAPIView(BaseHTTPEndpoint):
     schema_request = FileUploadSchema
     schema_response = AudioFileResponseSchema
+    max_title_length = 256
 
     async def post(self, request):
         cleaned_data = await self._validate(request, location="form")
@@ -146,8 +147,10 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         with suppress(FileNotFoundError):
             os.remove(tmp_path)
 
+        # TODO: extract meta data, fix title (without file's ext)
+        logger.warning(f' >>>> {filename=} |')
         return self._response({
-            "title": filename,
+            "title": cut_string(filename.rpartition('.')[0], self.max_title_length),
             "duration": duration,
             "path": remote_path,
             "size": file_size,

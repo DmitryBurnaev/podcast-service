@@ -32,8 +32,8 @@ INVALID_CREATE_DATA = [
 INVALID_UPLOADED_EPISODES_DATA = [
     [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],
     [{"path": "path" * 100}, {"path": "Longer than maximum length 256."}],
-    [{"duration": "fake-int"}, {"duration": "Longer than maximum length 256."}],
-    [{"size": "fake-int"}, {"size": "Longer than maximum length 256."}],
+    [{"duration": "fake-int"}, {"duration": "Not a valid integer."}],
+    [{"size": "fake-int"}, {"size": "Not a valid integer."}],
 ]
 
 
@@ -235,11 +235,11 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_UPLOADED_EPISODES_DATA)
     def test_create__invalid_request__fail(
-        self, client, episode, user, invalid_data: dict, error_details: dict
+        self, client, podcast, user, invalid_data: dict, error_details: dict
     ):
         client.login(user)
-        url = self.url.format(id=episode.id)
-        self.assert_bad_request(client.patch(url, json=invalid_data), error_details)
+        url = self.url.format(id=podcast.id)
+        self.assert_bad_request(client.post(url, json=invalid_data), error_details)
 
 
 class TestEpisodeRUDAPIView(BaseTestAPIView):
@@ -356,23 +356,23 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
     url = "/api/episodes/{id}/download/"
 
     @pytest.mark.parametrize(
-        'source_type, task_class', (
+        'source_type, task', (
              (SourceType.YOUTUBE, DownloadEpisodeTask),
              (SourceType.YANDEX, DownloadEpisodeTask),
              (SourceType.UPLOAD, UploadedEpisodeTask),
         )
     )
-    def test_download__ok(self, client, episode, user, mocked_rq_queue, source_type, task_class):
-        await_(episode.update(client.db_session, source_type=source_type))
-        await_(client.db_session.commit())
+    def test_download__ok(self, dbs, client, episode, user, mocked_rq_queue, source_type, task):
+        await_(episode.update(dbs, source_type=source_type))
+        await_(dbs.commit())
 
         client.login(user)
         url = self.url.format(id=episode.id)
         response = client.put(url)
-        await_(client.db_session.refresh(episode))
+        await_(dbs.refresh(episode))
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_details(episode)
-        mocked_rq_queue.enqueue.assert_called_with(task_class(), episode_id=episode.id)
+        mocked_rq_queue.enqueue.assert_called_with(task(), episode_id=episode.id)
 
     def test_download__episode_from_another_user__fail(self, client, episode, user, dbs):
         client.login(create_user(dbs))
