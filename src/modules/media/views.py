@@ -147,10 +147,10 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         with suppress(FileNotFoundError):
             os.remove(tmp_path)
 
-        # TODO: extract meta data, fix title (without file's ext)
-        logger.warning(f' >>>> {filename=} |')
+        # TODO: extract meta data (via ffmpeg)
+        title = filename.rpartition('.') if "." in filename else filename
         return self._response({
-            "title": cut_string(filename.rpartition('.')[0], self.max_title_length),
+            "title": cut_string(title, self.max_title_length),
             "duration": duration,
             "path": remote_path,
             "size": file_size,
