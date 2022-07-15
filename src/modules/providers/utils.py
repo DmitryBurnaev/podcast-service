@@ -246,10 +246,18 @@ def ffmpeg_preparation(
     logger.info("FFMPEG Preparation for %s was done", filename)
 
 
-def audio_duration(file_path: Path) -> int:
+class AudioMetadata(NamedTuple):
+    duration: int
+    title: Optional[str] = None
+    author: Optional[str] = None
+    album: Optional[str] = None
+
+
+def audio_metadata(file_path: Path) -> AudioMetadata:
     """ Calculates (via ffmpeg) length of audio track and returns number of seconds """
 
     try:
+        # TODO: parse via awk mp3's meta attributes
         parse_params = ["|&", "awk", "'/Duration:/ {print $2}'"]
         completed_proc = subprocess.run(
             ["ffmpeg", "-y", "-i", file_path, *parse_params],
@@ -272,8 +280,7 @@ def audio_duration(file_path: Path) -> int:
         duration_str,
     )
     res_duration = _human_time_to_sec(duration_str.rstrip(','))
-
-    return res_duration
+    return AudioMetadata(duration=res_duration)
 
 
 def _human_time_to_sec(time_str: str) -> int:

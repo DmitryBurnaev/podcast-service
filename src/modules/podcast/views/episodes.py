@@ -24,7 +24,7 @@ from modules.podcast.schemas import (
     EpisodeUploadSchema,
 )
 from modules.podcast.utils import save_uploaded_file
-from modules.providers.utils import audio_duration
+from modules.providers.utils import audio_metadata
 from tests.helpers import get_source_id
 
 logger = get_logger(__name__)

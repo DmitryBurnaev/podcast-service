@@ -135,7 +135,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
     async def post(self, request):
         cleaned_data = await self._validate(request, location="form")
         tmp_path, filename = await self._save_audio(cleaned_data["file"])
-        duration = provider_utils.audio_duration(tmp_path)
+        metadata = provider_utils.audio_metadata(tmp_path)
         file_size = get_file_size(tmp_path)
         remote_path = await StorageS3().upload_file_async(
             src_path=tmp_path,
@@ -147,11 +147,16 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         with suppress(FileNotFoundError):
             os.remove(tmp_path)
 
+        # TODO: extract meta data, move title getting to episode's View
+        logger.warning(f' >>>> {filename=} |')
+        # title = metadata.title or cut_string(filename.rpartition('.')[0], self.max_title_length)
         # TODO: extract meta data (via ffmpeg)
-        title = filename.rpartition('.') if "." in filename else filename
+        # title = filename.rpartition('.') if "." in filename else filename
         return self._response({
-            "title": cut_string(title, self.max_title_length),
-            "duration": duration,
+            "filename": filename,
+            "metadata": metadata,
+            # "title": cut_string(title, self.max_title_length),
+            # "duration": duration,
             "path": remote_path,
             "size": file_size,
         })
