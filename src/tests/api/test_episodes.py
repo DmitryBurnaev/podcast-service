@@ -192,7 +192,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
     url = "/api/podcasts/{id}/episodes/uploaded/"
 
     @pytest.mark.parametrize("auto_start_task", (True, False))
-    def test_create_uploaded__ok(
+    def test_create__uploaded__ok(
         self,
         dbs,
         client,
@@ -240,6 +240,27 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         client.login(user)
         url = self.url.format(id=podcast.id)
         self.assert_bad_request(client.post(url, json=invalid_data), error_details)
+
+    def test_create__crop_title__ok(
+        self,
+        client,
+        user,
+        mocked_s3,
+        audio_file,
+        mocked_audio_metadata,
+    ):
+        mocked_s3.upload_file_async.return_value = f"remote/tmp/{uuid.uuid4().hex}.mp3"
+        mocked_audio_metadata.return_value = 1
+        long_name = "too-long-filename-" * 100 + ".mp3"
+        audio_file.name = long_name
+
+        client.login(user)
+        response = client.post(self.url, files={"file": audio_file})
+        response_data = self.assert_ok_response(response)
+
+        assert response_data["title"] == long_name[:253] + "..."
+
+
 
 
 class TestEpisodeRUDAPIView(BaseTestAPIView):

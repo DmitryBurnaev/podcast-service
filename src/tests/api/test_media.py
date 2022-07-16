@@ -243,45 +243,31 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         self,
         client,
         user,
-        audio_file,
-        mocked_audio_duration,
         mocked_s3,
+        audio_file,
+        mocked_audio_metadata,
     ):
-        audio_duration = 90
+        audio_metadata = {
+            "duration": 90,
+            "author": "Test Author",
+            "title": f"Test Title {uuid.uuid4().hex}",
+            "album": f"Album #{uuid.uuid4().hex}",
+        }
         remote_tmp_path = f"remote/tmp/{uuid.uuid4().hex}.mp3"
 
-        mocked_audio_duration.return_value = audio_duration
+        mocked_audio_metadata.return_value = audio_metadata
         mocked_s3.upload_file_async.return_value = remote_tmp_path
 
         client.login(user)
         response = client.post(self.url, files={"file": audio_file})
         response_data = self.assert_ok_response(response)
 
-        assert response_data["title"] == os.path.basename(audio_file.name).replace('.mp3', '')
-        assert response_data["duration"] == audio_duration
+        assert response_data["filename"] == audio_file.name
+        assert response_data["meta"] == audio_metadata
         assert response_data["path"] == remote_tmp_path
         assert response_data["size"] == audio_file.size
 
-        mocked_audio_duration.assert_called()
-
-    def test_crop_title__ok(
-        self,
-        client,
-        user,
-        audio_file,
-        mocked_audio_duration,
-        mocked_s3,
-    ):
-        mocked_s3.upload_file_async.return_value = f"remote/tmp/{uuid.uuid4().hex}.mp3"
-        mocked_audio_duration.return_value = 1
-        long_name = "too-long-filename-" * 100 + ".mp3"
-        audio_file.name = long_name
-
-        client.login(user)
-        response = client.post(self.url, files={"file": audio_file})
-        response_data = self.assert_ok_response(response)
-
-        assert response_data["title"] == long_name[:253] + "..."
+        mocked_audio_metadata.assert_called()
 
     def test_upload__empty_file__fail(self, client, user):
         client.login(user)

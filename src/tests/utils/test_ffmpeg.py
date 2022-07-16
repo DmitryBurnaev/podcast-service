@@ -9,7 +9,7 @@ from core import settings
 from common.enums import EpisodeStatus
 from modules.podcast.utils import post_processing_process_hook
 from modules.providers.exceptions import FFMPegPreparationError
-from modules.providers.utils import ffmpeg_preparation
+from modules.providers.utils import ffmpeg_preparation, audio_metadata
 from tests.api.test_base import BaseTestCase
 
 
@@ -129,3 +129,43 @@ class TestFFMPEG(BaseTestCase):
                 )
             ],
         )
+
+    @patch("subprocess.run")
+    def test_extract_metadata__ok(self, mocked_process_hook, mocked_run):
+        test_ffmpeg_stdout = (
+            """
+  Stream #0:1: Video: mjpeg (Progressive), yuvj444p(pc, bt470bg/unknown/unknown), 1000x1000, 90k tbr
+    Metadata:
+      comment         : Cover (front)
+Output #0, ffmetadata, to 't.txt':
+  Metadata:
+    album           : Test Album
+    artist          : Test Artist
+    album_artist    : Test Album Artist
+    track           : 01
+    genre           : Audiobook
+    title           : Title #1
+    date            : 2022-06-02 12:30
+    id3v2_priv.XMP  : <?xpacket >
+    encoder         : Lavf59.16.100
+Stream mapping:
+Press [q] to stop, [?] for help
+size=       7kB time=-577014:32:22.77 bitrate=N/A speed=N/A
+video:0kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown                        
+            """
+        )
+
+        mocked_run.return_value = subprocess.CalledProcessError(
+            0, [], stderr=bytes(test_ffmpeg_stdout)
+        )
+        result = audio_metadata(self.src_path)
+
+        assert not os.path.exists(self.tmp_filename), f"File wasn't removed: {self.tmp_filename}"
+        assert err.value.details == (
+            "FFMPEG failed with errors: " "Command '[]' returned non-zero exit status 1."
+        )
+        self.assert_hooks_calls(
+            mocked_process_hook,
+            finish_call=dict(status=EpisodeStatus.ERROR, filename=self.filename),
+        )
+

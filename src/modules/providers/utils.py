@@ -18,7 +18,7 @@ from common.enums import SourceType, EpisodeStatus
 from common.exceptions import InvalidParameterError
 from modules.podcast.models import Cookie
 from modules.auth.hasher import get_random_hash
-from modules.providers.exceptions import FFMPegPreparationError
+from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
 from modules.podcast.utils import (
     get_file_size,
     episode_process_hook,
@@ -80,6 +80,7 @@ SOURCE_CFG_MAP = {
         need_downloading=False,
     ),
 }
+AUDIO_META_REGEXP = re.compile(r'(?P<meta>Metadata.+)(?P<duration>Duration:\s?[\d:]+)', re.DOTALL)
 
 
 def extract_source_info(source_url: Optional[str] = None, playlist: bool = False) -> SourceInfo:
@@ -247,20 +248,20 @@ def ffmpeg_preparation(
 
 
 class AudioMetadata(NamedTuple):
+    title: str
     duration: int
-    title: Optional[str] = None
-    author: Optional[str] = None
+    track: Optional[str] = None
     album: Optional[str] = None
+    author: Optional[str] = None
 
 
-def audio_metadata(file_path: Path) -> AudioMetadata:
+def audio_metadata(file_path: Path | str) -> AudioMetadata:
     """ Calculates (via ffmpeg) length of audio track and returns number of seconds """
 
     try:
-        # TODO: parse via awk mp3's meta attributes
-        parse_params = ["|&", "awk", "'/Duration:/ {print $2}'"]
+        # TODO: move to tmp dir
         completed_proc = subprocess.run(
-            ["ffmpeg", "-y", "-i", file_path, *parse_params],
+            ["ffmpeg", "-i", file_path, "-f", "ffmetadata", "ffmpeg.res.txt"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             check=True,
@@ -273,14 +274,44 @@ def audio_metadata(file_path: Path) -> AudioMetadata:
 
         raise FFMPegPreparationError(err_details)
 
-    duration_str = str(completed_proc.stdout, encoding="utf-8")
+    ffmpeg_result_str = str(completed_proc.stdout, encoding="utf-8")
+    find_results = AUDIO_META_REGEXP.search(ffmpeg_result_str, re.DOTALL)
+    if not find_results:
+        raise FFMPegParseError(f'Found result: {ffmpeg_result_str}')
+
+    find_results = find_results.groupdict()
+    duration = _human_time_to_sec(find_results.get('duration').replace('Duration:\n', ''))
+    metadata = _raw_meta_to_dict(find_results.get('meta').replace('Metadata:\n', ''))
+
     logger.debug(
-        "FFMPEG success done extracting duration from the file %s:\n%s",
+        "FFMPEG success done extracting duration from the file %s:\nmeta: %s\nduration: %s",
         file_path,
-        duration_str,
+        metadata,
+        duration,
     )
-    res_duration = _human_time_to_sec(duration_str.rstrip(','))
-    return AudioMetadata(duration=res_duration)
+    return AudioMetadata(
+        title=metadata.get('title'),
+        author=metadata.get('author'),
+        album=metadata.get('album'),
+        track=metadata.get('track'),
+        duration=duration
+    )
+
+
+def _raw_meta_to_dict(meta: str) -> dict:
+    """
+    Converts raw metadata from ffmpeg to dict values
+
+    >>> _raw_meta_to_dict('    album           : TestAlbum\\n    artist          : Artist')
+    {'album': 'TestAlbum', 'artist': 'Artist'}
+
+    """
+    result = {}
+    for meta_str in meta.split('\n'):
+        key, value = meta_str.split(':')
+        result[key.strip()] = value.strip()
+    raise ValueError(result)
+    return result
 
 
 def _human_time_to_sec(time_str: str) -> int:

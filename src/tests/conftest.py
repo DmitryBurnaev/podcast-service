@@ -172,9 +172,9 @@ def mocked_ffmpeg(monkeypatch) -> Mock:
 
 
 @pytest.fixture
-def mocked_audio_duration(monkeypatch) -> Mock:
+def mocked_audio_metadata(monkeypatch) -> Mock:
     mocked_function = Mock()
-    monkeypatch.setattr(youtube_utils, "audio_duration", mocked_function)
+    monkeypatch.setattr(youtube_utils, "audio_metadata", mocked_function)
     yield mocked_function
     del mocked_function
 
