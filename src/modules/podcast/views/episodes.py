@@ -1,3 +1,4 @@
+import os.path
 import uuid
 from pathlib import Path
 
@@ -6,7 +7,7 @@ from starlette import status
 from starlette.datastructures import UploadFile
 
 from common.enums import FileType, SourceType
-from common.utils import get_logger
+from common.utils import get_logger, cut_string
 from common.views import BaseHTTPEndpoint
 from common.exceptions import MethodNotAllowedError, InvalidParameterError
 from core import settings
@@ -21,7 +22,7 @@ from modules.podcast.schemas import (
     EpisodeListRequestSchema,
     EpisodeListResponseSchema,
     EpisodeListSchema,
-    EpisodeUploadSchema,
+    EpisodeUploadedSchema,
 )
 from modules.podcast.utils import save_uploaded_file
 from modules.providers.utils import audio_metadata
@@ -83,7 +84,7 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
 
 
 class UploadedEpisodesAPIView(BaseHTTPEndpoint):
-    schema_request = EpisodeUploadSchema
+    schema_request = EpisodeUploadedSchema
     schema_response = EpisodeListSchema
     db_model = Podcast
 
@@ -99,6 +100,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
         return self._response(episode, status_code=status.HTTP_201_CREATED)
 
     async def _create_episode(self, podcast_id: int, cleaned_data: dict) -> Episode:
+        metadata = cleaned_data.get("meta")
         audio_file = await File.create(
             self.db_session,
             FileType.AUDIO,
@@ -108,19 +110,52 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             path=cleaned_data["path"],
             size=cleaned_data["size"],
         )
+        title, description = self._prepare_meta(cleaned_data)
+        logger.debug(
+            "Creating episode with data: title: %s | description %s | metadata: %s.",
+            title, description, cleaned_data.get("meta")
+        )
+
         episode = await Episode.async_create(
             self.db_session,
-            title=cleaned_data["title"],
+            title=title,
             source_id=get_source_id(),
             source_type=SourceType.UPLOAD,
             podcast_id=podcast_id,
             audio_id=audio_file.id,
             watch_url="",
-            length=cleaned_data["duration"],
-            description=f"[uploaded] {cleaned_data['title']}",
-            author="",
+            length=metadata["duration"],
+            description=description,
+            author=metadata.get("author", ''),
         )
         return episode
+
+    @staticmethod
+    def _prepare_meta(cleaned_data: dict) -> tuple[str, str]:
+        metadata = cleaned_data["meta"]
+        if not (title := metadata.get("title")):
+            filename = os.path.basename(cleaned_data["path"])
+            title = filename.rpartition('.')[0] if "." in filename else filename
+
+        title_prefix = ""
+        if album := metadata.get("album"):
+            title_prefix += album
+        if track := metadata.get("track"):
+            title_prefix += f" #{track}" if title_prefix else f"Track #{track}"
+
+        title = f"{title_prefix}. {title}" if title_prefix else title
+
+        description = f"Uploaded Episode '{title}'"
+        if album:
+            description += f"\nAlbum: {album}"
+        if album and track:
+            description += f" (track #{track})"
+        elif track:
+            description += f"\nTrack: #{track}"
+        if author := metadata.get("author"):
+            description += f"\nAuthor: {author}"
+
+        return cut_string(title, 255), description
 
 
 class EpisodeRUDAPIView(BaseHTTPEndpoint):

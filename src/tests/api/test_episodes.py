@@ -30,9 +30,9 @@ INVALID_CREATE_DATA = [
 ]
 
 INVALID_UPLOADED_EPISODES_DATA = [
-    [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],
     [{"path": "path" * 100}, {"path": "Longer than maximum length 256."}],
-    [{"duration": "fake-int"}, {"duration": "Not a valid integer."}],
+    [{"meta": {"duration": "fake-int"}}, {"meta": {"duration": "Not a valid integer."}}],
+    [{"meta": {}}, {"meta": {"duration": "Required field."}}],
     [{"size": "fake-int"}, {"size": "Not a valid integer."}],
 ]
 
@@ -213,10 +213,8 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
                 "duration": audio_duration,
                 "author": "Test Author",
                 "title": f"Test Title",
-                "album": f"Album #1",
+                "album": f"Test Album",
             },
-            "duration": audio_duration,
-            "title": "test-episode-title",
             "size": 50,
         }
         response = client.post(url, json=data)
@@ -225,7 +223,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         episode = await_(Episode.async_get(dbs, id=response_data["id"]))
         assert response_data == _episode_in_list(episode), response.json()
         assert episode.source_type == SourceType.UPLOAD
-        assert episode.title == "Album #1. Test Title"
+        assert episode.title == "Test Album. Test Title"
         assert episode.length == audio_duration
         assert episode.author == "Test Author"
 
@@ -240,45 +238,65 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         else:
             mocked_rq_queue.enqueue.assert_not_called()
 
+    # fmt: off
     @pytest.mark.parametrize(
-        "metadata,episode_data",
+        "label, metadata,episode_data",
         [
-            ({"duration": 1}, {"length": 1, "title": "filename", "author": ""}),
-            ({"duration": 1, "title": "Test title"}, {"length": 1, "title": "Test title", "author": ""}), # noqa
-            ({"duration": 1, "title": "Test title", "author": "Author"}, {"length": 1, "title": "Test title", "author": "Author"}),  # noqa
-            ({"duration": 1, "title": None, "author": "Author"}, {"length": 1, "title": "filename", "author": "Author"}), # noqa
-            ({"duration": 1, "track": "01"}, {"length": 1, "title": "#01. filename"}),
-            ({"duration": 1, "album": "Album", "track": "01"}, {"length": 1, "title": "#01. Album"}),  # noqa
+            (
+                "only_title",
+                {"duration": 1, "title": "Test title"},
+                {"title": "Test title", "author": "",
+                 "description": "Uploaded Episode 'Test title'"}
+            ),
+            (
+                "title_author",
+                {"duration": 1, "title": "Test Title", "author": "Test Author"},
+                {"title": "Test Title", "author": "Test Author",
+                 "description": "Uploaded Episode 'Test Title'\nAuthor: Test Author"}),
+            (
+                "only_author",
+                {"duration": 1, "title": '', "author": "Test Author"},
+                {"title": "filename", "author": "Test Author",
+                 "description": "Uploaded Episode 'filename'\nAuthor: Test Author"}),
+            (
+                "only_track",
+                {"duration": 1, "track": "01"},
+                {"title": "Track #01. filename",
+                 "description": "Uploaded Episode 'Track #01. filename'\nTrack: #01"}),
+            (
+                "title_album_track",
+                {"duration": 1, "title": "Test Title", "album": "Test Album", "track": "01"},
+                {"title": "Test Album #01. Test Title",
+                 "description": "Uploaded Episode 'Test Album #01. Test Title'\nAlbum: Test Album (track #01)"}), # noqa
+            (
+                "album_track",
+                {"duration": 1, "album": "Test Album", "track": "01"},
+                {"title": "Test Album #01. filename",
+                 "description": "Uploaded Episode 'Test Album #01. filename'\nAlbum: Test Album (track #01)"}), # noqa
+            (
+                "large_title",
+                {"duration": 1, "title": "l-title-"*100},
+                {"title": ("l-title-"*100)[:252] + "...",
+                 "description": f"Uploaded Episode \'{('l-title-'*100)}\'"}),
         ]
     )
+    # fmt: on
     def test_create__various_metadata__ok(
         self,
         dbs,
+        user,
         client,
         podcast,
-        user,
         mocked_rq_queue,
-        auto_start_task,
+        label,
         metadata,
         episode_data,
     ):
-        # TODO: test with provided variants
-        audio_duration = 90
-        await_(podcast.update(dbs, download_automatically=auto_start_task))
-        await_(dbs.commit())
-
         client.login(user)
         url = self.url.format(id=podcast.id)
         data = {
-            "path": f"remote/tmp/{uuid.uuid4().hex}.mp3",
-            "meta": {
-                "duration": audio_duration,
-                "author": "Test Author",
-                "title": f"Test Title",
-                "album": f"Album #1",
-            },
-            "duration": audio_duration,
-            "title": "test-episode-title",
+            "path": f"remote/tmp/filename.mp3",
+            "meta": metadata,
             "size": 50,
         }
         response = client.post(url, json=data)
@@ -286,21 +304,12 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
 
         episode = await_(Episode.async_get(dbs, id=response_data["id"]))
         assert response_data == _episode_in_list(episode), response.json()
-        assert episode.source_type == SourceType.UPLOAD
-        assert episode.title == "Album #1. Test Title"
-        assert episode.length == audio_duration
-        assert episode.author == "Test Author"
 
-        assert episode.audio.path == data["path"]
-        assert episode.audio.size == 50
-        assert episode.audio.available is False
-
-        if auto_start_task:
-            mocked_rq_queue.enqueue.assert_called_with(
-                tasks.UploadedEpisodeTask(), episode_id=episode.id
+        for field, value in episode_data.items():
+            assert getattr(episode, field) == value, (
+                f"Episode's field {field} value mismatch: "
+                f"expected: {value} | actual {getattr(episode, field)} "
             )
-        else:
-            mocked_rq_queue.enqueue.assert_not_called()
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_UPLOADED_EPISODES_DATA)
     def test_create__invalid_request__fail(
@@ -308,30 +317,23 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
     ):
         client.login(user)
         url = self.url.format(id=podcast.id)
-        self.assert_bad_request(client.post(url, json=invalid_data), error_details)
+        response = client.post(url, json=invalid_data)
+        assert response.status_code == 400, (
+            f"Unexpected status code. Response: {response.content}"
+        )
 
-    def test_create__crop_title__ok(
-        self,
-        client,
-        user,
-        podcast,
-        mocked_s3,
-        audio_file,
-        mocked_audio_metadata,
-    ):
+        response_data = response.json()
+        response_data = response_data["payload"]
+        for error_field, error_value in error_details.items():
+            if isinstance(error_value, dict):
+                print(error_field, error_value)
+                for e_key, e_val in error_value.items():
+                    assert e_key in response_data["details"][error_field]
+                    assert e_val in response_data["details"][error_field][e_key]
+            else:
 
-        mocked_s3.upload_file_async.return_value = f"remote/tmp/{uuid.uuid4().hex}.mp3"
-        mocked_audio_metadata.return_value = 1
-        long_name = "too-long-filename-" * 100 + ".mp3"
-        audio_file.name = long_name
-        url = self.url.format(id=podcast.id)
-        client.login(user)
-        response = client.post(url, files={"file": audio_file})
-        response_data = self.assert_ok_response(response)
-
-        assert response_data["title"] == long_name[:253] + "..."
-
-
+                assert error_field in response_data["details"]
+                assert error_value in response_data["details"][error_field]
 
 
 class TestEpisodeRUDAPIView(BaseTestAPIView):
