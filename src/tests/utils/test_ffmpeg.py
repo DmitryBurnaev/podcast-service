@@ -8,8 +8,8 @@ import pytest
 from core import settings
 from common.enums import EpisodeStatus
 from modules.podcast.utils import post_processing_process_hook
-from modules.providers.exceptions import FFMPegPreparationError
-from modules.providers.utils import ffmpeg_preparation, audio_metadata
+from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
+from modules.providers.utils import ffmpeg_preparation, audio_metadata, AudioMetadata
 from tests.api.test_base import BaseTestCase
 
 
@@ -81,13 +81,13 @@ class TestFFMPEG(BaseTestCase):
     @patch("subprocess.run")
     @patch("modules.providers.utils.episode_process_hook")
     def test_episode_prepare__ffmpeg_error__fail(self, mocked_process_hook, mocked_run):
-        mocked_run.side_effect = subprocess.CalledProcessError(1, [], stderr=b"FFMPEG oops")
+        mocked_run.side_effect = subprocess.CalledProcessError(1, 'ffmpeg', stderr=b"FFMPEG oops")
         with pytest.raises(FFMPegPreparationError) as err:
             ffmpeg_preparation(self.src_path)
 
         assert not os.path.exists(self.tmp_filename), f"File wasn't removed: {self.tmp_filename}"
         assert err.value.details == (
-            "FFMPEG failed with errors: " "Command '[]' returned non-zero exit status 1."
+            "FFMPEG failed with errors: " "Command 'ffmpeg' returned non-zero exit status 1."
         )
         self.assert_hooks_calls(
             mocked_process_hook,
@@ -131,9 +131,21 @@ class TestFFMPEG(BaseTestCase):
         )
 
     @patch("subprocess.run")
-    def test_extract_metadata__ok(self, mocked_process_hook, mocked_run):
-        test_ffmpeg_stdout = (
+    def test_extract_metadata__ok(self, mocked_run):
+        ffmpeg_stdout = (
             """
+Input #0, mp3, from '01.AudioTrack.mp3':
+  Metadata:
+    album           : Test Album
+    artist          : Test Artist
+    album_artist    : Test Album Artist
+    track           : 01
+    genre           : Audiobook
+    title           : Title #1
+    date            : 2022-06-02 12:30
+    id3v2_priv.XMP  : <?xpacket begin="\xef\xbb\xbf" id="W5M0Mp<rdf
+  Duration: 00:18:22.91, start: 0.000000, bitrate: 196 kb/s
+  Stream #0:0: Audio: mp3, 44100 Hz, stereo, fltp, 192 kb/s
   Stream #0:1: Video: mjpeg (Progressive), yuvj444p(pc, bt470bg/unknown/unknown), 1000x1000, 90k tbr
     Metadata:
       comment         : Cover (front)
@@ -146,7 +158,7 @@ Output #0, ffmetadata, to 't.txt':
     genre           : Audiobook
     title           : Title #1
     date            : 2022-06-02 12:30
-    id3v2_priv.XMP  : <?xpacket >
+    id3v2_priv.XMP  : <?xpacket begin="\xef\xbb\xbf" <rdf
     encoder         : Lavf59.16.100
 Stream mapping:
 Press [q] to stop, [?] for help
@@ -155,17 +167,76 @@ video:0kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing ove
             """
         )
 
-        mocked_run.return_value = subprocess.CalledProcessError(
-            0, [], stderr=bytes(test_ffmpeg_stdout)
-        )
+        mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode('utf-8'))
         result = audio_metadata(self.src_path)
 
-        assert not os.path.exists(self.tmp_filename), f"File wasn't removed: {self.tmp_filename}"
-        assert err.value.details == (
-            "FFMPEG failed with errors: " "Command '[]' returned non-zero exit status 1."
-        )
-        self.assert_hooks_calls(
-            mocked_process_hook,
-            finish_call=dict(status=EpisodeStatus.ERROR, filename=self.filename),
+        assert isinstance(result, AudioMetadata)
+        assert result.author == 'Test Artist'
+        assert result.title == 'Title #1'
+        assert result.track == '01'
+        assert result.album == 'Test Album'
+        assert result.duration == 1102
+
+    @patch("subprocess.run")
+    def test_extract_metadata__missed_some_data__ok(self, mocked_run):
+        ffmpeg_stdout = (
+            """
+Input #0, mp3, from '01.AudioTrack.mp3':
+  Metadata:
+    title           : Title #1
+  Duration: 00:18:22.91, start: 0.000000, bitrate: 196 kb/s
+            """
         )
 
+        mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode('utf-8'))
+        result = audio_metadata(self.src_path)
+
+        assert isinstance(result, AudioMetadata)
+        assert result.title == 'Title #1'
+        assert result.duration == 1102
+        assert result.author is None
+        assert result.track is None
+        assert result.album is None
+
+    @patch("subprocess.run")
+    def test_extract_metadata__missed_metadata_at_all__ok(self, mocked_run):
+        ffmpeg_stdout = (
+            """
+Input #0, mp3, from '01.AudioTrack.mp3':
+  Duration: 00:18:22.91, start: 0.000000, bitrate: 196 kb/s
+            """
+        )
+
+        mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode('utf-8'))
+        result = audio_metadata(self.src_path)
+
+        assert isinstance(result, AudioMetadata)
+        assert result.duration == 1102
+        assert result.title is None
+        assert result.author is None
+        assert result.track is None
+        assert result.album is None
+
+    @patch("subprocess.run")
+    def test_extract_metadata__missed_all_data__fail(self, mocked_run):
+        ffmpeg_stdout = (
+            """
+Input #0, mp3, from '01.AudioTrack.mp3':
+            """
+        )
+        mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode('utf-8'))
+
+        with pytest.raises(FFMPegParseError) as err:
+            audio_metadata(self.src_path)
+
+        assert 'Found result' in err.value.details
+
+    @patch("subprocess.run")
+    def test_extract_metadata__ffmpeg_error__fail(self, mocked_run):
+        mocked_run.side_effect = subprocess.CalledProcessError(1, 'ffmpeg', stderr=b"FFMPEG oops")
+        with pytest.raises(FFMPegPreparationError) as err:
+            audio_metadata(self.src_path)
+
+        assert err.value.details == (
+            "FFMPEG failed with errors: " "Command 'ffmpeg' returned non-zero exit status 1."
+        )

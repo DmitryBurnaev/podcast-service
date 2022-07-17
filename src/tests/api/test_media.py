@@ -6,6 +6,7 @@ import pytest
 from common.enums import FileType
 from modules.auth.models import UserIP
 from modules.media.models import File
+from modules.providers.utils import AudioMetadata
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import await_, create_file
 
@@ -255,7 +256,7 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         }
         remote_tmp_path = f"remote/tmp/{uuid.uuid4().hex}.mp3"
 
-        mocked_audio_metadata.return_value = audio_metadata
+        mocked_audio_metadata.return_value = AudioMetadata(**audio_metadata)
         mocked_s3.upload_file_async.return_value = remote_tmp_path
 
         client.login(user)
@@ -266,6 +267,7 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         assert response_data["meta"] == audio_metadata
         assert response_data["path"] == remote_tmp_path
         assert response_data["size"] == audio_file.size
+        assert response_data["track"] == audio_file.size
 
         mocked_audio_metadata.assert_called()
 

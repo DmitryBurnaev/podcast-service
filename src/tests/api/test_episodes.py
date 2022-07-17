@@ -192,7 +192,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
     url = "/api/podcasts/{id}/episodes/uploaded/"
 
     @pytest.mark.parametrize("auto_start_task", (True, False))
-    def test_create__uploaded__ok(
+    def test_create__ok(
         self,
         dbs,
         client,
@@ -209,6 +209,12 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         data = {
             "path": f"remote/tmp/{uuid.uuid4().hex}.mp3",
+            "meta": {
+                "duration": audio_duration,
+                "author": "Test Author",
+                "title": f"Test Title",
+                "album": f"Album #1",
+            },
             "duration": audio_duration,
             "title": "test-episode-title",
             "size": 50,
@@ -219,8 +225,71 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         episode = await_(Episode.async_get(dbs, id=response_data["id"]))
         assert response_data == _episode_in_list(episode), response.json()
         assert episode.source_type == SourceType.UPLOAD
-        assert episode.title == "test-episode-title"
+        assert episode.title == "Album #1. Test Title"
         assert episode.length == audio_duration
+        assert episode.author == "Test Author"
+
+        assert episode.audio.path == data["path"]
+        assert episode.audio.size == 50
+        assert episode.audio.available is False
+
+        if auto_start_task:
+            mocked_rq_queue.enqueue.assert_called_with(
+                tasks.UploadedEpisodeTask(), episode_id=episode.id
+            )
+        else:
+            mocked_rq_queue.enqueue.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "metadata,episode_data",
+        [
+            ({"duration": 1}, {"length": 1, "title": "filename", "author": ""}),
+            ({"duration": 1, "title": "Test title"}, {"length": 1, "title": "Test title", "author": ""}), # noqa
+            ({"duration": 1, "title": "Test title", "author": "Author"}, {"length": 1, "title": "Test title", "author": "Author"}),  # noqa
+            ({"duration": 1, "title": None, "author": "Author"}, {"length": 1, "title": "filename", "author": "Author"}), # noqa
+            ({"duration": 1, "track": "01"}, {"length": 1, "title": "#01. filename"}),
+            ({"duration": 1, "album": "Album", "track": "01"}, {"length": 1, "title": "#01. Album"}),  # noqa
+        ]
+    )
+    def test_create__various_metadata__ok(
+        self,
+        dbs,
+        client,
+        podcast,
+        user,
+        mocked_rq_queue,
+        auto_start_task,
+        metadata,
+        episode_data,
+    ):
+        # TODO: test with provided variants
+        audio_duration = 90
+        await_(podcast.update(dbs, download_automatically=auto_start_task))
+        await_(dbs.commit())
+
+        client.login(user)
+        url = self.url.format(id=podcast.id)
+        data = {
+            "path": f"remote/tmp/{uuid.uuid4().hex}.mp3",
+            "meta": {
+                "duration": audio_duration,
+                "author": "Test Author",
+                "title": f"Test Title",
+                "album": f"Album #1",
+            },
+            "duration": audio_duration,
+            "title": "test-episode-title",
+            "size": 50,
+        }
+        response = client.post(url, json=data)
+        response_data = self.assert_ok_response(response, status_code=201)
+
+        episode = await_(Episode.async_get(dbs, id=response_data["id"]))
+        assert response_data == _episode_in_list(episode), response.json()
+        assert episode.source_type == SourceType.UPLOAD
+        assert episode.title == "Album #1. Test Title"
+        assert episode.length == audio_duration
+        assert episode.author == "Test Author"
 
         assert episode.audio.path == data["path"]
         assert episode.audio.size == 50
@@ -245,17 +314,19 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         self,
         client,
         user,
+        podcast,
         mocked_s3,
         audio_file,
         mocked_audio_metadata,
     ):
+
         mocked_s3.upload_file_async.return_value = f"remote/tmp/{uuid.uuid4().hex}.mp3"
         mocked_audio_metadata.return_value = 1
         long_name = "too-long-filename-" * 100 + ".mp3"
         audio_file.name = long_name
-
+        url = self.url.format(id=podcast.id)
         client.login(user)
-        response = client.post(self.url, files={"file": audio_file})
+        response = client.post(url, files={"file": audio_file})
         response_data = self.assert_ok_response(response)
 
         assert response_data["title"] == long_name[:253] + "..."

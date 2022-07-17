@@ -16,6 +16,7 @@ class MetaDataSchema(Schema):
     duration = fields.Int()
     author = fields.Str(required=False)
     album = fields.Str(required=False)
+    track = fields.Str(required=False)
 
 
 class AudioFileResponseSchema(Schema):

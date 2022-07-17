@@ -3,6 +3,7 @@ import re
 import asyncio
 import subprocess
 import dataclasses
+import tempfile
 from pathlib import Path
 from functools import partial
 from contextlib import suppress
@@ -80,7 +81,9 @@ SOURCE_CFG_MAP = {
         need_downloading=False,
     ),
 }
-AUDIO_META_REGEXP = re.compile(r'(?P<meta>Metadata.+)(?P<duration>Duration:\s?[\d:]+)', re.DOTALL)
+
+# TODO: write another regexp (finding all metadata with single regexp construction)
+AUDIO_META_REGEXP = re.compile(r'(?P<meta>Metadata.+)?(?P<duration>Duration:\s?[\d:]+)', re.DOTALL)
 
 
 def extract_source_info(source_url: Optional[str] = None, playlist: bool = False) -> SourceInfo:
@@ -259,14 +262,14 @@ def audio_metadata(file_path: Path | str) -> AudioMetadata:
     """ Calculates (via ffmpeg) length of audio track and returns number of seconds """
 
     try:
-        # TODO: move to tmp dir
-        completed_proc = subprocess.run(
-            ["ffmpeg", "-i", file_path, "-f", "ffmetadata", "ffmpeg.res.txt"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=True,
-            timeout=settings.FFMPEG_TIMEOUT,
-        )
+        with tempfile.NamedTemporaryFile() as file:
+            completed_proc = subprocess.run(
+                ["ffmpeg", "-y", "-i", file_path, "-f", "ffmetadata", file.name],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=True,
+                timeout=settings.FFMPEG_TIMEOUT,
+            )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
         err_details = f"FFMPEG failed with errors: {err}"
         if stdout := getattr(err, "stdout", ""):
@@ -274,14 +277,14 @@ def audio_metadata(file_path: Path | str) -> AudioMetadata:
 
         raise FFMPegPreparationError(err_details)
 
-    ffmpeg_result_str = str(completed_proc.stdout, encoding="utf-8")
+    ffmpeg_result_str = completed_proc.stdout.decode()
     find_results = AUDIO_META_REGEXP.search(ffmpeg_result_str, re.DOTALL)
     if not find_results:
         raise FFMPegParseError(f'Found result: {ffmpeg_result_str}')
 
     find_results = find_results.groupdict()
-    duration = _human_time_to_sec(find_results.get('duration').replace('Duration:\n', ''))
-    metadata = _raw_meta_to_dict(find_results.get('meta').replace('Metadata:\n', ''))
+    duration = _human_time_to_sec(find_results.get('duration', '').replace('Duration:', ''))
+    metadata = _raw_meta_to_dict((find_results.get('meta') or '').replace('Metadata:\n', ''))
 
     logger.debug(
         "FFMPEG success done extracting duration from the file %s:\nmeta: %s\nduration: %s",
@@ -291,14 +294,14 @@ def audio_metadata(file_path: Path | str) -> AudioMetadata:
     )
     return AudioMetadata(
         title=metadata.get('title'),
-        author=metadata.get('author'),
+        author=metadata.get('artist'),
         album=metadata.get('album'),
         track=metadata.get('track'),
         duration=duration
     )
 
 
-def _raw_meta_to_dict(meta: str) -> dict:
+def _raw_meta_to_dict(meta: Optional[str]) -> dict:
     """
     Converts raw metadata from ffmpeg to dict values
 
@@ -308,9 +311,13 @@ def _raw_meta_to_dict(meta: str) -> dict:
     """
     result = {}
     for meta_str in meta.split('\n'):
-        key, value = meta_str.split(':')
+        try:
+            key, value = meta_str.split(':')
+        except ValueError:
+            continue
+
         result[key.strip()] = value.strip()
-    raise ValueError(result)
+
     return result
 
 
