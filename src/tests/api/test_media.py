@@ -253,6 +253,7 @@ class TestUploadAudioAPIView(BaseTestAPIView):
             "author": "Test Author",
             "title": f"Test Title {uuid.uuid4().hex}",
             "album": f"Album #{uuid.uuid4().hex}",
+            "track": "01",
         }
         remote_tmp_path = f"remote/tmp/{uuid.uuid4().hex}.mp3"
 
@@ -263,11 +264,10 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         response = client.post(self.url, files={"file": audio_file})
         response_data = self.assert_ok_response(response)
 
-        assert response_data["filename"] == audio_file.name
+        assert response_data["filename"] == os.path.basename(audio_file.name)
         assert response_data["meta"] == audio_metadata
         assert response_data["path"] == remote_tmp_path
         assert response_data["size"] == audio_file.size
-        assert response_data["track"] == audio_file.size
 
         mocked_audio_metadata.assert_called()
 

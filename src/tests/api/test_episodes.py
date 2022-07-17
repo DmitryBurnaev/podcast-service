@@ -31,8 +31,9 @@ INVALID_CREATE_DATA = [
 
 INVALID_UPLOADED_EPISODES_DATA = [
     [{"path": "path" * 100}, {"path": "Longer than maximum length 256."}],
+    [{"filename": "filename" * 100}, {"filename": "Longer than maximum length 256."}],
     [{"meta": {"duration": "fake-int"}}, {"meta": {"duration": "Not a valid integer."}}],
-    [{"meta": {}}, {"meta": {"duration": "Required field."}}],
+    [{"meta": {"title": "1"}}, {"meta": {"duration": "Missing data for required field."}}],
     [{"size": "fake-int"}, {"size": "Not a valid integer."}],
 ]
 
@@ -295,7 +296,8 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         client.login(user)
         url = self.url.format(id=podcast.id)
         data = {
-            "path": f"remote/tmp/filename.mp3",
+            "path": f"remote/tmp/audio-{uuid.uuid4().hex}.mp3",
+            "filename": "filename",
             "meta": metadata,
             "size": 50,
         }

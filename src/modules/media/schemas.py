@@ -12,15 +12,15 @@ class FileUploadSchema(Schema):
 
 
 class MetaDataSchema(Schema):
+    duration = fields.Int(required=True)
     title = fields.Str()
-    duration = fields.Int()
-    author = fields.Str(required=False)
-    album = fields.Str(required=False)
-    track = fields.Str(required=False)
+    author = fields.Str()
+    album = fields.Str()
+    track = fields.Str()
 
 
 class AudioFileResponseSchema(Schema):
-    filename = fields.Str()
-    path = fields.Str()
-    size = fields.Int()
+    filename = fields.Str(required=True)
+    path = fields.Str(required=True)
+    size = fields.Int(required=True)
     meta = fields.Nested(MetaDataSchema)
