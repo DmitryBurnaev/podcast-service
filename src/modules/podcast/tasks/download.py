@@ -1,4 +1,5 @@
 import asyncio
+import os.path
 from pathlib import Path
 from typing import Optional
 
@@ -225,7 +226,52 @@ class DownloadEpisodeTask(RQTask):
 
 
 class UploadedEpisodeTask(DownloadEpisodeTask):
-    ...
+
+    async def perform_run(self, episode_id: int) -> FinishCode:
+        """
+        Main operation for downloading, performing and uploading audio to the storage.
+
+        :raise: DownloadingInterrupted (if downloading is broken or unnecessary)
+        """
+
+        episode: Episode = await Episode.async_get(self.db_session, id=episode_id)
+
+        logger.info(
+            "=== [%s] START performing uploaded episodes process URL: %s ===",
+            episode.source_id,
+            episode.watch_url,
+        )
+        await self._update_episodes(episode, update_data={"status": status.DOWNLOADING})
+
+        remote_file_size = await self._move_file(episode)
+        await self._update_episodes(
+            episode,
+            update_data={
+                "status": status.PUBLISHED,
+                "published_at": episode.created_at,
+            },
+        )
+        await self._update_files(episode, {"size": remote_file_size, "available": True})
+        await self._update_all_rss(episode.source_id)
+
+        logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
+        return FinishCode.OK
+
+    async def _move_file(self, episode: Episode):
+        """Uploading file to the storage (S3)"""
+
+        logger.info("=== [%s] REMOTE MOVING === ", episode.source_id)
+        remote_path = podcast_utils.move_episode(episode.audio.path, episode.audio.size)
+        if not remote_path:
+            logger.warning("=== [%s] REMOTE MOVING was broken === ")
+            await self._update_episodes(episode, {"status": status.ERROR})
+            raise DownloadingInterrupted(code=FinishCode.ERROR)
+
+        result_file_size = self.storage.get_file_size(os.path.basename(remote_path))
+        logger.info(
+            "=== [%s] REMOTE MOVING was done (%i bytes) === ", episode.source_id, result_file_size
+        )
+        return result_file_size
 
 
 class DownloadEpisodeImageTask(RQTask):

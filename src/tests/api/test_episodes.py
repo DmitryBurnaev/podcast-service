@@ -210,6 +210,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         data = {
             "path": f"remote/tmp/{uuid.uuid4().hex}.mp3",
+            "filename": "uploaded-file.mp3",
             "meta": {
                 "duration": audio_duration,
                 "author": "Test Author",

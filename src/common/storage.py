@@ -100,7 +100,7 @@ class StorageS3:
         filename = os.path.basename(src_path)
         dst_path = os.path.join(dst_path, filename)
         code, result = self.__call(
-            self.s3.move_file, # >?????
+            self.s3.move_file,  # >?????
             Filename=src_path,
             Bucket=settings.S3_BUCKET_NAME,
             Key=dst_path,
