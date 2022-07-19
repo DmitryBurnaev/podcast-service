@@ -45,7 +45,7 @@ class DownloadEpisodeTask(RQTask):
             logger.warning("Episode downloading was interrupted with code: %i", error.code)
             return error.code.value
         except Exception as error:
-            logger.exception("Unable to download episode: %s", error)
+            logger.exception("Unable to prepare/publish episode: %s", error)
             await Episode.async_update(
                 self.db_session,
                 filter_kwargs={"id": episode_id},
@@ -241,37 +241,52 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
             episode.source_id,
             episode.watch_url,
         )
-        await self._update_episodes(episode, update_data={"status": status.DOWNLOADING})
+        await episode.update(self.db_session, status=status.DOWNLOADING)
 
-        remote_file_size = await self._move_file(episode)
-        await self._update_episodes(
-            episode,
-            update_data={
-                "status": status.PUBLISHED,
-                "published_at": episode.created_at,
-            },
+        old_path = episode.audio.path
+        remote_path = await self._copy_file(episode)
+        remote_size = self.storage.get_file_size(os.path.basename(remote_path))
+
+        await episode.update(
+            self.db_session,
+            status=status.PUBLISHED,
+            published_at=episode.created_at,
         )
-        await self._update_files(episode, {"size": remote_file_size, "available": True})
+        await episode.audio.update(
+            self.db_session,
+            path=remote_path,
+            size=remote_size,
+            available=True,
+        )
         await self._update_all_rss(episode.source_id)
-
+        await self.db_session.flush()
+        self._delete_tmp_file(old_path)
         logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
         return FinishCode.OK
 
-    async def _move_file(self, episode: Episode):
+    async def _copy_file(self, episode: Episode) -> str:
         """Uploading file to the storage (S3)"""
 
-        logger.info("=== [%s] REMOTE MOVING === ", episode.source_id)
-        remote_path = podcast_utils.move_episode(episode.audio.path, episode.audio.size)
+        logger.info("=== [%s] REMOTE COPYING === ", episode.source_id)
+        remote_path = podcast_utils.remote_copy_episode(episode.audio.path, episode.audio.size)
         if not remote_path:
-            logger.warning("=== [%s] REMOTE MOVING was broken === ")
-            await self._update_episodes(episode, {"status": status.ERROR})
+            logger.warning("=== [%s] REMOTE COPYING was broken === ")
+            await episode.update(self.db_session, status=status.ERROR)
             raise DownloadingInterrupted(code=FinishCode.ERROR)
 
-        result_file_size = self.storage.get_file_size(os.path.basename(remote_path))
         logger.info(
-            "=== [%s] REMOTE MOVING was done (%i bytes) === ", episode.source_id, result_file_size
+            "=== [%s] REMOTE COPYING was done (%s -> %s):  === ",
+            episode.source_id,
+            episode.audio.path,
+            remote_path
         )
-        return result_file_size
+        return remote_path
+
+    def _delete_tmp_file(self, old_file_path: str):
+        logger.debug("Removing old file %s...", old_file_path)
+        self.storage.delete_file(dst_path=old_file_path)
+        logger.debug("Removing done for old file %s.", old_file_path)
+
 
 
 class DownloadEpisodeImageTask(RQTask):

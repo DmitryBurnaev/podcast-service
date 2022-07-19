@@ -133,7 +133,8 @@ class MockS3Client(BaseMock):
         self.get_file_info = Mock(return_value={})
         self.delete_files_async = AsyncMock(return_value=self.async_return(self.CODE_OK))
         self.upload_file = Mock(side_effect=self.upload_file_mock)
-        self.move_file = Mock(side_effect=self.upload_file_mock)
+        # TODO: add test for method 'move_file'
+        self.copy_file = Mock(return_value="")
         self.upload_file_async = AsyncMock(return_value="")
         self.get_presigned_url = Mock(return_value=self.async_return("https://s3.storage/link"))
 

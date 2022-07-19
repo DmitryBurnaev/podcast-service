@@ -153,7 +153,11 @@ def upload_episode(src_path: str | Path) -> Optional[str]:
     return remote_path
 
 
-def move_episode(src_path: str, file_size: int = 0) -> Optional[str]:
+def remote_copy_episode(
+    src_path: str,
+    src_file_size: int = 0,
+    target_path: str = settings.S3_BUCKET_AUDIO_PATH,
+) -> Optional[str]:
     """Allows uploading src_path to S3 storage"""
 
     filename = os.path.basename(src_path)
@@ -161,21 +165,18 @@ def move_episode(src_path: str, file_size: int = 0) -> Optional[str]:
         filename=filename,
         status=EpisodeStatus.DL_EPISODE_UPLOADING,
         processed_bytes=0,
-        total_bytes=file_size,
+        total_bytes=src_file_size,
     )
-    logger.info("Remotely moving for %s started.", filename)
-    remote_path = StorageS3().move_file(
+    logger.debug("Remotely copying for %s started.", filename)
+    remote_path = StorageS3().copy_file(
         src_path=str(src_path),
-        dst_path=settings.S3_BUCKET_AUDIO_PATH,
-        # TODO: can we provide process hook (progress here?)
-        # callback=partial(upload_process_hook, filename),
+        dst_path=target_path,
     )
     if not remote_path:
         logger.warning("Couldn't move file in S3 storage remotely. SKIP")
         episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0)
         return
 
-    logger.info("Great! s3 moving for %s was done!", filename)
     logger.debug("Finished moving s3 for file %s. \n Remote path is %s", filename, remote_path)
     return remote_path
 
