@@ -235,12 +235,20 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
         """
 
         episode: Episode = await Episode.async_get(self.db_session, id=episode_id)
-
         logger.info(
-            "=== [%s] START performing uploaded episodes process URL: %s ===",
+            "=== [%s] START performing uploaded episodes: %s ===",
             episode.source_id,
-            episode.watch_url,
+            episode.audio.path,
         )
+        remote_size = self.storage.get_file_size(dst_path=episode.audio.path)
+        if remote_size != episode.audio.size:
+            raise DownloadingInterrupted(
+                code=FinishCode.ERROR,
+                message=(
+                    f'Performing uploaded file failed: incorrect remote file size: {remote_size}'
+                )
+            )
+
         await episode.update(self.db_session, status=status.DOWNLOADING)
 
         old_path = episode.audio.path

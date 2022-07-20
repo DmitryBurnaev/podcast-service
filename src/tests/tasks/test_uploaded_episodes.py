@@ -33,26 +33,28 @@ class TestUploadedEpisodeTask(BaseTestCase):
     def test_run_ok(self, dbs, podcast, user, mocked_s3, mocked_generate_rss_task):
         mocked_s3.get_file_size.return_value = 1024
         episode = await_(self._episode(dbs, podcast, user, file_size=1024))
+
+        tmp_remote_path = f"/tmp/remote/episode_{episode.source_id}.mp3"
+        new_remote_path = f"/remote/path/episode_{episode.source_id}.mp3"
         mocked_s3.copy_file.return_value = f"/remote/path/episode_{episode.source_id}.mp3"
 
         result = await_(UploadedEpisodeTask(db_session=dbs).run(episode.id))
         assert result == FinishCode.OK
 
-        old_remote_path = episode.audio.path
         await_(dbs.refresh(episode))
         await_(dbs.refresh(episode.audio))
 
         assert episode.status == EpisodeStatus.PUBLISHED
         assert episode.published_at == episode.created_at
         assert episode.audio.available is True
-        assert episode.audio.path == f'/remote/path/episode_{episode.source_id}.mp3'
+        assert episode.audio.path == new_remote_path
 
         self.assert_called_with(
             mocked_s3.copy_file,
-            src_path=old_remote_path,
+            src_path=tmp_remote_path,
             dst_path=settings.S3_BUCKET_AUDIO_PATH,
         )
-        self.assert_called_with(mocked_s3.delete_file, dst_path=old_remote_path)
+        self.assert_called_with(mocked_s3.delete_file, dst_path=tmp_remote_path)
         mocked_generate_rss_task.run.assert_called_with(episode.podcast_id)
 
     def test_file_bad_size__error(

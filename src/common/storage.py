@@ -132,12 +132,13 @@ class StorageS3:
         filename: str,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         error_log_level: int = logging.ERROR,
+        dst_path: Optional[str] = None,
     ) -> Optional[dict]:
         """
         Allows finding file information (headers) on remote storage (S3)
         Headers content info about downloaded file
         """
-        dst_path = os.path.join(remote_path, filename)
+        dst_path = dst_path or os.path.join(remote_path, filename)
         code, result = self.__call(
             self.s3.head_object,
             error_log_level=error_log_level,
@@ -147,7 +148,10 @@ class StorageS3:
         return result
 
     def get_file_size(
-        self, filename: Optional[str], remote_path: str = settings.S3_BUCKET_AUDIO_PATH
+        self,
+        filename: Optional[str] = None,
+        remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
+        dst_path: Optional[str] = None,
     ) -> int:
         """
         Allows finding file on remote storage (S3) and calculate size
@@ -155,7 +159,12 @@ class StorageS3:
         """
 
         if filename:
-            file_info = self.get_file_info(filename, remote_path, error_log_level=logging.WARNING)
+            file_info = self.get_file_info(
+                filename,
+                remote_path,
+                dst_path=dst_path,
+                error_log_level=logging.WARNING
+            )
             if file_info:
                 return int(file_info["ResponseMetadata"]["HTTPHeaders"]["content-length"])
 
