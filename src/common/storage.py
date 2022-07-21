@@ -69,7 +69,7 @@ class StorageS3:
         src_path: str | Path,
         dst_path: str,
         filename: Optional[str] = None,
-        callback: Callable = None,
+        callback: Optional[Callable] = None,
     ) -> Optional[str]:
         """Upload file to S3 storage"""
 
@@ -78,7 +78,7 @@ class StorageS3:
         dst_path = os.path.join(dst_path, filename)
         code, result = self.__call(
             self.s3.upload_file,
-            Filename=src_path,
+            Filename=str(src_path),
             Bucket=settings.S3_BUCKET_NAME,
             Key=dst_path,
             Callback=callback,

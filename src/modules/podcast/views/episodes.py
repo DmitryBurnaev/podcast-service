@@ -1,16 +1,10 @@
-import os.path
-import uuid
-from pathlib import Path
-
 from sqlalchemy import exists
 from starlette import status
-from starlette.datastructures import UploadFile
 
 from common.enums import FileType, SourceType
 from common.utils import get_logger, cut_string
 from common.views import BaseHTTPEndpoint
-from common.exceptions import MethodNotAllowedError, InvalidParameterError
-from core import settings
+from common.exceptions import MethodNotAllowedError
 from modules.media.models import File
 from modules.podcast import tasks
 from modules.podcast.episodes import EpisodeCreator
@@ -24,8 +18,6 @@ from modules.podcast.schemas import (
     EpisodeListSchema,
     EpisodeUploadedSchema,
 )
-from modules.podcast.utils import save_uploaded_file
-from modules.providers.utils import audio_metadata
 from tests.helpers import get_source_id
 
 logger = get_logger(__name__)
@@ -109,6 +101,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             source_url="",
             path=cleaned_data["path"],
             size=cleaned_data["size"],
+            meta=metadata,
         )
         title, description = self._prepare_meta(cleaned_data)
         logger.debug(

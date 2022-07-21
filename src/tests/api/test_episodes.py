@@ -232,6 +232,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         assert episode.audio.path == data["path"]
         assert episode.audio.size == 50
         assert episode.audio.available is False
+        assert episode.audio.meta == data["meta"]
 
         if auto_start_task:
             mocked_rq_queue.enqueue.assert_called_with(
