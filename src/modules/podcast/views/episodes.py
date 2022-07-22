@@ -108,7 +108,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             "Creating episode with data: title: %s | description %s | metadata: %s.",
             title, description, cleaned_data.get("meta")
         )
-
+        # TODO: deduplicate episodes (by filename or metadata)
         episode = await Episode.async_create(
             self.db_session,
             title=title,
@@ -116,6 +116,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             source_type=SourceType.UPLOAD,
             podcast_id=podcast_id,
             audio_id=audio_file.id,
+            owner_id=self.request.user.id,
             watch_url="",
             length=metadata["duration"],
             description=description,

@@ -100,9 +100,9 @@ class StorageS3:
         filename = os.path.basename(src_path)
         dst_path = os.path.join(dst_path, filename)
         code, result = self.__call(
-            self.s3.copy_file,  # >?????
-            Filename=src_path,
-            Bucket=settings.S3_BUCKET_NAME,
+            self.s3.copy_object,
+            CopySource=src_path,
+            Bucket=settings.S3_BUCKET_AUDIO_PATH,
             Key=dst_path,
         )
         if code != self.CODE_OK:
@@ -158,7 +158,7 @@ class StorageS3:
         (content-length / file size)
         """
 
-        if filename:
+        if filename or dst_path:
             file_info = self.get_file_info(
                 filename,
                 remote_path,

@@ -228,6 +228,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         assert episode.title == "Test Album. Test Title"
         assert episode.length == audio_duration
         assert episode.author == "Test Author"
+        assert episode.owner_id == user.id
 
         assert episode.audio.path == data["path"]
         assert episode.audio.size == 50
