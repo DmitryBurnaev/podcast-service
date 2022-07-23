@@ -120,6 +120,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
             uploaded_file=cleaned_data["image"],
             prefix=f"podcast_cover_{uuid.uuid4().hex}",
             max_file_size=settings.MAX_UPLOAD_IMAGE_FILESIZE,
+            tmp_path=settings.TMP_IMAGE_PATH,
         )
 
         image_remote_path = await self._upload_cover(podcast, tmp_path)

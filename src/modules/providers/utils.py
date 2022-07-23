@@ -4,6 +4,7 @@ import asyncio
 import subprocess
 import dataclasses
 import tempfile
+from hashlib import md5
 from pathlib import Path
 from functools import partial
 from contextlib import suppress
@@ -256,6 +257,9 @@ class AudioMetadata(NamedTuple):
     track: Optional[str] = None
     album: Optional[str] = None
     author: Optional[str] = None
+
+    def hash_str(self) -> str:
+        return md5(str(self._asdict()).encode()).hexdigest()
 
 
 def audio_metadata(file_path: Path | str) -> AudioMetadata:

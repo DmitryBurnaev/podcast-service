@@ -97,18 +97,16 @@ class StorageS3:
     ) -> Optional[str]:
         """Upload file to S3 storage"""
 
-        filename = os.path.basename(src_path)
-        dst_path = os.path.join(dst_path, filename)
         code, result = self.__call(
             self.s3.copy_object,
-            CopySource=src_path,
-            Bucket=settings.S3_BUCKET_AUDIO_PATH,
+            Bucket=settings.S3_BUCKET_NAME,
             Key=dst_path,
+            CopySource={'Bucket': settings.S3_BUCKET_NAME, 'Key': src_path},
         )
         if code != self.CODE_OK:
             return None
 
-        logger.info("File %s successful moved. Remote path now: %s", filename, dst_path)
+        logger.info("File successful copied: %s -> %s", src_path, dst_path)
         return dst_path
 
     async def upload_file_async(
@@ -170,6 +168,23 @@ class StorageS3:
 
         logger.info("File %s was not found on s3 storage", filename)
         return 0
+
+    async def get_file_size_async(
+        self,
+        filename: Optional[str] = None,
+        remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
+        dst_path: Optional[str] = None,
+    ):
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            partial(
+                self.get_file_size,
+                filename=filename,
+                remote_path=remote_path,
+                dst_path=dst_path,
+            )
+        )
 
     def delete_file(
         self,

@@ -181,10 +181,15 @@ def remote_copy_episode(
     return remote_path
 
 
-async def save_uploaded_file(uploaded_file: UploadFile, prefix: str, max_file_size: int) -> Path:
+async def save_uploaded_file(
+    uploaded_file: UploadFile,
+    prefix: str,
+    max_file_size: int,
+    tmp_path: Path
+) -> Path:
     contents = await uploaded_file.read()
-    file_ext = uploaded_file.filename.rpartition(".")[-1]
-    result_file_path = settings.TMP_IMAGE_PATH / f"{prefix}.{file_ext}"
+    file_ext = os.path.splitext(uploaded_file.filename)
+    result_file_path = tmp_path / f"{prefix}{file_ext}"
     with open(result_file_path, "wb") as f:
         await run_in_threadpool(f.write, contents)
 
