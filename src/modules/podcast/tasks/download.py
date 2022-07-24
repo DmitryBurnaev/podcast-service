@@ -268,7 +268,7 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
         )
         await self._update_all_rss(episode.source_id)
         await self.db_session.flush()
-        self._delete_tmp_file(old_path)
+        # self._delete_tmp_file(old_path)
         logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
         return FinishCode.OK
 

@@ -168,6 +168,7 @@ def remote_copy_episode(
         total_bytes=src_file_size,
     )
     logger.debug("Remotely copying for %s started.", filename)
+    # TODO: prepare correct target_path (full remote path with correct filename)
     remote_path = StorageS3().copy_file(
         src_path=str(src_path),
         dst_path=target_path,
