@@ -9,7 +9,7 @@ from core import settings
 from common.enums import EpisodeStatus
 from modules.podcast.utils import post_processing_process_hook
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
-from modules.providers.utils import ffmpeg_preparation, audio_metadata, AudioMetadata
+from modules.providers.utils import ffmpeg_preparation, audio_metadata, AudioMetaData
 from tests.api.test_base import BaseTestCase
 
 
@@ -170,7 +170,7 @@ video:0kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing ove
         mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode('utf-8'))
         result = audio_metadata(self.src_path)
 
-        assert isinstance(result, AudioMetadata)
+        assert isinstance(result, AudioMetaData)
         assert result.author == 'Test Artist'
         assert result.title == 'Title #1'
         assert result.track == '01'
@@ -191,7 +191,7 @@ Input #0, mp3, from '01.AudioTrack.mp3':
         mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode('utf-8'))
         result = audio_metadata(self.src_path)
 
-        assert isinstance(result, AudioMetadata)
+        assert isinstance(result, AudioMetaData)
         assert result.title == 'Title #1'
         assert result.duration == 1102
         assert result.author is None
@@ -210,7 +210,7 @@ Input #0, mp3, from '01.AudioTrack.mp3':
         mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode('utf-8'))
         result = audio_metadata(self.src_path)
 
-        assert isinstance(result, AudioMetadata)
+        assert isinstance(result, AudioMetaData)
         assert result.duration == 1102
         assert result.title is None
         assert result.author is None

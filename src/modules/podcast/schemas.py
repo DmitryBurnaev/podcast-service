@@ -75,8 +75,9 @@ class EpisodeUpdateSchema(Schema):
 
 class EpisodeUploadedSchema(Schema):
     path = fields.Str(required=True, validate=validate.Length(max=256))
-    filename = fields.Str(required=True, validate=validate.Length(max=256))
+    name = fields.Str(required=True, validate=validate.Length(max=256))
     size = fields.Int(required=True)
+    hash = fields.Str(required=True, validate=validate.Length(max=32))
     meta = fields.Nested(MetaDataSchema)
 
 

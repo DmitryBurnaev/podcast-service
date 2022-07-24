@@ -4,6 +4,7 @@ from webargs import fields
 __all__ = [
     "FileUploadSchema",
     "AudioFileResponseSchema",
+    "MetaDataSchema",
 ]
 
 
@@ -20,7 +21,8 @@ class MetaDataSchema(Schema):
 
 
 class AudioFileResponseSchema(Schema):
-    filename = fields.Str(required=True)
+    name = fields.Str(required=True)
     path = fields.Str(required=True)
     size = fields.Int(required=True)
     meta = fields.Nested(MetaDataSchema)
+    hash = fields.Str(required=True)

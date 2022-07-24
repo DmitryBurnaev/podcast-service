@@ -18,7 +18,6 @@ from modules.podcast.schemas import (
     EpisodeListSchema,
     EpisodeUploadedSchema,
 )
-from tests.helpers import get_source_id
 
 logger = get_logger(__name__)
 
@@ -85,13 +84,23 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
         logger.info("Creating episode for uploaded file for podcast %s", podcast)
 
         cleaned_data = await self._validate(request)
-        episode = await self._create_episode(podcast_id=podcast.id, cleaned_data=cleaned_data)
+        episode = await self._get_or_create_episode(podcast.id, cleaned_data=cleaned_data)
         if podcast.download_automatically:
             await self._run_task(tasks.UploadedEpisodeTask, episode_id=episode.id)
 
         return self._response(episode, status_code=status.HTTP_201_CREATED)
 
-    async def _create_episode(self, podcast_id: int, cleaned_data: dict) -> Episode:
+    async def _get_or_create_episode(self, podcast_id: int, cleaned_data: dict) -> Episode:
+        source_id = cleaned_data["hash"]
+        if episode := await Episode.async_get(
+            self.db_session, podcast_id=podcast_id, source_id=source_id
+        ):
+            logger.info(
+                "Episode with source_id (hash) '%s' already exist. Return %s",
+                source_id, episode
+            )
+            return episode
+
         metadata = cleaned_data.get("meta")
         audio_file = await File.create(
             self.db_session,
@@ -101,18 +110,17 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             source_url="",
             path=cleaned_data["path"],
             size=cleaned_data["size"],
-            meta=metadata,
+            meta=metadata | {"hash": cleaned_data["hash"]},
         )
         title, description = self._prepare_meta(cleaned_data)
-        logger.debug(
+        logger.info(
             "Creating episode with data: title: %s | description %s | metadata: %s.",
             title, description, cleaned_data.get("meta")
         )
-        # TODO: deduplicate episodes (by filename or metadata)
         episode = await Episode.async_create(
             self.db_session,
             title=title,
-            source_id=get_source_id(),
+            source_id=source_id,
             source_type=SourceType.UPLOAD,
             podcast_id=podcast_id,
             audio_id=audio_file.id,

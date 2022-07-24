@@ -251,7 +251,7 @@ def ffmpeg_preparation(
     logger.info("FFMPEG Preparation for %s was done", filename)
 
 
-class AudioMetadata(NamedTuple):
+class AudioMetaData(NamedTuple):
     title: str
     duration: int
     track: Optional[str] = None
@@ -262,7 +262,7 @@ class AudioMetadata(NamedTuple):
         return md5(str(self._asdict()).encode()).hexdigest()
 
 
-def audio_metadata(file_path: Path | str) -> AudioMetadata:
+def audio_metadata(file_path: Path | str) -> AudioMetaData:
     """ Calculates (via ffmpeg) length of audio track and returns number of seconds """
 
     try:
@@ -296,7 +296,7 @@ def audio_metadata(file_path: Path | str) -> AudioMetadata:
         metadata,
         duration,
     )
-    return AudioMetadata(
+    return AudioMetaData(
         title=metadata.get('title'),
         author=metadata.get('artist'),
         album=metadata.get('album'),
