@@ -249,9 +249,9 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
                 )
             )
 
-        await episode.update(self.db_session, status=status.DOWNLOADING)
+        # await episode.update(self.db_session, status=status.DOWNLOADING)
 
-        old_path = episode.audio.path
+        # old_path = episode.audio.path
         remote_path = await self._copy_file(episode)
         remote_size = self.storage.get_file_size(os.path.basename(remote_path))
 
@@ -276,7 +276,10 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
         """Uploading file to the storage (S3)"""
 
         logger.info("=== [%s] REMOTE COPYING === ", episode.source_id)
-        remote_path = podcast_utils.remote_copy_episode(episode.audio.path, episode.audio.size)
+        dst_path = os.path.join(settings.S3_BUCKET_AUDIO_PATH, episode.audio_filename)
+        remote_path = podcast_utils.remote_copy_episode(
+            src_path=episode.audio.path, dst_path=dst_path, src_file_size=episode.audio.size
+        )
         if not remote_path:
             logger.warning("=== [%s] REMOTE COPYING was broken === ")
             await episode.update(self.db_session, status=status.ERROR)
@@ -294,7 +297,6 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
         logger.debug("Removing old file %s...", old_file_path)
         self.storage.delete_file(dst_path=old_file_path)
         logger.debug("Removing done for old file %s.", old_file_path)
-
 
 
 class DownloadEpisodeImageTask(RQTask):

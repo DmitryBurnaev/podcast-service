@@ -155,8 +155,8 @@ def upload_episode(src_path: str | Path) -> Optional[str]:
 
 def remote_copy_episode(
     src_path: str,
+    dst_path: str,
     src_file_size: int = 0,
-    target_path: str = settings.S3_BUCKET_AUDIO_PATH,
 ) -> Optional[str]:
     """Allows uploading src_path to S3 storage"""
 
@@ -169,10 +169,8 @@ def remote_copy_episode(
     )
     logger.debug("Remotely copying for %s started.", filename)
     # TODO: prepare correct target_path (full remote path with correct filename)
-    remote_path = StorageS3().copy_file(
-        src_path=str(src_path),
-        dst_path=target_path,
-    )
+
+    remote_path = StorageS3().copy_file(src_path=str(src_path), dst_path=dst_path)
     if not remote_path:
         logger.warning("Couldn't move file in S3 storage remotely. SKIP")
         episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0)

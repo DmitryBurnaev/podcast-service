@@ -90,11 +90,7 @@ class StorageS3:
         logger.info("File %s successful uploaded. Remote path: %s", filename, dst_path)
         return dst_path
 
-    def copy_file(
-        self,
-        src_path: str | Path,
-        dst_path: str,
-    ) -> Optional[str]:
+    def copy_file(self, src_path: str, dst_path: str) -> Optional[str]:
         """Upload file to S3 storage"""
 
         code, result = self.__call(
