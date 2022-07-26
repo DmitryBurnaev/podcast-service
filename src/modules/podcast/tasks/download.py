@@ -1,10 +1,12 @@
 import asyncio
+import logging
 import os.path
 from pathlib import Path
 from typing import Optional
 
 from youtube_dl.utils import YoutubeDLError
 
+from common.enums import EpisodeStatus
 from core import settings
 from common.storage import StorageS3
 from common.utils import get_logger, download_content
@@ -21,12 +23,20 @@ from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
 logger = get_logger(__name__)
 status = Episode.Status
 __all__ = ["DownloadEpisodeTask", "UploadedEpisodeTask", "DownloadEpisodeImageTask"]
+log_levels = {
+    FinishCode.OK: logging.INFO,
+    FinishCode.SKIP: logging.INFO,
+    FinishCode.ERROR: logging.ERROR,
+}
 
 
 class DownloadingInterrupted(Exception):
     def __init__(self, code: FinishCode, message: str = ""):
         self.code = code
         self.message = message
+
+    def __repr__(self):
+        return f"DownloadingInterrupted({self.code.name}, \"{self.message}\")"
 
 
 class DownloadEpisodeTask(RQTask):
@@ -42,8 +52,10 @@ class DownloadEpisodeTask(RQTask):
         try:
             code = await self.perform_run(int(episode_id))
         except DownloadingInterrupted as error:
-            logger.warning("Episode downloading was interrupted with code: %i", error.code)
+            message = "Episode downloading was interrupted: %r"
+            logger.log(log_levels[error.code], message, error)
             return error.code.value
+
         except Exception as error:
             logger.exception("Unable to prepare/publish episode: %s", error)
             await Episode.async_update(
@@ -241,6 +253,12 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
             episode.audio.path,
         )
         remote_size = self.storage.get_file_size(dst_path=episode.audio.path)
+        if episode.status == EpisodeStatus.PUBLISHED and remote_size == episode.audio.size:
+            raise DownloadingInterrupted(
+                code=FinishCode.SKIP,
+                message=f'Episode #{episode_id} already published.'
+            )
+
         if remote_size != episode.audio.size:
             raise DownloadingInterrupted(
                 code=FinishCode.ERROR,
@@ -249,9 +267,6 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
                 )
             )
 
-        # await episode.update(self.db_session, status=status.DOWNLOADING)
-
-        # old_path = episode.audio.path
         remote_path = await self._copy_file(episode)
         remote_size = self.storage.get_file_size(os.path.basename(remote_path))
 
