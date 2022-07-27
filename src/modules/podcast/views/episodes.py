@@ -91,7 +91,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
         return self._response(episode, status_code=status.HTTP_201_CREATED)
 
     async def _get_or_create_episode(self, podcast_id: int, cleaned_data: dict) -> Episode:
-        source_id = cleaned_data["hash"]
+        source_id = "upl_" + cleaned_data["hash"][:11]
         if episode := await Episode.async_get(
             self.db_session, podcast_id=podcast_id, source_id=source_id
         ):
