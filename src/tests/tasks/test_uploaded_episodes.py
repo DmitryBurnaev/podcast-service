@@ -1,3 +1,5 @@
+import os
+
 from core import settings
 from modules.auth.models import User
 from modules.media.models import File
@@ -33,9 +35,10 @@ class TestUploadedEpisodeTask(BaseTestCase):
     def test_run_ok(self, dbs, podcast, user, mocked_s3, mocked_generate_rss_task):
         mocked_s3.get_file_size.return_value = 1024
         episode = await_(self._episode(dbs, podcast, user, file_size=1024))
+        await_(episode.update(dbs, source_id=f"upl_{episode.source_id}"))
 
         tmp_remote_path = f"/tmp/remote/episode_{episode.source_id}.mp3"
-        new_remote_path = f"/remote/path/episode_{episode.source_id}.mp3"
+        new_remote_path = f"audio//remote/path/episode_{episode.source_id}.mp3"
         mocked_s3.copy_file.return_value = f"/remote/path/episode_{episode.source_id}.mp3"
 
         result = await_(UploadedEpisodeTask(db_session=dbs).run(episode.id))
@@ -52,7 +55,8 @@ class TestUploadedEpisodeTask(BaseTestCase):
         self.assert_called_with(
             mocked_s3.copy_file,
             src_path=tmp_remote_path,
-            dst_path=settings.S3_BUCKET_AUDIO_PATH,
+            # TODO: fix dst_path
+            dst_path=os.path.join(settings.S3_BUCKET_AUDIO_PATH, ),
         )
         self.assert_called_with(mocked_s3.delete_file, dst_path=tmp_remote_path)
         mocked_generate_rss_task.run.assert_called_with(episode.podcast_id)

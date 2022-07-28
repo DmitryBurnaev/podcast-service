@@ -143,6 +143,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         @property
         def hash_str(self):
             data = self.__dict__ | self.metadata._asdict() # noqa
+            del data["metadata"]
             return md5(str(data).encode()).hexdigest()
 
         @property

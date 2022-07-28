@@ -31,7 +31,7 @@ INVALID_CREATE_DATA = [
 
 INVALID_UPLOADED_EPISODES_DATA = [
     [{"path": "path" * 100}, {"path": "Longer than maximum length 256."}],
-    [{"filename": "filename" * 100}, {"filename": "Longer than maximum length 256."}],
+    [{"name": "filename" * 100}, {"name": "Longer than maximum length 256."}],
     [{"meta": {"duration": "fake-int"}}, {"meta": {"duration": "Not a valid integer."}}],
     [{"meta": {"title": "1"}}, {"meta": {"duration": "Missing data for required field."}}],
     [{"size": "fake-int"}, {"size": "Not a valid integer."}],
@@ -210,13 +210,14 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         data = {
             "path": f"remote/tmp/{uuid.uuid4().hex}.mp3",
-            "filename": "uploaded-file.mp3",
+            "name": "uploaded-file.mp3",
             "meta": {
                 "duration": audio_duration,
                 "author": "Test Author",
                 "title": f"Test Title",
                 "album": f"Test Album",
             },
+            "hash": str(uuid.uuid4().hex),
             "size": 50,
         }
         response = client.post(url, json=data)
@@ -233,7 +234,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         assert episode.audio.path == data["path"]
         assert episode.audio.size == 50
         assert episode.audio.available is False
-        assert episode.audio.meta == data["meta"]
+        assert episode.audio.meta == data["meta"] | {"hash": data["hash"]}
 
         if auto_start_task:
             mocked_rq_queue.enqueue.assert_called_with(
@@ -241,6 +242,10 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
             )
         else:
             mocked_rq_queue.enqueue.assert_not_called()
+
+    def test_create_duplicated_episode__ok(self):
+        # TODO: test source id with prefix "upl_" too
+        raise AssertionError
 
     # fmt: off
     @pytest.mark.parametrize(
@@ -300,8 +305,9 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         data = {
             "path": f"remote/tmp/audio-{uuid.uuid4().hex}.mp3",
-            "filename": "filename",
+            "name": "filename",
             "meta": metadata,
+            "hash": str(uuid.uuid4().hex),
             "size": 50,
         }
         response = client.post(url, json=data)

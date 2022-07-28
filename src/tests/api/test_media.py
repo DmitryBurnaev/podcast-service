@@ -1,9 +1,11 @@
 import os
 import uuid
+from hashlib import md5
 
 import pytest
 
 from common.enums import FileType
+from core import settings
 from modules.auth.models import UserIP
 from modules.media.models import File
 from modules.providers.utils import AudioMetaData
@@ -245,7 +247,7 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         client,
         user,
         mocked_s3,
-        audio_file,
+            tmp_file,
         mocked_audio_metadata,
     ):
         audio_metadata = {
@@ -261,14 +263,70 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         mocked_s3.upload_file_async.return_value = remote_tmp_path
 
         client.login(user)
-        response = client.post(self.url, files={"file": audio_file})
+        response = client.post(self.url, files={"file": tmp_file})
         response_data = self.assert_ok_response(response)
+        result_hash = md5(
+            str(
+                {
+                    "filename": os.path.basename(tmp_file.name),
+                    "filesize": tmp_file.size,
+                    "title": audio_metadata["title"],
+                    "duration": audio_metadata["duration"],
+                    "track": audio_metadata["track"],
+                    "album": audio_metadata["album"],
+                    "author": audio_metadata["author"],
+                }
+            ).encode()
+        ).hexdigest()
 
-        assert response_data["filename"] == os.path.basename(audio_file.name)
+        assert response_data["name"] == os.path.basename(tmp_file.name)
         assert response_data["meta"] == audio_metadata
         assert response_data["path"] == remote_tmp_path
-        assert response_data["size"] == audio_file.size
+        assert response_data["size"] == tmp_file.size
+        assert response_data["hash"] == result_hash
 
+        mocked_audio_metadata.assert_called()
+
+    def test_upload__duplicate_uploaded_file__ok(
+        self,
+        user,
+        client,
+        tmp_file,
+        mocked_s3,
+        mocked_audio_metadata,
+    ):
+        audio_metadata = {
+            "title": f"Test Title {uuid.uuid4().hex}",
+            "duration": 90,
+            "track": None,
+            "album": None,
+            "author": None,
+        }
+        result_hash = md5(
+            str(
+                {
+                    "filename": os.path.basename(tmp_file.name),
+                    "filesize": tmp_file.size,
+                    **audio_metadata
+                }
+            ).encode()
+        ).hexdigest()
+
+        mocked_audio_metadata.return_value = AudioMetaData(**audio_metadata)
+        mocked_s3.get_file_size_async.return_value = tmp_file.size
+
+        client.login(user)
+        response = client.post(self.url, files={"file": tmp_file})
+        response_data = self.assert_ok_response(response)
+        remote_path = f"uploaded_audio_{result_hash}"
+
+        assert response_data["name"] == os.path.basename(tmp_file.name)
+        assert response_data["meta"] == audio_metadata
+        assert response_data["path"] == os.path.join(settings.S3_BUCKET_TMP_AUDIO_PATH, remote_path)
+        assert response_data["size"] == tmp_file.size
+        assert response_data["hash"] == result_hash
+
+        mocked_s3.upload_file_async.assert_not_awaited()
         mocked_audio_metadata.assert_called()
 
     def test_upload__empty_file__fail(self, client, user):

@@ -136,7 +136,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
     def _prepare_meta(cleaned_data: dict) -> tuple[str, str]:
         metadata = cleaned_data["meta"]
         if not (title := metadata.get("title")):
-            filename = cleaned_data["filename"]
+            filename = cleaned_data["name"]
             title = filename.rpartition('.')[0] if "." in filename else filename
 
         title_prefix = ""
