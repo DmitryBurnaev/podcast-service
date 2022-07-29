@@ -1,9 +1,11 @@
 from sqlalchemy import exists
 from starlette import status
 
-from common.utils import get_logger
+from common.enums import FileType, SourceType
+from common.utils import get_logger, cut_string
 from common.views import BaseHTTPEndpoint
 from common.exceptions import MethodNotAllowedError
+from modules.media.models import File
 from modules.podcast import tasks
 from modules.podcast.episodes import EpisodeCreator
 from modules.podcast.models import Episode, Podcast
@@ -14,6 +16,7 @@ from modules.podcast.schemas import (
     EpisodeListRequestSchema,
     EpisodeListResponseSchema,
     EpisodeListSchema,
+    EpisodeUploadedSchema,
 )
 
 logger = get_logger(__name__)
@@ -71,6 +74,96 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
         return self._response(episode, status_code=status.HTTP_201_CREATED)
 
 
+class UploadedEpisodesAPIView(BaseHTTPEndpoint):
+    schema_request = EpisodeUploadedSchema
+    schema_response = EpisodeListSchema
+    db_model = Podcast
+
+    async def post(self, request):
+        podcast: Podcast = await self._get_object(request.path_params["podcast_id"])
+        logger.info("Creating episode for uploaded file for podcast %s", podcast)
+
+        cleaned_data = await self._validate(request)
+        episode, created = await self._get_or_create_episode(podcast.id, cleaned_data=cleaned_data)
+        if podcast.download_automatically:
+            await self._run_task(tasks.UploadedEpisodeTask, episode_id=episode.id)
+
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return self._response(episode, status_code=status_code)
+
+    async def _get_or_create_episode(
+        self, podcast_id: int, cleaned_data: dict
+    ) -> tuple[Episode, bool]:
+        source_id = "upl_" + cleaned_data["hash"][:11]
+        if episode := await Episode.async_get(
+            self.db_session, podcast_id=podcast_id, source_id=source_id
+        ):
+            logger.info(
+                "Episode with source_id (hash) '%s' already exist. Return %s", source_id, episode
+            )
+            return episode, False
+
+        metadata = cleaned_data.get("meta")
+        audio_file = await File.create(
+            self.db_session,
+            FileType.AUDIO,
+            available=False,
+            owner_id=self.request.user.id,
+            source_url="",
+            path=cleaned_data["path"],
+            size=cleaned_data["size"],
+            meta=metadata | {"hash": cleaned_data["hash"]},
+        )
+        title, description = self._prepare_meta(cleaned_data)
+        logger.info(
+            "Creating episode with data: title: %s | description %s | metadata: %s.",
+            title,
+            description,
+            cleaned_data.get("meta"),
+        )
+        episode = await Episode.async_create(
+            self.db_session,
+            title=title,
+            source_id=source_id,
+            source_type=SourceType.UPLOAD,
+            podcast_id=podcast_id,
+            audio_id=audio_file.id,
+            owner_id=self.request.user.id,
+            watch_url="",
+            length=metadata["duration"],
+            description=description,
+            author=metadata.get("author", ""),
+        )
+        return episode, True
+
+    @staticmethod
+    def _prepare_meta(cleaned_data: dict) -> tuple[str, str]:
+        metadata = cleaned_data["meta"]
+        if not (title := metadata.get("title")):
+            filename = cleaned_data["name"]
+            title = filename.rpartition(".")[0] if "." in filename else filename
+
+        title_prefix = ""
+        if album := metadata.get("album"):
+            title_prefix += album
+        if track := metadata.get("track"):
+            title_prefix += f" #{track}" if title_prefix else f"Track #{track}"
+
+        title = f"{title_prefix}. {title}" if title_prefix else title
+
+        description = f"Uploaded Episode '{title}'"
+        if album:
+            description += f"\nAlbum: {album}"
+        if album and track:
+            description += f" (track #{track})"
+        elif track:
+            description += f"\nTrack: #{track}"
+        if author := metadata.get("author"):
+            description += f"\nAuthor: {author}"
+
+        return cut_string(title, 255), description
+
+
 class EpisodeRUDAPIView(BaseHTTPEndpoint):
     """Retrieve, Update, Delete API for episodes"""
 
@@ -103,6 +196,11 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
     db_model = Episode
     schema_request = EpisodeUpdateSchema
     schema_response = EpisodeDetailsSchema
+    perform_tasks_map = {
+        SourceType.YOUTUBE: tasks.DownloadEpisodeTask,
+        SourceType.YANDEX: tasks.DownloadEpisodeTask,
+        SourceType.UPLOAD: tasks.UploadedEpisodeTask,
+    }
 
     async def put(self, request):
         episode_id = request.path_params["episode_id"]
@@ -111,5 +209,17 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
         logger.info(f'Start download process for "{episode.watch_url}"')
         episode.status = Episode.Status.DOWNLOADING
         await episode.update(self.db_session, status=episode.status)
-        await self._run_task(tasks.DownloadEpisodeTask, episode_id=episode.id)
+        task_class = self.perform_tasks_map.get(episode.source_type)
+        await self._run_task(task_class, episode_id=episode.id)
         return self._response(episode)
+
+
+# Upload file as a new episode
+# 1) create new endpoint for uploading file
+# 2) save file to tmp directory
+# 3) create episode + audio (without image, use default instead)
+#       link episode with downloaded file in tmp dir (ex.: save local path to "path" field)
+# 4) run task for uploading to s3 storage (or reuse DownloadEpisodeTask instead: override )
+# 5) task: upload file to S3 (without postprocessing)
+# 6) task: update episode, audio + regenerate RSS
+# 7) task: remove tmp file

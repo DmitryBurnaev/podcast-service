@@ -1,3 +1,4 @@
+import uuid
 from functools import partial
 
 import pytest
@@ -8,10 +9,15 @@ from core import settings
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
-from modules.podcast.tasks import DownloadEpisodeTask
+from modules.podcast.tasks import DownloadEpisodeTask, UploadedEpisodeTask
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import get_source_id, create_user, get_podcast_data, create_episode, await_
-
+from tests.helpers import (
+    get_source_id,
+    create_user,
+    get_podcast_data,
+    create_episode,
+    await_,
+)
 
 INVALID_UPDATE_DATA = [
     [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],
@@ -23,14 +29,22 @@ INVALID_CREATE_DATA = [
     [{}, {"source_url": "Missing data for required field."}],
 ]
 
+INVALID_UPLOADED_EPISODES_DATA = [
+    [{"path": "path" * 100}, {"path": "Longer than maximum length 256."}],
+    [{"name": "filename" * 100}, {"name": "Longer than maximum length 256."}],
+    [{"meta": {"duration": "fake-int"}}, {"meta": {"duration": "Not a valid integer."}}],
+    [{"meta": {"title": "1"}}, {"meta": {"duration": "Missing data for required field."}}],
+    [{"size": "fake-int"}, {"size": "Not a valid integer."}],
+]
+
 
 def _episode_in_list(episode: Episode):
     return {
         "id": episode.id,
         "title": episode.title,
         "status": str(episode.status),
-        "source_type": str(SourceType.YOUTUBE),
-        "image_url": episode.image.url,
+        "source_type": str(episode.source_type),
+        "image_url": episode.image.url if episode.image_id else settings.DEFAULT_EPISODE_COVER,
         "created_at": episode.created_at.isoformat(),
     }
 
@@ -47,7 +61,7 @@ def _episode_details(episode: Episode):
         "watch_url": episode.watch_url,
         "image_url": episode.image.url,
         "description": episode.description,
-        "source_type": str(SourceType.YOUTUBE),
+        "source_type": str(episode.source_type),
         "created_at": episode.created_at.isoformat(),
         "published_at": episode.published_at.isoformat() if episode.published_at else None,
     }
@@ -69,7 +83,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         podcast_data = partial(get_podcast_data, owner_id=user.id)
         podcast_1 = await_(Podcast.async_create(dbs, **podcast_data()))
         podcast_2 = await_(Podcast.async_create(dbs, **podcast_data()))
-        ep = create_episode(dbs, episode_data, podcast=podcast_1)
+        ep = create_episode(dbs, episode_data, podcast=podcast_1, status=EpisodeStatus.PUBLISHED)
         create_episode(dbs, episode_data, podcast=podcast_2)
         url = self.url.format(id=podcast_1.id)
         response = client.get(url)
@@ -79,17 +93,17 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
     def test_get_list__filter_status__ok(self, dbs, client, podcast, episode_data, user):
         client.login(user)
         episode_data |= {"owner_id": user.id}
-        ep = create_episode(dbs, episode_data, podcast, status=EpisodeStatus.NEW)
+        ep = create_episode(dbs, episode_data, podcast, status=EpisodeStatus.PUBLISHED)
         create_episode(dbs, episode_data, podcast, status=EpisodeStatus.ERROR)
 
         url = self.url.format(id=podcast.id)
-        response = client.get(url, params={"status": EpisodeStatus.NEW.value})
+        response = client.get(url, params={"status": EpisodeStatus.PUBLISHED.value})
         response_data = self.assert_ok_response(response)
         assert response_data["items"] == [_episode_in_list(ep)]
 
     def test_get_list__search_by_title__ok(self, dbs, client, podcast, episode_data, user):
         client.login(user)
-        episode_data |= {"owner_id": user.id}
+        episode_data |= {"owner_id": user.id, "status": EpisodeStatus.PUBLISHED}
         ep1 = create_episode(dbs, episode_data | {"title": "Python NEWS"}, podcast)
         ep2 = create_episode(dbs, episode_data | {"title": "PyPI is free"}, podcast)
         create_episode(dbs, episode_data | {"title": "Django"}, podcast)
@@ -173,6 +187,199 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         data = {"source_url": "http://link.to.resource/"}
         self.assert_not_found(client.post(url, json=data), podcast)
+
+
+class TestUploadedEpisodesAPIView(BaseTestAPIView):
+    url = "/api/podcasts/{id}/episodes/uploaded/"
+
+    @pytest.mark.parametrize("auto_start_task", (True, False))
+    def test_create__ok(
+        self,
+        dbs,
+        client,
+        podcast,
+        user,
+        mocked_rq_queue,
+        auto_start_task,
+    ):
+        audio_duration = 90
+        await_(podcast.update(dbs, download_automatically=auto_start_task))
+        await_(dbs.commit())
+
+        client.login(user)
+        url = self.url.format(id=podcast.id)
+        data = {
+            "path": f"remote/tmp/{uuid.uuid4().hex}.mp3",
+            "name": "uploaded-file.mp3",
+            "meta": {
+                "duration": audio_duration,
+                "author": "Test Author",
+                "title": "Test Title",
+                "album": "Test Album",
+            },
+            "hash": str(uuid.uuid4().hex),
+            "size": 50,
+        }
+        response = client.post(url, json=data)
+        response_data = self.assert_ok_response(response, status_code=201)
+
+        episode = await_(Episode.async_get(dbs, id=response_data["id"]))
+        assert response_data == _episode_in_list(episode), response.json()
+        assert episode.source_type == SourceType.UPLOAD
+        assert episode.title == "Test Album. Test Title"
+        assert episode.length == audio_duration
+        assert episode.author == "Test Author"
+        assert episode.owner_id == user.id
+
+        assert episode.audio.path == data["path"]
+        assert episode.audio.size == 50
+        assert episode.audio.available is False
+        assert episode.audio.meta == data["meta"] | {"hash": data["hash"]}
+
+        if auto_start_task:
+            mocked_rq_queue.enqueue.assert_called_with(
+                tasks.UploadedEpisodeTask(), episode_id=episode.id
+            )
+        else:
+            mocked_rq_queue.enqueue.assert_not_called()
+
+    def test_create_duplicated_episode__ok(
+        self,
+        dbs,
+        podcast,
+        episode,
+        client,
+        user,
+        mocked_rq_queue,
+    ):
+        audio_hash = str(uuid.uuid4().hex)
+        await_(
+            episode.update(dbs, source_type=SourceType.UPLOAD, source_id=f"upl_{audio_hash[:11]}")
+        )
+        await_(dbs.commit())
+
+        client.login(user)
+        url = self.url.format(id=podcast.id)
+        data = {
+            "path": f"remote/tmp/{uuid.uuid4().hex}.mp3",
+            "name": "uploaded-file.mp3",
+            "meta": {
+                "duration": 1,
+                "author": "Test Author",
+                "title": "Test Title",
+                "album": "Test Album",
+            },
+            "hash": audio_hash,
+            "size": 50,
+        }
+        response = client.post(url, json=data)
+        response_data = self.assert_ok_response(response, status_code=200)
+
+        assert episode.id == response_data["id"]
+
+        episode = await_(Episode.async_get(dbs, id=response_data["id"]))
+        assert response_data == _episode_in_list(episode), response.json()
+        assert episode.source_type == SourceType.UPLOAD
+        mocked_rq_queue.enqueue.assert_called_with(
+            tasks.UploadedEpisodeTask(), episode_id=episode.id
+        )
+
+    # fmt: off
+    @pytest.mark.parametrize(
+        "label, metadata,episode_data",
+        [
+            (
+                "only_title",
+                {"duration": 1, "title": "Test title"},
+                {"title": "Test title", "author": "",
+                 "description": "Uploaded Episode 'Test title'"}
+            ),
+            (
+                "title_author",
+                {"duration": 1, "title": "Test Title", "author": "Test Author"},
+                {"title": "Test Title", "author": "Test Author",
+                 "description": "Uploaded Episode 'Test Title'\nAuthor: Test Author"}),
+            (
+                "only_author",
+                {"duration": 1, "title": '', "author": "Test Author"},
+                {"title": "filename", "author": "Test Author",
+                 "description": "Uploaded Episode 'filename'\nAuthor: Test Author"}),
+            (
+                "only_track",
+                {"duration": 1, "track": "01"},
+                {"title": "Track #01. filename",
+                 "description": "Uploaded Episode 'Track #01. filename'\nTrack: #01"}),
+            (
+                "title_album_track",
+                {"duration": 1, "title": "Test Title", "album": "Test Album", "track": "01"},
+                {"title": "Test Album #01. Test Title",
+                 "description": "Uploaded Episode 'Test Album #01. Test Title'\nAlbum: Test Album (track #01)"}), # noqa
+            (
+                "album_track",
+                {"duration": 1, "album": "Test Album", "track": "01"},
+                {"title": "Test Album #01. filename",
+                 "description": "Uploaded Episode 'Test Album #01. filename'\nAlbum: Test Album (track #01)"}), # noqa
+            (
+                "large_title",
+                {"duration": 1, "title": "l-title-" * 100},
+                {"title": ("l-title-" * 100)[:252] + "...",
+                 "description": f"Uploaded Episode \'{('l-title-' * 100)}\'"}),
+        ]
+    )
+    # fmt: on
+    def test_create__various_metadata__ok(
+        self,
+        dbs,
+        user,
+        client,
+        podcast,
+        mocked_rq_queue,
+        label,
+        metadata,
+        episode_data,
+    ):
+        client.login(user)
+        url = self.url.format(id=podcast.id)
+        data = {
+            "path": f"remote/tmp/audio-{uuid.uuid4().hex}.mp3",
+            "name": "filename",
+            "meta": metadata,
+            "hash": str(uuid.uuid4().hex),
+            "size": 50,
+        }
+        response = client.post(url, json=data)
+        response_data = self.assert_ok_response(response, status_code=201)
+
+        episode = await_(Episode.async_get(dbs, id=response_data["id"]))
+        assert response_data == _episode_in_list(episode), response.json()
+
+        for field, value in episode_data.items():
+            assert getattr(episode, field) == value, (
+                f"Episode's field {field} value mismatch: "
+                f"expected: {value} | actual {getattr(episode, field)} "
+            )
+
+    @pytest.mark.parametrize("invalid_data, error_details", INVALID_UPLOADED_EPISODES_DATA)
+    def test_create__invalid_request__fail(
+        self, client, podcast, user, invalid_data: dict, error_details: dict
+    ):
+        client.login(user)
+        url = self.url.format(id=podcast.id)
+        response = client.post(url, json=invalid_data)
+        assert response.status_code == 400, f"Unexpected status code. Response: {response.content}"
+
+        response_data = response.json()
+        response_data = response_data["payload"]
+        for error_field, error_value in error_details.items():
+            if isinstance(error_value, dict):
+                print(error_field, error_value)
+                for e_key, e_val in error_value.items():
+                    assert e_key in response_data["details"][error_field]
+                    assert e_val in response_data["details"][error_field][e_key]
+            else:
+
+                assert error_field in response_data["details"]
+                assert error_value in response_data["details"][error_field]
 
 
 class TestEpisodeRUDAPIView(BaseTestAPIView):
@@ -288,14 +495,25 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
 class TestEpisodeDownloadAPIView(BaseTestAPIView):
     url = "/api/episodes/{id}/download/"
 
-    def test_download__ok(self, client, episode, user, mocked_rq_queue, dbs):
+    @pytest.mark.parametrize(
+        "source_type, task",
+        (
+            (SourceType.YOUTUBE, DownloadEpisodeTask),
+            (SourceType.YANDEX, DownloadEpisodeTask),
+            (SourceType.UPLOAD, UploadedEpisodeTask),
+        ),
+    )
+    def test_download__ok(self, dbs, client, episode, user, mocked_rq_queue, source_type, task):
+        await_(episode.update(dbs, source_type=source_type))
+        await_(dbs.commit())
+
         client.login(user)
         url = self.url.format(id=episode.id)
         response = client.put(url)
         await_(dbs.refresh(episode))
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_details(episode)
-        mocked_rq_queue.enqueue.assert_called_with(DownloadEpisodeTask(), episode_id=episode.id)
+        mocked_rq_queue.enqueue.assert_called_with(task(), episode_id=episode.id)
 
     def test_download__episode_from_another_user__fail(self, client, episode, user, dbs):
         client.login(create_user(dbs))

@@ -80,6 +80,7 @@ S3_BUCKET_NAME = config("S3_BUCKET_NAME", default="podcast")
 S3_BUCKET_AUDIO_PATH = config("S3_BUCKET_AUDIO_PATH", default="audio/")
 S3_BUCKET_RSS_PATH = config("S3_BUCKET_RSS_PATH", default="rss/")
 S3_BUCKET_IMAGES_PATH = config("S3_BUCKET_IMAGES_PATH", default="images/")
+S3_BUCKET_TMP_AUDIO_PATH = config("S3_BUCKET_TMP_AUDIO_PATH", default="tmp/audio/")
 S3_BUCKET_EPISODE_IMAGES_PATH = Path(os.path.join(S3_BUCKET_IMAGES_PATH, "episodes"))
 S3_BUCKET_PODCAST_IMAGES_PATH = Path(os.path.join(S3_BUCKET_IMAGES_PATH, "podcasts"))
 S3_LINK_EXPIRES_IN = config("S3_LINK_EXPIRES_IN", default=600, cast=int)
@@ -103,6 +104,9 @@ RQ_DEFAULT_TIMEOUT = 24 * 3600  # 24 hours
 FFMPEG_TIMEOUT = 2 * 60 * 60  # 2 hours
 DEFAULT_LIMIT_LIST_API = 20
 MAX_UPLOAD_ATTEMPT = config("MAX_UPLOAD_ATTEMPT", default=5, cast=int)
+MAX_UPLOAD_AUDIO_FILESIZE = config("MAX_UPLOAD_FILESIZE", default=(1024 * 1024 * 512))  # 512MB
+MAX_UPLOAD_IMAGE_FILESIZE = config("MAX_UPLOAD_FILESIZE", default=(1024 * 1024 * 10))  # 10MB
+
 RETRY_UPLOAD_TIMEOUT = 1  # 1 second
 REQUEST_IP_HEADER = config("REQUEST_IP_HEADER", default="X-Real-IP", cast=str)
 # TODO: add salt to the env

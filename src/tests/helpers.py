@@ -1,11 +1,12 @@
 import asyncio
+import io
 import random
 import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from hashlib import blake2b
-from typing import Tuple, Type
+from typing import Tuple, Type, Optional
 from unittest import mock
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -79,15 +80,22 @@ def get_user_data() -> Tuple[str, str]:
     return f"u_{uuid.uuid4().hex[:10]}@test.com", "password"
 
 
-def get_source_id() -> str:
+def get_source_id(prefix: str = "") -> str:
     """Generate SourceID (ex.: youtube's video-id)"""
-    return blake2b(key=bytes(str(time.time()), encoding="utf-8"), digest_size=6).hexdigest()[:11]
+    sid = blake2b(key=bytes(str(time.time()), encoding="utf-8"), digest_size=6).hexdigest()[:11]
+    if prefix:
+        sid = f"{prefix}_{sid}"
+
+    return sid
 
 
 def get_episode_data(
-    podcast: Podcast = None, status: EpisodeStatus = EpisodeStatus.NEW, creator: User = None
+    podcast: Podcast = None,
+    status: EpisodeStatus = EpisodeStatus.NEW,
+    creator: User = None,
+    source_id: Optional[str] = None,
 ) -> dict:
-    source_id = get_source_id()
+    source_id = source_id or get_source_id()
     episode_data = {
         "source_id": source_id,
         "source_type": SourceType.YOUTUBE,
@@ -132,6 +140,13 @@ def make_db_session(loop):
 def create_user(db_session):
     email, password = get_user_data()
     return await_(User.async_create(db_session, db_commit=True, email=email, password=password))
+
+
+def create_file(content: str | bytes) -> io.BytesIO:
+    if not isinstance(content, bytes):
+        content = content.encode()
+
+    return io.BytesIO(content)
 
 
 def create_user_session(db_session, user):

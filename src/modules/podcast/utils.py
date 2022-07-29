@@ -4,6 +4,9 @@ from functools import partial
 from pathlib import Path
 from typing import Union, Iterable, Optional
 
+from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import UploadFile
+
 from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
@@ -148,3 +151,47 @@ def upload_episode(src_path: str | Path) -> Optional[str]:
     logger.info("Great! uploading for %s was done!", filename)
     logger.debug("Finished uploading for file %s. \n Result url is %s", filename, remote_path)
     return remote_path
+
+
+def remote_copy_episode(
+    src_path: str,
+    dst_path: str,
+    src_file_size: int = 0,
+) -> Optional[str]:
+    """Allows uploading src_path to S3 storage"""
+
+    filename = os.path.basename(src_path)
+    episode_process_hook(
+        filename=filename,
+        status=EpisodeStatus.DL_EPISODE_UPLOADING,
+        processed_bytes=0,
+        total_bytes=src_file_size,
+    )
+    logger.debug("Remotely copying for %s started.", filename)
+    remote_path = StorageS3().copy_file(src_path=str(src_path), dst_path=dst_path)
+    if not remote_path:
+        logger.warning("Couldn't move file in S3 storage remotely. SKIP")
+        episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0)
+        return
+
+    logger.debug("Finished moving s3 for file %s. \n Remote path is %s", filename, remote_path)
+    return remote_path
+
+
+async def save_uploaded_file(
+    uploaded_file: UploadFile, prefix: str, max_file_size: int, tmp_path: Path
+) -> Path:
+    contents = await uploaded_file.read()
+    file_ext = os.path.splitext(uploaded_file.filename)
+    result_file_path = tmp_path / f"{prefix}{file_ext}"
+    with open(result_file_path, "wb") as f:
+        await run_in_threadpool(f.write, contents)
+
+    file_size = get_file_size(result_file_path)
+    if file_size < 1:
+        raise ValueError("result file-size is less than allowed")
+
+    if file_size > max_file_size:
+        raise ValueError("result file-size is more than allowed")
+
+    return result_file_path

@@ -43,7 +43,7 @@ class StorageS3:
         logger.debug("S3 client %s created", self.s3)
 
     def __call(
-        self, handler: Callable, error_log_level=logging.ERROR, **handler_kwargs
+        self, handler: Callable, error_log_level: int = logging.ERROR, **handler_kwargs
     ) -> Tuple[int, Optional[dict]]:
         try:
             logger.info("Executing request (%s) to S3 kwargs: %s", handler.__name__, handler_kwargs)
@@ -69,7 +69,7 @@ class StorageS3:
         src_path: str | Path,
         dst_path: str,
         filename: Optional[str] = None,
-        callback: Callable = None,
+        callback: Optional[Callable] = None,
     ) -> Optional[str]:
         """Upload file to S3 storage"""
 
@@ -78,7 +78,7 @@ class StorageS3:
         dst_path = os.path.join(dst_path, filename)
         code, result = self.__call(
             self.s3.upload_file,
-            Filename=src_path,
+            Filename=str(src_path),
             Bucket=settings.S3_BUCKET_NAME,
             Key=dst_path,
             Callback=callback,
@@ -90,17 +90,52 @@ class StorageS3:
         logger.info("File %s successful uploaded. Remote path: %s", filename, dst_path)
         return dst_path
 
+    def copy_file(self, src_path: str, dst_path: str) -> Optional[str]:
+        """Upload file to S3 storage"""
+
+        code, result = self.__call(
+            self.s3.copy_object,
+            Bucket=settings.S3_BUCKET_NAME,
+            Key=dst_path,
+            CopySource={"Bucket": settings.S3_BUCKET_NAME, "Key": src_path},
+        )
+        if code != self.CODE_OK:
+            return None
+
+        logger.info("File successful copied: %s -> %s", src_path, dst_path)
+        return dst_path
+
+    async def upload_file_async(
+        self,
+        src_path: str | Path,
+        dst_path: str,
+        filename: Optional[str] = None,
+        callback: Callable = None,
+    ):
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            partial(
+                self.upload_file,
+                src_path=src_path,
+                dst_path=dst_path,
+                filename=filename,
+                callback=callback,
+            ),
+        )
+
     def get_file_info(
         self,
         filename: str,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         error_log_level: int = logging.ERROR,
+        dst_path: Optional[str] = None,
     ) -> Optional[dict]:
         """
         Allows finding file information (headers) on remote storage (S3)
         Headers content info about downloaded file
         """
-        dst_path = os.path.join(remote_path, filename)
+        dst_path = dst_path or os.path.join(remote_path, filename)
         code, result = self.__call(
             self.s3.head_object,
             error_log_level=error_log_level,
@@ -110,23 +145,53 @@ class StorageS3:
         return result
 
     def get_file_size(
-        self, filename: Optional[str], remote_path: str = settings.S3_BUCKET_AUDIO_PATH
+        self,
+        filename: Optional[str] = None,
+        remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
+        dst_path: Optional[str] = None,
     ) -> int:
         """
         Allows finding file on remote storage (S3) and calculate size
         (content-length / file size)
         """
 
-        if filename:
-            file_info = self.get_file_info(filename, remote_path, error_log_level=logging.WARNING)
+        if filename or dst_path:
+            file_info = self.get_file_info(
+                filename, remote_path, dst_path=dst_path, error_log_level=logging.WARNING
+            )
             if file_info:
                 return int(file_info["ResponseMetadata"]["HTTPHeaders"]["content-length"])
 
         logger.info("File %s was not found on s3 storage", filename)
         return 0
 
-    def delete_file(self, filename: str, remote_path: str = settings.S3_BUCKET_AUDIO_PATH):
-        dst_path = os.path.join(remote_path, filename)
+    async def get_file_size_async(
+        self,
+        filename: Optional[str] = None,
+        remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
+        dst_path: Optional[str] = None,
+    ):
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            partial(
+                self.get_file_size,
+                filename=filename,
+                remote_path=remote_path,
+                dst_path=dst_path,
+            ),
+        )
+
+    def delete_file(
+        self,
+        filename: Optional[str] = None,
+        remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
+        dst_path: Optional[str] = None,
+    ):
+        if not dst_path and not filename:
+            raise ValueError("At least one argument must be set: dst_path | filename")
+
+        dst_path = dst_path or os.path.join(remote_path, filename)
         code, result = self.__call(self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME)
         return result
 

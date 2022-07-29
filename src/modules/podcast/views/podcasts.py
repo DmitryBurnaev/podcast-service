@@ -1,10 +1,10 @@
 import asyncio
+import uuid
 from pathlib import Path
 
 from sqlalchemy import select, func
 from starlette import status
 from starlette.concurrency import run_in_threadpool
-from starlette.datastructures import UploadFile
 from starlette.requests import Request
 
 from core import settings
@@ -21,7 +21,7 @@ from modules.podcast.schemas import (
     PodcastUploadImageResponseSchema,
 )
 from modules.podcast.tasks.rss import GenerateRSSTask
-from modules.podcast.utils import get_file_size
+from modules.podcast.utils import get_file_size, save_uploaded_file
 
 logger = get_logger(__name__)
 
@@ -115,7 +115,13 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
         podcast: Podcast = await self._get_object(podcast_id)
         logger.info("Uploading cover for podcast %s", podcast)
         cleaned_data = await self._validate(request)
-        tmp_path = await self._save_uploaded_image(cleaned_data)
+        # TODO: ValueError
+        tmp_path = await save_uploaded_file(
+            uploaded_file=cleaned_data["image"],
+            prefix=f"podcast_cover_{uuid.uuid4().hex}",
+            max_file_size=settings.MAX_UPLOAD_IMAGE_FILESIZE,
+            tmp_path=settings.TMP_IMAGE_PATH,
+        )
 
         image_remote_path = await self._upload_cover(podcast, tmp_path)
         image_data = {
@@ -147,17 +153,6 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
             raise InvalidParameterError(details="Image is required field")
 
         return {"image": image}
-
-    @staticmethod
-    async def _save_uploaded_image(cleaned_data: dict) -> Path:
-        uploaded_file: UploadFile = cleaned_data["image"]
-        contents = await uploaded_file.read()
-        file_ext = uploaded_file.filename.rpartition(".")[-1]
-        result_file_path = settings.TMP_IMAGE_PATH / f"podcast_cover.{file_ext}"
-        with open(result_file_path, "wb") as f:
-            await run_in_threadpool(f.write, contents)
-
-        return result_file_path
 
     @staticmethod
     async def _upload_cover(podcast: Podcast, tmp_path: Path) -> str:

@@ -18,9 +18,11 @@ __all__ = [
     "PodcastUploadImageResponseSchema",
     "CookieCreateUpdateSchema",
     "CookieResponseSchema",
+    "EpisodeUploadedSchema",
 ]
 
 from common.enums import SourceType, EpisodeStatus
+from modules.media.schemas import MetaDataSchema
 
 
 class BaseLimitOffsetSchema(Schema):
@@ -71,11 +73,19 @@ class EpisodeUpdateSchema(Schema):
     author = fields.Str(validate=validate.Length(max=256))
 
 
+class EpisodeUploadedSchema(Schema):
+    path = fields.Str(required=True, validate=validate.Length(max=256))
+    name = fields.Str(required=True, validate=validate.Length(max=256))
+    size = fields.Int(required=True)
+    hash = fields.Str(required=True, validate=validate.Length(max=32))
+    meta = fields.Nested(MetaDataSchema)
+
+
 class EpisodeListSchema(Schema):
     id = fields.Int(required=True)
     title = fields.Str(required=True)
     created_at = fields.DateTime(required=True)
-    image_url = fields.URL(attribute="image.url")
+    image_url = fields.URL()
     status = fields.Str(required=True)
     source_type = fields.Str(required=True)
 

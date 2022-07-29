@@ -1,15 +1,33 @@
+import dataclasses
+import os
+import uuid
+from contextlib import suppress
+from hashlib import md5
+from pathlib import Path
 from typing import ClassVar
 
+from starlette.datastructures import UploadFile
 from starlette.responses import RedirectResponse, Response
 
 from common.enums import FileType
-from common.exceptions import AuthenticationFailedError, NotFoundError
+from common.exceptions import (
+    NotFoundError,
+    S3UploadingError,
+    InvalidParameterError,
+    AuthenticationFailedError,
+)
 from common.request import PRequest
+from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
 from common.utils import get_logger
+from core import settings
 from modules.auth.models import UserIP
 from modules.auth.utils import extract_ip_address
 from modules.media.models import File
+from modules.media.schemas import FileUploadSchema, AudioFileResponseSchema
+from modules.podcast.utils import save_uploaded_file, get_file_size
+from modules.providers import utils as provider_utils
+from modules.providers.utils import AudioMetaData
 
 logger = get_logger(__name__)
 
@@ -109,3 +127,100 @@ class RSSRedirectAPIView(BaseFileRedirectApiView):
                 return user_ip
 
             raise e
+
+
+class AudioFileUploadAPIView(BaseHTTPEndpoint):
+    schema_request = FileUploadSchema
+    schema_response = AudioFileResponseSchema
+    max_title_length = 256
+
+    @dataclasses.dataclass
+    class UploadedFileData:
+        filename: str
+        filesize: int
+        metadata: AudioMetaData
+
+        @property
+        def hash_str(self):
+            data = self.__dict__ | self.metadata._asdict()  # noqa
+            del data["metadata"]
+            return md5(str(data).encode()).hexdigest()
+
+        @property
+        def tmp_filename(self):
+            file_ext = os.path.splitext(self.filename)[-1]
+            return f"uploaded_audio_{self.hash_str}{file_ext}"
+
+    async def post(self, request):
+        cleaned_data = await self._validate(request, location="form")
+        tmp_path, filename = await self._save_audio(cleaned_data["file"])
+        uploaded_file = self.UploadedFileData(
+            filename=filename,
+            filesize=get_file_size(tmp_path),
+            metadata=provider_utils.audio_metadata(tmp_path),
+        )
+        new_tmp_path = settings.TMP_AUDIO_PATH / uploaded_file.tmp_filename
+        os.rename(tmp_path, new_tmp_path)
+        remote_path = await self._upload_to_storage(uploaded_file, new_tmp_path)
+
+        with suppress(FileNotFoundError):
+            os.remove(new_tmp_path)
+
+        return self._response(
+            {
+                "name": filename,
+                "path": remote_path,
+                "meta": uploaded_file.metadata,
+                "size": uploaded_file.filesize,
+                "hash": uploaded_file.hash_str,
+            }
+        )
+
+    @staticmethod
+    async def _upload_to_storage(uploaded_file: UploadedFileData, tmp_path: Path) -> str:
+        storage = StorageS3()
+        tmp_filename = os.path.basename(tmp_path)
+
+        remote_path = os.path.join(settings.S3_BUCKET_TMP_AUDIO_PATH, tmp_filename)
+        if remote_file_size := await storage.get_file_size_async(dst_path=remote_path):
+            if remote_file_size == get_file_size(tmp_path):
+                logger.info(
+                    'File "%s" already uploaded to s3, and have correct size: '
+                    "tmp_filename: %s | metadata: %s | remote_file_size: %i",
+                    uploaded_file.filename,
+                    tmp_filename,
+                    uploaded_file.metadata,
+                    remote_file_size,
+                )
+                return remote_path
+
+            logger.warning(
+                'File "%s" already uploaded to s3, but size not equal (rewrite it): '
+                "tmp_filename: %s | metadata: %s | remote_file_size: %i",
+                uploaded_file.filename,
+                tmp_filename,
+                uploaded_file.metadata,
+                remote_file_size,
+            )
+
+        remote_path = await storage.upload_file_async(
+            src_path=tmp_path, dst_path=settings.S3_BUCKET_TMP_AUDIO_PATH
+        )
+        if not remote_path:
+            raise S3UploadingError("Couldn't upload audio file")
+
+        return remote_path
+
+    @staticmethod
+    async def _save_audio(upload_file: UploadFile) -> tuple[Path, str]:
+        try:
+            tmp_path = await save_uploaded_file(
+                uploaded_file=upload_file,
+                prefix=f"uploaded_episode_{uuid.uuid4().hex}",
+                max_file_size=settings.MAX_UPLOAD_AUDIO_FILESIZE,
+                tmp_path=settings.TMP_AUDIO_PATH,
+            )
+        except ValueError as e:
+            raise InvalidParameterError(details={"file": str(e)})
+
+        return tmp_path, upload_file.filename

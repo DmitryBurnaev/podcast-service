@@ -3,6 +3,7 @@ import re
 import asyncio
 import subprocess
 import dataclasses
+import tempfile
 from pathlib import Path
 from functools import partial
 from contextlib import suppress
@@ -18,7 +19,7 @@ from common.enums import SourceType, EpisodeStatus
 from common.exceptions import InvalidParameterError
 from modules.podcast.models import Cookie
 from modules.auth.hasher import get_random_hash
-from modules.providers.exceptions import FFMPegPreparationError
+from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
 from modules.podcast.utils import (
     get_file_size,
     episode_process_hook,
@@ -45,6 +46,8 @@ class SourceConfig(NamedTuple):
     regexp: Optional[str] = None
     regexp_playlist: Optional[str] = None
     need_postprocessing: bool = False
+    # TODO: are we need to have this field?
+    need_downloading: bool = True
 
 
 @dataclasses.dataclass
@@ -75,8 +78,12 @@ SOURCE_CFG_MAP = {
     ),
     SourceType.UPLOAD: SourceConfig(
         type=SourceType.UPLOAD,
+        need_downloading=False,
     ),
 }
+
+# TODO: write another regexp (finding all metadata with single regexp construction)
+AUDIO_META_REGEXP = re.compile(r"(?P<meta>Metadata.+)?(?P<duration>Duration:\s?[\d:]+)", re.DOTALL)
 
 
 def extract_source_info(source_url: Optional[str] = None, playlist: bool = False) -> SourceInfo:
@@ -241,3 +248,93 @@ def ffmpeg_preparation(
             processed_bytes=total_file_size,
         )
     logger.info("FFMPEG Preparation for %s was done", filename)
+
+
+class AudioMetaData(NamedTuple):
+    title: str
+    duration: int
+    track: Optional[str] = None
+    album: Optional[str] = None
+    author: Optional[str] = None
+
+
+def audio_metadata(file_path: Path | str) -> AudioMetaData:
+    """Calculates (via ffmpeg) length of audio track and returns number of seconds"""
+
+    try:
+        with tempfile.NamedTemporaryFile() as file:
+            completed_proc = subprocess.run(
+                ["ffmpeg", "-y", "-i", file_path, "-f", "ffmetadata", file.name],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=True,
+                timeout=settings.FFMPEG_TIMEOUT,
+            )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
+        err_details = f"FFMPEG failed with errors: {err}"
+        if stdout := getattr(err, "stdout", ""):
+            err_details += f"\n{str(stdout, encoding='utf-8')}"
+
+        raise FFMPegPreparationError(err_details)
+
+    ffmpeg_result_str = completed_proc.stdout.decode()
+    find_results = AUDIO_META_REGEXP.search(ffmpeg_result_str, re.DOTALL)
+    if not find_results:
+        raise FFMPegParseError(f"Found result: {ffmpeg_result_str}")
+
+    find_results = find_results.groupdict()
+    duration = _human_time_to_sec(find_results.get("duration", "").replace("Duration:", ""))
+    metadata = _raw_meta_to_dict((find_results.get("meta") or "").replace("Metadata:\n", ""))
+
+    logger.debug(
+        "FFMPEG success done extracting duration from the file %s:\nmeta: %s\nduration: %s",
+        file_path,
+        metadata,
+        duration,
+    )
+    return AudioMetaData(
+        title=metadata.get("title"),
+        author=metadata.get("artist"),
+        album=metadata.get("album"),
+        track=metadata.get("track"),
+        duration=duration,
+    )
+
+
+def _raw_meta_to_dict(meta: Optional[str]) -> dict:
+    """
+    Converts raw metadata from ffmpeg to dict values
+
+    >>> _raw_meta_to_dict('    album           : TestAlbum\\n    artist          : Artist')
+    {'album': 'TestAlbum', 'artist': 'Artist'}
+
+    """
+    result = {}
+    for meta_str in meta.split("\n"):
+        try:
+            key, value = meta_str.split(":")
+        except ValueError:
+            continue
+
+        result[key.strip()] = value.strip()
+
+    return result
+
+
+def _human_time_to_sec(time_str: str) -> int:
+    """
+    Converts human time like '01:01:20.23' to seconds count 3680
+
+    >>> _human_time_to_sec('00:01:16.75')
+    77
+    >>> _human_time_to_sec('01:01:20.232443')
+    3680
+
+    """
+
+    time_items = time_str.rstrip(",").split(":")
+    res_time = 0
+    for index, time_item in enumerate(reversed(time_items)):
+        res_time += round(float(time_item), 0) * pow(60, index)
+
+    return int(res_time)

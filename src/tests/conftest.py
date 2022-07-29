@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import tempfile
 import uuid
 from datetime import datetime, timedelta
 from typing import Tuple
@@ -47,6 +48,7 @@ from tests.mocks import (
 def test_settings():
     settings.APP_DEBUG = True
     settings.MAX_UPLOAD_ATTEMPT = 1
+    settings.MAX_UPLOAD_AUDIO_FILESIZE = 32
     settings.RETRY_UPLOAD_TIMEOUT = 0
 
 
@@ -170,6 +172,14 @@ def mocked_ffmpeg(monkeypatch) -> Mock:
 
 
 @pytest.fixture
+def mocked_audio_metadata(monkeypatch) -> Mock:
+    mocked_function = Mock()
+    monkeypatch.setattr(youtube_utils, "audio_metadata", mocked_function)
+    yield mocked_function
+    del mocked_function
+
+
+@pytest.fixture
 def mocked_auth_send() -> AsyncMock:
     mocked_send_email = AsyncMock()
     patcher = patch("modules.auth.views.send_email", new=mocked_send_email)
@@ -206,7 +216,7 @@ def podcast_data() -> dict:
 
 @pytest.fixture
 def episode_data(podcast) -> dict:
-    return get_episode_data(podcast)
+    return get_episode_data(podcast=podcast)
 
 
 @pytest.fixture
@@ -284,7 +294,7 @@ def rss_file(user, loop, dbs) -> File:
 
 @pytest.fixture
 def episode(podcast, user, loop, dbs) -> Episode:
-    episode_data = get_episode_data(podcast, creator=user)
+    episode_data = get_episode_data(podcast=podcast, creator=user)
     source_id = get_source_id()
     audio = loop.run_until_complete(
         File.create(
@@ -328,6 +338,17 @@ def user_invite(user, loop, dbs) -> UserInvite:
     )
 
 
+@pytest.fixture
+def tmp_file():
+    content = b"test-file-content"
+    with tempfile.NamedTemporaryFile() as file:
+        file.write(content)
+        file.content = content
+        file.size = len(content)
+        file.seek(0)
+        yield file
+
+
 def _mocked_source_info(monkeypatch, source_type) -> Mock:
     mock = Mock()
     mock.return_value = SourceInfo(
@@ -348,3 +369,8 @@ def mocked_source_info_youtube(monkeypatch) -> Mock:
 @pytest.fixture()
 def mocked_source_info_yandex(monkeypatch) -> Mock:
     yield from _mocked_source_info(monkeypatch, source_type=SourceType.YANDEX)
+
+
+@pytest.fixture()
+def mocked_source_info_upload(monkeypatch) -> Mock:
+    yield from _mocked_source_info(monkeypatch, source_type=SourceType.UPLOAD)

@@ -72,6 +72,7 @@ class Episode(ModelBase, ModelMixin):
     """SQLAlchemy schema for episode instances"""
 
     __tablename__ = "podcast_episodes"
+
     Status = EpisodeStatus
     Sources = SourceType
     PROGRESS_STATUSES = (Status.DOWNLOADING,)
@@ -93,7 +94,6 @@ class Episode(ModelBase, ModelMixin):
     created_at = Column(DateTime, default=datetime.utcnow)
     published_at = Column(DateTime)
 
-    # TODO: recheck extra queries here
     image = relationship("File", foreign_keys=[image_id], lazy="subquery")
     audio = relationship("File", foreign_keys=[audio_id], lazy="subquery")
 
@@ -119,9 +119,11 @@ class Episode(ModelBase, ModelMixin):
 
     @cached_property
     def audio_filename(self) -> str:
-        if not (filename := self.audio.name):
+        filename = self.audio.name
+        if not filename or "tmp" in self.audio.path:
             suffix = md5(f"{self.source_id}-{settings.FILENAME_SALT}".encode()).hexdigest()
-            filename = f"{self.source_id}_{suffix}.mp3"
+            _, ext = os.path.splitext(filename)
+            filename = f"{self.source_id}_{suffix}{ext or '.mp3'}"
 
         return filename
 
