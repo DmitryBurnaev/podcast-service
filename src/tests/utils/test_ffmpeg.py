@@ -81,7 +81,7 @@ class TestFFMPEG(BaseTestCase):
     @patch("subprocess.run")
     @patch("modules.providers.utils.episode_process_hook")
     def test_episode_prepare__ffmpeg_error__fail(self, mocked_process_hook, mocked_run):
-        mocked_run.side_effect = subprocess.CalledProcessError(1, 'ffmpeg', stderr=b"FFMPEG oops")
+        mocked_run.side_effect = subprocess.CalledProcessError(1, "ffmpeg", stderr=b"FFMPEG oops")
         with pytest.raises(FFMPegPreparationError) as err:
             ffmpeg_preparation(self.src_path)
 
@@ -132,8 +132,7 @@ class TestFFMPEG(BaseTestCase):
 
     @patch("subprocess.run")
     def test_extract_metadata__ok(self, mocked_run):
-        ffmpeg_stdout = (
-            """
+        ffmpeg_stdout = """
 Input #0, mp3, from '01.AudioTrack.mp3':
   Metadata:
     album           : Test Album
@@ -163,36 +162,33 @@ Output #0, ffmetadata, to 't.txt':
 Stream mapping:
 Press [q] to stop, [?] for help
 size=       7kB time=-577014:32:22.77 bitrate=N/A speed=N/A
-video:0kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown                        
-            """
-        )
+video:0kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown
+        """
 
-        mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode('utf-8'))
+        mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode("utf-8"))
         result = audio_metadata(self.src_path)
 
         assert isinstance(result, AudioMetaData)
-        assert result.author == 'Test Artist'
-        assert result.title == 'Title #1'
-        assert result.track == '01'
-        assert result.album == 'Test Album'
+        assert result.author == "Test Artist"
+        assert result.title == "Title #1"
+        assert result.track == "01"
+        assert result.album == "Test Album"
         assert result.duration == 1102
 
     @patch("subprocess.run")
     def test_extract_metadata__missed_some_data__ok(self, mocked_run):
-        ffmpeg_stdout = (
-            """
+        ffmpeg_stdout = """
 Input #0, mp3, from '01.AudioTrack.mp3':
   Metadata:
     title           : Title #1
   Duration: 00:18:22.91, start: 0.000000, bitrate: 196 kb/s
             """
-        )
 
-        mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode('utf-8'))
+        mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode("utf-8"))
         result = audio_metadata(self.src_path)
 
         assert isinstance(result, AudioMetaData)
-        assert result.title == 'Title #1'
+        assert result.title == "Title #1"
         assert result.duration == 1102
         assert result.author is None
         assert result.track is None
@@ -200,14 +196,12 @@ Input #0, mp3, from '01.AudioTrack.mp3':
 
     @patch("subprocess.run")
     def test_extract_metadata__missed_metadata_at_all__ok(self, mocked_run):
-        ffmpeg_stdout = (
-            """
+        ffmpeg_stdout = """
 Input #0, mp3, from '01.AudioTrack.mp3':
   Duration: 00:18:22.91, start: 0.000000, bitrate: 196 kb/s
             """
-        )
 
-        mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode('utf-8'))
+        mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode("utf-8"))
         result = audio_metadata(self.src_path)
 
         assert isinstance(result, AudioMetaData)
@@ -219,21 +213,19 @@ Input #0, mp3, from '01.AudioTrack.mp3':
 
     @patch("subprocess.run")
     def test_extract_metadata__missed_all_data__fail(self, mocked_run):
-        ffmpeg_stdout = (
-            """
+        ffmpeg_stdout = """
 Input #0, mp3, from '01.AudioTrack.mp3':
             """
-        )
-        mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode('utf-8'))
+        mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode("utf-8"))
 
         with pytest.raises(FFMPegParseError) as err:
             audio_metadata(self.src_path)
 
-        assert 'Found result' in err.value.details
+        assert "Found result" in err.value.details
 
     @patch("subprocess.run")
     def test_extract_metadata__ffmpeg_error__fail(self, mocked_run):
-        mocked_run.side_effect = subprocess.CalledProcessError(1, 'ffmpeg', stderr=b"FFMPEG oops")
+        mocked_run.side_effect = subprocess.CalledProcessError(1, "ffmpeg", stderr=b"FFMPEG oops")
         with pytest.raises(FFMPegPreparationError) as err:
             audio_metadata(self.src_path)
 

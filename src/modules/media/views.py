@@ -142,14 +142,14 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
 
         @property
         def hash_str(self):
-            data = self.__dict__ | self.metadata._asdict() # noqa
+            data = self.__dict__ | self.metadata._asdict()  # noqa
             del data["metadata"]
             return md5(str(data).encode()).hexdigest()
 
         @property
         def tmp_filename(self):
             file_ext = os.path.splitext(self.filename)[-1]
-            return f'uploaded_audio_{self.hash_str}{file_ext}'
+            return f"uploaded_audio_{self.hash_str}{file_ext}"
 
     async def post(self, request):
         cleaned_data = await self._validate(request, location="form")
@@ -157,7 +157,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         uploaded_file = self.UploadedFileData(
             filename=filename,
             filesize=get_file_size(tmp_path),
-            metadata=provider_utils.audio_metadata(tmp_path)
+            metadata=provider_utils.audio_metadata(tmp_path),
         )
         new_tmp_path = settings.TMP_AUDIO_PATH / uploaded_file.tmp_filename
         os.rename(tmp_path, new_tmp_path)
@@ -166,13 +166,15 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         with suppress(FileNotFoundError):
             os.remove(new_tmp_path)
 
-        return self._response({
-            "name": filename,
-            "path": remote_path,
-            "meta": uploaded_file.metadata,
-            "size": uploaded_file.filesize,
-            "hash": uploaded_file.hash_str,
-        })
+        return self._response(
+            {
+                "name": filename,
+                "path": remote_path,
+                "meta": uploaded_file.metadata,
+                "size": uploaded_file.filesize,
+                "hash": uploaded_file.hash_str,
+            }
+        )
 
     @staticmethod
     async def _upload_to_storage(uploaded_file: UploadedFileData, tmp_path: Path) -> str:
@@ -184,20 +186,25 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
             if remote_file_size == get_file_size(tmp_path):
                 logger.info(
                     'File "%s" already uploaded to s3, and have correct size: '
-                    'tmp_filename: %s | metadata: %s | remote_file_size: %i',
-                    uploaded_file.filename, tmp_filename, uploaded_file.metadata, remote_file_size
+                    "tmp_filename: %s | metadata: %s | remote_file_size: %i",
+                    uploaded_file.filename,
+                    tmp_filename,
+                    uploaded_file.metadata,
+                    remote_file_size,
                 )
                 return remote_path
 
             logger.warning(
-                 'File "%s" already uploaded to s3, but size not equal (rewrite it): '
-                 'tmp_filename: %s | metadata: %s | remote_file_size: %i',
-                 uploaded_file.filename, tmp_filename, uploaded_file.metadata, remote_file_size
+                'File "%s" already uploaded to s3, but size not equal (rewrite it): '
+                "tmp_filename: %s | metadata: %s | remote_file_size: %i",
+                uploaded_file.filename,
+                tmp_filename,
+                uploaded_file.metadata,
+                remote_file_size,
             )
 
         remote_path = await storage.upload_file_async(
-            src_path=tmp_path,
-            dst_path=settings.S3_BUCKET_TMP_AUDIO_PATH
+            src_path=tmp_path, dst_path=settings.S3_BUCKET_TMP_AUDIO_PATH
         )
         if not remote_path:
             raise S3UploadingError("Couldn't upload audio file")

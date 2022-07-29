@@ -84,22 +84,24 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
         logger.info("Creating episode for uploaded file for podcast %s", podcast)
 
         cleaned_data = await self._validate(request)
-        episode = await self._get_or_create_episode(podcast.id, cleaned_data=cleaned_data)
+        episode, created = await self._get_or_create_episode(podcast.id, cleaned_data=cleaned_data)
         if podcast.download_automatically:
             await self._run_task(tasks.UploadedEpisodeTask, episode_id=episode.id)
 
-        return self._response(episode, status_code=status.HTTP_201_CREATED)
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return self._response(episode, status_code=status_code)
 
-    async def _get_or_create_episode(self, podcast_id: int, cleaned_data: dict) -> Episode:
+    async def _get_or_create_episode(
+        self, podcast_id: int, cleaned_data: dict
+    ) -> tuple[Episode, bool]:
         source_id = "upl_" + cleaned_data["hash"][:11]
         if episode := await Episode.async_get(
             self.db_session, podcast_id=podcast_id, source_id=source_id
         ):
             logger.info(
-                "Episode with source_id (hash) '%s' already exist. Return %s",
-                source_id, episode
+                "Episode with source_id (hash) '%s' already exist. Return %s", source_id, episode
             )
-            return episode
+            return episode, False
 
         metadata = cleaned_data.get("meta")
         audio_file = await File.create(
@@ -115,7 +117,9 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
         title, description = self._prepare_meta(cleaned_data)
         logger.info(
             "Creating episode with data: title: %s | description %s | metadata: %s.",
-            title, description, cleaned_data.get("meta")
+            title,
+            description,
+            cleaned_data.get("meta"),
         )
         episode = await Episode.async_create(
             self.db_session,
@@ -128,16 +132,16 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             watch_url="",
             length=metadata["duration"],
             description=description,
-            author=metadata.get("author", ''),
+            author=metadata.get("author", ""),
         )
-        return episode
+        return episode, True
 
     @staticmethod
     def _prepare_meta(cleaned_data: dict) -> tuple[str, str]:
         metadata = cleaned_data["meta"]
         if not (title := metadata.get("title")):
             filename = cleaned_data["name"]
-            title = filename.rpartition('.')[0] if "." in filename else filename
+            title = filename.rpartition(".")[0] if "." in filename else filename
 
         title_prefix = ""
         if album := metadata.get("album"):

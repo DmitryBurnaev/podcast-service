@@ -97,7 +97,7 @@ class StorageS3:
             self.s3.copy_object,
             Bucket=settings.S3_BUCKET_NAME,
             Key=dst_path,
-            CopySource={'Bucket': settings.S3_BUCKET_NAME, 'Key': src_path},
+            CopySource={"Bucket": settings.S3_BUCKET_NAME, "Key": src_path},
         )
         if code != self.CODE_OK:
             return None
@@ -117,8 +117,11 @@ class StorageS3:
             None,
             partial(
                 self.upload_file,
-                src_path=src_path, dst_path=dst_path, filename=filename, callback=callback
-            )
+                src_path=src_path,
+                dst_path=dst_path,
+                filename=filename,
+                callback=callback,
+            ),
         )
 
     def get_file_info(
@@ -154,10 +157,7 @@ class StorageS3:
 
         if filename or dst_path:
             file_info = self.get_file_info(
-                filename,
-                remote_path,
-                dst_path=dst_path,
-                error_log_level=logging.WARNING
+                filename, remote_path, dst_path=dst_path, error_log_level=logging.WARNING
             )
             if file_info:
                 return int(file_info["ResponseMetadata"]["HTTPHeaders"]["content-length"])
@@ -179,14 +179,14 @@ class StorageS3:
                 filename=filename,
                 remote_path=remote_path,
                 dst_path=dst_path,
-            )
+            ),
         )
 
     def delete_file(
         self,
         filename: Optional[str] = None,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
-        dst_path: Optional[str] = None
+        dst_path: Optional[str] = None,
     ):
         if not dst_path and not filename:
             raise ValueError("At least one argument must be set: dst_path | filename")

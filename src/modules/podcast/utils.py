@@ -179,10 +179,7 @@ def remote_copy_episode(
 
 
 async def save_uploaded_file(
-    uploaded_file: UploadFile,
-    prefix: str,
-    max_file_size: int,
-    tmp_path: Path
+    uploaded_file: UploadFile, prefix: str, max_file_size: int, tmp_path: Path
 ) -> Path:
     contents = await uploaded_file.read()
     file_ext = os.path.splitext(uploaded_file.filename)

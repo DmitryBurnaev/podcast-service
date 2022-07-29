@@ -36,7 +36,7 @@ class DownloadingInterrupted(Exception):
         self.message = message
 
     def __repr__(self):
-        return f"DownloadingInterrupted({self.code.name}, \"{self.message}\")"
+        return f'DownloadingInterrupted({self.code.name}, "{self.message}")'
 
 
 class DownloadEpisodeTask(RQTask):
@@ -238,7 +238,6 @@ class DownloadEpisodeTask(RQTask):
 
 
 class UploadedEpisodeTask(DownloadEpisodeTask):
-
     async def perform_run(self, episode_id: int) -> FinishCode:
         """
         Main operation for downloading, performing and uploading audio to the storage.
@@ -255,16 +254,15 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
         remote_size = self.storage.get_file_size(dst_path=episode.audio.path)
         if episode.status == EpisodeStatus.PUBLISHED and remote_size == episode.audio.size:
             raise DownloadingInterrupted(
-                code=FinishCode.SKIP,
-                message=f'Episode #{episode_id} already published.'
+                code=FinishCode.SKIP, message=f"Episode #{episode_id} already published."
             )
 
         if remote_size != episode.audio.size:
             raise DownloadingInterrupted(
                 code=FinishCode.ERROR,
                 message=(
-                    f'Performing uploaded file failed: incorrect remote file size: {remote_size}'
-                )
+                    f"Performing uploaded file failed: incorrect remote file size: {remote_size}"
+                ),
             )
 
         remote_path = await self._copy_file(episode)
@@ -304,7 +302,7 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
             "=== [%s] REMOTE COPYING was done (%s -> %s):  === ",
             episode.source_id,
             episode.audio.path,
-            remote_path
+            remote_path,
         )
         return remote_path
 

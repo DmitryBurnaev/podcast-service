@@ -83,7 +83,7 @@ SOURCE_CFG_MAP = {
 }
 
 # TODO: write another regexp (finding all metadata with single regexp construction)
-AUDIO_META_REGEXP = re.compile(r'(?P<meta>Metadata.+)?(?P<duration>Duration:\s?[\d:]+)', re.DOTALL)
+AUDIO_META_REGEXP = re.compile(r"(?P<meta>Metadata.+)?(?P<duration>Duration:\s?[\d:]+)", re.DOTALL)
 
 
 def extract_source_info(source_url: Optional[str] = None, playlist: bool = False) -> SourceInfo:
@@ -259,7 +259,7 @@ class AudioMetaData(NamedTuple):
 
 
 def audio_metadata(file_path: Path | str) -> AudioMetaData:
-    """ Calculates (via ffmpeg) length of audio track and returns number of seconds """
+    """Calculates (via ffmpeg) length of audio track and returns number of seconds"""
 
     try:
         with tempfile.NamedTemporaryFile() as file:
@@ -280,11 +280,11 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
     ffmpeg_result_str = completed_proc.stdout.decode()
     find_results = AUDIO_META_REGEXP.search(ffmpeg_result_str, re.DOTALL)
     if not find_results:
-        raise FFMPegParseError(f'Found result: {ffmpeg_result_str}')
+        raise FFMPegParseError(f"Found result: {ffmpeg_result_str}")
 
     find_results = find_results.groupdict()
-    duration = _human_time_to_sec(find_results.get('duration', '').replace('Duration:', ''))
-    metadata = _raw_meta_to_dict((find_results.get('meta') or '').replace('Metadata:\n', ''))
+    duration = _human_time_to_sec(find_results.get("duration", "").replace("Duration:", ""))
+    metadata = _raw_meta_to_dict((find_results.get("meta") or "").replace("Metadata:\n", ""))
 
     logger.debug(
         "FFMPEG success done extracting duration from the file %s:\nmeta: %s\nduration: %s",
@@ -293,11 +293,11 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
         duration,
     )
     return AudioMetaData(
-        title=metadata.get('title'),
-        author=metadata.get('artist'),
-        album=metadata.get('album'),
-        track=metadata.get('track'),
-        duration=duration
+        title=metadata.get("title"),
+        author=metadata.get("artist"),
+        album=metadata.get("album"),
+        track=metadata.get("track"),
+        duration=duration,
     )
 
 
@@ -310,9 +310,9 @@ def _raw_meta_to_dict(meta: Optional[str]) -> dict:
 
     """
     result = {}
-    for meta_str in meta.split('\n'):
+    for meta_str in meta.split("\n"):
         try:
-            key, value = meta_str.split(':')
+            key, value = meta_str.split(":")
         except ValueError:
             continue
 
@@ -332,7 +332,7 @@ def _human_time_to_sec(time_str: str) -> int:
 
     """
 
-    time_items = time_str.rstrip(',').split(':')
+    time_items = time_str.rstrip(",").split(":")
     res_time = 0
     for index, time_item in enumerate(reversed(time_items)):
         res_time += round(float(time_item), 0) * pow(60, index)

@@ -214,8 +214,8 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
             "meta": {
                 "duration": audio_duration,
                 "author": "Test Author",
-                "title": f"Test Title",
-                "album": f"Test Album",
+                "title": "Test Title",
+                "album": "Test Album",
             },
             "hash": str(uuid.uuid4().hex),
             "size": 50,
@@ -243,9 +243,46 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         else:
             mocked_rq_queue.enqueue.assert_not_called()
 
-    def test_create_duplicated_episode__ok(self):
-        # TODO: test source id with prefix "upl_" too
-        raise AssertionError
+    def test_create_duplicated_episode__ok(
+        self,
+        dbs,
+        podcast,
+        episode,
+        client,
+        user,
+        mocked_rq_queue,
+    ):
+        audio_hash = str(uuid.uuid4().hex)
+        await_(
+            episode.update(dbs, source_type=SourceType.UPLOAD, source_id=f"upl_{audio_hash[:11]}")
+        )
+        await_(dbs.commit())
+
+        client.login(user)
+        url = self.url.format(id=podcast.id)
+        data = {
+            "path": f"remote/tmp/{uuid.uuid4().hex}.mp3",
+            "name": "uploaded-file.mp3",
+            "meta": {
+                "duration": 1,
+                "author": "Test Author",
+                "title": "Test Title",
+                "album": "Test Album",
+            },
+            "hash": audio_hash,
+            "size": 50,
+        }
+        response = client.post(url, json=data)
+        response_data = self.assert_ok_response(response, status_code=200)
+
+        assert episode.id == response_data["id"]
+
+        episode = await_(Episode.async_get(dbs, id=response_data["id"]))
+        assert response_data == _episode_in_list(episode), response.json()
+        assert episode.source_type == SourceType.UPLOAD
+        mocked_rq_queue.enqueue.assert_called_with(
+            tasks.UploadedEpisodeTask(), episode_id=episode.id
+        )
 
     # fmt: off
     @pytest.mark.parametrize(
@@ -284,9 +321,9 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
                  "description": "Uploaded Episode 'Test Album #01. filename'\nAlbum: Test Album (track #01)"}), # noqa
             (
                 "large_title",
-                {"duration": 1, "title": "l-title-"*100},
-                {"title": ("l-title-"*100)[:252] + "...",
-                 "description": f"Uploaded Episode \'{('l-title-'*100)}\'"}),
+                {"duration": 1, "title": "l-title-" * 100},
+                {"title": ("l-title-" * 100)[:252] + "...",
+                 "description": f"Uploaded Episode \'{('l-title-' * 100)}\'"}),
         ]
     )
     # fmt: on
@@ -329,9 +366,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         client.login(user)
         url = self.url.format(id=podcast.id)
         response = client.post(url, json=invalid_data)
-        assert response.status_code == 400, (
-            f"Unexpected status code. Response: {response.content}"
-        )
+        assert response.status_code == 400, f"Unexpected status code. Response: {response.content}"
 
         response_data = response.json()
         response_data = response_data["payload"]
@@ -461,11 +496,12 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
     url = "/api/episodes/{id}/download/"
 
     @pytest.mark.parametrize(
-        'source_type, task', (
-             (SourceType.YOUTUBE, DownloadEpisodeTask),
-             (SourceType.YANDEX, DownloadEpisodeTask),
-             (SourceType.UPLOAD, UploadedEpisodeTask),
-        )
+        "source_type, task",
+        (
+            (SourceType.YOUTUBE, DownloadEpisodeTask),
+            (SourceType.YANDEX, DownloadEpisodeTask),
+            (SourceType.UPLOAD, UploadedEpisodeTask),
+        ),
     )
     def test_download__ok(self, dbs, client, episode, user, mocked_rq_queue, source_type, task):
         await_(episode.update(dbs, source_type=source_type))

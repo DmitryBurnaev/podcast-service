@@ -216,7 +216,7 @@ def podcast_data() -> dict:
 
 @pytest.fixture
 def episode_data(podcast) -> dict:
-    return get_episode_data(podcast)
+    return get_episode_data(podcast=podcast)
 
 
 @pytest.fixture
@@ -294,7 +294,7 @@ def rss_file(user, loop, dbs) -> File:
 
 @pytest.fixture
 def episode(podcast, user, loop, dbs) -> Episode:
-    episode_data = get_episode_data(podcast, creator=user)
+    episode_data = get_episode_data(podcast=podcast, creator=user)
     source_id = get_source_id()
     audio = loop.run_until_complete(
         File.create(

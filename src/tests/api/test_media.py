@@ -247,7 +247,7 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         client,
         user,
         mocked_s3,
-            tmp_file,
+        tmp_file,
         mocked_audio_metadata,
     ):
         audio_metadata = {
@@ -307,7 +307,7 @@ class TestUploadAudioAPIView(BaseTestAPIView):
                 {
                     "filename": os.path.basename(tmp_file.name),
                     "filesize": tmp_file.size,
-                    **audio_metadata
+                    **audio_metadata,
                 }
             ).encode()
         ).hexdigest()
@@ -343,7 +343,6 @@ class TestUploadAudioAPIView(BaseTestAPIView):
     def test_upload__missed_file__fail(self, client, user):
         client.login(user)
         response = client.post(self.url, files={"fake": create_file(b"")})
-        self.assert_bad_request(response, {
-            "file": "Missing data for required field.",
-            "fake": "Unknown field."
-        })
+        self.assert_bad_request(
+            response, {"file": "Missing data for required field.", "fake": "Unknown field."}
+        )

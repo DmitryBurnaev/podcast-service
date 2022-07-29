@@ -44,9 +44,9 @@ class BaseTestAPIView(BaseTestCase):
 
     @staticmethod
     def assert_ok_response(response: Response, status_code: int = 200) -> Union[dict, list]:
-        assert response.status_code == status_code, (
-            f"Unexpected status code. Response: {response.content}"
-        )
+        assert (
+            response.status_code == status_code
+        ), f"Unexpected status code. Response: {response.content}"
 
         try:
             response_data = response.json()
@@ -61,9 +61,9 @@ class BaseTestAPIView(BaseTestCase):
         self, response: Response, status_code: int = None, response_status: str = None
     ) -> Union[dict, list]:
 
-        assert response.status_code == (status_code or self.default_fail_status_code), (
-            f"Unexpected status code. Response: {response.content}"
-        )
+        assert response.status_code == (
+            status_code or self.default_fail_status_code
+        ), f"Unexpected status code. Response: {response.content}"
 
         response_data = response.json()
         assert "payload" in response_data, response_data
@@ -72,9 +72,9 @@ class BaseTestAPIView(BaseTestCase):
 
     @staticmethod
     def assert_bad_request(response: Response, error_details: dict, status_code: int = 400):
-        assert response.status_code == status_code, (
-            f"Unexpected status code. Response: {response.content}"
-        )
+        assert (
+            response.status_code == status_code
+        ), f"Unexpected status code. Response: {response.content}"
 
         response_data = response.json()
         assert "payload" in response_data, response_data
