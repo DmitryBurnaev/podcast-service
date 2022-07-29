@@ -252,6 +252,10 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
         mocked_download_content.return_value = tmp_path
         mocked_file_size.return_value = 25
 
+        # we mark image as "public" in order to access before it downloaded
+        await_(episode.image.update(dbs, public=True))
+        await_(dbs.commit())
+
         source_image_url = episode.image.source_url
         new_remote_path = f"/remote/path/to/images/episode_{uuid.uuid4().hex}_image.png"
         mocked_s3.upload_file.side_effect = lambda *_, **__: new_remote_path
@@ -265,6 +269,7 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
         image = await_(File.async_get(dbs, id=episode.image_id))
         assert image.path == new_remote_path
         assert image.available is True
+        assert image.public is False
         assert image.size == 25
 
         mocked_ffmpeg.assert_called_with(src_path=tmp_path, ffmpeg_params=["-vf", "scale=600:-1"])
