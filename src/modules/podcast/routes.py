@@ -1,6 +1,7 @@
 from starlette.routing import Route
 from modules.podcast import views
 
+# fmt:off
 routes = [
     Route("/progress/", views.ProgressAPIView),
     Route("/playlist/", views.PlayListAPIView),
@@ -9,6 +10,7 @@ routes = [
     Route("/podcasts/{podcast_id:int}/upload-image/", views.PodcastUploadImageAPIView),
     Route("/podcasts/{podcast_id:int}/episodes/", views.EpisodeListCreateAPIView),
     Route("/podcasts/{podcast_id:int}/episodes/uploaded/", views.UploadedEpisodesAPIView),
+    Route("/podcasts/{podcast_id:int}/episodes/uploaded/{hash:str}/", views.UploadedEpisodesAPIView),
     Route("/podcasts/{podcast_id:int}/generate-rss/", views.PodcastGenerateRSSAPIView),
     # episodes
     Route("/episodes/", views.EpisodeListCreateAPIView),
@@ -18,3 +20,4 @@ routes = [
     Route("/cookies/", views.CookieListCreateAPIView),
     Route("/cookies/{cookie_id:int}/", views.CookieRDAPIView),
 ]
+# fmt:on

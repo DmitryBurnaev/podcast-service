@@ -191,6 +191,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
 
 class TestUploadedEpisodesAPIView(BaseTestAPIView):
     url = "/api/podcasts/{id}/episodes/uploaded/"
+    url_fetch_exists = "/api/podcasts/{id}/episodes/uploaded/{hash}/"
 
     @pytest.mark.parametrize("auto_start_task", (True, False))
     def test_create__ok(
@@ -283,6 +284,47 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         mocked_rq_queue.enqueue.assert_called_with(
             tasks.UploadedEpisodeTask(), episode_id=episode.id
         )
+
+    def test_get_exists_episode__ok(
+        self,
+        dbs,
+        podcast,
+        episode,
+        client,
+        user,
+    ):
+        audio_hash = str(uuid.uuid4().hex)
+        await_(
+            episode.update(dbs, source_type=SourceType.UPLOAD, source_id=f"upl_{audio_hash[:11]}")
+        )
+        await_(dbs.commit())
+
+        client.login(user)
+        url = self.url_fetch_exists.format(id=podcast.id, hash=audio_hash)
+        response = client.get(url)
+        response_data = self.assert_ok_response(response, status_code=200)
+
+        assert episode.id == response_data["id"]
+        episode = await_(Episode.async_get(dbs, id=response_data["id"]))
+        assert response_data == _episode_details(episode), response.json()
+
+    def test_get_exists_episode__fake_hash__fail(
+        self,
+        dbs,
+        podcast,
+        client,
+        user,
+    ):
+        client.login(user)
+        url = self.url_fetch_exists.format(id=podcast.id, hash="fake-audio-hash")
+        response = client.get(url)
+        response_data = self.assert_fail_response(
+            response,
+            status_code=404,
+            response_status=ResponseStatus.NOT_FOUND,
+        )
+
+        assert response_data["details"] == "Episode by requested hash not found"
 
     # fmt: off
     @pytest.mark.parametrize(

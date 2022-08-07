@@ -4,7 +4,7 @@ from starlette import status
 from common.enums import FileType, SourceType
 from common.utils import get_logger, cut_string
 from common.views import BaseHTTPEndpoint
-from common.exceptions import MethodNotAllowedError
+from common.exceptions import MethodNotAllowedError, NotFoundError
 from modules.media.models import File
 from modules.podcast import tasks
 from modules.podcast.episodes import EpisodeCreator
@@ -79,30 +79,52 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
     schema_response = EpisodeDetailsSchema
     db_model = Podcast
 
+    async def get(self, request):
+        podcast: Podcast = await self._get_object(request.path_params["podcast_id"])
+        logger.info(
+            "Fetching episode for uploaded file for podcast %(podcast_id)s | hash %(hash)s",
+            request.path_params,
+        )
+        if episode := await self._get_episode(podcast.id, audio_hash=request.path_params["hash"]):
+            return self._response(episode)
+
+        raise NotFoundError("Episode by requested hash not found")
+
     async def post(self, request):
         podcast: Podcast = await self._get_object(request.path_params["podcast_id"])
         logger.info("Creating episode for uploaded file for podcast %s", podcast)
 
         cleaned_data = await self._validate(request)
-        episode, created = await self._get_or_create_episode(podcast.id, cleaned_data=cleaned_data)
+
+        if episode := await self._get_episode(podcast.id, audio_hash=cleaned_data["hash"]):
+            created = False
+        else:
+            episode = await self._create_episode(podcast.id, cleaned_data)
+            created = True
+
         if podcast.download_automatically:
             await self._run_task(tasks.UploadedEpisodeTask, episode_id=episode.id)
 
         status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
         return self._response(episode, status_code=status_code)
 
-    async def _get_or_create_episode(
-        self, podcast_id: int, cleaned_data: dict
-    ) -> tuple[Episode, bool]:
-        source_id = "upl_" + cleaned_data["hash"][:11]
-        if episode := await Episode.async_get(
-            self.db_session, podcast_id=podcast_id, source_id=source_id
+    async def _get_episode(self, podcast_id: int, audio_hash: str) -> Episode | None:
+        source_id = self._get_source_id(audio_hash)
+        if episode := (
+            await Episode.async_get(
+                self.db_session,
+                source_type=SourceType.UPLOAD,
+                podcast_id=podcast_id,
+                source_id=source_id,
+            )
         ):
             logger.info(
                 "Episode with source_id (hash) '%s' already exist. Return %s", source_id, episode
             )
-            return episode, False
 
+        return episode
+
+    async def _create_episode(self, podcast_id: int, cleaned_data: dict) -> Episode:
         metadata = cleaned_data.get("meta")
         audio_file = await File.create(
             self.db_session,
@@ -124,7 +146,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
         episode = await Episode.async_create(
             self.db_session,
             title=title,
-            source_id=source_id,
+            source_id=self._get_source_id(cleaned_data["hash"]),
             source_type=SourceType.UPLOAD,
             podcast_id=podcast_id,
             audio_id=audio_file.id,
@@ -135,7 +157,12 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             author=metadata.get("author", ""),
         )
         episode.audio = audio_file
-        return episode, True
+        return episode
+
+    @staticmethod
+    def _get_source_id(audio_hash: str) -> str:
+        # TODO: move to common place for getting source_id for uploaded files =)
+        return f"upl_{audio_hash[:11]}"
 
     @staticmethod
     def _prepare_meta(cleaned_data: dict) -> tuple[str, str]:
