@@ -104,7 +104,7 @@ class EpisodeDetailsSchema(Schema):
     length = fields.Int(required=True)
     audio_url = fields.URL(attribute="audio.url")
     audio_size = fields.Int(attribute="audio.size")
-    image_url = fields.URL(attribute="image.url")
+    image_url = fields.URL()
     watch_url = fields.URL()
     description = fields.Str()
     source_type = fields.Str(required=True)

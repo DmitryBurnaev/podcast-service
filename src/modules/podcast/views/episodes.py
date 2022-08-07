@@ -76,7 +76,7 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
 
 class UploadedEpisodesAPIView(BaseHTTPEndpoint):
     schema_request = EpisodeUploadedSchema
-    schema_response = EpisodeListSchema
+    schema_response = EpisodeDetailsSchema
     db_model = Podcast
 
     async def post(self, request):
@@ -134,6 +134,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             description=description,
             author=metadata.get("author", ""),
         )
+        episode.audio = audio_file
         return episode, True
 
     @staticmethod

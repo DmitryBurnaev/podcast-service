@@ -9,6 +9,7 @@ from sentry_sdk.integrations.logging import LoggingIntegration
 from sqlalchemy.orm import sessionmaker
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
 from webargs_starlette import WebargsHTTPException
 
 from common.db_utils import make_session_maker
@@ -40,11 +41,23 @@ class PodcastApp(Starlette):
 
 
 def get_app():
+    middlewares = [Middleware(SentryAsgiMiddleware)]
+    if settings.APP_DEBUG:
+        middlewares.append(
+            Middleware(
+                CORSMiddleware,
+                allow_origins="*",
+                allow_methods="*",
+                allow_headers="*",
+                allow_credentials=True,
+            ),
+        )
+
     app = PodcastApp(
         routes=routes,
         exception_handlers=exception_handlers,
         debug=settings.APP_DEBUG,
-        middleware=[Middleware(SentryAsgiMiddleware)],
+        middleware=middlewares,
     )
     logging.config.dictConfig(settings.LOGGING)
     if settings.SENTRY_DSN:

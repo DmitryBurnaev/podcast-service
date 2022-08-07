@@ -59,7 +59,7 @@ def _episode_details(episode: Episode):
         "audio_url": episode.audio.url,
         "audio_size": episode.audio.size,
         "watch_url": episode.watch_url,
-        "image_url": episode.image.url,
+        "image_url": episode.image.url if episode.image_id else settings.DEFAULT_EPISODE_COVER,
         "description": episode.description,
         "source_type": str(episode.source_type),
         "created_at": episode.created_at.isoformat(),
@@ -97,7 +97,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         create_episode(dbs, episode_data, podcast, status=EpisodeStatus.ERROR)
 
         url = self.url.format(id=podcast.id)
-        response = client.get(url, params={"status": EpisodeStatus.PUBLISHED.value})
+        response = client.get(url, params={"status": str(EpisodeStatus.PUBLISHED)})
         response_data = self.assert_ok_response(response)
         assert response_data["items"] == [_episode_in_list(ep)]
 
@@ -224,7 +224,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response, status_code=201)
 
         episode = await_(Episode.async_get(dbs, id=response_data["id"]))
-        assert response_data == _episode_in_list(episode), response.json()
+        assert response_data == _episode_details(episode), response.json()
         assert episode.source_type == SourceType.UPLOAD
         assert episode.title == "Test Album. Test Title"
         assert episode.length == audio_duration
@@ -278,7 +278,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         assert episode.id == response_data["id"]
 
         episode = await_(Episode.async_get(dbs, id=response_data["id"]))
-        assert response_data == _episode_in_list(episode), response.json()
+        assert response_data == _episode_details(episode), response.json()
         assert episode.source_type == SourceType.UPLOAD
         mocked_rq_queue.enqueue.assert_called_with(
             tasks.UploadedEpisodeTask(), episode_id=episode.id
@@ -351,7 +351,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response, status_code=201)
 
         episode = await_(Episode.async_get(dbs, id=response_data["id"]))
-        assert response_data == _episode_in_list(episode), response.json()
+        assert response_data == _episode_details(episode), response.json()
 
         for field, value in episode_data.items():
             assert getattr(episode, field) == value, (
