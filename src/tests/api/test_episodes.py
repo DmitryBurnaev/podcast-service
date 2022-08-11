@@ -321,7 +321,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         response_data = self.assert_fail_response(
             response,
             status_code=404,
-            response_status=ResponseStatus.NOT_FOUND,
+            response_status=ResponseStatus.EXPECTED_NOT_FOUND,
         )
 
         assert response_data["details"] == "Episode by requested hash not found"

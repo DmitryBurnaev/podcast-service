@@ -2,6 +2,7 @@ from sqlalchemy import exists
 from starlette import status
 
 from common.enums import FileType, SourceType
+from common.statuses import ResponseStatus
 from common.utils import get_logger, cut_string
 from common.views import BaseHTTPEndpoint
 from common.exceptions import MethodNotAllowedError, NotFoundError
@@ -88,7 +89,10 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
         if episode := await self._get_episode(podcast.id, audio_hash=request.path_params["hash"]):
             return self._response(episode)
 
-        raise NotFoundError("Episode by requested hash not found")
+        raise NotFoundError(
+            "Episode by requested hash not found",
+            response_status=ResponseStatus.EXPECTED_NOT_FOUND,
+        )
 
     async def post(self, request):
         podcast: Podcast = await self._get_object(request.path_params["podcast_id"])
