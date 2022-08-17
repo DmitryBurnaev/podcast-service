@@ -18,6 +18,7 @@ class MetaDataSchema(Schema):
     author = fields.Str()
     album = fields.Str()
     track = fields.Str()
+    cover = fields.Raw()
 
 
 class AudioFileResponseSchema(Schema):

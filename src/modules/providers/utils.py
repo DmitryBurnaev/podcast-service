@@ -1,3 +1,4 @@
+import base64
 import os
 import re
 import asyncio
@@ -256,20 +257,18 @@ class AudioMetaData(NamedTuple):
     track: Optional[str] = None
     album: Optional[str] = None
     author: Optional[str] = None
+    cover: Optional[str] = None
 
 
-def audio_metadata(file_path: Path | str) -> AudioMetaData:
-    """Calculates (via ffmpeg) length of audio track and returns number of seconds"""
-
+def execute_ffmpeg(command: list[str]) -> str:
     try:
-        with tempfile.NamedTemporaryFile() as file:
-            completed_proc = subprocess.run(
-                ["ffmpeg", "-y", "-i", file_path, "-f", "ffmetadata", file.name],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                check=True,
-                timeout=settings.FFMPEG_TIMEOUT,
-            )
+        completed_proc = subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=True,
+            timeout=settings.FFMPEG_TIMEOUT,
+        )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
         err_details = f"FFMPEG failed with errors: {err}"
         if stdout := getattr(err, "stdout", ""):
@@ -277,14 +276,33 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
 
         raise FFMPegPreparationError(err_details)
 
-    ffmpeg_result_str = completed_proc.stdout.decode()
-    find_results = AUDIO_META_REGEXP.search(ffmpeg_result_str, re.DOTALL)
+    return completed_proc.stdout.decode()
+
+
+def audio_metadata(file_path: Path | str) -> AudioMetaData:
+    """Calculates (via ffmpeg) length of audio track and returns number of seconds"""
+
+    with tempfile.NamedTemporaryFile() as tmp_metadata_file:
+        metadata_str = execute_ffmpeg(
+            ["ffmpeg", "-y", "-i", file_path, "-f", "ffmetadata", tmp_metadata_file.name]
+        )
+
+    find_results = AUDIO_META_REGEXP.search(metadata_str, re.DOTALL)
     if not find_results:
-        raise FFMPegParseError(f"Found result: {ffmpeg_result_str}")
+        raise FFMPegParseError(f"Found result: {metadata_str}")
 
     find_results = find_results.groupdict()
     duration = _human_time_to_sec(find_results.get("duration", "").replace("Duration:", ""))
     metadata = _raw_meta_to_dict((find_results.get("meta") or "").replace("Metadata:\n", ""))
+
+    # getting cover image
+    # TODO: provide external link to cover image??
+    with tempfile.NamedTemporaryFile(suffix=".jpg") as tmp_cover:
+        # nn = str(tmp_cover.name) + ".jpg"
+        execute_ffmpeg(
+            ["ffmpeg", "-y", "-i", file_path, "-an", "-an", "-c:v", "copy", str(tmp_cover.name)]
+        )
+        cover_b64 = base64.b64encode(tmp_cover.read()).hex()
 
     logger.debug(
         "FFMPEG success done extracting duration from the file %s:\nmeta: %s\nduration: %s",
@@ -298,6 +316,7 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
         album=metadata.get("album"),
         track=metadata.get("track"),
         duration=duration,
+        cover=cover_b64,
     )
 
 
