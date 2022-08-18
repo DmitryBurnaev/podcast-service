@@ -5,6 +5,7 @@ import asyncio
 import subprocess
 import dataclasses
 import tempfile
+import uuid
 from pathlib import Path
 from functools import partial
 from contextlib import suppress
@@ -257,7 +258,7 @@ class AudioMetaData(NamedTuple):
     track: Optional[str] = None
     album: Optional[str] = None
     author: Optional[str] = None
-    cover: Optional[str] = None
+    cover: Optional[Path] = None
 
 
 def execute_ffmpeg(command: list[str]) -> str:
@@ -287,6 +288,7 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
             ["ffmpeg", "-y", "-i", file_path, "-f", "ffmetadata", tmp_metadata_file.name]
         )
 
+    # ==== Extracting meta data ===
     find_results = AUDIO_META_REGEXP.search(metadata_str, re.DOTALL)
     if not find_results:
         raise FFMPegParseError(f"Found result: {metadata_str}")
@@ -295,14 +297,16 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
     duration = _human_time_to_sec(find_results.get("duration", "").replace("Duration:", ""))
     metadata = _raw_meta_to_dict((find_results.get("meta") or "").replace("Metadata:\n", ""))
 
-    # getting cover image
-    # TODO: provide external link to cover image??
-    with tempfile.NamedTemporaryFile(suffix=".jpg") as tmp_cover:
-        # nn = str(tmp_cover.name) + ".jpg"
+    # ==== Extracting cover image ===
+    try:
+        cover_path = settings.TMP_IMAGE_PATH / uuid.uuid4().hex + ".jpg"
         execute_ffmpeg(
-            ["ffmpeg", "-y", "-i", file_path, "-an", "-an", "-c:v", "copy", str(tmp_cover.name)]
+            ["ffmpeg", "-y", "-i", file_path, "-an", "-an", "-c:v", "copy", str(cover_path)]
         )
-        cover_b64 = base64.b64encode(tmp_cover.read()).hex()
+    except FFMPegPreparationError as err:
+        logger.warning("Couldn't extract cover from audio file: %r", err)
+        cover_path = None
+    # ====
 
     logger.debug(
         "FFMPEG success done extracting duration from the file %s:\nmeta: %s\nduration: %s",
@@ -316,7 +320,7 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
         album=metadata.get("album"),
         track=metadata.get("track"),
         duration=duration,
-        cover=cover_b64,
+        cover=cover_path,
     )
 
 
