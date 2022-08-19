@@ -12,13 +12,17 @@ class FileUploadSchema(Schema):
     file = fields.Raw(required=True)
 
 
+class CoverSchema(Schema):
+    path = fields.Str()
+    preview_url = fields.Str()
+
+
 class MetaDataSchema(Schema):
     duration = fields.Int(required=True)
     title = fields.Str()
     author = fields.Str()
     album = fields.Str()
     track = fields.Str()
-    cover = fields.Raw()
 
 
 class AudioFileResponseSchema(Schema):
@@ -27,3 +31,4 @@ class AudioFileResponseSchema(Schema):
     size = fields.Int(required=True)
     meta = fields.Nested(MetaDataSchema)
     hash = fields.Str(required=True)
+    cover = fields.Nested(CoverSchema)

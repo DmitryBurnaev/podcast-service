@@ -1,11 +1,9 @@
-import base64
 import os
 import re
 import asyncio
 import subprocess
 import dataclasses
 import tempfile
-import uuid
 from pathlib import Path
 from functools import partial
 from contextlib import suppress
@@ -258,7 +256,6 @@ class AudioMetaData(NamedTuple):
     track: Optional[str] = None
     album: Optional[str] = None
     author: Optional[str] = None
-    cover: Optional[Path] = None
 
 
 def execute_ffmpeg(command: list[str]) -> str:
@@ -285,7 +282,7 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
 
     with tempfile.NamedTemporaryFile() as tmp_metadata_file:
         metadata_str = execute_ffmpeg(
-            ["ffmpeg", "-y", "-i", file_path, "-f", "ffmetadata", tmp_metadata_file.name]
+            ["ffmpeg", "-y", "-i", str(file_path), "-f", "ffmetadata", tmp_metadata_file.name]
         )
 
     # ==== Extracting meta data ===
@@ -296,17 +293,6 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
     find_results = find_results.groupdict()
     duration = _human_time_to_sec(find_results.get("duration", "").replace("Duration:", ""))
     metadata = _raw_meta_to_dict((find_results.get("meta") or "").replace("Metadata:\n", ""))
-
-    # ==== Extracting cover image ===
-    try:
-        cover_path = settings.TMP_IMAGE_PATH / uuid.uuid4().hex + ".jpg"
-        execute_ffmpeg(
-            ["ffmpeg", "-y", "-i", file_path, "-an", "-an", "-c:v", "copy", str(cover_path)]
-        )
-    except FFMPegPreparationError as err:
-        logger.warning("Couldn't extract cover from audio file: %r", err)
-        cover_path = None
-    # ====
 
     logger.debug(
         "FFMPEG success done extracting duration from the file %s:\nmeta: %s\nduration: %s",
@@ -320,8 +306,25 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
         album=metadata.get("album"),
         track=metadata.get("track"),
         duration=duration,
-        cover=cover_path,
     )
+
+
+def audio_cover(audio_file_path: Path) -> Path | None:
+    """ Extracts cover from audio file (if exists)"""
+
+    audio_file_name = os.path.basename(audio_file_path)
+    file_name, _ = os.path.splitext(audio_file_name)
+
+    try:
+        cover_path = f"{settings.TMP_IMAGE_PATH / file_name }.jpg"
+        execute_ffmpeg(
+            ["ffmpeg", "-y", "-i", audio_file_path, "-an", "-an", "-c:v", "copy", cover_path]
+        )
+    except FFMPegPreparationError as err:
+        logger.warning("Couldn't extract cover from audio file: %r", err)
+        return None
+
+    return Path(cover_path)
 
 
 def _raw_meta_to_dict(meta: Optional[str]) -> dict:
