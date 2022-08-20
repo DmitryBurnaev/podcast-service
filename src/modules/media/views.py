@@ -165,6 +165,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         )
         new_tmp_path = settings.TMP_AUDIO_PATH / uploaded_file.tmp_filename
         os.rename(tmp_path, new_tmp_path)
+
         cover_data = await self._audio_cover(new_tmp_path)
         remote_audio_path = await self._upload_file(
             local_path=new_tmp_path,
@@ -193,8 +194,9 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
     ) -> str:
         tmp_filename = os.path.basename(local_path)
 
-        remote_path = os.path.join(remote_path, tmp_filename)
-        if remote_file_size := await self.storage.get_file_size_async(dst_path=remote_path):
+        if remote_file_size := await self.storage.get_file_size_async(
+            filename=tmp_filename, remote_path=remote_path
+        ):
             if remote_file_size == get_file_size(local_path):
                 logger.info(
                     'SKIP uploading: file already uploaded to s3 and have correct size: '
@@ -203,7 +205,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
                     remote_file_size,
                     uploaded_file,
                 )
-                return remote_path
+                return os.path.join(remote_path, tmp_filename)
 
             logger.warning(
                 'File "%s" already uploaded to s3, but size not equal (will be rewritten): '
