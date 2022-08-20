@@ -138,8 +138,10 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             source_url="",
             path=cleaned_data["path"],
             size=cleaned_data["size"],
-            meta=metadata | {"hash": cleaned_data["hash"]},
+            hash=cleaned_data["hash"],
         )
+        # TODO: Add image (cover) file here
+
         title, description = self._prepare_meta(cleaned_data)
         logger.info(
             "Creating episode with data: title: %s | description %s | metadata: %s.",

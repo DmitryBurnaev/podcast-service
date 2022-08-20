@@ -3,7 +3,6 @@ import urllib.parse
 from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.exceptions import NotSupportedError
@@ -42,7 +41,7 @@ class File(ModelBase, ModelMixin):
     owner_id = Column(Integer, ForeignKey("auth_users.id"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     public = Column(Boolean, nullable=False, default=False)
-    meta = Column(JSONB(none_as_null=True))
+    hash = Column(String(length=64), nullable=False, default="")
 
     def __repr__(self):
         return f'<File #{self.id} | {self.type} | "{self.path}">'
