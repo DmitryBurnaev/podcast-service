@@ -135,12 +135,22 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             FileType.AUDIO,
             available=False,
             owner_id=self.request.user.id,
-            source_url="",
             path=cleaned_data["path"],
             size=cleaned_data["size"],
             hash=cleaned_data["hash"],
+            meta=metadata,
         )
-        # TODO: Add image (cover) file here
+        image_file = None
+        if cover := cleaned_data.get("cover"):
+            image_file = await File.create(
+                self.db_session,
+                FileType.IMAGE,
+                available=False,
+                owner_id=self.request.user.id,
+                path=cover["path"],
+                size=cover["size"],
+                hash=cover["hash"],
+            )
 
         title, description = self._prepare_meta(cleaned_data)
         logger.info(
@@ -156,6 +166,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             source_type=SourceType.UPLOAD,
             podcast_id=podcast_id,
             audio_id=audio_file.id,
+            image_id=image_file.id if image_file else None,
             owner_id=self.request.user.id,
             watch_url="",
             length=metadata["duration"],
@@ -163,6 +174,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             author=metadata.get("author", ""),
         )
         episode.audio = audio_file
+        episode.image = image_file
         return episode
 
     @staticmethod
