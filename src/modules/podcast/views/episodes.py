@@ -130,27 +130,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
 
     async def _create_episode(self, podcast_id: int, cleaned_data: dict) -> Episode:
         metadata = cleaned_data.get("meta")
-        audio_file = await File.create(
-            self.db_session,
-            FileType.AUDIO,
-            available=False,
-            owner_id=self.request.user.id,
-            path=cleaned_data["path"],
-            size=cleaned_data["size"],
-            hash=cleaned_data["hash"],
-            meta=metadata,
-        )
-        image_file = None
-        if cover := cleaned_data.get("cover"):
-            image_file = await File.create(
-                self.db_session,
-                FileType.IMAGE,
-                available=False,
-                owner_id=self.request.user.id,
-                path=cover["path"],
-                size=cover["size"],
-                hash=cover["hash"],
-            )
+        audio_file, image_file = await self._create_files(cleaned_data)
 
         title, description = self._prepare_meta(cleaned_data)
         logger.info(
@@ -176,6 +156,33 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
         episode.audio = audio_file
         episode.image = image_file
         return episode
+
+    async def _create_files(self, cleaned_data: dict) -> tuple[File, File | None]:
+        metadata = cleaned_data.get("meta")
+        audio_file = await File.create(
+            self.db_session,
+            FileType.AUDIO,
+            available=False,
+            owner_id=self.request.user.id,
+            path=cleaned_data["path"],
+            size=cleaned_data["size"],
+            hash=cleaned_data["hash"],
+            meta=metadata,
+        )
+        image_file = None
+        if cover := cleaned_data.get("cover"):
+            if not (image_file := await File.async_get(self.db_session, hash=cover["hash"])):
+                image_file = await File.create(
+                    self.db_session,
+                    FileType.IMAGE,
+                    available=False,
+                    owner_id=self.request.user.id,
+                    path=cover["path"],
+                    size=cover["size"],
+                    hash=cover["hash"],
+                )
+
+        return audio_file, image_file
 
     @staticmethod
     def _get_source_id(audio_hash: str) -> str:

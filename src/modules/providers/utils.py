@@ -260,6 +260,12 @@ class AudioMetaData(NamedTuple):
     author: Optional[str] = None
 
 
+class CoverMetaData(NamedTuple):
+    path: Path
+    hash: str
+    size: int
+
+
 def execute_ffmpeg(command: list[str]) -> str:
     try:
         completed_proc = subprocess.run(
@@ -311,7 +317,7 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
     )
 
 
-def audio_cover(audio_file_path: Path) -> Path | None:
+def audio_cover(audio_file_path: Path) -> CoverMetaData | None:
     """ Extracts cover from audio file (if exists)"""
 
     try:
@@ -327,7 +333,11 @@ def audio_cover(audio_file_path: Path) -> Path | None:
     cover_hash = hashlib.sha256(cover_file_content).hexdigest()[:32]
     new_cover_path = settings.TMP_IMAGE_PATH / f"cover_{cover_hash}.jpg"
     os.rename(cover_path, new_cover_path)
-    return new_cover_path
+    return CoverMetaData(
+        path=new_cover_path,
+        hash=cover_hash,
+        size=get_file_size(new_cover_path)
+    )
 
 
 def _raw_meta_to_dict(meta: Optional[str]) -> dict:

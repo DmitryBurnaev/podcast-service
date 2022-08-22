@@ -236,18 +236,20 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         return tmp_path, upload_file.filename
 
     async def _audio_cover(self, audio_path: Path) -> dict | None:
-        if not (local_cover_path := provider_utils.audio_cover(audio_path)):
+        if not (cover := provider_utils.audio_cover(audio_path)):
             return None
 
         remote_cover_path = await self._upload_file(
-            local_path=local_cover_path,
+            local_path=cover.path,
             remote_path=settings.S3_BUCKET_TMP_IMAGES_PATH,
         )
-        cover = {
+        cover_data = {
+            "hash": cover.hash,
+            "size": cover.size,
             "path": remote_cover_path,
-            "preview_url": await self.storage.get_presigned_url(remote_cover_path)
+            "preview_url": await self.storage.get_presigned_url(remote_cover_path),
         }
         with suppress(FileNotFoundError):
-            os.remove(local_cover_path)
+            os.remove(cover.path)
 
-        return cover
+        return cover_data

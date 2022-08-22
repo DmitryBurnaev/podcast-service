@@ -14,6 +14,8 @@ class FileUploadSchema(Schema):
 
 class CoverSchema(Schema):
     path = fields.Str()
+    hash = fields.Str()
+    size = fields.Int()
     preview_url = fields.Str(dump_only=True)
 
 
