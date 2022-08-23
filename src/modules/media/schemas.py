@@ -1,4 +1,4 @@
-from marshmallow import Schema
+from marshmallow import Schema, EXCLUDE
 from webargs import fields
 
 __all__ = [
@@ -17,6 +17,9 @@ class CoverSchema(Schema):
     hash = fields.Str()
     size = fields.Int()
     preview_url = fields.Str(dump_only=True)
+
+    class Meta:
+        unknown = EXCLUDE
 
 
 class MetaDataSchema(Schema):

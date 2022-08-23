@@ -114,17 +114,14 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
 
     async def _get_episode(self, podcast_id: int, audio_hash: str) -> Episode | None:
         source_id = self._get_source_id(audio_hash)
-        if episode := (
-            await Episode.async_get(
-                self.db_session,
-                source_type=SourceType.UPLOAD,
-                podcast_id=podcast_id,
-                source_id=source_id,
-            )
-        ):
-            logger.info(
-                "Episode with source_id (hash) '%s' already exist. Return %s", source_id, episode
-            )
+        episode = await Episode.async_get(
+            self.db_session,
+            source_type=SourceType.UPLOAD,
+            podcast_id=podcast_id,
+            source_id=source_id,
+        )
+        if episode:
+            logger.info("Episode with source_id (hash) '%s' exist. Return %s", source_id, episode)
 
         return episode
 
@@ -175,7 +172,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
                 image_file = await File.create(
                     self.db_session,
                     FileType.IMAGE,
-                    available=False,
+                    available=True,  # TODO: think about temporary access to this image (cover)
                     owner_id=self.request.user.id,
                     path=cover["path"],
                     size=cover["size"],

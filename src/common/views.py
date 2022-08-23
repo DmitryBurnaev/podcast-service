@@ -2,6 +2,7 @@ import asyncio
 from functools import partial
 from typing import Type, Union, Iterable, Any, ClassVar
 
+from sqlalchemy.exc import SQLAlchemyError, DatabaseError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from starlette.exceptions import HTTPException
@@ -69,6 +70,12 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         except (BaseApplicationError, WebargsHTTPException, HTTPException) as err:
             await self.db_session.rollback()
             raise err
+
+        except (DatabaseError, SQLAlchemyError) as err:
+            await self.db_session.rollback()
+            msg_template = "Unexpected DB-related error handled: %r"
+            logger.exception(msg_template, err)
+            raise UnexpectedError("Unexpected DB-related error handled")
 
         except Exception as err:
             await self.db_session.rollback()
