@@ -318,7 +318,7 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
 
 
 def audio_cover(audio_file_path: Path) -> CoverMetaData | None:
-    """ Extracts cover from audio file (if exists)"""
+    """Extracts cover from audio file (if exists)"""
 
     try:
         cover_path = settings.TMP_IMAGE_PATH / f"cover_{uuid.uuid4().hex}.jpg"
@@ -333,11 +333,7 @@ def audio_cover(audio_file_path: Path) -> CoverMetaData | None:
     cover_hash = hashlib.sha256(cover_file_content).hexdigest()[:32]
     new_cover_path = settings.TMP_IMAGE_PATH / f"cover_{cover_hash}.jpg"
     os.rename(cover_path, new_cover_path)
-    return CoverMetaData(
-        path=new_cover_path,
-        hash=cover_hash,
-        size=get_file_size(new_cover_path)
-    )
+    return CoverMetaData(path=new_cover_path, hash=cover_hash, size=get_file_size(new_cover_path))
 
 
 def _raw_meta_to_dict(meta: Optional[str]) -> dict:

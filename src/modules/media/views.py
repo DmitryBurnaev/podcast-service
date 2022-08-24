@@ -96,7 +96,13 @@ class MediaFileRedirectAPIView(BaseFileRedirectApiView):
     async def get(self, request):
         file, user_ip = await self._get_file(request)
         if user_ip.registered_by != "":
-            return Response(headers=file.headers)
+            logger.debug(
+                "Accessing to media resource %s from user's IP: %s | registered_by: %s",
+                file,
+                user_ip,
+                user_ip.registered_by,
+            )
+            return Response("OK")
 
         return RedirectResponse(await file.presigned_url, status_code=302)
 
@@ -170,7 +176,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         remote_audio_path = await self._upload_file(
             local_path=new_tmp_path,
             remote_path=settings.S3_BUCKET_TMP_AUDIO_PATH,
-            uploaded_file=uploaded_file
+            uploaded_file=uploaded_file,
         )
         with suppress(FileNotFoundError, TypeError):
             os.remove(new_tmp_path)
@@ -182,15 +188,12 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
                 "meta": uploaded_file.metadata,
                 "size": uploaded_file.filesize,
                 "hash": uploaded_file.hash_str,
-                "cover": cover_data
+                "cover": cover_data,
             }
         )
 
     async def _upload_file(
-        self,
-        local_path: Path,
-        remote_path: str,
-        uploaded_file: Optional[UploadedFileData] = None
+        self, local_path: Path, remote_path: str, uploaded_file: Optional[UploadedFileData] = None
     ) -> str:
         tmp_filename = os.path.basename(local_path)
 
@@ -199,7 +202,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         ):
             if remote_file_size == get_file_size(local_path):
                 logger.info(
-                    'SKIP uploading: file already uploaded to s3 and have correct size: '
+                    "SKIP uploading: file already uploaded to s3 and have correct size: "
                     "tmp_filename: %s | remote_file_size: %i | uploaded_file: %s |",
                     tmp_filename,
                     remote_file_size,
@@ -241,7 +244,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
 
         remote_cover_path = await self._upload_file(
             local_path=cover.path,
-            remote_path=settings.S3_BUCKET_TMP_IMAGES_PATH,
+            remote_path=settings.S3_BUCKET_IMAGES_PATH,
         )
         cover_data = {
             "hash": cover.hash,

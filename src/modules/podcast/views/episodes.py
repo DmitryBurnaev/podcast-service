@@ -168,11 +168,14 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
         )
         image_file = None
         if cover := cleaned_data.get("cover"):
-            if not (image_file := await File.async_get(self.db_session, hash=cover["hash"])):
+            image_file = await File.async_get(
+                self.db_session, hash=cover["hash"], owner_id=self.request.user.id
+            )
+            if not image_file:
                 image_file = await File.create(
                     self.db_session,
                     FileType.IMAGE,
-                    available=True,  # TODO: think about temporary access to this image (cover)
+                    available=True,
                     owner_id=self.request.user.id,
                     path=cover["path"],
                     size=cover["size"],
