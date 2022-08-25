@@ -252,7 +252,4 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
             "path": remote_cover_path,
             "preview_url": await self.storage.get_presigned_url(remote_cover_path),
         }
-        with suppress(FileNotFoundError):
-            os.remove(cover.path)
-
         return cover_data

@@ -268,6 +268,7 @@ class CoverMetaData(NamedTuple):
 
 def execute_ffmpeg(command: list[str]) -> str:
     try:
+        logger.debug(f"Executing FFMPEG: '%s'", " ".join(map(str, command)))
         completed_proc = subprocess.run(
             command,
             stdout=subprocess.PIPE,
@@ -321,7 +322,7 @@ def audio_cover(audio_file_path: Path) -> CoverMetaData | None:
     """Extracts cover from audio file (if exists)"""
 
     try:
-        cover_path = settings.TMP_IMAGE_PATH / f"cover_{uuid.uuid4().hex}.jpg"
+        cover_path = settings.TMP_IMAGE_PATH / f"tmp_cover_{uuid.uuid4().hex}.jpg"
         execute_ffmpeg(
             ["ffmpeg", "-y", "-i", audio_file_path, "-an", "-an", "-c:v", "copy", cover_path]
         )
