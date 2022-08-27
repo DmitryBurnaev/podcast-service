@@ -56,10 +56,10 @@ def extract_ip_address(request: PRequest) -> Optional[str]:
     if ip_address := request.headers.get(settings.REQUEST_IP_HEADER):
         return ip_address
 
-    user_id = "Unknown"
-    if "user" in request.scope:
-        user_id = request.user.id
+    if settings.APP_DEBUG:
+        return settings.DEFAULT_REQUEST_USER_IP
 
+    user_id = request.user.id if "user" in request.scope else "Unknown"
     logger.warning(
         "Not found ip-header (%s) for user: %s | headers: %s",
         settings.REQUEST_IP_HEADER,

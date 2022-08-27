@@ -77,7 +77,6 @@ class BaseFileRedirectApiView(BaseHTTPEndpoint):
         return file, user_ip
 
     async def _check_ip_address(self, ip_address: str, file: File) -> UserIP:
-        # TODO: can we check that logged-in user has superuser privileges?
         logger.debug(
             "Finding UserIP with filters: ip_address %s | user_id %s", ip_address, file.owner_id
         )

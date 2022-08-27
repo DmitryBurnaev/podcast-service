@@ -59,7 +59,6 @@ REDIS_DB = config("REDIS_DB", default=0)
 REDIS_CON = (REDIS_HOST, REDIS_PORT, REDIS_DB)
 RQ_QUEUE_NAME = config("RQ_QUEUE_NAME", default="podcast")
 
-
 TMP_PATH = Path(tempfile.mkdtemp(prefix="podcast__"))
 TMP_AUDIO_PATH = Path(tempfile.mkdtemp(prefix="podcast_audio__"))
 TMP_RSS_PATH = Path(tempfile.mkdtemp(prefix="podcast_rss__"))
@@ -99,6 +98,7 @@ RESET_PASSWORD_LINK_EXPIRES_IN = 3 * 3600  # 3 hours
 
 SITE_URL = config("SITE_URL", default="") or "https://podcast.site.com"
 SERVICE_URL = config("SERVICE_URL", default="") or "https://podcast-service.site.com/"
+DEFAULT_REQUEST_USER_IP = config("DEFAULT_REQUEST_USER_IP", default="127.0.0.1")
 
 DOWNLOAD_EVENT_REDIS_TTL = 60 * 60  # 60 minutes
 RQ_DEFAULT_TIMEOUT = 24 * 3600  # 24 hours

@@ -268,7 +268,7 @@ class CoverMetaData(NamedTuple):
 
 def execute_ffmpeg(command: list[str]) -> str:
     try:
-        logger.debug(f"Executing FFMPEG: '%s'", " ".join(map(str, command)))
+        logger.debug("Executing FFMPEG: '%s'", " ".join(map(str, command)))
         completed_proc = subprocess.run(
             command,
             stdout=subprocess.PIPE,
