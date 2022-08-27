@@ -22,7 +22,7 @@ __all__ = [
 ]
 
 from common.enums import SourceType, EpisodeStatus
-from modules.media.schemas import MetaDataSchema
+from modules.media.schemas import MetaDataSchema, CoverSchema
 
 
 class BaseLimitOffsetSchema(Schema):
@@ -79,6 +79,7 @@ class EpisodeUploadedSchema(Schema):
     size = fields.Int(required=True)
     hash = fields.Str(required=True, validate=validate.Length(max=32))
     meta = fields.Nested(MetaDataSchema)
+    cover = fields.Nested(CoverSchema)
 
 
 class EpisodeListSchema(Schema):
@@ -104,7 +105,7 @@ class EpisodeDetailsSchema(Schema):
     length = fields.Int(required=True)
     audio_url = fields.URL(attribute="audio.url")
     audio_size = fields.Int(attribute="audio.size")
-    image_url = fields.URL(attribute="image.url")
+    image_url = fields.URL()
     watch_url = fields.URL()
     description = fields.Str()
     source_type = fields.Str(required=True)

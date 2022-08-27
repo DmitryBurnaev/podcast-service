@@ -42,6 +42,7 @@ class ModelMixin:
 
     @classmethod
     async def async_get(cls, db_session: AsyncSession, **filter_kwargs) -> "DBModel":
+        # TODO: think about moving db_session to context (aka db-session for flask APP)
         query = cls.prepare_query(**filter_kwargs)
         result = await db_session.execute(query)
         return result.scalars().first()

@@ -1,4 +1,4 @@
-from marshmallow import Schema
+from marshmallow import Schema, EXCLUDE
 from webargs import fields
 
 __all__ = [
@@ -10,6 +10,16 @@ __all__ = [
 
 class FileUploadSchema(Schema):
     file = fields.Raw(required=True)
+
+
+class CoverSchema(Schema):
+    path = fields.Str()
+    hash = fields.Str()
+    size = fields.Int()
+    preview_url = fields.Str(dump_only=True)
+
+    class Meta:
+        unknown = EXCLUDE
 
 
 class MetaDataSchema(Schema):
@@ -26,3 +36,4 @@ class AudioFileResponseSchema(Schema):
     size = fields.Int(required=True)
     meta = fields.Nested(MetaDataSchema)
     hash = fields.Str(required=True)
+    cover = fields.Nested(CoverSchema)

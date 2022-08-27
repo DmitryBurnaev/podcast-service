@@ -2,9 +2,10 @@ from sqlalchemy import exists
 from starlette import status
 
 from common.enums import FileType, SourceType
+from common.statuses import ResponseStatus
 from common.utils import get_logger, cut_string
 from common.views import BaseHTTPEndpoint
-from common.exceptions import MethodNotAllowedError
+from common.exceptions import MethodNotAllowedError, NotFoundError
 from modules.media.models import File
 from modules.podcast import tasks
 from modules.podcast.episodes import EpisodeCreator
@@ -76,44 +77,58 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
 
 class UploadedEpisodesAPIView(BaseHTTPEndpoint):
     schema_request = EpisodeUploadedSchema
-    schema_response = EpisodeListSchema
+    schema_response = EpisodeDetailsSchema
     db_model = Podcast
+
+    async def get(self, request):
+        podcast: Podcast = await self._get_object(request.path_params["podcast_id"])
+        logger.info(
+            "Fetching episode for uploaded file for podcast %(podcast_id)s | hash %(hash)s",
+            request.path_params,
+        )
+        if episode := await self._get_episode(podcast.id, audio_hash=request.path_params["hash"]):
+            return self._response(episode)
+
+        raise NotFoundError(
+            "Episode by requested hash not found",
+            response_status=ResponseStatus.EXPECTED_NOT_FOUND,
+        )
 
     async def post(self, request):
         podcast: Podcast = await self._get_object(request.path_params["podcast_id"])
         logger.info("Creating episode for uploaded file for podcast %s", podcast)
 
         cleaned_data = await self._validate(request)
-        episode, created = await self._get_or_create_episode(podcast.id, cleaned_data=cleaned_data)
+
+        if episode := await self._get_episode(podcast.id, audio_hash=cleaned_data["hash"]):
+            created = False
+        else:
+            episode = await self._create_episode(podcast.id, cleaned_data)
+            created = True
+
         if podcast.download_automatically:
             await self._run_task(tasks.UploadedEpisodeTask, episode_id=episode.id)
 
         status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
         return self._response(episode, status_code=status_code)
 
-    async def _get_or_create_episode(
-        self, podcast_id: int, cleaned_data: dict
-    ) -> tuple[Episode, bool]:
-        source_id = "upl_" + cleaned_data["hash"][:11]
-        if episode := await Episode.async_get(
-            self.db_session, podcast_id=podcast_id, source_id=source_id
-        ):
-            logger.info(
-                "Episode with source_id (hash) '%s' already exist. Return %s", source_id, episode
-            )
-            return episode, False
-
-        metadata = cleaned_data.get("meta")
-        audio_file = await File.create(
+    async def _get_episode(self, podcast_id: int, audio_hash: str) -> Episode | None:
+        source_id = self._get_source_id(audio_hash)
+        episode = await Episode.async_get(
             self.db_session,
-            FileType.AUDIO,
-            available=False,
-            owner_id=self.request.user.id,
-            source_url="",
-            path=cleaned_data["path"],
-            size=cleaned_data["size"],
-            meta=metadata | {"hash": cleaned_data["hash"]},
+            source_type=SourceType.UPLOAD,
+            podcast_id=podcast_id,
+            source_id=source_id,
         )
+        if episode:
+            logger.info("Episode with source_id (hash) '%s' exist. Return %s", source_id, episode)
+
+        return episode
+
+    async def _create_episode(self, podcast_id: int, cleaned_data: dict) -> Episode:
+        metadata = cleaned_data.get("meta")
+        audio_file, image_file = await self._create_files(cleaned_data)
+
         title, description = self._prepare_meta(cleaned_data)
         logger.info(
             "Creating episode with data: title: %s | description %s | metadata: %s.",
@@ -124,17 +139,55 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
         episode = await Episode.async_create(
             self.db_session,
             title=title,
-            source_id=source_id,
+            source_id=self._get_source_id(cleaned_data["hash"]),
             source_type=SourceType.UPLOAD,
             podcast_id=podcast_id,
             audio_id=audio_file.id,
+            image_id=image_file.id if image_file else None,
             owner_id=self.request.user.id,
             watch_url="",
             length=metadata["duration"],
             description=description,
             author=metadata.get("author", ""),
         )
-        return episode, True
+        episode.audio = audio_file
+        episode.image = image_file
+        return episode
+
+    async def _create_files(self, cleaned_data: dict) -> tuple[File, File | None]:
+        metadata = cleaned_data.get("meta")
+        audio_file = await File.create(
+            self.db_session,
+            FileType.AUDIO,
+            available=False,
+            owner_id=self.request.user.id,
+            path=cleaned_data["path"],
+            size=cleaned_data["size"],
+            hash=cleaned_data["hash"],
+            meta=metadata,
+        )
+        image_file = None
+        if cover := cleaned_data.get("cover"):
+            image_file = await File.async_get(
+                self.db_session, hash=cover["hash"], owner_id=self.request.user.id
+            )
+            if not image_file:
+                image_file = await File.create(
+                    self.db_session,
+                    FileType.IMAGE,
+                    available=True,
+                    owner_id=self.request.user.id,
+                    path=cover["path"],
+                    size=cover["size"],
+                    hash=cover["hash"],
+                )
+
+        return audio_file, image_file
+
+    @staticmethod
+    def _get_source_id(audio_hash: str) -> str:
+        # TODO: move to common place for getting source_id for uploaded files =)
+        return f"upl_{audio_hash[:11]}"
 
     @staticmethod
     def _prepare_meta(cleaned_data: dict) -> tuple[str, str]:

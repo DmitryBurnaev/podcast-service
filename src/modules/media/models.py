@@ -43,6 +43,7 @@ class File(ModelBase, ModelMixin):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     public = Column(Boolean, nullable=False, default=False)
     meta = Column(JSONB(none_as_null=True))
+    hash = Column(String(length=32), nullable=False, server_default="")
 
     def __repr__(self):
         return f'<File #{self.id} | {self.type} | "{self.path}">'

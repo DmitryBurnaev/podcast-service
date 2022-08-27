@@ -1,9 +1,11 @@
+import hashlib
 import os
 import re
 import asyncio
 import subprocess
 import dataclasses
 import tempfile
+import uuid
 from pathlib import Path
 from functools import partial
 from contextlib import suppress
@@ -258,18 +260,22 @@ class AudioMetaData(NamedTuple):
     author: Optional[str] = None
 
 
-def audio_metadata(file_path: Path | str) -> AudioMetaData:
-    """Calculates (via ffmpeg) length of audio track and returns number of seconds"""
+class CoverMetaData(NamedTuple):
+    path: Path
+    hash: str
+    size: int
 
+
+def execute_ffmpeg(command: list[str]) -> str:
     try:
-        with tempfile.NamedTemporaryFile() as file:
-            completed_proc = subprocess.run(
-                ["ffmpeg", "-y", "-i", file_path, "-f", "ffmetadata", file.name],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                check=True,
-                timeout=settings.FFMPEG_TIMEOUT,
-            )
+        logger.debug("Executing FFMPEG: '%s'", " ".join(map(str, command)))
+        completed_proc = subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=True,
+            timeout=settings.FFMPEG_TIMEOUT,
+        )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
         err_details = f"FFMPEG failed with errors: {err}"
         if stdout := getattr(err, "stdout", ""):
@@ -277,10 +283,21 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
 
         raise FFMPegPreparationError(err_details)
 
-    ffmpeg_result_str = completed_proc.stdout.decode()
-    find_results = AUDIO_META_REGEXP.search(ffmpeg_result_str, re.DOTALL)
+    return completed_proc.stdout.decode()
+
+
+def audio_metadata(file_path: Path | str) -> AudioMetaData:
+    """Calculates (via ffmpeg) length of audio track and returns number of seconds"""
+
+    with tempfile.NamedTemporaryFile() as tmp_metadata_file:
+        metadata_str = execute_ffmpeg(
+            ["ffmpeg", "-y", "-i", str(file_path), "-f", "ffmetadata", tmp_metadata_file.name]
+        )
+
+    # ==== Extracting meta data ===
+    find_results = AUDIO_META_REGEXP.search(metadata_str, re.DOTALL)
     if not find_results:
-        raise FFMPegParseError(f"Found result: {ffmpeg_result_str}")
+        raise FFMPegParseError(f"Found result: {metadata_str}")
 
     find_results = find_results.groupdict()
     duration = _human_time_to_sec(find_results.get("duration", "").replace("Duration:", ""))
@@ -299,6 +316,25 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
         track=metadata.get("track"),
         duration=duration,
     )
+
+
+def audio_cover(audio_file_path: Path) -> CoverMetaData | None:
+    """Extracts cover from audio file (if exists)"""
+
+    try:
+        cover_path = settings.TMP_IMAGE_PATH / f"tmp_cover_{uuid.uuid4().hex}.jpg"
+        execute_ffmpeg(
+            ["ffmpeg", "-y", "-i", audio_file_path, "-an", "-an", "-c:v", "copy", cover_path]
+        )
+    except FFMPegPreparationError as err:
+        logger.warning("Couldn't extract cover from audio file: %r", err)
+        return None
+
+    cover_file_content = cover_path.read_bytes()
+    cover_hash = hashlib.sha256(cover_file_content).hexdigest()[:32]
+    new_cover_path = settings.TMP_IMAGE_PATH / f"cover_{cover_hash}.jpg"
+    os.rename(cover_path, new_cover_path)
+    return CoverMetaData(path=new_cover_path, hash=cover_hash, size=get_file_size(new_cover_path))
 
 
 def _raw_meta_to_dict(meta: Optional[str]) -> dict:

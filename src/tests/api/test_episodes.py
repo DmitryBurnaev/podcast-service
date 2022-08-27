@@ -59,7 +59,7 @@ def _episode_details(episode: Episode):
         "audio_url": episode.audio.url,
         "audio_size": episode.audio.size,
         "watch_url": episode.watch_url,
-        "image_url": episode.image.url,
+        "image_url": episode.image.url if episode.image_id else settings.DEFAULT_EPISODE_COVER,
         "description": episode.description,
         "source_type": str(episode.source_type),
         "created_at": episode.created_at.isoformat(),
@@ -97,7 +97,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         create_episode(dbs, episode_data, podcast, status=EpisodeStatus.ERROR)
 
         url = self.url.format(id=podcast.id)
-        response = client.get(url, params={"status": EpisodeStatus.PUBLISHED.value})
+        response = client.get(url, params={"status": str(EpisodeStatus.PUBLISHED)})
         response_data = self.assert_ok_response(response)
         assert response_data["items"] == [_episode_in_list(ep)]
 
@@ -191,6 +191,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
 
 class TestUploadedEpisodesAPIView(BaseTestAPIView):
     url = "/api/podcasts/{id}/episodes/uploaded/"
+    url_fetch_exists = "/api/podcasts/{id}/episodes/uploaded/{hash}/"
 
     @pytest.mark.parametrize("auto_start_task", (True, False))
     def test_create__ok(
@@ -218,13 +219,19 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
                 "album": "Test Album",
             },
             "hash": str(uuid.uuid4().hex),
-            "size": 50,
+            "size": 5000,
+            "cover": {
+                "preview_url": "https://s3.storage/image.png",
+                "path": "tmp/images/cover_39f55d2d833e20e7922f0f7ef462748e.jpg",
+                "hash": str(uuid.uuid4().hex),
+                "size": 586569,
+            },
         }
         response = client.post(url, json=data)
         response_data = self.assert_ok_response(response, status_code=201)
 
         episode = await_(Episode.async_get(dbs, id=response_data["id"]))
-        assert response_data == _episode_in_list(episode), response.json()
+        assert response_data == _episode_details(episode), response.json()
         assert episode.source_type == SourceType.UPLOAD
         assert episode.title == "Test Album. Test Title"
         assert episode.length == audio_duration
@@ -232,9 +239,16 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         assert episode.owner_id == user.id
 
         assert episode.audio.path == data["path"]
-        assert episode.audio.size == 50
+        assert episode.audio.size == data["size"]
+        assert episode.audio.hash == data["hash"]
+        assert episode.audio.meta == data["meta"]
         assert episode.audio.available is False
-        assert episode.audio.meta == data["meta"] | {"hash": data["hash"]}
+
+        assert episode.image is not None
+        assert episode.image.path == data["cover"]["path"]
+        assert episode.image.size == data["cover"]["size"]
+        assert episode.image.hash == data["cover"]["hash"]
+        assert episode.image.available is True
 
         if auto_start_task:
             mocked_rq_queue.enqueue.assert_called_with(
@@ -278,11 +292,52 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         assert episode.id == response_data["id"]
 
         episode = await_(Episode.async_get(dbs, id=response_data["id"]))
-        assert response_data == _episode_in_list(episode), response.json()
+        assert response_data == _episode_details(episode), response.json()
         assert episode.source_type == SourceType.UPLOAD
         mocked_rq_queue.enqueue.assert_called_with(
             tasks.UploadedEpisodeTask(), episode_id=episode.id
         )
+
+    def test_get_exists_episode__ok(
+        self,
+        dbs,
+        podcast,
+        episode,
+        client,
+        user,
+    ):
+        audio_hash = str(uuid.uuid4().hex)
+        await_(
+            episode.update(dbs, source_type=SourceType.UPLOAD, source_id=f"upl_{audio_hash[:11]}")
+        )
+        await_(dbs.commit())
+
+        client.login(user)
+        url = self.url_fetch_exists.format(id=podcast.id, hash=audio_hash)
+        response = client.get(url)
+        response_data = self.assert_ok_response(response, status_code=200)
+
+        assert episode.id == response_data["id"]
+        episode = await_(Episode.async_get(dbs, id=response_data["id"]))
+        assert response_data == _episode_details(episode), response.json()
+
+    def test_get_exists_episode__fake_hash__fail(
+        self,
+        dbs,
+        podcast,
+        client,
+        user,
+    ):
+        client.login(user)
+        url = self.url_fetch_exists.format(id=podcast.id, hash="fake-audio-hash")
+        response = client.get(url)
+        response_data = self.assert_fail_response(
+            response,
+            status_code=404,
+            response_status=ResponseStatus.EXPECTED_NOT_FOUND,
+        )
+
+        assert response_data["details"] == "Episode by requested hash not found"
 
     # fmt: off
     @pytest.mark.parametrize(
@@ -351,7 +406,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response, status_code=201)
 
         episode = await_(Episode.async_get(dbs, id=response_data["id"]))
-        assert response_data == _episode_in_list(episode), response.json()
+        assert response_data == _episode_details(episode), response.json()
 
         for field, value in episode_data.items():
             assert getattr(episode, field) == value, (
