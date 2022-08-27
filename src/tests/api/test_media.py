@@ -1,6 +1,7 @@
 import os
 import uuid
 from hashlib import md5
+from unittest.mock import patch
 
 import pytest
 
@@ -38,6 +39,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
         await_(dbs.flush())
         assert image_file.headers == {"content-length": "1024", "content-type": "image/png"}
 
+    @patch("core.settings.APP_DEBUG", False)
     def test_get_media_file_missed_ip__fail(self, client, image_file, user, mocked_s3):
         url = self.url.format(token=image_file.access_token)
         client.login(user)
@@ -135,7 +137,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
 
         response = client.get(url, headers={"X-Real-IP": self.user_ip}, allow_redirects=False)
         assert response.status_code == 200
-        assert response.headers == image_file.headers
+        assert response.headers == {"content-length": "2"}
 
 
 class TestRSSFileAPIView(BaseTestAPIView):

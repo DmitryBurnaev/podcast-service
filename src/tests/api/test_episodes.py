@@ -219,7 +219,13 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
                 "album": "Test Album",
             },
             "hash": str(uuid.uuid4().hex),
-            "size": 50,
+            "size": 5000,
+            "cover": {
+                "preview_url": "https://s3.storage/image.png",
+                "path": "tmp/images/cover_39f55d2d833e20e7922f0f7ef462748e.jpg",
+                "hash": str(uuid.uuid4().hex),
+                "size": 586569,
+            },
         }
         response = client.post(url, json=data)
         response_data = self.assert_ok_response(response, status_code=201)
@@ -233,9 +239,16 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         assert episode.owner_id == user.id
 
         assert episode.audio.path == data["path"]
-        assert episode.audio.size == 50
+        assert episode.audio.size == data["size"]
+        assert episode.audio.hash == data["hash"]
+        assert episode.audio.meta == data["meta"]
         assert episode.audio.available is False
-        assert episode.audio.meta == data["meta"] | {"hash": data["hash"]}
+
+        assert episode.image is not None
+        assert episode.image.path == data["cover"]["path"]
+        assert episode.image.size == data["cover"]["size"]
+        assert episode.image.hash == data["cover"]["hash"]
+        assert episode.image.available is True
 
         if auto_start_task:
             mocked_rq_queue.enqueue.assert_called_with(
