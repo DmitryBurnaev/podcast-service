@@ -342,6 +342,12 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         response = client.post(self.url, files={"file": file})
         self.assert_bad_request(response, {"file": "result file-size is more than allowed"})
 
+    def test_upload__incorrect_content_type__fail(self, client, user):
+        file = create_file(b"test-data")
+        client.login(user)
+        response = client.post(self.url, files={"file": ("test-file.png", file, "image/jpeg")})
+        self.assert_bad_request(response, {"file": "File must be audio, not image/jpeg"})
+
     def test_upload__missed_file__fail(self, client, user):
         client.login(user)
         response = client.post(self.url, files={"fake": create_file(b"")})
