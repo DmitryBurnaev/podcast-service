@@ -265,7 +265,8 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         mocked_s3.upload_file_async.return_value = remote_tmp_path
 
         client.login(user)
-        response = client.post(self.url, files={"file": tmp_file})
+        file = (os.path.basename(tmp_file.name), tmp_file, "audio/mpeg")
+        response = client.post(self.url, files={"file": file})
         response_data = self.assert_ok_response(response)
         result_hash = md5(
             str(
@@ -318,7 +319,8 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         mocked_s3.get_file_size_async.return_value = tmp_file.size
 
         client.login(user)
-        response = client.post(self.url, files={"file": tmp_file})
+        file = (os.path.basename(tmp_file.name), tmp_file, "audio/mpeg")
+        response = client.post(self.url, files={"file": file})
         response_data = self.assert_ok_response(response)
         remote_path = f"uploaded_audio_{result_hash}"
 
@@ -333,14 +335,21 @@ class TestUploadAudioAPIView(BaseTestAPIView):
 
     def test_upload__empty_file__fail(self, client, user):
         client.login(user)
-        response = client.post(self.url, files={"file": create_file(b"")})
+        file = ("test-audio.mp3", create_file(b""), "audio/mpeg")
+        response = client.post(self.url, files={"file": file})
         self.assert_bad_request(response, {"file": "result file-size is less than allowed"})
 
     def test_upload__too_big_file__fail(self, client, user):
-        file = create_file(b"test-data-too-big" * 10)
         client.login(user)
+        file = ("test-audio.mp3", create_file(b"test-data-too-big" * 10), "audio/mpeg")
         response = client.post(self.url, files={"file": file})
         self.assert_bad_request(response, {"file": "result file-size is more than allowed"})
+
+    def test_upload__incorrect_content_type__fail(self, client, user):
+        client.login(user)
+        file = ("test-audio.mp3", create_file(b"test-data"), "image/jpeg")
+        response = client.post(self.url, files={"file": file})
+        self.assert_bad_request(response, {"file": "File must be audio, not image/jpeg"})
 
     def test_upload__missed_file__fail(self, client, user):
         client.login(user)

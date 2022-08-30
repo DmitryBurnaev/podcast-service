@@ -24,7 +24,7 @@ from core import settings
 from modules.auth.models import UserIP
 from modules.auth.utils import extract_ip_address
 from modules.media.models import File
-from modules.media.schemas import FileUploadSchema, AudioFileResponseSchema
+from modules.media.schemas import AudioFileUploadSchema, AudioFileResponseSchema
 from modules.podcast.utils import save_uploaded_file, get_file_size
 from modules.providers import utils as provider_utils
 from modules.providers.utils import AudioMetaData
@@ -135,7 +135,7 @@ class RSSRedirectAPIView(BaseFileRedirectApiView):
 
 
 class AudioFileUploadAPIView(BaseHTTPEndpoint):
-    schema_request = FileUploadSchema
+    schema_request = AudioFileUploadSchema
     schema_response = AudioFileResponseSchema
     max_title_length = 256
 

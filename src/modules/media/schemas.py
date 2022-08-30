@@ -1,15 +1,23 @@
-from marshmallow import Schema, EXCLUDE
+from marshmallow import Schema, EXCLUDE, post_load, ValidationError
 from webargs import fields
 
 __all__ = [
-    "FileUploadSchema",
+    "AudioFileUploadSchema",
     "AudioFileResponseSchema",
     "MetaDataSchema",
 ]
 
 
-class FileUploadSchema(Schema):
+class AudioFileUploadSchema(Schema):
     file = fields.Raw(required=True)
+
+    @post_load
+    def validate_file(self, data, **_) -> dict:
+        content_type = data["file"].content_type
+        if not content_type.startswith("audio/"):
+            raise ValidationError(f"File must be audio, not {content_type}", field_name="file")
+
+        return data
 
 
 class CoverSchema(Schema):
