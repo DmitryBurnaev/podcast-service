@@ -149,7 +149,7 @@ class TestRSSFileAPIView(BaseTestAPIView):
         "method,status_code,headers",
         [
             ("head", 200, {"content-length": "1024", "content-type": "rss/xml"}),
-            ("get", 302, {"location": temp_link}),
+            ("get", 302, {"content-length": "0", "location": temp_link}),
         ],
     )
     def test_get_rss__register_user_ip__ok(
