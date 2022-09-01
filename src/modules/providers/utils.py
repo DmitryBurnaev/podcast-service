@@ -18,7 +18,7 @@ from youtube_dl.utils import YoutubeDLError
 from core import settings
 from common.utils import get_logger
 from common.enums import SourceType, EpisodeStatus
-from common.exceptions import InvalidParameterError
+from common.exceptions import InvalidRequestError
 from modules.podcast.models import Cookie
 from modules.auth.hasher import get_random_hash
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
@@ -107,7 +107,7 @@ def extract_source_info(source_url: Optional[str] = None, playlist: bool = False
                 source_cfg,
             )
 
-    raise InvalidParameterError(f"Requested domain is not supported now {source_url}")
+    raise InvalidRequestError(f"Requested domain is not supported now {source_url}")
 
 
 def download_process_hook(event: dict):

@@ -8,7 +8,7 @@ from typing import Optional
 import httpx
 from starlette import status
 from starlette.responses import JSONResponse
-from webargs_starlette import WebargsHTTPException
+from marshmallow import ValidationError
 
 from common.statuses import ResponseStatus
 from core import settings
@@ -83,7 +83,7 @@ def custom_exception_handler(request, exc):
         error_details = exc.details
         response_status = exc.response_status
 
-    elif isinstance(exc, WebargsHTTPException):
+    elif isinstance(exc, ValidationError):
         error_message = "Requested data is not valid."
         error_details = exc.messages.get("json") or exc.messages.get("form") or exc.messages
         status_code = status.HTTP_400_BAD_REQUEST

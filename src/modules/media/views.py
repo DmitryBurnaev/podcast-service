@@ -13,7 +13,7 @@ from common.enums import FileType
 from common.exceptions import (
     NotFoundError,
     S3UploadingError,
-    InvalidParameterError,
+    InvalidRequestError,
     AuthenticationFailedError,
 )
 from common.request import PRequest
@@ -233,7 +233,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
                 tmp_path=settings.TMP_AUDIO_PATH,
             )
         except ValueError as e:
-            raise InvalidParameterError(details={"file": str(e)})
+            raise InvalidRequestError(details={"file": str(e)})
 
         return tmp_path, upload_file.filename
 

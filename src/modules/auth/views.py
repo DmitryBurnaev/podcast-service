@@ -13,7 +13,7 @@ from common.statuses import ResponseStatus
 from core import settings
 from common.views import BaseHTTPEndpoint
 from common.utils import send_email, get_logger
-from common.exceptions import AuthenticationFailedError, InvalidParameterError
+from common.exceptions import AuthenticationFailedError, InvalidRequestError
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
@@ -144,7 +144,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         email = cleaned_data["email"]
 
         if await User.async_get(self.db_session, email=email):
-            raise InvalidParameterError(details=f"User with email '{email}' already exists")
+            raise InvalidRequestError(details=f"User with email '{email}' already exists")
 
         user_invite = await UserInvite.async_get(
             self.db_session,
@@ -159,10 +159,10 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
                 cleaned_data["invite_token"],
                 details,
             )
-            raise InvalidParameterError(details=details)
+            raise InvalidRequestError(details=details)
 
         if email != user_invite.email:
-            raise InvalidParameterError(message="Email does not match with your invitation.")
+            raise InvalidRequestError(message="Email does not match with your invitation.")
 
         cleaned_data["user_invite"] = user_invite
         return cleaned_data
@@ -275,7 +275,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
     async def _validate(self, request, *_) -> dict:
         cleaned_data = await super()._validate(request)
         if exists_user := await User.async_get(self.db_session, email=cleaned_data["email"]):
-            raise InvalidParameterError(f"User with email=[{exists_user.email}] already exists.")
+            raise InvalidRequestError(f"User with email=[{exists_user.email}] already exists.")
 
         return cleaned_data
 
@@ -297,7 +297,7 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
         cleaned_data = await super()._validate(request)
         user = await User.async_get(self.db_session, email=cleaned_data["email"])
         if not user:
-            raise InvalidParameterError(f"User with email=[{cleaned_data['email']}] not found.")
+            raise InvalidRequestError(f"User with email=[{cleaned_data['email']}] not found.")
 
         return user
 

@@ -12,7 +12,7 @@ from common.enums import FileType
 from common.utils import get_logger
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
-from common.exceptions import MaxAttemptsReached, InvalidParameterError
+from common.exceptions import MaxAttemptsReached, InvalidRequestError
 from modules.media.models import File
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.schemas import (
@@ -150,7 +150,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
     async def _validate(self, request, **_) -> dict:
         form = await request.form()
         if not (image := form.get("image")):
-            raise InvalidParameterError(details="Image is required field")
+            raise InvalidRequestError(details="Image is required field")
 
         return {"image": image}
 
