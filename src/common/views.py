@@ -9,6 +9,7 @@ from starlette.exceptions import HTTPException
 from starlette.endpoints import HTTPEndpoint
 from marshmallow import Schema, ValidationError, fields
 from starlette.responses import JSONResponse, Response
+from webargs_starlette import parser, WebargsHTTPException
 
 from common.exceptions import (
     NotFoundError,
@@ -20,7 +21,6 @@ from common.request import PRequest
 from common.statuses import ResponseStatus
 from common.models import DBModel
 from common.utils import get_logger
-from common.webargs import parser
 from modules.podcast.models import Podcast
 from modules.podcast.tasks.base import RQTask
 from modules.auth.utils import TokenCollection
@@ -67,7 +67,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
                 response = await handler(self.request)  # noqa
                 await self.db_session.commit()
 
-        except (BaseApplicationError, ValidationError, HTTPException) as err:
+        except (BaseApplicationError, WebargsHTTPException, HTTPException) as err:
             await self.db_session.rollback()
             raise err
 

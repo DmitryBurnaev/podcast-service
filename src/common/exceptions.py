@@ -1,5 +1,3 @@
-from marshmallow import Schema
-
 from common.statuses import ResponseStatus
 
 
@@ -105,13 +103,3 @@ class SendRequestError(BaseApplicationError):
 class MaxAttemptsReached(BaseApplicationError):
     status_code = 503
     message = "Reached max attempt to make action"
-
-
-class HTTPRequestProcessingError(BaseApplicationError):
-    status_code = 400
-    message = "Requested data can't be processed."
-    response_status = ResponseStatus.INVALID_PARAMETERS
-
-    def __init__(self, message: str, details: str, schema: Schema, exception: Exception, headers: dict, status_code: int):
-        super().__init__(details, message)
-        self.schema = schema
