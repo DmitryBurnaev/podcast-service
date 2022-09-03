@@ -529,7 +529,7 @@
                 "sha256:932f3f96f5d1dd6f75f2e7bdf7d6e6aa671b8a0ccc30d40007170b22ef286d6f",
                 "sha256:cd87cb381bbd8f031e7cb039e1ea6e7817128b0e2770ac45d1b28897359efb88"
             ],
-            "path": "/Users/dmitry/Downloads/webargs-starlette-2.1.0.zip",
+            "path": "/tmp/webargs-starlette-2.1.0.zip",
             "version": "==2.0.0"
         },
         "wrapt": {

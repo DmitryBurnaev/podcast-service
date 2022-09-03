@@ -18,7 +18,7 @@ RUN apt-get update \
 	&& wget https://github.com/vot/ffbinaries-prebuilt/releases/download/v4.2/ffmpeg-4.2-linux-64.zip -q -O /tmp/ffmpeg-4.2-linux-64.zip \
 	&& unzip /tmp/ffmpeg-4.2-linux-64.zip -d /usr/bin \
 	&& rm /tmp/ffmpeg-4.2-linux-64.zip \
-	&& pip install pipenv==2022.8.31 \
+	&& pip install pipenv==2022.9.2 \
 	&& if [ ${DEV_DEPS} = "true" ]; then \
 	     echo "=== Install DEV dependencies ===" && \
 	     pipenv install --dev --system; \
