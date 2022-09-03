@@ -5,7 +5,8 @@ name = "pypi"
 
 [packages]
 starlette = "==0.20.4"
-webargs-starlette = "==2.0.0"  # will be used new version after release that one
+# will be used new version after release that one
+webargs-starlette = {editable = true, ref="bump-versions", git="https://github.com/DmitryBurnaev/webargs-starlette.git"}
 python-multipart = "==0.0.5"
 uvicorn = "==0.18.3"
 rq = "==1.11.0"
