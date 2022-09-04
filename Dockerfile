@@ -14,7 +14,7 @@ RUN apt-get update \
 		wget \
 		unzip \
 		nano \
-	&& wget https://github.com/DmitryBurnaev/webargs-starlette/archive/refs/tags/v2.1.0.zip -q -O /tmp/webargs-starlette-2.1.0.zip \
+        git \
 	&& wget https://github.com/vot/ffbinaries-prebuilt/releases/download/v4.2/ffmpeg-4.2-linux-64.zip -q -O /tmp/ffmpeg-4.2-linux-64.zip \
 	&& unzip /tmp/ffmpeg-4.2-linux-64.zip -d /usr/bin \
 	&& rm /tmp/ffmpeg-4.2-linux-64.zip \
@@ -26,7 +26,7 @@ RUN apt-get update \
          echo "=== Install PROD dependencies ===" && \
 	     pipenv install --system; \
        fi \
-	&& apt-get purge -y --auto-remove gcc python-dev \
+	&& apt-get purge -y --auto-remove gcc python-dev git \
 	&& apt-get -y autoremove \
 	&& apt-get clean \
 	&& rm -rf /var/lib/apt/lists/*

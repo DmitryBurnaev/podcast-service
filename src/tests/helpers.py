@@ -129,7 +129,7 @@ def get_podcast_data(**kwargs):
 
 
 @contextmanager
-def make_db_session(loop):
+def make_db_session():
     session_maker = make_session_maker()
     async_session = session_maker()
     await_(async_session.__aenter__())

@@ -5,9 +5,8 @@ name = "pypi"
 
 [packages]
 starlette = "==0.20.4"
-# will be used new version after release that one (file downloaded via Dockerfile:17)
-webargs-starlette = {path="/tmp/webargs-starlette-2.1.0.zip"}
-python-multipart = "==0.0.5"
+webargs-starlette = {ref="v2.1.0", git="https://github.com/DmitryBurnaev/webargs-starlette.git"}
+python-multipart = "==0.0.5" # required by starlette dependencies
 uvicorn = "==0.18.3"
 rq = "==1.11.0"
 
