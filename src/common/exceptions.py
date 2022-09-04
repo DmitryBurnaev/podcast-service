@@ -78,7 +78,7 @@ class InviteTokenInvalidationError(BaseApplicationError):
     response_status = ResponseStatus.INVITE_ERROR
 
 
-class InvalidParameterError(BaseApplicationError):
+class InvalidRequestError(BaseApplicationError):
     status_code = 400
     message = "Requested data is not valid."
     response_status = ResponseStatus.INVALID_PARAMETERS

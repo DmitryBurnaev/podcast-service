@@ -156,7 +156,7 @@ class ProgressResponseSchema(Schema):
 
 class CookieCreateUpdateSchema(Schema):
     source_type = fields.Str(required=True, validate=validate.OneOf(SourceType.__members__.keys()))
-    file = fields.Raw(type="file", required=True)
+    file = fields.Raw(required=True, metadata={"type": "file"})
 
 
 class CookieResponseSchema(Schema):

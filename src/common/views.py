@@ -15,7 +15,7 @@ from common.exceptions import (
     NotFoundError,
     UnexpectedError,
     BaseApplicationError,
-    InvalidParameterError,
+    InvalidRequestError,
 )
 from common.request import PRequest
 from common.statuses import ResponseStatus
@@ -121,7 +121,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
                 schema.is_valid(cleaned_data)
 
         except ValidationError as e:
-            raise InvalidParameterError(details=e.data)
+            raise InvalidRequestError(details=e.data)
 
         return cleaned_data
 

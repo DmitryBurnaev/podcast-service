@@ -1,7 +1,7 @@
 import pytest
 
 from common.enums import SourceType
-from common.exceptions import InvalidParameterError
+from common.exceptions import InvalidRequestError
 from modules.providers.utils import extract_source_info
 
 
@@ -29,7 +29,7 @@ def test_fetch_source_type__ok(source_url, source_type, source_id):
     ],
 )
 def test_fetch_source_type__didnt_match(source_url):
-    with pytest.raises(InvalidParameterError) as e:
+    with pytest.raises(InvalidRequestError) as e:
         extract_source_info(source_url)
 
     assert e.value.details == f"Requested domain is not supported now {source_url}"

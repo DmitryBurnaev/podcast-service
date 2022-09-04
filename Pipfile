@@ -4,32 +4,32 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-starlette = "==0.17.1"
-webargs-starlette = "==2.0.0"
-python-multipart = "==0.0.5"
-uvicorn = "==0.15.0"
-rq = "==1.10.0"
+starlette = "==0.20.4"
+webargs-starlette = {ref="v2.1.0", git="https://github.com/DmitryBurnaev/webargs-starlette.git"}
+python-multipart = "==0.0.5" # required by starlette dependencies
+uvicorn = "==0.18.3"
+rq = "==1.11.0"
 
-asyncpg = "==0.25.0"
-psycopg2-binary = "==2.9.2" # for alembic only
-sqlalchemy = "==1.4.27"
-alembic = "==1.7.5"
+asyncpg = "==0.26.0"
+psycopg2-binary = "==2.9.3" # for alembic only
+sqlalchemy = "==1.4.40"
+alembic = "==1.8.1"
 
 PyJWT = "==2.4.0"
 httpx = "==0.23.0"
-redis = "==4.0.2"
-boto3 = "==1.21.18"
+redis = "==4.3.4"
+boto3 = "==1.24.63"
 youtube_dl = "==2021.12.17"
-sentry-sdk = "==1.5.0"
-python-dotenv = "==0.19.2"
-Jinja2 = "==3.0.3" # rss-file rendering
+sentry-sdk = "==1.9.5"
+python-dotenv = "==0.20.0"
+Jinja2 = "==3.1.2" # rss-file rendering
 
 [dev-packages]
-pytest = "==6.2.5"
-requests = "==2.26.0"
-coverage = "==6.2"
-black = "==22.3.0"
-flake8 = "==4.0.1"
+pytest = "==7.1.2"
+requests = "==2.28.1"
+coverage = "==6.4.4"
+black = "==22.6.0"
+flake8 = "==5.0.4"
 
 [requires]
 python_version = "3.10"

@@ -1,4 +1,3 @@
-import asyncio
 import io
 import random
 import time
@@ -36,10 +35,17 @@ class PodcastTestClient(TestClient):
 
 
 def await_(coroutine):
-    """Run coroutine in the current event loop"""
+    """
+    Run coroutine in the current event loop.
+    This is ugly hack may be, but we can avoid problems with closing event loops.
+    """
 
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(coroutine)
+    from asyncio import _get_running_loop, get_event_loop_policy  # noqa
+
+    if not (current_loop := _get_running_loop()):
+        current_loop = get_event_loop_policy().get_event_loop()
+
+    return current_loop.run_until_complete(coroutine)
 
 
 def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
@@ -129,7 +135,7 @@ def get_podcast_data(**kwargs):
 
 
 @contextmanager
-def make_db_session(loop):
+def make_db_session():
     session_maker = make_session_maker()
     async_session = session_maker()
     await_(async_session.__aenter__())
