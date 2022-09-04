@@ -55,8 +55,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert response_data == [_podcast(podcast)]
 
-    def test_get_list__check_episodes_count__ok(self, client, user, loop, dbs):
-        dbs = dbs
+    def test_get_list__check_episodes_count__ok(self, client, user, dbs):
         podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
         create_episode(dbs, get_episode_data(), podcast_1)
         create_episode(dbs, get_episode_data(), podcast_1)

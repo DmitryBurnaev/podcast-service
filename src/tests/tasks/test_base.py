@@ -1,14 +1,12 @@
-import asyncio
-
 from modules.podcast.tasks import RQTask
 from modules.podcast.tasks.base import FinishCode
+from tests.helpers import await_
 
 
 class TaskForTest(RQTask):
     def __call__(self, *args, **kwargs) -> FinishCode:
         """Base __call__ closes event loop (tests needed for running one)"""
-        loop = asyncio.get_event_loop()
-        finish_code = loop.run_until_complete(self._perform_and_run(*args, **kwargs))
+        finish_code = await_(self._perform_and_run(*args, **kwargs))
         return finish_code
 
     async def run(self, raise_error=False):

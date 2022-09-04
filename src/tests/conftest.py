@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import tempfile
 import uuid
@@ -70,7 +69,7 @@ def client() -> PodcastTestClient:
 
 
 @pytest.fixture
-def dbs(loop) -> AsyncSession:
+def dbs() -> AsyncSession:
     with make_db_session() as db_session:
         yield db_session
 
@@ -195,17 +194,12 @@ def user_data() -> Tuple[str, str]:
 
 
 @pytest.fixture
-def loop():
-    return asyncio.get_event_loop()
-
-
-@pytest.fixture
 def user(dbs):
     return create_user(dbs)
 
 
 @pytest.fixture
-def user_session(user, loop, dbs):
+def user_session(user, dbs):
     return create_user_session(dbs, user)
 
 
@@ -220,10 +214,10 @@ def episode_data(podcast) -> dict:
 
 
 @pytest.fixture
-def podcast(podcast_data, user, loop, dbs) -> Podcast:
+def podcast(podcast_data, user, dbs) -> Podcast:
     podcast_data["owner_id"] = user.id
     publish_id = podcast_data["publish_id"]
-    image = loop.run_until_complete(
+    image = await_(
         File.create(
             dbs,
             FileType.IMAGE,
@@ -233,7 +227,7 @@ def podcast(podcast_data, user, loop, dbs) -> Podcast:
             public=True,
         )
     )
-    rss = loop.run_until_complete(
+    rss = await_(
         File.create(
             dbs,
             FileType.RSS,
@@ -244,28 +238,28 @@ def podcast(podcast_data, user, loop, dbs) -> Podcast:
     )
     podcast_data["image_id"] = image.id
     podcast_data["rss_id"] = rss.id
-    podcast = loop.run_until_complete(Podcast.async_create(dbs, **podcast_data))
-    loop.run_until_complete(dbs.commit())
+    podcast = await_(Podcast.async_create(dbs, **podcast_data))
+    await_(dbs.commit())
     podcast.image = image
     podcast.rss = rss
     return podcast
 
 
 @pytest.fixture
-def cookie(user, loop, dbs) -> Cookie:
+def cookie(user, dbs) -> Cookie:
     cookie_data = {
         "source_type": SourceType.YANDEX,
         "data": "Cookie at netscape format\n",
         "owner_id": user.id,
     }
-    podcast = loop.run_until_complete(Cookie.async_create(dbs, **cookie_data))
-    loop.run_until_complete(dbs.commit())
+    podcast = await_(Cookie.async_create(dbs, **cookie_data))
+    await_(dbs.commit())
     return podcast
 
 
 @pytest.fixture
-def image_file(user, loop, dbs) -> File:
-    image = loop.run_until_complete(
+def image_file(user, dbs) -> File:
+    image = await_(
         File.create(
             dbs,
             FileType.IMAGE,
@@ -274,13 +268,13 @@ def image_file(user, loop, dbs) -> File:
             size=1,
         )
     )
-    loop.run_until_complete(dbs.commit())
+    await_(dbs.commit())
     return image
 
 
 @pytest.fixture
-def rss_file(user, loop, dbs) -> File:
-    image = loop.run_until_complete(
+def rss_file(user, dbs) -> File:
+    image = await_(
         File.create(
             dbs,
             FileType.RSS,
@@ -288,15 +282,15 @@ def rss_file(user, loop, dbs) -> File:
             path="/remote/path/to/rss_file.xml",
         )
     )
-    loop.run_until_complete(dbs.commit())
+    await_(dbs.commit())
     return image
 
 
 @pytest.fixture
-def episode(podcast, user, loop, dbs) -> Episode:
+def episode(podcast, user, dbs) -> Episode:
     episode_data = get_episode_data(podcast=podcast, creator=user)
     source_id = get_source_id()
-    audio = loop.run_until_complete(
+    audio = await_(
         File.create(
             dbs,
             FileType.AUDIO,
@@ -305,7 +299,7 @@ def episode(podcast, user, loop, dbs) -> Episode:
             available=True,
         )
     )
-    image = loop.run_until_complete(
+    image = await_(
         File.create(
             dbs,
             FileType.IMAGE,
@@ -317,16 +311,16 @@ def episode(podcast, user, loop, dbs) -> Episode:
     )
     episode_data["audio_id"] = audio.id
     episode_data["image_id"] = image.id
-    episode = loop.run_until_complete(Episode.async_create(dbs, **episode_data))
-    loop.run_until_complete(dbs.commit())
+    episode = await_(Episode.async_create(dbs, **episode_data))
+    await_(dbs.commit())
     episode.image = image
     episode.audio = audio
     return episode
 
 
 @pytest.fixture
-def user_invite(user, loop, dbs) -> UserInvite:
-    return loop.run_until_complete(
+def user_invite(user, dbs) -> UserInvite:
+    return await_(
         UserInvite.async_create(
             dbs,
             db_commit=True,
