@@ -1,20 +1,28 @@
 import datetime
 import os
 
-from alembic.script import Script
+from alembic.config import Config
+from alembic.script import Script, ScriptDirectory
 from slugify import slugify
 
 from core import settings
 
-MIGRATIONS_DIR = f"{settings.PROJECT_ROOT_DIR}/migrations/versions/"
+MIGRATIONS_DIR = settings.PROJECT_ROOT_DIR / "migrations/versions/"
 
 
 def get_history_migrations_scripts() -> list[Script]:
     # from unit_test.migrations.utils import get_revision_scripts
     # TODO: implement getting revisions get_revision_scripts:
     # MigrationScript.upgrade_ops_list
-    revision_scripts = []
-    return [script for script in revision_scripts]
+    # revision_scripts = []
+    config = Config(settings.PROJECT_ROOT_DIR / "alembic.ini")
+    script = ScriptDirectory.from_config(config)
+    scripts = []
+    for sc in script.walk_revisions(base="base", head="heads"):
+        scripts.insert(0, sc)
+
+    return scripts
+    # return [script for script in revision_scripts]
 
 
 def parse(file_content: str, token: str) -> str:
@@ -34,7 +42,7 @@ def rename2(need_file_rename=True):
         if file_number == 1:
             new_filename = "0001_init.py"
         else:
-            mess = slugify(migration_script.doc, space_replacement="_")
+            mess = slugify(migration_script.doc, separator="_")
             if mess == "empty_message":
                 migration_time = datetime.datetime.strptime(
                     parse(migration_script.longdoc, "Create Date: ").replace(
@@ -52,7 +60,7 @@ def rename2(need_file_rename=True):
             old_rev_id = f"_{rev_id}" if rev_id != f"{file_number:04d}" else ""
             new_filename = f"{file_number:04d}_{mess}{old_rev_id}.py"
 
-        old_filepath = migration_script.module.__file__
+        old_filepath = settings.PROJECT_ROOT_DIR / migration_script.module.__file__
         old_filename = os.path.basename(old_filepath)
         if need_file_rename:
             new_filepath = os.path.join(MIGRATIONS_DIR, new_filename)
@@ -68,4 +76,6 @@ def rename2(need_file_rename=True):
 
 
 if __name__ == "__main__":
+    # for s in get_history_migrations_scripts():
+    #     print(s)
     rename2()
