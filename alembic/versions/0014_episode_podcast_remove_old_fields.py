@@ -1,7 +1,7 @@
 """Episode+Podcast: remove old fields
 
-Revision ID: 8c907f32fe37
-Revises: 673a98d92176
+Revision ID: 0014
+Revises: 0013
 Create Date: 2022-06-15 16:46:54.037564
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "8c907f32fe37"
-down_revision = "673a98d92176"
+revision = "0014"
+down_revision = "0013"
 branch_labels = None
 depends_on = None
 

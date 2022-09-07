@@ -1,7 +1,7 @@
 """auth_sessions
 
-Revision ID: e7ecd1af5d35
-Revises: e10362dc785b
+Revision ID: 0004
+Revises: 0003
 Create Date: 2021-06-16 08:23:20.721662
 
 """
@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "e7ecd1af5d35"
-down_revision = "e10362dc785b"
+revision = "0004"
+down_revision = "0003"
 branch_labels = None
 depends_on = None
 

@@ -1,7 +1,7 @@
 """episode_source
 
-Revision ID: d6fcd3132857
-Revises: bca0b2a3b5f4
+Revision ID: 0006
+Revises: 0005
 Create Date: 2021-10-17 18:51:29.927189
 
 """
@@ -11,8 +11,8 @@ from sqlalchemy import String
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "d6fcd3132857"
-down_revision = "bca0b2a3b5f4"
+revision = "0006"
+down_revision = "0005"
 branch_labels = None
 depends_on = None
 

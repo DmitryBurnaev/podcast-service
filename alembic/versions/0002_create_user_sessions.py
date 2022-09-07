@@ -1,7 +1,7 @@
 """create user sessions
 
-Revision ID: 9590cd1e3aa7
-Revises: 24c9e468369c
+Revision ID: 0002
+Revises: 0001
 Create Date: 2020-07-19 13:35:10.998315
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "9590cd1e3aa7"
-down_revision = "24c9e468369c"
+revision = "0002"
+down_revision = "0001"
 branch_labels = None
 depends_on = None
 

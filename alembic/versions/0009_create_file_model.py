@@ -1,7 +1,7 @@
 """Create file model
 
-Revision ID: 9e313cd15619
-Revises: da63661dc19a
+Revision ID: 0009
+Revises: 0008
 Create Date: 2022-04-15 09:20:31.654464
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "9e313cd15619"
-down_revision = "da63661dc19a"
+revision = "0009"
+down_revision = "0008"
 branch_labels = None
 depends_on = None
 

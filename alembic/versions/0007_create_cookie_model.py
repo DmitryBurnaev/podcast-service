@@ -1,7 +1,7 @@
 """Create cookie model
 
-Revision ID: 1c41cce5ca3d
-Revises: d6fcd3132857
+Revision ID: 0007
+Revises: 0006
 Create Date: 2022-01-21 18:23:24.246648
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "1c41cce5ca3d"
-down_revision = "d6fcd3132857"
+revision = "0007"
+down_revision = "0006"
 branch_labels = None
 depends_on = None
 
