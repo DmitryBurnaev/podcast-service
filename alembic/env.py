@@ -3,6 +3,7 @@ import sys
 from logging.config import fileConfig
 
 from alembic import context
+from alembic.script import ScriptDirectory
 from sqlalchemy import engine_from_config
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -54,6 +55,29 @@ def run_migrations_online():
 
         with context.begin_transaction():
             context.run_migrations()
+
+
+def process_revision_directives(*_, directives):
+    # extract Migration
+    migration_script = directives[0]
+    # extract current head revision
+    head_revision = ScriptDirectory.from_config(context.config).get_current_head()
+
+    if head_revision is None:
+        # edge case with first migration
+        new_rev_id = 1
+    else:
+        # default branch with incrementation
+        last_rev_id = int(head_revision.lstrip('0'))
+        new_rev_id = last_rev_id + 1
+
+    # fill zeros up to 4 digits: 1 -> 0001
+    migration_script.rev_id = '{0:04}'.format(new_rev_id)
+
+
+context.configure(
+  process_revision_directives=process_revision_directives,
+)
 
 
 if context.is_offline_mode():
