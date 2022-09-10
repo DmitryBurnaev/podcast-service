@@ -1,7 +1,7 @@
 """Files: added hash field
 
-Revision ID: 6d3f44425801
-Revises: 6f97ecebbf04
+Revision ID: 0016
+Revises: 0015
 Create Date: 2022-08-21 19:43:30.571685
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "6d3f44425801"
-down_revision = "6f97ecebbf04"
+revision = "0016"
+down_revision = "0015"
 branch_labels = None
 depends_on = None
 

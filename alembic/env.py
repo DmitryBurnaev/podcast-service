@@ -1,8 +1,10 @@
+import logging
 import os
 import sys
 from logging.config import fileConfig
 
 from alembic import context
+from alembic.script import ScriptDirectory
 from sqlalchemy import engine_from_config
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,6 +21,7 @@ DB_DSN = "postgresql://{username}:{password}@{host}:{port}/{database}".format(**
 config.set_main_option("sqlalchemy.url", DB_DSN)
 fileConfig(config.config_file_name)
 target_metadata = ModelBase.metadata
+logger = logging.getLogger("alembic.env")
 
 
 def run_migrations_offline():
@@ -39,7 +42,9 @@ def run_migrations_offline():
         target_metadata=target_metadata,
         literal_binds=True,
         compare_type=True,
+        compare_server_default=True,
         dialect_opts={"paramstyle": "named"},
+        process_revision_directives=process_revision_directives,
     )
 
     with context.begin_transaction():
@@ -50,10 +55,38 @@ def run_migrations_online():
     engine = engine_from_config(config.get_section(config.config_ini_section), prefix="sqlalchemy.")
 
     with engine.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            compare_server_default=True,
+            process_revision_directives=process_revision_directives,
+        )
 
         with context.begin_transaction():
             context.run_migrations()
+
+
+def process_revision_directives(context, revision, directives):  # noqa
+    # extract Migration
+    migration_script = directives[0]
+    if migration_script.upgrade_ops.is_empty():
+        directives[:] = []
+        logger.info("No changes in schema detected.")
+
+    # extract current head revision
+    head_revision = ScriptDirectory.from_config(context.config).get_current_head()
+
+    if head_revision is None:
+        # edge case with first migration
+        new_rev_id = 1
+    else:
+        # default branch with incrementation
+        last_rev_id = int(head_revision.lstrip("0"))
+        new_rev_id = last_rev_id + 1
+
+    # fill zeros up to 4 digits: 1 -> 0001
+    migration_script.rev_id = "{0:04}".format(new_rev_id)
 
 
 if context.is_offline_mode():

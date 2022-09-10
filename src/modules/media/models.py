@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import expression
 
 from common.exceptions import NotSupportedError
 from common.storage import StorageS3
@@ -41,7 +42,7 @@ class File(ModelBase, ModelMixin):
     access_token = Column(String(length=64), nullable=False, index=True, unique=True)
     owner_id = Column(Integer, ForeignKey("auth_users.id"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    public = Column(Boolean, nullable=False, default=False)
+    public = Column(Boolean, nullable=False, server_default=expression.false(), default=False)
     meta = Column(JSONB(none_as_null=True))
     hash = Column(String(length=32), nullable=False, server_default="")
 

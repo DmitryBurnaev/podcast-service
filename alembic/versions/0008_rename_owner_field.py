@@ -1,15 +1,15 @@
 """Rename owner field
 
-Revision ID: da63661dc19a
-Revises: 1c41cce5ca3d
+Revision ID: 0008
+Revises: 0007
 Create Date: 2022-03-11 09:43:08.860202
 
 """
 from alembic import op
 
 
-revision = "da63661dc19a"
-down_revision = "1c41cce5ca3d"
+revision = "0008"
+down_revision = "0007"
 branch_labels = None
 depends_on = None
 

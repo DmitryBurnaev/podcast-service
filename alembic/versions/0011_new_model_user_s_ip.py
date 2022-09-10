@@ -1,7 +1,7 @@
 """New model: user's IP
 
-Revision ID: 1ab5ca60fe55
-Revises: 2c92a9133aaa
+Revision ID: 0011
+Revises: 0010
 Create Date: 2022-05-17 19:12:44.258445
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "1ab5ca60fe55"
-down_revision = "2c92a9133aaa"
+revision = "0011"
+down_revision = "0010"
 branch_labels = None
 depends_on = None
 

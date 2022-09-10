@@ -1,7 +1,7 @@
 """shemas_up_to_date
 
-Revision ID: bca0b2a3b5f4
-Revises: e7ecd1af5d35
+Revision ID: 0005
+Revises: 0004
 Create Date: 2021-07-15 23:35:29.506142
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "bca0b2a3b5f4"
-down_revision = "e7ecd1af5d35"
+revision = "0005"
+down_revision = "0004"
 branch_labels = None
 depends_on = None
 

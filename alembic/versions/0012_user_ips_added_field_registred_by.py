@@ -1,7 +1,7 @@
 """User IPs: added field registred_by
 
-Revision ID: 58f846696683
-Revises: 1ab5ca60fe55
+Revision ID: 0012
+Revises: 0011
 Create Date: 2022-05-22 16:16:43.905285
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "58f846696683"
-down_revision = "1ab5ca60fe55"
+revision = "0012"
+down_revision = "0011"
 branch_labels = None
 depends_on = None
 

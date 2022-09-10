@@ -1,7 +1,7 @@
 """Fill file model
 
-Revision ID: 2c92a9133aaa
-Revises: 9e313cd15619
+Revision ID: 0010
+Revises: 0009
 Create Date: 2022-04-15 09:40:37.666183
 
 """
@@ -19,8 +19,8 @@ from common.enums import EpisodeStatus, FileType
 from modules.media.models import File
 
 
-revision = "2c92a9133aaa"
-down_revision = "9e313cd15619"
+revision = "0010"
+down_revision = "0009"
 branch_labels = None
 depends_on = None
 
