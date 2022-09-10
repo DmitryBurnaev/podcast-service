@@ -10,17 +10,12 @@ on:
 
 jobs:
   analyze:
-    name: Analyze
+    name: Scan
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
       security-events: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'python' ]
 
     steps:
     - name: Checkout repository
@@ -35,7 +30,7 @@ jobs:
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v2
       with:
-        languages: ${{ matrix.language }}
+        languages: 'python'
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
@@ -45,5 +40,5 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: codeql-artifacts
-        path: ${GITHUB_WORKSPACE}/results
+        path: ${{ runner.workspace }}/results
         if-no-files-found: ignore
