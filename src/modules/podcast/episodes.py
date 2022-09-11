@@ -18,10 +18,8 @@ logger = get_logger(__name__)
 class EpisodeCreator:
     """Allows extracting info from Source end create episode (if necessary)"""
 
-    symbols_regex = re.compile("[&^<>*#]")
-    http_link_regex = re.compile(
-        "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|%-[0-9a-fA-F][0-9a-fA-F])+"
-    )
+    symbols_regex = re.compile(r"[&^<>*#]")
+    http_link_regex = re.compile(r"https?://(?:[a-zA-Z]|[0-9]|[?._\-@*()%=/])+")
 
     def __init__(self, db_session: AsyncSession, podcast_id: int, source_url: str, user_id: int):
         self.db_session: AsyncSession = db_session
