@@ -12,8 +12,8 @@ from contextlib import suppress
 from multiprocessing import Process
 from typing import Optional, NamedTuple
 
-import youtube_dl
-from youtube_dl.utils import YoutubeDLError
+import yt_dlp
+from yt_dlp.utils import YoutubeDLError
 
 from core import settings
 from common.utils import get_logger
@@ -113,7 +113,7 @@ def extract_source_info(source_url: Optional[str] = None, playlist: bool = False
 def download_process_hook(event: dict):
     """
     Allows handling processes of downloading episode's file.
-    It is called by `youtube_dl.YoutubeDL`
+    It is called by `yt_dlp.YoutubeDL`
     """
     total_bytes = event.get("total_bytes") or event.get("total_bytes_estimate", 0)
     episode_process_hook(
@@ -137,21 +137,21 @@ def download_audio(source_url: str, filename: str, cookie: Optional[Cookie]) -> 
     params = {
         "format": "bestaudio/best",
         "outtmpl": str(result_path),
-        "logger": get_logger("youtube_dl.YoutubeDL"),
+        "logger": get_logger("yt_dlp.YoutubeDL"),
         "progress_hooks": [download_process_hook],
         "noprogress": True,
     }
     if cookie:
         params["cookiefile"] = cookie.as_file()
 
-    with youtube_dl.YoutubeDL(params) as ydl:
+    with yt_dlp.YoutubeDL(params) as ydl:
         ydl.download([source_url])
 
     return result_path
 
 
 async def get_source_media_info(source_info: SourceInfo) -> tuple[str, Optional[SourceMediaInfo]]:
-    """Allows extract info about providers video from Source (powered by youtube_dl)"""
+    """Allows extract info about providers video from Source (powered by yt_dlp)"""
 
     logger.info(f"Started fetching data for {source_info.url}")
     loop = asyncio.get_running_loop()
@@ -160,7 +160,7 @@ async def get_source_media_info(source_info: SourceInfo) -> tuple[str, Optional[
         params["cookiefile"] = source_info.cookie.as_file()
 
     try:
-        with youtube_dl.YoutubeDL(params) as ydl:
+        with yt_dlp.YoutubeDL(params) as ydl:
             extract_info = partial(ydl.extract_info, source_info.url, download=False)
             source_details = await loop.run_in_executor(None, extract_info)
 

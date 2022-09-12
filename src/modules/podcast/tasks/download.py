@@ -4,7 +4,7 @@ import os.path
 from pathlib import Path
 from typing import Optional
 
-from youtube_dl.utils import YoutubeDLError
+from yt_dlp.utils import YoutubeDLError
 
 from common.enums import EpisodeStatus
 from core import settings

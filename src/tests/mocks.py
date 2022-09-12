@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import Mock, AsyncMock
 
 import rq
-from youtube_dl import YoutubeDL
+from yt_dlp import YoutubeDL
 
 from common.enums import SourceType
 from common.redis import RedisClient

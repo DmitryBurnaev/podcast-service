@@ -1,7 +1,7 @@
 import asyncio
 from functools import partial
 
-import youtube_dl
+import yt_dlp
 from starlette.requests import Request
 
 from modules.providers import utils
@@ -32,11 +32,11 @@ class PlayListAPIView(BaseHTTPEndpoint):
         if cookie := await self._fetch_cookie(request, source_info.type):
             params["cookiefile"] = cookie.as_file()
 
-        with youtube_dl.YoutubeDL(params) as ydl:
+        with yt_dlp.YoutubeDL(params) as ydl:
             extract_info = partial(ydl.extract_info, playlist_url, download=False)
             try:
                 source_data = await loop.run_in_executor(None, extract_info)
-            except youtube_dl.utils.DownloadError as err:
+            except yt_dlp.utils.DownloadError as err:
                 raise InvalidRequestError(f"Couldn't extract playlist: {err}")
 
         yt_content_type = source_data.get("_type")

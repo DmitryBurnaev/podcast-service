@@ -3,7 +3,7 @@ import uuid
 from pathlib import Path
 from unittest.mock import patch
 
-from youtube_dl.utils import DownloadError
+from yt_dlp.utils import DownloadError
 
 from common.exceptions import NotFoundError
 from core import settings
