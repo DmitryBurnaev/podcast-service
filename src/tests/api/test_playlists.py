@@ -1,4 +1,4 @@
-import youtube_dl
+import yt_dlp
 
 from common.enums import SourceType
 from common.statuses import ResponseStatus
@@ -112,7 +112,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
 
     def test_retrieve__unsupported_url__fail(self, client, user, mocked_youtube):
         err_msg = "Unsupported URL: https://ya.ru"
-        mocked_youtube.extract_info.side_effect = youtube_dl.utils.DownloadError(err_msg)
+        mocked_youtube.extract_info.side_effect = yt_dlp.utils.DownloadError(err_msg)
         client.login(user)
         response = client.get(self.url, data={"url": "https://ya.ru"})
         response_data = self.assert_fail_response(response, status_code=400)

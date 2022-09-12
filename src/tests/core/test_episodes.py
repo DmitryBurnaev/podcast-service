@@ -1,7 +1,7 @@
 from typing import Optional
 
 import pytest
-from youtube_dl.utils import ExtractorError
+from yt_dlp.utils import ExtractorError
 
 from common.enums import SourceType, FileType
 from modules.media.models import File
