@@ -514,7 +514,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
 
     def test__token_expired__fail(self, client, user):
         token, _ = encode_jwt({"user_id": user.id}, expires_in=-10)
-        response_data = self._assert_fail_response(client, token, ResponseStatus.SIGNATURE_EXPIRED)
+        response_data = self._assert_fail_response(client, token, ResponseStatus.AUTH_FAILED)
         self.assert_auth_invalid(response_data, "JWT signature has been expired for token")
 
     def test__token_invalid_type__fail(self, client, user):

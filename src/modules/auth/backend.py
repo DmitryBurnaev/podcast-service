@@ -53,8 +53,14 @@ class BaseAuthJWTBackend:
         try:
             jwt_payload = decode_jwt(jwt_token)
         except ExpiredSignatureError:
-            logger.debug("JWT signature has been expired for token %s", jwt_token)
-            raise SignatureExpiredError("JWT signature has been expired for token")
+            logger.debug("JWT signature has been expired for %s token", token_type)
+            exception_class = (
+                SignatureExpiredError
+                if token_type == TOKEN_TYPE_ACCESS
+                else AuthenticationFailedError
+            )
+            raise exception_class("JWT signature has been expired for token")
+
         except InvalidTokenError as error:
             msg = "Token could not be decoded: %s"
             logger.exception(msg, error)
