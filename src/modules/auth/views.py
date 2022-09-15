@@ -214,6 +214,7 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         if user_session.refresh_token != refresh_token:
             raise AuthenticationFailedError("Refresh token does not match with user session.")
 
+        # TODO: think about refreshing refresh token
         token_collection = await self._update_session(user, user_session)
         return self._response(token_collection)
 
@@ -221,7 +222,7 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         cleaned_data = await super()._validate(request)
         refresh_token = cleaned_data["refresh_token"]
         user, jwt_payload, _ = await LoginRequiredAuthBackend(request).authenticate_user(
-            refresh_token, token_type="refresh"
+            refresh_token, token_type=TOKEN_TYPE_REFRESH
         )
         return user, refresh_token, jwt_payload.get("session_id")
 
