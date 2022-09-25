@@ -113,3 +113,53 @@ class TestProgressAPIView(BaseTestAPIView):
         assert response_data == [
             _progress(podcast_1, p1_episode_down, current_size=MB_1, completed=50.0),
         ]
+
+
+class TestEpisodeProgressAPIView(BaseTestAPIView):
+    url = "/api/episodes/{id}/progress/"
+
+    def test_get_progress__ok(self, dbs, client, podcast, episode, user, mocked_redis):
+        await_(episode.update(dbs, status=EpisodeStatus.DOWNLOADING))
+        await_(dbs.commit())
+
+        mocked_redis.async_get_many.return_value = mocked_redis.async_return(
+            {
+                _redis_key(episode.audio_filename): {
+                    "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
+                    "processed_bytes": MB_1,
+                    "total_bytes": MB_2,
+                },
+            }
+        )
+
+        client.login(user)
+        response = client.get(url=self.url.format(id=episode.id))
+        response_data = self.assert_ok_response(response)
+        assert response_data == _progress(
+            podcast, episode, current_size=MB_1, completed=MB_2 / MB_1
+        )
+        assert mocked_redis.async_get_many.assert_called_with()
+
+    def test_get_progress__episode_not_in_progress__ok(self, dbs, user, client, episode, mocked_redis):
+        await_(episode.update(dbs, status=EpisodeStatus.NEW))
+        await_(dbs.commit())
+
+        client.login(user)
+        response = client.get(url=self.url.format(id=episode.id))
+        response_data = self.assert_ok_response(response)
+        assert response_data == {}
+        assert mocked_redis.async_get_many.assert_not_called()
+
+    def test_get_progress__no_progress_data__ok(self, dbs, client, podcast, episode, user, mocked_redis):
+        await_(episode.update(dbs, status=EpisodeStatus.DOWNLOADING))
+        await_(dbs.commit())
+
+        mocked_redis.async_get_many.return_value = mocked_redis.async_return({})
+
+        client.login(user)
+        response = client.get(url=self.url.format(id=episode.id))
+        response_data = self.assert_ok_response(response)
+        assert response_data == _progress(
+            podcast, episode, current_size=MB_1, completed=MB_2 / MB_1
+        )
+        assert mocked_redis.async_get_many.assert_called_with()
