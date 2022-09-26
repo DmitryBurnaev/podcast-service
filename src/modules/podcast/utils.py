@@ -36,7 +36,7 @@ def get_file_size(file_path: str | Path):
         return 0
 
 
-async def check_state(episodes: Iterable[Episode]) -> list:
+async def check_state(episodes: Iterable[Episode]) -> list[dict]:
     """Allows getting info about download progress for requested episodes"""
 
     redis_client = RedisClient()
