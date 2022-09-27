@@ -46,15 +46,17 @@ class EpisodeInProgressAPIView(BaseHTTPEndpoint):
     """ Current downloading progress for requested episode """
 
     schema_response = ProgressResponseSchema
+    db_model = Episode
 
     async def get(self, request):
         episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
+        podcast = await Podcast.async_get(self.db_session, id=episode.id)
         progress_data = {}
         if episode.status in Episode.PROGRESS_STATUSES:
             if progress := await check_state([episode]):
                 progress_data = progress[0]
                 progress_data["episode"] = episode
-                progress_data["podcast"] = episode.podcast
+                progress_data["podcast"] = podcast
 
         return self._response(progress_data)

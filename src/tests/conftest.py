@@ -297,6 +297,7 @@ def episode(podcast, user, dbs) -> Episode:
             owner_id=user.id,
             path=f"/remote/path/to/audio/episode_{source_id}_audio.mp3",
             available=True,
+            size=1024,
         )
     )
     image = await_(
