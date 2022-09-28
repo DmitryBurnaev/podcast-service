@@ -9,9 +9,16 @@ MB_4 = 4 * 1024 * 1024
 STATUS = Episode.Status
 
 
-def _progress(podcast: Podcast, episode: Episode, current_size: int, completed: float):
+def _progress(
+    podcast: Podcast,
+    episode: Episode,
+    current_size: int,
+    completed: float,
+    total_file_size: int | None = None,
+    status: EpisodeStatus = EpisodeStatus.DL_EPISODE_DOWNLOADING,
+):
     return {
-        "status": str(EpisodeStatus.DL_EPISODE_DOWNLOADING),
+        "status": str(status),
         "episode": {
             "id": episode.id,
             "title": episode.title,
@@ -24,7 +31,7 @@ def _progress(podcast: Podcast, episode: Episode, current_size: int, completed: 
             "image_url": podcast.image_url,
         },
         "current_file_size": current_size,
-        "total_file_size": episode.audio.size,
+        "total_file_size": episode.audio.size if total_file_size is None else total_file_size,
         "completed": completed,
     }
 
@@ -49,7 +56,7 @@ class TestProgressAPIView(BaseTestAPIView):
         # p2_episode_new
         create_episode(dbs, episode_data, podcast_2, STATUS.NEW, MB_1)
 
-        mocked_redis.async_get_many.return_value = mocked_redis.async_return(
+        mocked_redis.async_get_many.side_effect = lambda *_, **__: (
             {
                 _redis_key(p1_episode_new.audio_filename): {
                     "status": EpisodeStatus.DL_PENDING,
@@ -93,7 +100,7 @@ class TestProgressAPIView(BaseTestAPIView):
 
         await_(dbs.commit())
 
-        mocked_redis.async_get_many.return_value = mocked_redis.async_return(
+        mocked_redis.async_get_many.side_effect = lambda *_, **__: (
             {
                 _redis_key(p1_episode_down.audio_filename): {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
@@ -123,25 +130,29 @@ class TestEpisodeProgressAPIView(BaseTestAPIView):
         await_(dbs.commit())
         processed_bytes = int(episode.audio.size / 2)
         total_bytes = episode.audio.size
-        mocked_redis.async_get_many.return_value = mocked_redis.async_return(
-            {
-                _redis_key(episode.audio_filename): {
-                    "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
-                    "processed_bytes": processed_bytes,
-                    "total_bytes": total_bytes,
-                },
-            }
-        )
+        mocked_redis.async_get_many.side_effect = lambda *_, **__: {
+            _redis_key(episode.audio_filename): {
+                "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
+                "processed_bytes": processed_bytes,
+                "total_bytes": total_bytes,
+            },
+        }
 
         client.login(user)
         response = client.get(url=self.url.format(id=episode.id))
         response_data = self.assert_ok_response(response)
         assert response_data == _progress(
-            podcast, episode, current_size=processed_bytes, completed=50.0,
+            podcast,
+            episode,
+            current_size=processed_bytes,
+            completed=50.0,
         )
-        assert mocked_redis.async_get_many.assert_awaitet_with()
+        expected_redis_key = episode.audio_filename.removesuffix(".mp3")
+        mocked_redis.async_get_many.assert_awaited_with({expected_redis_key}, pkey="event_key")
 
-    def test_get_progress__episode_not_in_progress__ok(self, dbs, user, client, episode, mocked_redis):
+    def test_get_progress__episode_not_in_progress__ok(
+        self, dbs, user, client, episode, mocked_redis
+    ):
         await_(episode.update(dbs, status=EpisodeStatus.NEW))
         await_(dbs.commit())
 
@@ -149,18 +160,25 @@ class TestEpisodeProgressAPIView(BaseTestAPIView):
         response = client.get(url=self.url.format(id=episode.id))
         response_data = self.assert_ok_response(response)
         assert response_data == {}
-        assert mocked_redis.async_get_many.assert_not_called()
+        mocked_redis.async_get_many.assert_not_awaited()
 
-    def test_get_progress__no_progress_data__ok(self, dbs, client, podcast, episode, user, mocked_redis):
+    def test_get_progress__no_progress_data__ok(
+        self, dbs, client, podcast, episode, user, mocked_redis
+    ):
+        mocked_redis.async_get_many.return_value = lambda *_, **__: {}
         await_(episode.update(dbs, status=EpisodeStatus.DOWNLOADING))
         await_(dbs.commit())
-
-        mocked_redis.async_get_many.return_value = mocked_redis.async_return({})
 
         client.login(user)
         response = client.get(url=self.url.format(id=episode.id))
         response_data = self.assert_ok_response(response)
         assert response_data == _progress(
-            podcast, episode, current_size=MB_1, completed=MB_2 / MB_1
+            podcast,
+            episode,
+            current_size=0,
+            completed=0,
+            total_file_size=0,
+            status=EpisodeStatus.DL_PENDING,
         )
-        assert mocked_redis.async_get_many.assert_called_with()
+        expected_redis_key = episode.audio_filename.removesuffix(".mp3")
+        mocked_redis.async_get_many.assert_awaited_with({expected_redis_key}, pkey="event_key")

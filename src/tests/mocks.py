@@ -120,7 +120,7 @@ class MockRedisClient(BaseMock):
         self.set = Mock()
         self.async_set = AsyncMock()
         self.async_get = AsyncMock(return_value=None)
-        self.async_get_many = AsyncMock(return_value=self._content)
+        self.async_get_many = AsyncMock(side_effect=lambda *_, **__: self._content)
 
 
 class MockS3Client(BaseMock):
