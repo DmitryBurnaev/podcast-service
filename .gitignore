@@ -9,3 +9,4 @@
 .python-version
 .log
 *.sarif
+*.http

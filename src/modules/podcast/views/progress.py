@@ -40,3 +40,20 @@ class ProgressAPIView(BaseHTTPEndpoint):
             }
 
         return self._response(data=progress)
+
+
+class EpisodeInProgressAPIView(BaseHTTPEndpoint):
+    """Current downloading progress for requested episode"""
+
+    schema_response = ProgressResponseSchema
+    db_model = Episode
+
+    async def get(self, request):
+        episode_id = request.path_params["episode_id"]
+        episode = await self._get_object(episode_id)
+        progress_data = {}
+        if episode.status in Episode.PROGRESS_STATUSES:
+            if progress := await check_state([episode]):
+                progress_data = progress[0]
+
+        return self._response(progress_data)
