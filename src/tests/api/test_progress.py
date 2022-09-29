@@ -36,6 +36,20 @@ def _progress(
     }
 
 
+def _episode_progress(
+    current_size: int,
+    completed: float,
+    total_file_size: int,
+    status: EpisodeStatus = EpisodeStatus.DL_EPISODE_DOWNLOADING,
+):
+    return {
+        "status": str(status),
+        "current_file_size": current_size,
+        "total_file_size": total_file_size,
+        "completed": completed,
+    }
+
+
 def _redis_key(filename: str) -> str:
     return filename.partition(".")[0]
 
@@ -141,11 +155,10 @@ class TestEpisodeProgressAPIView(BaseTestAPIView):
         client.login(user)
         response = client.get(url=self.url.format(id=episode.id))
         response_data = self.assert_ok_response(response)
-        assert response_data == _progress(
-            podcast,
-            episode,
+        assert response_data == _episode_progress(
             current_size=processed_bytes,
             completed=50.0,
+            total_file_size=total_bytes,
         )
         expected_redis_key = episode.audio_filename.removesuffix(".mp3")
         mocked_redis.async_get_many.assert_awaited_with({expected_redis_key}, pkey="event_key")
@@ -172,9 +185,7 @@ class TestEpisodeProgressAPIView(BaseTestAPIView):
         client.login(user)
         response = client.get(url=self.url.format(id=episode.id))
         response_data = self.assert_ok_response(response)
-        assert response_data == _progress(
-            podcast,
-            episode,
+        assert response_data == _episode_progress(
             current_size=0,
             completed=0,
             total_file_size=0,
