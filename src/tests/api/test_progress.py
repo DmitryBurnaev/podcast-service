@@ -37,6 +37,7 @@ def _progress(
 
 
 def _episode_progress(
+    episode: Episode,
     current_size: int,
     completed: float,
     total_file_size: int,
@@ -47,6 +48,12 @@ def _episode_progress(
         "current_file_size": current_size,
         "total_file_size": total_file_size,
         "completed": completed,
+        "episode": {
+            "id": episode.id,
+            "title": episode.title,
+            "image_url": episode.image_url,
+            "status": str(episode.status),
+        },
     }
 
 
@@ -156,6 +163,7 @@ class TestEpisodeProgressAPIView(BaseTestAPIView):
         response = client.get(url=self.url.format(id=episode.id))
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_progress(
+            episode,
             current_size=processed_bytes,
             completed=50.0,
             total_file_size=total_bytes,
@@ -186,6 +194,7 @@ class TestEpisodeProgressAPIView(BaseTestAPIView):
         response = client.get(url=self.url.format(id=episode.id))
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_progress(
+            episode,
             current_size=0,
             completed=0,
             total_file_size=0,

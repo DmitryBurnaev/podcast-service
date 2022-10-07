@@ -55,5 +55,6 @@ class EpisodeInProgressAPIView(BaseHTTPEndpoint):
         if episode.status in Episode.PROGRESS_STATUSES:
             if progress := await check_state([episode]):
                 progress_data = progress[0]
+                progress_data["episode"] = episode
 
         return self._response(progress_data)
