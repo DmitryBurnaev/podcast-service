@@ -26,9 +26,9 @@
                 <itunes:author>{{ podcast.name }}</itunes:author>
                 <itunes:summary><![CDATA[<p><img src="{{ episode.image_url }}" alt=""></p><p>{{ episode.description }}</p>]]></itunes:summary>
                 <itunes:image href="{{ episode.image_url }}" />
-                <enclosure url="{{ episode.audio.url }}" type="{{ episode.audio.content_type }}" length="{{ episode.audio.size }}"/>
+                <enclosure url="{{ episode.audio_url }}" type="{{ episode.audio.content_type }}" length="{{ episode.audio.size }}"/>
                 <author>{{ episode.author }}</author>
-                <media:content url="{{ episode.audio.url }}" fileSize="{{ episode.audio.size }}" type="{{ episode.audio.content_type }}"/>
+                <media:content url="{{ episode.audio_url }}" fileSize="{{ episode.audio.size }}" type="{{ episode.audio.content_type }}"/>
                 <itunes:explicit>no</itunes:explicit>
                 <itunes:subtitle>Podcast "{{ podcast.name }}"</itunes:subtitle>
             </item>

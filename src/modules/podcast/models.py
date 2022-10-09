@@ -8,6 +8,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
 
+from common.exceptions import UnexpectedError
 from core import settings
 from core.database import ModelBase
 from common.utils import get_logger
@@ -45,7 +46,8 @@ class Podcast(ModelBase, ModelMixin):
 
     @property
     def image_url(self) -> str:
-        return self.image.url if self.image else settings.DEFAULT_PODCAST_COVER
+        url = self.image.url if self.image else None
+        return url or settings.DEFAULT_PODCAST_COVER
 
     @classmethod
     async def create_first_podcast(cls, db_session: AsyncSession, user_id: int):
@@ -112,10 +114,17 @@ class Episode(ModelBase, ModelMixin):
 
     @property
     def image_url(self) -> str:
-        if self.image and self.image.available:
-            return self.image.url
+        url = self.image.url if self.image else None
+        return url or settings.DEFAULT_EPISODE_COVER
 
-        return settings.DEFAULT_EPISODE_COVER
+    @property
+    def audio_url(self) -> str:
+        url = self.audio.url if self.audio else None
+        if not url and self.status == EpisodeStatus.PUBLISHED:
+            raise UnexpectedError(
+                "Can't retrieve audio_url for published episode without available audio file"
+            )
+        return url or settings.DEFAULT_EPISODE_COVER
 
     @cached_property
     def audio_filename(self) -> str:
