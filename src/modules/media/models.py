@@ -58,7 +58,7 @@ class File(ModelBase, ModelMixin):
         return token.isalnum() and len(token) == TOKEN_LENGTH
 
     @property
-    def url(self) -> str:
+    def url(self) -> str | None:
         if self.public:
             if self.source_url:
                 # TODO: upload with acl instead
@@ -67,6 +67,9 @@ class File(ModelBase, ModelMixin):
             return urllib.parse.urljoin(
                 settings.S3_STORAGE_URL, f"{settings.S3_BUCKET_NAME}/{self.path}"
             )
+
+        elif not self.available:
+            return None
 
         pattern = {
             FileType.RSS: f"/r/{self.access_token}/",

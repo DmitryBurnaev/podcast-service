@@ -49,7 +49,8 @@ class TestGenerateRSSTask:
 
         for episode in [episode_new, episode_downloading, episode_podcast_2]:
             audio: File = await_(File.async_get(dbs, id=episode.audio_id))
-            assert audio.url not in generated_rss_content, f"wrong {episode} in RSS {podcast_1}"
+            audio_url = audio.url or "in-progress"
+            assert audio_url not in generated_rss_content, f"wrong {episode} in RSS {podcast_1}"
 
         podcast_1 = await_(Podcast.async_get(dbs, id=podcast_1.id))
         assert podcast_1.rss_id is not None

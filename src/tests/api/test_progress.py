@@ -180,7 +180,14 @@ class TestEpisodeProgressAPIView(BaseTestAPIView):
         client.login(user)
         response = client.get(url=self.url.format(id=episode.id))
         response_data = self.assert_ok_response(response)
-        assert response_data == {}
+        assert response_data == {
+            "episode": {
+                "id": episode.id,
+                "title": episode.title,
+                "image_url": episode.image_url,
+                "status": str(episode.status),
+            }
+        }
         mocked_redis.async_get_many.assert_not_awaited()
 
     def test_get_progress__no_progress_data__ok(

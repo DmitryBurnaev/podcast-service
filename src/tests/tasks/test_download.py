@@ -286,6 +286,8 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
         result = await_(DownloadEpisodeImageTask(db_session=dbs).run(episode.id))
         await_(dbs.refresh(episode))
         assert result == FinishCode.OK
+        assert episode.image.public is False
+        assert episode.image.available is False
         assert episode.image_url == settings.DEFAULT_EPISODE_COVER
 
     @patch("modules.podcast.tasks.download.download_content")

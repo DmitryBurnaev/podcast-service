@@ -346,7 +346,7 @@ class DownloadEpisodeImageTask(RQTask):
                 logger.info("Skip episode %i | image URL: %s", episode.id, episode.image_url)
                 continue
 
-            if tmp_path := await self._crop_image(episode):
+            if tmp_path := await self._download_and_crop_image(episode):
                 remote_path = await self._upload_cover(episode, tmp_path)
                 available = True
                 size = get_file_size(tmp_path)
@@ -364,7 +364,7 @@ class DownloadEpisodeImageTask(RQTask):
         return FinishCode.OK
 
     @staticmethod
-    async def _crop_image(episode: Episode) -> Optional[Path]:
+    async def _download_and_crop_image(episode: Episode) -> Optional[Path]:
         try:
             tmp_path = await download_content(episode.image.source_url, file_ext="jpg")
         except NotFoundError:
