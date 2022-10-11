@@ -1,3 +1,8 @@
+from typing import Any
+
+from starlette.endpoints import WebSocketEndpoint
+from starlette.websockets import WebSocket
+
 from common.views import BaseHTTPEndpoint
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.schemas import ProgressResponseSchema
@@ -58,3 +63,18 @@ class EpisodeInProgressAPIView(BaseHTTPEndpoint):
 
         progress_data["episode"] = episode
         return self._response(progress_data)
+
+
+class ProgressWS(WebSocketEndpoint):
+
+    async def on_connect(self, websocket: WebSocket) -> None:
+        """Override to handle an incoming websocket connection"""
+        # TODO: start sending messages to connected clients
+        await websocket.accept()
+
+    async def on_receive(self, websocket: WebSocket, data: Any) -> None:
+        """Override to handle an incoming websocket message"""
+
+    async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
+        """Override to handle a disconnecting websocket"""
+        # TODO: may be reconnect client
