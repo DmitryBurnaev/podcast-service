@@ -1,4 +1,4 @@
-from starlette.routing import Route
+from starlette.routing import Route, WebSocketRoute
 from modules.podcast import views
 
 # fmt:off
@@ -20,5 +20,7 @@ routes = [
     # cookies
     Route("/cookies/", views.CookieListCreateAPIView),
     Route("/cookies/{cookie_id:int}/", views.CookieRDAPIView),
+    # ws progress
+    WebSocketRoute("/ws/progress", views.ProgressWS)
 ]
 # fmt:on

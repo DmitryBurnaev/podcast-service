@@ -1,3 +1,4 @@
+from asyncio import sleep
 from typing import Any
 
 from starlette.endpoints import WebSocketEndpoint
@@ -85,9 +86,13 @@ class ProgressWS(WebSocketEndpoint):
         """Override to handle an incoming websocket connection"""
         # TODO: start sending messages to connected clients
         await websocket.accept()
+        for i in range(10):
+            await sleep(1)
+            await websocket.send({"foo": 10})
 
     async def on_receive(self, websocket: WebSocket, data: Any) -> None:
         """Override to handle an incoming websocket message"""
+        print(data)
 
     async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
         """Override to handle a disconnecting websocket"""
