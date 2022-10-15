@@ -86,9 +86,12 @@ class ProgressWS(WebSocketEndpoint):
         """Override to handle an incoming websocket connection"""
         # TODO: start sending messages to connected clients
         await websocket.accept()
+        # self.scan_started = True
+        # while self.scan_started:
+        #     progress = await self._get_progress_items()
         for i in range(10):
             await sleep(1)
-            await websocket.send({"foo": 10})
+            await websocket.send_json({"data": {"foo": "bar"}})
 
     async def on_receive(self, websocket: WebSocket, data: Any) -> None:
         """Override to handle an incoming websocket message"""

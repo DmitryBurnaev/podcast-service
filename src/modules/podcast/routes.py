@@ -20,7 +20,10 @@ routes = [
     # cookies
     Route("/cookies/", views.CookieListCreateAPIView),
     Route("/cookies/{cookie_id:int}/", views.CookieRDAPIView),
+]
+
+ws_routes = [
     # ws progress
-    WebSocketRoute("/ws/progress", views.ProgressWS)
+    WebSocketRoute("/progress/", views.ProgressWS)
 ]
 # fmt:on
