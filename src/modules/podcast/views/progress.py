@@ -1,6 +1,9 @@
+import json
 from asyncio import sleep
+from dataclasses import dataclass
 from typing import Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
 
@@ -66,21 +69,22 @@ class EpisodeInProgressAPIView(BaseHTTPEndpoint):
         progress_data["episode"] = episode
         return self._response(progress_data)
 
+@dataclass
+class WSRequest:
+    headers: dict[str, str]
+    db_session: AsyncSession
+
 
 class ProgressWS(WebSocketEndpoint):
     auth_backend = LoginRequiredAuthBackend
+    request: WSRequest
+    db_session: AsyncSession
 
     async def dispatch(self) -> None:
-        self.app = self.scope.get("app")
-        async with self.app.session_maker() as session:
+        app = self.scope.get("app")
+        async with app.session_maker() as session:
             self.db_session = session
             await super().dispatch()
-            # TODO: think about auth
-            # if self.auth_backend:
-            #     backend = self.auth_backend(self.request)
-            #     user, session_id = await backend.authenticate()
-            #     self.scope["user"] = user
-            #     self.request.user_session_id = session_id
 
     async def on_connect(self, websocket: WebSocket) -> None:
         """Override to handle an incoming websocket connection"""
@@ -89,28 +93,60 @@ class ProgressWS(WebSocketEndpoint):
         # self.scan_started = True
         # while self.scan_started:
         #     progress = await self._get_progress_items()
-        for i in range(10):
-            await sleep(1)
-            await websocket.send_json({"data": {"foo": "bar"}})
+        # for i in range(10):
+        #     await sleep(1)
+        #     await websocket.send_json({"data": {"foo": "bar"}})
 
     async def on_receive(self, websocket: WebSocket, data: Any) -> None:
         """Override to handle an incoming websocket message"""
-        print(data)
+        request_data = json.loads(data)
+        # TODO: validate data, disconnect if auth problems
+        self.request = WSRequest(headers=request_data.get("headers"), db_session=self.db_session)
+        user = await self._auth()
+        # TODO: subscribe to redis key's changes
+        for i in range(10):
+            progress_data = await self._get_progress_items(user.id)
+            payload = ProgressResponseSchema(many=True).dump(progress_data)
+            await websocket.send_json({"progressData": payload})
+            await sleep(2)
 
     async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
         """Override to handle a disconnecting websocket"""
         # TODO: may be reconnect client
         await websocket.close()
 
-    async def _get_progress_items(self, request):
+    async def _auth(self):
+        backend = self.auth_backend(self.request)
+        user, session_id = await backend.authenticate()
+        self.scope["user"] = user
+        print(user)
+        return user
+
+    async def _get_progress_items(self, user_id: int) -> list[dict]:
+        episode_id = 441
+        episode = await Episode.async_get(self.db_session, id=episode_id)
+
+        import random
+        from modules.podcast.utils import episode_process_hook
+        from modules.podcast.models import EpisodeStatus
+        total_bytes = 1024 * 1024 * 12
+        processed_bytes = 1024 * 1024 * random.randint(1, 12)
+        episode_process_hook(
+            status=EpisodeStatus.DL_EPISODE_DOWNLOADING,
+            filename=episode.audio.path,
+            total_bytes=total_bytes,
+            processed_bytes=processed_bytes,
+        )
+
         podcast_items = {
             podcast.id: podcast
-            for podcast in await Podcast.async_filter(self.db_session, owner_id=request.user.id)
+            for podcast in await Podcast.async_filter(self.db_session, owner_id=user_id)
         }
-        episodes = {
-            episode.id: episode
-            for episode in await Episode.get_in_progress(self.db_session, request.user.id)
-        }
+        # episodes = {
+        #     episode.id: episode
+        #     for episode in await Episode.get_in_progress(self.db_session, user_id)
+        # }
+        episodes = {episode.id: episode}
         progress = await check_state(episodes.values())
 
         for progress_item in progress:
