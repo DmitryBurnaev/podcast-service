@@ -164,11 +164,3 @@ class CookieResponseSchema(Schema):
     source_type = fields.Str()
     created_at = fields.DateTime()
     updated_at = fields.DateTime()
-
-
-class WSHeadersRequestSchema(Schema):
-    authorization = fields.Str()
-
-
-class WSProgressRequestSchema(Schema):
-    headers = fields.Nested(WSHeadersRequestSchema())

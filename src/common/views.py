@@ -1,14 +1,18 @@
 import asyncio
+import json
+from dataclasses import dataclass
 from functools import partial
+from json import JSONDecodeError
 from typing import Type, Union, Iterable, Any, ClassVar
 
 from sqlalchemy.exc import SQLAlchemyError, DatabaseError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from starlette.exceptions import HTTPException
-from starlette.endpoints import HTTPEndpoint
+from starlette.endpoints import HTTPEndpoint, WebSocketEndpoint
 from marshmallow import Schema, ValidationError, fields
 from starlette.responses import JSONResponse, Response
+from starlette.websockets import WebSocket
 from webargs_starlette import parser, WebargsHTTPException
 
 from common.exceptions import (
@@ -18,9 +22,11 @@ from common.exceptions import (
     InvalidRequestError,
 )
 from common.request import PRequest
+from common.schemas import WSRequestAuthSchema
 from common.statuses import ResponseStatus
 from common.models import DBModel
 from common.utils import get_logger
+from modules.auth.models import User
 from modules.podcast.models import Podcast
 from modules.podcast.tasks.base import RQTask
 from modules.auth.utils import TokenCollection
@@ -212,3 +218,57 @@ class SentryCheckAPIView(BaseHTTPEndpoint):
             logger.exception(f"Test exc for sentry: {err}")
 
         raise BaseApplicationError("Oops!")
+
+
+@dataclass
+class WSRequest:
+    headers: dict[str, str]
+    db_session: AsyncSession
+
+
+class BaseWSEndpoint(WebSocketEndpoint):
+    auth_backend = ClassVar[LoginRequiredAuthBackend]
+    request_schema = ClassVar[WSRequestAuthSchema]
+    request: WSRequest
+    db_session: AsyncSession
+    user: User
+    background_task: asyncio.Task
+
+    async def dispatch(self) -> None:
+        app = self.scope.get("app")
+        async with app.session_maker() as session:
+            self.db_session = session
+            await super().dispatch()
+
+    async def on_connect(self, websocket: WebSocket) -> None:
+        await websocket.accept()
+
+    async def on_receive(self, websocket: WebSocket, data: Any) -> None:
+        cleaned_data = self._validate(data)
+        self.request = WSRequest(
+            headers=cleaned_data["headers"],
+            db_session=self.db_session,
+        )
+        self.user = await self._auth()
+        self.background_task = asyncio.create_task(self._background_handler(websocket))
+
+    async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
+        await websocket.close()
+        self.background_task.cancel()
+
+    async def _background_handler(self, websocket: WebSocket):
+        raise NotImplementedError
+
+    def _validate(self, data: str) -> dict:
+        try:
+            request_data = json.loads(data)
+        except JSONDecodeError as err:
+            raise InvalidRequestError(f"Couldn't parse WS request data: {err}") from err
+
+        return self.request_schema().load(request_data)
+
+    async def _auth(self) -> User:
+        backend = self.auth_backend(self.request)
+        user, session_id = await backend.authenticate()
+        self.scope["user"] = user
+        return user

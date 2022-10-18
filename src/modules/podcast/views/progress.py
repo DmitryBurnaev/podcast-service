@@ -1,19 +1,9 @@
-import json
 from asyncio import sleep
-from dataclasses import dataclass
-from json import JSONDecodeError
-from typing import Any
-
-from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
 
-from common.exceptions import InvalidRequestError
-from common.views import BaseHTTPEndpoint
-from modules.auth.backend import LoginRequiredAuthBackend
-from modules.auth.models import User
+from common.views import BaseHTTPEndpoint, BaseWSEndpoint
 from modules.podcast.models import Podcast, Episode
-from modules.podcast.schemas import ProgressResponseSchema, WSProgressRequestSchema
+from modules.podcast.schemas import ProgressResponseSchema
 from modules.podcast.utils import check_state
 
 
@@ -72,60 +62,17 @@ class EpisodeInProgressAPIView(BaseHTTPEndpoint):
         progress_data["episode"] = episode
         return self._response(progress_data)
 
-@dataclass
-class WSRequest:
-    headers: dict[str, str]
-    db_session: AsyncSession
 
+class ProgressWS(BaseWSEndpoint):
+    """ Provide updates for episodes progress (storage - Redis) """
 
-class ProgressWS(WebSocketEndpoint):
-    auth_backend = LoginRequiredAuthBackend
-    request_schema = WSProgressRequestSchema
-    request: WSRequest
-    db_session: AsyncSession
-
-    async def dispatch(self) -> None:
-        app = self.scope.get("app")
-        async with app.session_maker() as session:
-            self.db_session = session
-            await super().dispatch()
-
-    async def on_connect(self, websocket: WebSocket) -> None:
-        await websocket.accept()
-
-    async def on_receive(self, websocket: WebSocket, data: Any) -> None:
-        cleaned_data = self._validate(data)
-        self.request = WSRequest(
-            headers=cleaned_data["headers"],
-            db_session=self.db_session,
-        )
-        user = await self._auth()
-        await self._background_task(user, websocket)
-
-    async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
-        await websocket.close()
-
-    async def _background_task(self, user: User, websocket: WebSocket):
+    async def _background_handler(self, websocket: WebSocket):
         # TODO: subscribe to redis key's changes (may be it is required using aioredis.pubsub)
         for i in range(10):
-            progress_data = await self._get_progress_items(user.id)
+            progress_data = await self._get_progress_items(self.user.id)
             payload = ProgressResponseSchema(many=True).dump(progress_data)
             await websocket.send_json({"progressData": payload})
             await sleep(2)
-
-    def _validate(self, data: str) -> dict:
-        try:
-            request_data = json.loads(data)
-        except JSONDecodeError as err:
-            raise InvalidRequestError(f"Couldn't parse WS request data: {err}") from err
-
-        return self.request_schema().load(request_data)
-
-    async def _auth(self) -> User:
-        backend = self.auth_backend(self.request)
-        user, session_id = await backend.authenticate()
-        self.scope["user"] = user
-        return user
 
     async def _get_progress_items(self, user_id: int) -> list[dict]:
         episode_id = 441
@@ -170,4 +117,3 @@ class ProgressWS(WebSocketEndpoint):
             }
 
         return progress
-
