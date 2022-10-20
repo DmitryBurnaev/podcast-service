@@ -68,7 +68,7 @@ class ProgressWS(BaseWSEndpoint):
 
     async def _background_handler(self, websocket: WebSocket):
         # TODO: subscribe to redis key's changes (may be it is required using aioredis.pubsub)
-        for i in range(10):
+        for i in range(100):
             progress_data = await self._get_progress_items(self.user.id)
             payload = ProgressResponseSchema(many=True).dump(progress_data)
             await websocket.send_json({"progressData": payload})

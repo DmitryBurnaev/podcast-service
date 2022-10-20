@@ -30,7 +30,7 @@ from modules.auth.models import User
 from modules.podcast.models import Podcast
 from modules.podcast.tasks.base import RQTask
 from modules.auth.utils import TokenCollection
-from modules.auth.backend import LoginRequiredAuthBackend
+from modules.auth.backend import LoginRequiredAuthBackend, BaseAuthJWTBackend
 
 logger = get_logger(__name__)
 
@@ -227,12 +227,12 @@ class WSRequest:
 
 
 class BaseWSEndpoint(WebSocketEndpoint):
-    auth_backend = ClassVar[LoginRequiredAuthBackend]
-    request_schema = ClassVar[WSRequestAuthSchema]
+    auth_backend: ClassVar[Type[BaseAuthJWTBackend]] = LoginRequiredAuthBackend
+    request_schema: ClassVar[Type[Schema]] = WSRequestAuthSchema
     request: WSRequest
     db_session: AsyncSession
     user: User
-    background_task: asyncio.Task
+    background_task: asyncio.Task | None = None
 
     async def dispatch(self) -> None:
         app = self.scope.get("app")
@@ -249,6 +249,7 @@ class BaseWSEndpoint(WebSocketEndpoint):
             headers=cleaned_data["headers"],
             db_session=self.db_session,
         )
+        # TODO: fix on-close exception
         self.user = await self._auth()
         self.background_task = create_task(
             self._background_handler(websocket),
@@ -259,7 +260,8 @@ class BaseWSEndpoint(WebSocketEndpoint):
 
     async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
         await websocket.close()
-        self.background_task.cancel()
+        if self.background_task:
+            self.background_task.cancel()
 
     async def _background_handler(self, websocket: WebSocket):
         raise NotImplementedError
