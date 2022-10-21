@@ -259,9 +259,12 @@ class BaseWSEndpoint(WebSocketEndpoint):
         )
 
     async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
-        await websocket.close()
         if self.background_task:
             self.background_task.cancel()
+            logger.info("Background task '_background_handler' was canceled")
+
+        logger.info("WS connection was closed")
+        # await websocket.close()
 
     async def _background_handler(self, websocket: WebSocket):
         raise NotImplementedError

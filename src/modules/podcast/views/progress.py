@@ -1,10 +1,13 @@
 import asyncio
+import logging
 from starlette.websockets import WebSocket
 
 from common.views import BaseHTTPEndpoint, BaseWSEndpoint
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.schemas import ProgressResponseSchema
 from modules.podcast.utils import check_state
+
+logger = logging.getLogger(__name__)
 
 
 class ProgressAPIView(BaseHTTPEndpoint):
@@ -69,9 +72,10 @@ class ProgressWS(BaseWSEndpoint):
     async def _background_handler(self, websocket: WebSocket):
         # TODO: subscribe to redis key's changes (may be it is required using aioredis.pubsub)
         for i in range(100):
+            logger.info("Getting progressItems")
             progress_data = await self._get_progress_items(self.user.id)
-            payload = ProgressResponseSchema(many=True).dump(progress_data)
-            await websocket.send_json({"progressData": payload})
+            progress_items = ProgressResponseSchema(many=True).dump(progress_data)
+            await websocket.send_json({"progressItems": progress_items})
             await asyncio.sleep(2)
 
     async def _get_progress_items(self, user_id: int) -> list[dict]:
