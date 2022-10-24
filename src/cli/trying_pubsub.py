@@ -7,13 +7,16 @@ import aioredis
 from core import settings
 
 STOPWORD = "STOP"
+conn_kwargs = dict(
+    host=settings.REDIS_HOST,
+    port=settings.REDIS_PORT,
+    db=settings.REDIS_DB,
+)
 
 
 async def pubsub():
     redis = aioredis.Redis(
-        host=settings.REDIS_HOST,
-        port=settings.REDIS_PORT,
-        db=settings.REDIS_DB,
+        **conn_kwargs,
         max_connections=10,
         decode_responses=True
     )
@@ -33,6 +36,7 @@ async def pubsub():
             except asyncio.TimeoutError:
                 pass
 
+    await asyncio.sleep(10)
     async with psub as p:
         await p.subscribe("channel:1")
         await reader(p)  # wait for reader to complete
@@ -46,18 +50,21 @@ async def main():
     tsk = asyncio.create_task(pubsub())
 
     async def publish():
-        pub = aioredis.Redis.from_url("redis://localhost", decode_responses=True)
+        pub = aioredis.Redis(**conn_kwargs, decode_responses=True)
         while not tsk.done():
+            print("while not tsk.done():")
             # wait for clients to subscribe
-            while True:
-                subs = dict(await pub.pubsub_numsub("channel:1"))
-                if subs["channel:1"] == 1:
-                    break
-                await asyncio.sleep(0)
+            # while True:
+            #     subs = dict(await pub.pubsub_numsub("channel:1"))
+            #     if subs["channel:1"] == 1:
+            #         break
+            #     await asyncio.sleep(1)
             # publish some messages
             for msg in ["one", "two", "three"]:
                 print(f"(Publisher) Publishing Message: {msg}")
                 await pub.publish("channel:1", msg)
+                await asyncio.sleep(1)
+
             # send stop word
             await pub.publish("channel:1", STOPWORD)
         await pub.close()
@@ -66,5 +73,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    import os
     asyncio.run(main())

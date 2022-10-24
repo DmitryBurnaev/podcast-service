@@ -1,8 +1,14 @@
 import asyncio
+import json
 import logging
+from json import JSONDecodeError
+
+import aioredis
+import async_timeout
 from starlette.websockets import WebSocket
 
 from common.views import BaseHTTPEndpoint, BaseWSEndpoint
+from core import settings
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.schemas import ProgressResponseSchema
 from modules.podcast.utils import check_state
@@ -70,15 +76,58 @@ class ProgressWS(BaseWSEndpoint):
     """ Provide updates for episodes progress (storage - Redis) """
 
     async def _background_handler(self, websocket: WebSocket):
-        # TODO: subscribe to redis key's changes (may be it is required using aioredis.pubsub)
-        for i in range(100):
-            logger.info("Getting progressItems")
-            progress_data = await self._get_progress_items(self.user.id)
-            progress_items = ProgressResponseSchema(many=True).dump(progress_data)
-            await websocket.send_json({"progressItems": progress_items})
-            await asyncio.sleep(2)
+        all_in_progress = [
+            episode.id
+            for episode in await Episode.get_in_progress(self.db_session, self.user.id)
+        ]
+        await self._send_progress_for_episodes(websocket, all_in_progress)
 
-    async def _get_progress_items(self, user_id: int) -> list[dict]:
+    async def _send_progress_for_episodes(self, websocket: WebSocket, episode_ids: list[int]):
+        progress_data = self._get_progress_items(episode_ids)
+        progress_items = ProgressResponseSchema(many=True).dump(progress_data)
+        await websocket.send_json({"progressItems": progress_items})
+
+    async def _pubsub(self, websocket: WebSocket):
+        redis = aioredis.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=settings.REDIS_DB,
+            max_connections=10,
+            decode_responses=True
+        )
+        psub = redis.pubsub()
+
+        async def reader(channel: aioredis.client.PubSub):
+            while True:
+                try:
+                    async with async_timeout.timeout(1):
+                        message = await channel.get_message(ignore_subscribe_messages=True)
+                        if message is not None:
+                            print(f"(Reader) Message Received: {message}")
+                            msg_body = json.loads(message)
+                            await self._send_progress_for_episodes(
+                                websocket, episode_ids=msg_body["episode_ids"]
+                            )
+                        await asyncio.sleep(0.01)
+
+                except JSONDecodeError as exc:
+                    logger.exception(
+                        "Couldn't decode JSON body from pubsub channel: msg: %s | err %r",
+                        message, exc
+                    )
+                except asyncio.TimeoutError:
+                    logger.error("Couldn't read message from redis pubsub channel: timeout")
+                    pass
+
+        async with psub as p:
+            await p.subscribe("channel:1")
+            await reader(p)  # wait for reader to complete
+            await p.unsubscribe("channel:1")
+
+        # closing all open connections
+        await psub.close()
+
+    async def _get_progress_items(self, episode_ids: list[int]) -> list[dict]:
         episode_id = 441
         episode = await Episode.async_get(self.db_session, id=episode_id)
 
@@ -96,13 +145,12 @@ class ProgressWS(BaseWSEndpoint):
 
         podcast_items = {
             podcast.id: podcast
-            for podcast in await Podcast.async_filter(self.db_session, owner_id=user_id)
+            for podcast in await Podcast.async_filter(self.db_session, owner_id=self.user.id)
         }
-        # episodes = {
-        #     episode.id: episode
-        #     for episode in await Episode.get_in_progress(self.db_session, user_id)
-        # }
-        episodes = {episode.id: episode}
+        episodes = {
+            episode.id: episode
+            for episode in await Episode.async_filter(self.db_session, id__in=episode_ids)
+        }
         progress = await check_state(episodes.values())
 
         for progress_item in progress:
