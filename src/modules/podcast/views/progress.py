@@ -88,13 +88,7 @@ class ProgressWS(BaseWSEndpoint):
         await websocket.send_json({"progressItems": progress_items})
 
     async def _pubsub(self, websocket: WebSocket):
-        redis = aioredis.Redis(
-            host=settings.REDIS_HOST,
-            port=settings.REDIS_PORT,
-            db=settings.REDIS_DB,
-            max_connections=10,
-            decode_responses=True
-        )
+        redis = aioredis.Redis(**settings.REDIS)
         psub = redis.pubsub()
 
         async def reader(channel: aioredis.client.PubSub):
@@ -117,12 +111,15 @@ class ProgressWS(BaseWSEndpoint):
                     )
                 except asyncio.TimeoutError:
                     logger.error("Couldn't read message from redis pubsub channel: timeout")
-                    pass
+
+                if self.background_task.cancelling():
+                    # TODO: recheck unsubscribe logic
+                    break
 
         async with psub as p:
-            await p.subscribe("channel:1")
+            await p.subscribe(settings.REDIS_PROGRESS_PUBSUB_CH)
             await reader(p)  # wait for reader to complete
-            await p.unsubscribe("channel:1")
+            await p.unsubscribe(settings.REDIS_PROGRESS_PUBSUB_CH)
 
         # closing all open connections
         await psub.close()
