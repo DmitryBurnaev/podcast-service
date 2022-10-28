@@ -1,11 +1,13 @@
 import asyncio
 import json
+import random
 
 import async_timeout
 
 import aioredis
 
-from core import settings
+from core import settings, app
+from modules.podcast.models import Episode
 
 STOPWORD = "STOP"
 conn_kwargs = dict(
@@ -47,13 +49,37 @@ async def pubsub():
     await psub.close()
 
 
-async def main():
-    tsk = asyncio.create_task(pubsub())
+async def update_episode_progress(episode_id: int):
+    async with app.get_app().session_maker() as db_session:
+        episode = await Episode.async_get(db_session, id=episode_id)
 
+    from modules.podcast.utils import episode_process_hook
+    from modules.podcast.models import EpisodeStatus
+    total_bytes = 1024 * 1024 * 12
+    processed_bytes = 1024 * 1024 * random.randint(1, 12)
+    statuses = [
+        EpisodeStatus.DL_PENDING,
+        EpisodeStatus.DL_EPISODE_DOWNLOADING,
+        EpisodeStatus.DL_EPISODE_POSTPROCESSING,
+        EpisodeStatus.DL_EPISODE_UPLOADING,
+    ]
+    episode_process_hook(
+        status=statuses[random.randint(0, len(statuses)-1)],
+        filename=episode.audio.path,
+        total_bytes=total_bytes,
+        processed_bytes=processed_bytes,
+    )
+
+
+async def main():
+    # tsk = asyncio.create_task(pubsub())
+    episode_ids = [441, 440, 439]
     async def publish():
-        pub = aioredis.Redis(**settings.REDIS, decode_responses=True)
-        while not tsk.done():
-            print("while not tsk.done():")
+        pub = aioredis.Redis(**settings.REDIS)
+        while True:
+            print("while True")
+            episode_id = episode_ids[random.randint(0, len(episode_ids) - 1)]
+            await update_episode_progress(episode_id)
             # wait for clients to subscribe
             # while True:
             #     subs = dict(await pub.pubsub_numsub("channel:1"))
@@ -61,9 +87,9 @@ async def main():
             #         break
             #     await asyncio.sleep(1)
             # publish some messages
-            msg = json.dumps({"episodes_ids": 444})
+            msg = json.dumps({"episode_ids": [episode_id]})
             await pub.publish(settings.REDIS_PROGRESS_PUBSUB_CH, msg)
-            await asyncio.sleep(1)
+            await asyncio.sleep(random.randint(1, 5))
 
             # for msg in ["one", "two", "three"]:
             #     print(f"(Publisher) Publishing Message: {msg}")
@@ -72,7 +98,6 @@ async def main():
 
             # send stop word
 
-        await pub.publish(settings.REDIS_PROGRESS_PUBSUB_CH, STOPWORD)
         await pub.close()
 
     await publish()

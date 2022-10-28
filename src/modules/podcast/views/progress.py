@@ -81,9 +81,10 @@ class ProgressWS(BaseWSEndpoint):
             for episode in await Episode.get_in_progress(self.db_session, self.user.id)
         ]
         await self._send_progress_for_episodes(websocket, all_in_progress)
+        await self._pubsub(websocket)
 
     async def _send_progress_for_episodes(self, websocket: WebSocket, episode_ids: list[int]):
-        progress_data = self._get_progress_items(episode_ids)
+        progress_data = await self._get_progress_items(episode_ids)
         progress_items = ProgressResponseSchema(many=True).dump(progress_data)
         await websocket.send_json({"progressItems": progress_items})
 
@@ -98,7 +99,7 @@ class ProgressWS(BaseWSEndpoint):
                         message = await channel.get_message(ignore_subscribe_messages=True)
                         if message is not None:
                             print(f"(Reader) Message Received: {message}")
-                            msg_body = json.loads(message)
+                            msg_body = json.loads(message["data"])
                             await self._send_progress_for_episodes(
                                 websocket, episode_ids=msg_body["episode_ids"]
                             )
@@ -112,7 +113,7 @@ class ProgressWS(BaseWSEndpoint):
                 except asyncio.TimeoutError:
                     logger.error("Couldn't read message from redis pubsub channel: timeout")
 
-                if self.background_task.cancelling():
+                if self.background_task.cancelled():
                     # TODO: recheck unsubscribe logic
                     break
 
@@ -125,21 +126,6 @@ class ProgressWS(BaseWSEndpoint):
         await psub.close()
 
     async def _get_progress_items(self, episode_ids: list[int]) -> list[dict]:
-        episode_id = 441
-        episode = await Episode.async_get(self.db_session, id=episode_id)
-
-        import random
-        from modules.podcast.utils import episode_process_hook
-        from modules.podcast.models import EpisodeStatus
-        total_bytes = 1024 * 1024 * 12
-        processed_bytes = 1024 * 1024 * random.randint(1, 12)
-        episode_process_hook(
-            status=EpisodeStatus.DL_EPISODE_DOWNLOADING,
-            filename=episode.audio.path,
-            total_bytes=total_bytes,
-            processed_bytes=processed_bytes,
-        )
-
         podcast_items = {
             podcast.id: podcast
             for podcast in await Podcast.async_filter(self.db_session, owner_id=self.user.id)
