@@ -1,5 +1,4 @@
 import asyncio
-import json
 import random
 
 import async_timeout
@@ -73,13 +72,15 @@ async def update_episode_progress(episode_id: int):
 
 async def main():
     # tsk = asyncio.create_task(pubsub())
-    episode_ids = [441, 440, 439]
+    episode_ids = [432, 414, 124]
+
     async def publish():
         pub = aioredis.Redis(**settings.REDIS)
         while True:
             print("while True")
-            episode_id = episode_ids[random.randint(0, len(episode_ids) - 1)]
-            await update_episode_progress(episode_id)
+            for episode_id in episode_ids:
+                await update_episode_progress(episode_id)
+
             # wait for clients to subscribe
             # while True:
             #     subs = dict(await pub.pubsub_numsub("channel:1"))
@@ -87,8 +88,7 @@ async def main():
             #         break
             #     await asyncio.sleep(1)
             # publish some messages
-            msg = json.dumps({"episode_ids": [episode_id]})
-            await pub.publish(settings.REDIS_PROGRESS_PUBSUB_CH, msg)
+            await pub.publish(settings.REDIS_PROGRESS_PUBSUB_CH, settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
             await asyncio.sleep(random.randint(1, 5))
 
             # for msg in ["one", "two", "three"]:

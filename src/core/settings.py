@@ -65,6 +65,7 @@ REDIS = {
     "decode_responses": True
 }
 REDIS_PROGRESS_PUBSUB_CH = config("REDIS_PROGRESS_PUBSUB_CH", default="channel:episodes-progress")
+REDIS_PROGRESS_PUBSUB_SIGNAL = "EPISODES_UPDATED"
 RQ_QUEUE_NAME = config("RQ_QUEUE_NAME", default="podcast")
 
 TMP_PATH = Path(tempfile.mkdtemp(prefix="podcast__"))
