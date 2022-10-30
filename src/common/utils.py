@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 from typing import Optional, Coroutine, Any
 
+import aioredis
 import httpx
 from starlette import status
 from starlette.responses import JSONResponse
@@ -176,3 +177,11 @@ def create_task(
     task = asyncio.create_task(coroutine)
     task.add_done_callback(handle_task_result)
     return task
+
+
+async def publish_message_to_redis_pubsub(
+    message: str,
+    channel: str = settings.REDIS_PROGRESS_PUBSUB_CH,
+):
+    pub = aioredis.Redis(**settings.REDIS)
+    await pub.publish(channel, message)

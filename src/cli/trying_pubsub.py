@@ -5,6 +5,7 @@ import async_timeout
 
 import aioredis
 
+from common.utils import publish_message_to_redis_pubsub
 from core import settings, app
 from modules.podcast.models import Episode
 
@@ -81,6 +82,7 @@ async def main():
             for episode_id in episode_ids:
                 await update_episode_progress(episode_id)
 
+            await publish_message_to_redis_pubsub(message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
             # wait for clients to subscribe
             # while True:
             #     subs = dict(await pub.pubsub_numsub("channel:1"))
@@ -88,8 +90,8 @@ async def main():
             #         break
             #     await asyncio.sleep(1)
             # publish some messages
-            await pub.publish(settings.REDIS_PROGRESS_PUBSUB_CH, settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
-            await asyncio.sleep(random.randint(1, 5))
+            # await pub.publish(settings.REDIS_PROGRESS_PUBSUB_CH, settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
+            # await asyncio.sleep(random.randint(1, 5))
 
             # for msg in ["one", "two", "three"]:
             #     print(f"(Publisher) Publishing Message: {msg}")

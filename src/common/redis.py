@@ -30,10 +30,14 @@ class RedisClient:
         return cls.__instance
 
     def set(self, key: str, value: JSONT, ttl: int = 120) -> None:
+
         self.redis.set(key, json.dumps(value), ttl)
 
     def get(self, key: str) -> JSONT:
         return json.loads(self.redis.get(key) or "null")
+
+    def publish(self, message: str, channel: str = ""):# TODO: channel
+        self.redis.publish(channel, message)
 
     def get_many(self, keys: Iterable[str], pkey: str) -> dict:
         """
