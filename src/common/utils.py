@@ -159,7 +159,7 @@ def create_task(
     error_message: str = "",
     error_message_message_args: tuple[Any, ...] = (),
 ) -> asyncio.Task[T]:
-    """ Creates asyncio.Task from coro and provides logging for any exceptions """
+    """Creates asyncio.Task from coro and provides logging for any exceptions"""
 
     def handle_task_result(cover_task: asyncio.Task) -> None:
         """Logging any exceptions after task finished"""

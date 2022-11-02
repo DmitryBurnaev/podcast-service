@@ -255,7 +255,7 @@ class BaseWSEndpoint(WebSocketEndpoint):
             self._background_handler(websocket),
             logger=logger,
             error_message="Couldn't finish _background_handler for class %s",
-            error_message_message_args=(self.__class__.__name__,)
+            error_message_message_args=(self.__class__.__name__,),
         )
 
     async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:

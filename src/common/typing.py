@@ -5,4 +5,4 @@ from typing import TypeVar
 
 
 EnumClass = TypeVar("EnumClass", bound=enum.Enum)
-T = TypeVar('T')
+T = TypeVar("T")

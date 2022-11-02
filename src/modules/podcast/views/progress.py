@@ -72,7 +72,7 @@ class EpisodeInProgressAPIView(BaseHTTPEndpoint):
 
 
 class ProgressWS(BaseWSEndpoint):
-    """ Provide updates for episodes progress (storage - Redis) """
+    """Provide updates for episodes progress (storage - Redis)"""
 
     async def _background_handler(self, websocket: WebSocket):
         await self._send_progress_for_episodes(websocket)
@@ -93,7 +93,7 @@ class ProgressWS(BaseWSEndpoint):
                     async with async_timeout.timeout(1):
                         message = await channel.get_message(ignore_subscribe_messages=True)
                         if message is not None:
-                            print(f"(Reader) Message Received: {message}")
+                            logger.debug(f"Redis channel's reader | Message Received: {message}")
                             if message["data"] == settings.REDIS_PROGRESS_PUBSUB_SIGNAL:
                                 await self._send_progress_for_episodes(websocket)
 
@@ -102,7 +102,8 @@ class ProgressWS(BaseWSEndpoint):
                 except JSONDecodeError as exc:
                     logger.exception(
                         "Couldn't decode JSON body from pubsub channel: msg: %s | err %r",
-                        message, exc
+                        message,
+                        exc,
                     )
                 except asyncio.TimeoutError:
                     logger.error("Couldn't read message from redis pubsub channel: timeout")
