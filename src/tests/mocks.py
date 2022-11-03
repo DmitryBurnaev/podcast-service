@@ -118,6 +118,7 @@ class MockRedisClient(BaseMock):
         # TODO: refactor and use AsyncMock instead
         self.get = Mock()
         self.set = Mock()
+        self.publish = Mock()
         self.async_set = AsyncMock()
         self.async_get = AsyncMock(return_value=None)
         self.async_get_many = AsyncMock(side_effect=lambda *_, **__: self._content)

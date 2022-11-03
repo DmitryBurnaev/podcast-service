@@ -1,3 +1,4 @@
+from core import settings
 from modules.auth.models import User
 from modules.media.models import File
 from modules.podcast.models import Episode, Podcast
@@ -31,7 +32,7 @@ class TestUploadedEpisodeTask(BaseTestCase):
         episode.audio = audio
         return episode
 
-    def test_run_ok(self, dbs, podcast, user, mocked_s3, mocked_generate_rss_task):
+    def test_run_ok(self, dbs, podcast, user, mocked_s3, mocked_redis, mocked_generate_rss_task):
         mocked_s3.get_file_size.return_value = 1024
         source_id = get_source_id(prefix="upl")
         episode = await_(self._episode(dbs, podcast, user, file_size=1024, source_id=source_id))
@@ -53,6 +54,7 @@ class TestUploadedEpisodeTask(BaseTestCase):
 
         self.assert_called_with(mocked_s3.copy_file, src_path=tmp_remote)
         mocked_generate_rss_task.run.assert_called_with(episode.podcast_id)
+        mocked_redis.publish.assert_called_with(settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
 
     def test_file_bad_size__error(
         self,
