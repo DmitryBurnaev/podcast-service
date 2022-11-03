@@ -57,6 +57,15 @@ REDIS_HOST = config("REDIS_HOST", default="localhost")
 REDIS_PORT = config("REDIS_PORT", default=6379)
 REDIS_DB = config("REDIS_DB", default=0)
 REDIS_CON = (REDIS_HOST, REDIS_PORT, REDIS_DB)
+REDIS = {
+    "host": REDIS_HOST,
+    "port": REDIS_PORT,
+    "db": REDIS_DB,
+    "max_connections": 10,
+    "decode_responses": True,
+}
+REDIS_PROGRESS_PUBSUB_CH = config("REDIS_PROGRESS_PUBSUB_CH", default="channel:episodes-progress")
+REDIS_PROGRESS_PUBSUB_SIGNAL = "EPISODES_UPDATED"
 RQ_QUEUE_NAME = config("RQ_QUEUE_NAME", default="podcast")
 
 TMP_PATH = Path(tempfile.mkdtemp(prefix="podcast__"))

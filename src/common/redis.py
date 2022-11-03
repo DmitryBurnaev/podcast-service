@@ -7,6 +7,7 @@ from typing import Iterable, Any, Union
 import redis
 
 from common.utils import get_logger
+from core import settings
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
@@ -30,10 +31,14 @@ class RedisClient:
         return cls.__instance
 
     def set(self, key: str, value: JSONT, ttl: int = 120) -> None:
+
         self.redis.set(key, json.dumps(value), ttl)
 
     def get(self, key: str) -> JSONT:
         return json.loads(self.redis.get(key) or "null")
+
+    def publish(self, message: str, channel: str = settings.REDIS_PROGRESS_PUBSUB_CH):
+        self.redis.publish(channel, message)
 
     def get_many(self, keys: Iterable[str], pkey: str) -> dict:
         """

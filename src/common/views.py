@@ -1,14 +1,18 @@
 import asyncio
+import json
+from dataclasses import dataclass
 from functools import partial
+from json import JSONDecodeError
 from typing import Type, Union, Iterable, Any, ClassVar
 
 from sqlalchemy.exc import SQLAlchemyError, DatabaseError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from starlette.exceptions import HTTPException
-from starlette.endpoints import HTTPEndpoint
+from starlette.endpoints import HTTPEndpoint, WebSocketEndpoint
 from marshmallow import Schema, ValidationError, fields
 from starlette.responses import JSONResponse, Response
+from starlette.websockets import WebSocket
 from webargs_starlette import parser, WebargsHTTPException
 
 from common.exceptions import (
@@ -18,13 +22,15 @@ from common.exceptions import (
     InvalidRequestError,
 )
 from common.request import PRequest
+from common.schemas import WSRequestAuthSchema
 from common.statuses import ResponseStatus
 from common.models import DBModel
-from common.utils import get_logger
+from common.utils import get_logger, create_task
+from modules.auth.models import User
 from modules.podcast.models import Podcast
 from modules.podcast.tasks.base import RQTask
 from modules.auth.utils import TokenCollection
-from modules.auth.backend import LoginRequiredAuthBackend
+from modules.auth.backend import LoginRequiredAuthBackend, BaseAuthJWTBackend
 
 logger = get_logger(__name__)
 
@@ -212,3 +218,67 @@ class SentryCheckAPIView(BaseHTTPEndpoint):
             logger.exception(f"Test exc for sentry: {err}")
 
         raise BaseApplicationError("Oops!")
+
+
+@dataclass
+class WSRequest:
+    headers: dict[str, str]
+    db_session: AsyncSession
+
+
+class BaseWSEndpoint(WebSocketEndpoint):
+    auth_backend: ClassVar[Type[BaseAuthJWTBackend]] = LoginRequiredAuthBackend
+    request_schema: ClassVar[Type[Schema]] = WSRequestAuthSchema
+    request: WSRequest
+    db_session: AsyncSession
+    user: User
+    background_task: asyncio.Task | None = None
+
+    async def dispatch(self) -> None:
+        app = self.scope.get("app")
+        async with app.session_maker() as session:
+            self.db_session = session
+            await super().dispatch()
+
+    async def on_connect(self, websocket: WebSocket) -> None:
+        await websocket.accept()
+
+    async def on_receive(self, websocket: WebSocket, data: Any) -> None:
+        cleaned_data = self._validate(data)
+        self.request = WSRequest(
+            headers=cleaned_data["headers"],
+            db_session=self.db_session,
+        )
+        # TODO: fix on-close exception
+        self.user = await self._auth()
+        self.background_task = create_task(
+            self._background_handler(websocket),
+            logger=logger,
+            error_message="Couldn't finish _background_handler for class %s",
+            error_message_message_args=(self.__class__.__name__,),
+        )
+
+    async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
+        if self.background_task:
+            self.background_task.cancel()
+            logger.info("Background task '_background_handler' was canceled")
+
+        logger.info("WS connection was closed")
+        # await websocket.close()
+
+    async def _background_handler(self, websocket: WebSocket):
+        raise NotImplementedError
+
+    def _validate(self, data: str) -> dict:
+        try:
+            request_data = json.loads(data)
+        except JSONDecodeError as err:
+            raise InvalidRequestError(f"Couldn't parse WS request data: {err}") from err
+
+        return self.request_schema().load(request_data)
+
+    async def _auth(self) -> User:
+        backend = self.auth_backend(self.request)
+        user, session_id = await backend.authenticate()
+        self.scope["user"] = user
+        return user
