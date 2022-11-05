@@ -38,6 +38,7 @@ class RedisClient:
         return json.loads(self.redis.get(key) or "null")
 
     def publish(self, message: str, channel: str = settings.REDIS_PROGRESS_PUBSUB_CH):
+        logger.debug("Redis > Publishing message %s to channel %s ", message, channel)
         self.redis.publish(channel, message)
 
     def get_many(self, keys: Iterable[str], pkey: str) -> dict:

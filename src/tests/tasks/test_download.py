@@ -27,7 +27,14 @@ class TestDownloadEpisodeTask(BaseTestCase):
         return file_path
 
     def test_downloading_ok(
-        self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task, dbs
+        self,
+        episode,
+        mocked_youtube,
+        mocked_ffmpeg,
+        mocked_redis,
+        mocked_s3,
+        mocked_generate_rss_task,
+        dbs,
     ):
         file_path = self._source_file(dbs, episode)
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
@@ -41,6 +48,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
             dst_path=settings.S3_BUCKET_AUDIO_PATH,
         )
         mocked_generate_rss_task.run.assert_called_with(episode.podcast_id)
+        mocked_redis.publish.assert_called_with(settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
 
         assert result == FinishCode.OK
         assert episode.status == Episode.Status.PUBLISHED

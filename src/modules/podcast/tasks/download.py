@@ -7,6 +7,7 @@ from typing import Optional
 from yt_dlp.utils import YoutubeDLError
 
 from common.enums import EpisodeStatus
+from common.redis import RedisClient
 from core import settings
 from common.storage import StorageS3
 from common.utils import get_logger, download_content
@@ -101,6 +102,7 @@ class DownloadEpisodeTask(RQTask):
         podcast_utils.delete_file(tmp_audio_path)
 
         logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
+        RedisClient().publish(settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
         return FinishCode.OK
 
     async def _check_is_needed(self, episode: Episode):
@@ -238,6 +240,10 @@ class DownloadEpisodeTask(RQTask):
 
 
 class UploadedEpisodeTask(DownloadEpisodeTask):
+    """
+    Allows preparations for already uploaded episodes (such as manually uploaded episodes)
+    """
+
     async def perform_run(self, episode_id: int) -> FinishCode:
         """
         Main operation for downloading, performing and uploading audio to the storage.
