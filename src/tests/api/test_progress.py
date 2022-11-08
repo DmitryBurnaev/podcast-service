@@ -1,3 +1,5 @@
+from starlette.testclient import TestClient
+
 from modules.podcast.models import Podcast, Episode
 from common.enums import EpisodeStatus
 from tests.api.test_base import BaseTestAPIView
@@ -209,3 +211,13 @@ class TestEpisodeProgressAPIView(BaseTestAPIView):
         )
         expected_redis_key = episode.audio_filename.removesuffix(".mp3")
         mocked_redis.async_get_many.assert_awaited_with({expected_redis_key}, pkey="event_key")
+
+
+class TestProgressWSAPI(BaseTestAPIView):
+    url = "/ws/progress/"
+
+    def test_progress_no_items(self, client):
+        with client.websocket_connect(self.url) as websocket:
+            websocket.send_json({"headers": {"Authorization": "Bearer <token>"}})
+            data = websocket.receive_text()
+            assert data == 'Hello, world!'
