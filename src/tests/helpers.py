@@ -155,7 +155,7 @@ def create_file(content: str | bytes) -> io.BytesIO:
     return io.BytesIO(content)
 
 
-def create_user_session(db_session, user):
+def create_user_session(db_session, user) -> UserSession:
     return await_(
         UserSession.async_create(
             db_session,

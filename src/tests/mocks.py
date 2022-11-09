@@ -13,6 +13,7 @@ from yt_dlp import YoutubeDL
 from common.enums import SourceType
 from common.redis import RedisClient
 from common.storage import StorageS3
+from modules.auth.backend import LoginRequiredAuthBackend
 from modules.podcast.episodes import EpisodeCreator
 from modules.podcast.tasks import GenerateRSSTask
 
@@ -181,3 +182,10 @@ class MockProcess(BaseMock):
         self.start = Mock(return_value=None)
         self.terminate = Mock(return_value=None)
         self.__repr__ = Mock(return_value="TestProcess")
+
+
+class MockAuthBackend(BaseMock):
+    target_class = LoginRequiredAuthBackend
+
+    def __init__(self):
+        self.authenticate = AsyncMock(return_value=None)
