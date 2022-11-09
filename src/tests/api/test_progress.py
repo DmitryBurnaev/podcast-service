@@ -1,9 +1,14 @@
-from starlette.testclient import TestClient
-
 from modules.podcast.models import Podcast, Episode
 from common.enums import EpisodeStatus
-from tests.api.test_base import BaseTestAPIView
-from tests.helpers import get_episode_data, create_user, get_podcast_data, await_, create_episode
+from tests.api.test_base import BaseTestWSAPI
+from tests.helpers import (
+    await_,
+    create_user,
+    create_episode,
+    get_episode_data,
+    get_podcast_data,
+    create_user_session,
+)
 
 MB_1 = 1 * 1024 * 1024
 MB_2 = 2 * 1024 * 1024
@@ -63,14 +68,19 @@ def _redis_key(filename: str) -> str:
     return filename.partition(".")[0]
 
 
-class TestProgressAPIView(BaseTestAPIView):
-    url = "/api/progress/"
+class TestProgressAPIView(BaseTestWSAPI):
+    url = "/ws/progress/"
 
-    def test_filter_by_status__ok(self, client, user, episode_data, mocked_redis, dbs):
-        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
-        podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
+    def test_no_items(self, client, user_session):
+        response = self._ws_request(client, user_session)
+        assert response == {"progressItems": []}
 
-        episode_data["owner_id"] = user.id
+    def test_filter_by_status__ok(self, client, user_session, episode_data, mocked_redis, dbs):
+        user_id = user_session.user_id
+        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user_id)))
+        podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user_id)))
+
+        episode_data["owner_id"] = user_id
         episode_data["source_id"] = None  # should be regenerated for each new episode
 
         p1_episode_new = create_episode(dbs, episode_data, podcast_1, STATUS.NEW, MB_1)
@@ -98,14 +108,13 @@ class TestProgressAPIView(BaseTestAPIView):
                 },
             }
         )
-        client.login(user)
-        response = client.get(self.url)
-        response_data = self.assert_ok_response(response)
-        assert len(response_data) == 2, response_data
-        assert response_data[0] == (
+        response_data = self._ws_request(client, user_session)
+        progress_items = response_data["progressItems"]
+        assert len(progress_items) == 2, progress_items
+        assert progress_items[0] == (
             _progress(podcast_2, p2_episode_down, current_size=MB_1, completed=25.0)
         )
-        assert response_data[1] == (
+        assert progress_items[1] == (
             _progress(podcast_1, p1_episode_down, current_size=MB_1, completed=50.0)
         )
 
@@ -137,18 +146,19 @@ class TestProgressAPIView(BaseTestAPIView):
                 },
             }
         )
-        client.login(user_1)
-        response = client.get(self.url)
-        response_data = self.assert_ok_response(response)
-        assert response_data == [
+
+        user_session = create_user_session(dbs, user_1)
+        response_data = self._ws_request(client, user_session)
+        progress_items = response_data["progressItems"]
+        assert progress_items == [
             _progress(podcast_1, p1_episode_down, current_size=MB_1, completed=50.0),
         ]
 
 
-class TestEpisodeProgressAPIView(BaseTestAPIView):
-    url = "/api/episodes/{id}/progress/"
+class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
+    url = "/ws/progress/episodes/"
 
-    def test_get_progress__ok(self, dbs, client, podcast, episode, user, mocked_redis):
+    def test_progress__ok(self, dbs, client, podcast, episode, user_session, mocked_redis):
         await_(episode.update(dbs, status=EpisodeStatus.DOWNLOADING))
         await_(dbs.commit())
         processed_bytes = int(episode.audio.size / 2)
@@ -161,9 +171,7 @@ class TestEpisodeProgressAPIView(BaseTestAPIView):
             },
         }
 
-        client.login(user)
-        response = client.get(url=self.url.format(id=episode.id))
-        response_data = self.assert_ok_response(response)
+        response_data = self._ws_request(client, user_session, data={"episodeID": episode.id})
         assert response_data == _episode_progress(
             episode,
             current_size=processed_bytes,
@@ -173,15 +181,13 @@ class TestEpisodeProgressAPIView(BaseTestAPIView):
         expected_redis_key = episode.audio_filename.removesuffix(".mp3")
         mocked_redis.async_get_many.assert_awaited_with({expected_redis_key}, pkey="event_key")
 
-    def test_get_progress__episode_not_in_progress__ok(
-        self, dbs, user, client, episode, mocked_redis
+    def test_progress__episode_not_in_progress__ok(
+        self, dbs, user_session, client, episode, mocked_redis
     ):
         await_(episode.update(dbs, status=EpisodeStatus.NEW))
         await_(dbs.commit())
 
-        client.login(user)
-        response = client.get(url=self.url.format(id=episode.id))
-        response_data = self.assert_ok_response(response)
+        response_data = self._ws_request(client, user_session, data={"episodeID": episode.id})
         assert response_data == {
             "episode": {
                 "id": episode.id,
@@ -192,16 +198,14 @@ class TestEpisodeProgressAPIView(BaseTestAPIView):
         }
         mocked_redis.async_get_many.assert_not_awaited()
 
-    def test_get_progress__no_progress_data__ok(
-        self, dbs, client, podcast, episode, user, mocked_redis
+    def test_progress__no_progress_data__ok(
+        self, dbs, client, podcast, episode, user_session, mocked_redis
     ):
         mocked_redis.async_get_many.return_value = lambda *_, **__: {}
         await_(episode.update(dbs, status=EpisodeStatus.DOWNLOADING))
         await_(dbs.commit())
 
-        client.login(user)
-        response = client.get(url=self.url.format(id=episode.id))
-        response_data = self.assert_ok_response(response)
+        response_data = self._ws_request(client, user_session, data={"episodeID": episode.id})
         assert response_data == _episode_progress(
             episode,
             current_size=0,
@@ -211,13 +215,3 @@ class TestEpisodeProgressAPIView(BaseTestAPIView):
         )
         expected_redis_key = episode.audio_filename.removesuffix(".mp3")
         mocked_redis.async_get_many.assert_awaited_with({expected_redis_key}, pkey="event_key")
-
-
-class TestProgressWSAPI(BaseTestAPIView):
-    url = "/ws/progress/"
-
-    def test_progress_no_items(self, client):
-        with client.websocket_connect(self.url) as websocket:
-            websocket.send_json({"headers": {"Authorization": "Bearer <token>"}})
-            data = websocket.receive_text()
-            assert data == 'Hello, world!'

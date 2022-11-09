@@ -48,8 +48,8 @@ class JWTSessionMixin:
     db_session: AsyncSession = NotImplemented
 
     @staticmethod
-    def _get_tokens(user: User, session_id: str | UUID) -> TokenCollection:
-        token_payload = {"user_id": user.id, "session_id": str(session_id)}
+    def _get_tokens(user_id: int, session_id: str | UUID) -> TokenCollection:
+        token_payload = {"user_id": user_id, "session_id": str(session_id)}
         access_token, access_token_expired_at = encode_jwt(token_payload)
         refresh_token, refresh_token_expired_at = encode_jwt(
             token_payload,
@@ -65,7 +65,7 @@ class JWTSessionMixin:
     async def _create_session(self, request: PRequest, user: User) -> TokenCollection:
         request.scope["user"] = user
         session_id = uuid.uuid4()
-        token_collection = self._get_tokens(user, session_id)
+        token_collection = self._get_tokens(user.id, session_id)
         await UserSession.async_create(
             self.db_session,
             user_id=user.id,
@@ -77,7 +77,7 @@ class JWTSessionMixin:
         return token_collection
 
     async def _update_session(self, user: User, user_session: UserSession) -> TokenCollection:
-        token_collection = self._get_tokens(user, session_id=user_session.public_id)
+        token_collection = self._get_tokens(user.id, session_id=user_session.public_id)
         await user_session.update(
             self.db_session,
             refresh_token=token_collection.refresh_token,

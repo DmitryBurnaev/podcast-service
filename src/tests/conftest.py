@@ -40,6 +40,7 @@ from tests.mocks import (
     MockGenerateRSS,
     MockArgumentParser,
     MockProcess,
+    MockAuthBackend,
 )
 
 
@@ -160,6 +161,11 @@ def mocked_arg_parser(monkeypatch) -> MockArgumentParser:
 @pytest.fixture
 def mocked_process(monkeypatch) -> MockProcess:
     yield from mock_target_class(MockProcess, monkeypatch)
+
+
+@pytest.fixture
+def mocked_auth_backend(monkeypatch) -> MockAuthBackend:
+    yield from mock_target_class(MockAuthBackend, monkeypatch)
 
 
 @pytest.fixture
