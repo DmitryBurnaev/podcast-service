@@ -2,6 +2,7 @@ from marshmallow import Schema
 from webargs import fields, validate
 
 from core import settings
+from common.schemas import WSRequestAuthSchema
 
 __all__ = [
     "PodcastDetailsSchema",
@@ -19,6 +20,7 @@ __all__ = [
     "CookieCreateUpdateSchema",
     "CookieResponseSchema",
     "EpisodeUploadedSchema",
+    "WSProgressRequestSchema",
 ]
 
 from common.enums import SourceType, EpisodeStatus
@@ -164,3 +166,7 @@ class CookieResponseSchema(Schema):
     source_type = fields.Str()
     created_at = fields.DateTime()
     updated_at = fields.DateTime()
+
+
+class WSProgressRequestSchema(WSRequestAuthSchema):
+    episode_id = fields.Int(data_key="episodeID")
