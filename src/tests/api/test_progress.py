@@ -1,3 +1,5 @@
+import pytest
+
 from modules.podcast.models import Podcast, Episode
 from common.enums import EpisodeStatus
 from tests.api.test_base import BaseTestWSAPI
@@ -16,7 +18,7 @@ MB_4 = 4 * 1024 * 1024
 STATUS = Episode.Status
 
 
-def _progress(
+def _episode_in_progress(
     podcast: Podcast,
     episode: Episode,
     current_size: int,
@@ -40,27 +42,6 @@ def _progress(
         "current_file_size": current_size,
         "total_file_size": episode.audio.size if total_file_size is None else total_file_size,
         "completed": completed,
-    }
-
-
-def _episode_progress(
-    episode: Episode,
-    current_size: int,
-    completed: float,
-    total_file_size: int,
-    status: EpisodeStatus = EpisodeStatus.DL_EPISODE_DOWNLOADING,
-):
-    return {
-        "status": str(status),
-        "current_file_size": current_size,
-        "total_file_size": total_file_size,
-        "completed": completed,
-        "episode": {
-            "id": episode.id,
-            "title": episode.title,
-            "image_url": episode.image_url,
-            "status": str(episode.status),
-        },
     }
 
 
@@ -112,10 +93,10 @@ class TestProgressAPIView(BaseTestWSAPI):
         progress_items = response_data["progressItems"]
         assert len(progress_items) == 2, progress_items
         assert progress_items[0] == (
-            _progress(podcast_2, p2_episode_down, current_size=MB_1, completed=25.0)
+            _episode_in_progress(podcast_2, p2_episode_down, current_size=MB_1, completed=25.0)
         )
         assert progress_items[1] == (
-            _progress(podcast_1, p1_episode_down, current_size=MB_1, completed=50.0)
+            _episode_in_progress(podcast_1, p1_episode_down, current_size=MB_1, completed=50.0)
         )
 
     def test_filter_by_user__ok(self, client, episode_data, mocked_redis, dbs):
@@ -151,67 +132,67 @@ class TestProgressAPIView(BaseTestWSAPI):
         response_data = self._ws_request(client, user_session)
         progress_items = response_data["progressItems"]
         assert progress_items == [
-            _progress(podcast_1, p1_episode_down, current_size=MB_1, completed=50.0),
+            _episode_in_progress(podcast_1, p1_episode_down, current_size=MB_1, completed=50.0),
         ]
 
 
 class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
-    url = "/ws/progress/episodes/"
+    url = "/ws/progress/"
 
-    def test_progress__ok(self, dbs, client, podcast, episode, user_session, mocked_redis):
-        await_(episode.update(dbs, status=EpisodeStatus.DOWNLOADING))
+    def test_single_episode__ok(self, client, user, user_session, podcast, mocked_redis, dbs):
+        ep_data_1 = get_episode_data(creator=user)
+        ep_data_2 = get_episode_data(creator=user)
+        episode_1 = create_episode(dbs, ep_data_1, podcast, STATUS.DOWNLOADING, MB_2)
+        episode_2 = create_episode(dbs, ep_data_2, podcast, STATUS.DOWNLOADING, MB_4)
+
         await_(dbs.commit())
-        processed_bytes = int(episode.audio.size / 2)
-        total_bytes = episode.audio.size
-        mocked_redis.async_get_many.side_effect = lambda *_, **__: {
-            _redis_key(episode.audio_filename): {
-                "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
-                "processed_bytes": processed_bytes,
-                "total_bytes": total_bytes,
-            },
-        }
 
-        response_data = self._ws_request(client, user_session, data={"episodeID": episode.id})
-        assert response_data == _episode_progress(
-            episode,
-            current_size=processed_bytes,
-            completed=50.0,
-            total_file_size=total_bytes,
+        mocked_redis.async_get_many.side_effect = lambda *_, **__: (
+            {
+                _redis_key(episode_1.audio_filename): {
+                    "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
+                    "processed_bytes": MB_1,
+                    "total_bytes": MB_2,
+                },
+                _redis_key(episode_2.audio_filename): {
+                    "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
+                    "processed_bytes": MB_1,
+                    "total_bytes": MB_4,
+                },
+            }
         )
-        expected_redis_key = episode.audio_filename.removesuffix(".mp3")
-        mocked_redis.async_get_many.assert_awaited_with({expected_redis_key}, pkey="event_key")
+        response_data = self._ws_request(client, user_session, data={"episodeID": episode_1.id})
+        progress_items = response_data["progressItems"]
+        assert progress_items == [
+            _episode_in_progress(podcast, episode_1, current_size=MB_1, completed=50.0),
+        ]
 
-    def test_progress__episode_not_in_progress__ok(
-        self, dbs, user_session, client, episode, mocked_redis
+    @pytest.mark.parametrize(
+        "episode_status, progress_status", (
+            (EpisodeStatus.NEW, EpisodeStatus.DL_PENDING),
+            (EpisodeStatus.DOWNLOADING, EpisodeStatus.DL_PENDING),
+            (EpisodeStatus.ERROR, EpisodeStatus.ERROR),
+        )
+    )
+    def test_single_episode__no_progress_data__ok(
+        self, dbs, client, podcast, episode, user_session, mocked_redis, episode_status, progress_status
     ):
-        await_(episode.update(dbs, status=EpisodeStatus.NEW))
+        mocked_redis.async_get_many.return_value = lambda *_, **__: {}
+        await_(episode.update(dbs, status=episode_status))
         await_(dbs.commit())
 
         response_data = self._ws_request(client, user_session, data={"episodeID": episode.id})
         assert response_data == {
-            "episode": {
-                "id": episode.id,
-                "title": episode.title,
-                "image_url": episode.image_url,
-                "status": str(episode.status),
-            }
+            "progressItems": [
+                _episode_in_progress(
+                    podcast,
+                    episode,
+                    current_size=0,
+                    completed=0,
+                    total_file_size=0,
+                    status=progress_status,
+                )
+            ]
         }
-        mocked_redis.async_get_many.assert_not_awaited()
-
-    def test_progress__no_progress_data__ok(
-        self, dbs, client, podcast, episode, user_session, mocked_redis
-    ):
-        mocked_redis.async_get_many.return_value = lambda *_, **__: {}
-        await_(episode.update(dbs, status=EpisodeStatus.DOWNLOADING))
-        await_(dbs.commit())
-
-        response_data = self._ws_request(client, user_session, data={"episodeID": episode.id})
-        assert response_data == _episode_progress(
-            episode,
-            current_size=0,
-            completed=0,
-            total_file_size=0,
-            status=EpisodeStatus.DL_PENDING,
-        )
         expected_redis_key = episode.audio_filename.removesuffix(".mp3")
         mocked_redis.async_get_many.assert_awaited_with({expected_redis_key}, pkey="event_key")

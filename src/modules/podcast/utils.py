@@ -47,7 +47,12 @@ async def check_state(episodes: Iterable[Episode]) -> list[dict]:
         filename = episode.audio_filename
         event_key = redis_client.get_key_by_filename(filename)
         current_state = current_states.get(event_key)
-        if current_state:
+        if episode.status == EpisodeStatus.ERROR:
+            current_file_size = 0
+            total_file_size = 0
+            completed = 0
+            status = EpisodeStatus.ERROR
+        elif current_state:
             current_file_size = current_state["processed_bytes"]
             total_file_size = current_state["total_bytes"]
             completed = round((current_file_size / total_file_size) * 100, 2)

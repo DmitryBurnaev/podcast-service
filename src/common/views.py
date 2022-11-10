@@ -224,6 +224,7 @@ class SentryCheckAPIView(BaseHTTPEndpoint):
 class WSRequest:
     headers: dict[str, str]
     db_session: AsyncSession
+    data: dict | None = None
 
 
 class BaseWSEndpoint(WebSocketEndpoint):
@@ -248,8 +249,8 @@ class BaseWSEndpoint(WebSocketEndpoint):
         self.request = WSRequest(
             headers=cleaned_data["headers"],
             db_session=self.db_session,
+            data=cleaned_data,
         )
-        # TODO: fix on-close exception
         self.user = await self._auth()
         self.background_task = create_task(
             self._background_handler(websocket),
@@ -264,7 +265,6 @@ class BaseWSEndpoint(WebSocketEndpoint):
             logger.info("Background task '_background_handler' was canceled")
 
         logger.info("WS connection was closed")
-        # await websocket.close()
 
     async def _background_handler(self, websocket: WebSocket):
         raise NotImplementedError
