@@ -168,14 +168,23 @@ class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
         ]
 
     @pytest.mark.parametrize(
-        "episode_status, progress_status", (
+        "episode_status, progress_status",
+        (
             (EpisodeStatus.NEW, EpisodeStatus.DL_PENDING),
             (EpisodeStatus.DOWNLOADING, EpisodeStatus.DL_PENDING),
             (EpisodeStatus.ERROR, EpisodeStatus.ERROR),
-        )
+        ),
     )
     def test_single_episode__no_progress_data__ok(
-        self, dbs, client, podcast, episode, user_session, mocked_redis, episode_status, progress_status
+        self,
+        dbs,
+        client,
+        podcast,
+        episode,
+        user_session,
+        mocked_redis,
+        episode_status,
+        progress_status,
     ):
         mocked_redis.async_get_many.return_value = lambda *_, **__: {}
         await_(episode.update(dbs, status=episode_status))

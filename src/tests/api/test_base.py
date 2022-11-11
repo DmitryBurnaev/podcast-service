@@ -136,10 +136,7 @@ class BaseTestWSAPI(BaseTestCase):
         return {"Authorization": f"Bearer {token_col.access_token}"}
 
     def _ws_request(
-        self,
-        client: TestClient,
-        user_session: UserSession,
-        data: dict | None = None
+        self, client: TestClient, user_session: UserSession, data: dict | None = None
     ) -> dict | list:
         data = {"headers": self._get_headers(user_session)} | (data or {})
         with client.websocket_connect(self.url) as websocket:
