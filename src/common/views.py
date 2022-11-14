@@ -8,11 +8,11 @@ from typing import Type, Union, Iterable, Any, ClassVar
 from sqlalchemy.exc import SQLAlchemyError, DatabaseError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+from starlette.websockets import WebSocket
 from starlette.exceptions import HTTPException
+from starlette.responses import JSONResponse, Response
 from starlette.endpoints import HTTPEndpoint, WebSocketEndpoint
 from marshmallow import Schema, ValidationError, fields
-from starlette.responses import JSONResponse, Response
-from starlette.websockets import WebSocket
 from webargs_starlette import parser, WebargsHTTPException
 
 from common.exceptions import (
@@ -126,8 +126,8 @@ class BaseHTTPEndpoint(HTTPEndpoint):
             if hasattr(schema, "is_valid"):
                 schema.is_valid(cleaned_data)
 
-        except ValidationError as e:
-            raise InvalidRequestError(details=e.data)
+        except ValidationError as exc:
+            raise InvalidRequestError(details=exc.data)
 
         return cleaned_data
 
@@ -210,7 +210,7 @@ class SentryCheckAPIView(BaseHTTPEndpoint):
 
     auth_backend = None
 
-    async def get(self, request):  # noqa
+    async def get(self, **_):  # noqa
         logger.error("Error check sentry")
         try:
             1 / 0
@@ -279,6 +279,6 @@ class BaseWSEndpoint(WebSocketEndpoint):
 
     async def _auth(self) -> User:
         backend = self.auth_backend(self.request)
-        user, session_id = await backend.authenticate()
+        user, _ = await backend.authenticate()
         self.scope["user"] = user
         return user
