@@ -21,9 +21,9 @@ def get_salt(length=12) -> str:
 def get_random_hash(size: int) -> str:
     """Allows calculating random hash with fixed length"""
 
-    h = hashlib.blake2b(key=get_salt().encode(), digest_size=size)
-    h.update(str(uuid.uuid4()).encode())
-    return h.hexdigest()[:size]
+    hash_value = hashlib.blake2b(key=get_salt().encode(), digest_size=size)
+    hash_value.update(str(uuid.uuid4()).encode())
+    return hash_value.hexdigest()[:size]
 
 
 class PBKDF2PasswordHasher:
@@ -51,7 +51,7 @@ class PBKDF2PasswordHasher:
     def verify(self, password: str, encoded: str) -> Tuple[bool, str]:
         """Check if the given password is correct."""
         try:
-            algorithm, iterations, salt, _ = encoded.split("$", 3)
+            algorithm, _, salt, _ = encoded.split("$", 3)
         except ValueError as err:
             err_message = f"Encoded password has incompatible format: {err}"
             logger.warning(err_message)

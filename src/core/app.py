@@ -12,9 +12,9 @@ from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from webargs_starlette import WebargsHTTPException
 
-from common.db_utils import make_session_maker
 from core import settings
 from core.routes import routes
+from common.db_utils import make_session_maker
 from common.utils import custom_exception_handler
 from common.exceptions import BaseApplicationError
 

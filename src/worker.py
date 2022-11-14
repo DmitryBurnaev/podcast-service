@@ -21,8 +21,8 @@ def run_worker():
         sentry_sdk.init(settings.SENTRY_DSN, integrations=[RqIntegration(), sentry_logging])
 
     with Connection(Redis(*settings.REDIS_CON)):
-        qs = sys.argv[1:] or ["default"]
-        Worker(qs).work()
+        queues = sys.argv[1:] or ["default"]
+        Worker(queues).work()
 
 
 if __name__ == "__main__":
