@@ -52,9 +52,9 @@ class RedisClient:
         stored_items = map(json.loads, [item for item in self.redis.mget(keys) if item])
         try:
             result = {stored_item[pkey]: stored_item for stored_item in stored_items}
-        except (TypeError, KeyError) as error:
+        except (TypeError, KeyError) as exc:
             logger.debug("Try to extract redis data: %s", list(stored_items))
-            logger.exception("Couldn't extract event data from redis: %s", error)
+            logger.exception("Couldn't extract event data from redis: %s", exc)
             result = {}
 
         return result

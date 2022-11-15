@@ -91,12 +91,12 @@ def check_size(filename: str, actual_size: int, expected_size: int = None, silen
         elif actual_size < 1:
             raise ValueError(f"File {filename} has null-like size: {actual_size}")
 
-    except ValueError as err:
+    except ValueError as exc:
         if silent:
-            logger.debug("SKIPPED ERROR for checking file-size | err: %s", err)
+            logger.debug("SKIPPED ERROR for checking file-size | err: %s", exc)
             return False
 
-        raise err
+        raise exc
 
     return True
 
@@ -109,11 +109,11 @@ def check_object(s3, bucket: str, obj_key: str, expected_size: int, silent: bool
         check_size(
             obj_key, actual_size=response.get("ContentLength", 0), expected_size=expected_size
         )
-    except Exception as err:
+    except Exception as exc:
         if silent:
-            logger.debug("SKIPPED ERROR for checking size | obj_key: %s | err: %s", obj_key, err)
+            logger.debug("SKIPPED ERROR for checking size | obj_key: %s | err: %s", obj_key, exc)
             return False
-        raise err
+        raise exc
 
     return True
 
@@ -146,12 +146,12 @@ async def update_episode(dbs: AsyncSession, upload_result: EpisodeUploadData) ->
             },
         )
 
-    except Exception as err:
+    except Exception as exc:
         logger.exception(
             "[episode %s] Couldn't update | %s | err: %s",
             upload_result.episode_id,
             upload_result,
-            err,
+            exc,
         )
         await dbs.rollback()
         return False
@@ -187,13 +187,13 @@ class S3Moving:
                 executor.submit(self._move_episode_files, episode_file): episode_file
                 for i, episode_file in enumerate(episode_files, start=1)
             }
-            logger.info(f"==== Moving [{episodes_count}] episodes ====")
+            logger.info(f"==== Moving [%s] episodes ====", episodes_count)
             for ind, future in enumerate(concurrent.futures.as_completed(futures), start=1):
                 episode_file = futures[future]
                 try:
                     upload_result = future.result()
-                except SkipError as err:
-                    upload_result = err.skip_result
+                except SkipError as exc:
+                    upload_result = exc.skip_result
                     logger.info(
                         "[episode %i] | SKIP (%i / %i) | %s",
                         episode_file.id,
@@ -201,12 +201,12 @@ class S3Moving:
                         episodes_count,
                         upload_result,
                     )
-                except Exception as err:
+                except Exception as exc:
                     logger.exception(
                         "[episode %i] | ERROR | Couldn't move file: %r | err %s",
                         episode_file.id,
                         episode_file,
-                        err,
+                        exc,
                     )
                 else:
                     async with self.session_maker() as db_session:

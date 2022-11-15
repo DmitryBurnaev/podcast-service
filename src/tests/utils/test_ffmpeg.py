@@ -82,11 +82,11 @@ class TestFFMPEG(BaseTestCase):
     @patch("modules.providers.utils.episode_process_hook")
     def test_episode_prepare__ffmpeg_error__fail(self, mocked_process_hook, mocked_run):
         mocked_run.side_effect = subprocess.CalledProcessError(1, "ffmpeg", stderr=b"FFMPEG oops")
-        with pytest.raises(FFMPegPreparationError) as err:
+        with pytest.raises(FFMPegPreparationError) as exc:
             ffmpeg_preparation(self.src_path)
 
         assert not os.path.exists(self.tmp_filename), f"File wasn't removed: {self.tmp_filename}"
-        assert err.value.details == (
+        assert exc.value.details == (
             "FFMPEG failed with errors: " "Command 'ffmpeg' returned non-zero exit status 1."
         )
         self.assert_hooks_calls(
@@ -100,10 +100,10 @@ class TestFFMPEG(BaseTestCase):
         mocked_run.return_value = CompletedProcess([], returncode=0, stdout=b"Success")
         os.remove(self.tmp_filename)
 
-        with pytest.raises(FFMPegPreparationError) as err:
+        with pytest.raises(FFMPegPreparationError) as exc:
             ffmpeg_preparation(self.src_path)
 
-        assert err.value.details == (
+        assert exc.value.details == (
             f"Failed to rename/remove tmp file: Prepared file {self.tmp_filename} wasn't created"
         )
         self.assert_hooks_calls(
@@ -218,17 +218,17 @@ Input #0, mp3, from '01.AudioTrack.mp3':
             """
         mocked_run.return_value = CompletedProcess([], 0, stdout=ffmpeg_stdout.encode("utf-8"))
 
-        with pytest.raises(FFMPegParseError) as err:
+        with pytest.raises(FFMPegParseError) as exc:
             audio_metadata(self.src_path)
 
-        assert "Found result" in err.value.details
+        assert "Found result" in exc.value.details
 
     @patch("subprocess.run")
     def test_extract_metadata__ffmpeg_error__fail(self, mocked_run):
         mocked_run.side_effect = subprocess.CalledProcessError(1, "ffmpeg", stderr=b"FFMPEG oops")
-        with pytest.raises(FFMPegPreparationError) as err:
+        with pytest.raises(FFMPegPreparationError) as exc:
             audio_metadata(self.src_path)
 
-        assert err.value.details == (
+        assert exc.value.details == (
             "FFMPEG failed with errors: " "Command 'ffmpeg' returned non-zero exit status 1."
         )

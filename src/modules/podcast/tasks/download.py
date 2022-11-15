@@ -52,13 +52,13 @@ class DownloadEpisodeTask(RQTask):
 
         try:
             code = await self.perform_run(int(episode_id))
-        except DownloadingInterrupted as error:
+        except DownloadingInterrupted as exc:
             message = "Episode downloading was interrupted: %r"
-            logger.log(log_levels[error.code], message, error)
-            return error.code.value
+            logger.log(log_levels[exc.code], message, exc)
+            return exc.code.value
 
-        except Exception as error:
-            logger.exception("Unable to prepare/publish episode: %s", error)
+        except Exception as exc:
+            logger.exception("Unable to prepare/publish episode: %r", exc)
             await Episode.async_update(
                 self.db_session,
                 filter_kwargs={"id": episode_id},
@@ -149,12 +149,12 @@ class DownloadEpisodeTask(RQTask):
             result_path = provider_utils.download_audio(
                 episode.watch_url, filename=episode.audio_filename, cookie=cookie
             )
-        except YoutubeDLError as error:
+        except YoutubeDLError as exc:
             logger.exception(
                 "=== [%s] Downloading FAILED: Could not download track: %r. "
                 "All episodes will be moved to the ERROR state",
                 episode.source_id,
-                error,
+                exc,
             )
             await self._update_episodes(episode, {"status": Episode.Status.ERROR})
             await self._update_files(episode, {"available": False})
@@ -329,9 +329,9 @@ class DownloadEpisodeImageTask(RQTask):
 
         try:
             code = await self.perform_run(episode_id)
-        except Exception as error:
+        except Exception as exc:
             logger.exception(
-                "Unable to upload episode's image: episode %s | error: %s", error, episode_id
+                "Unable to upload episode's image: episode %s | error: %r", episode_id, exc
             )
             return FinishCode.ERROR
 

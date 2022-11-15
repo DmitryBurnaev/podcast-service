@@ -52,28 +52,28 @@ class TestBackendAuth:
     def test_invalid_token__fail(self, client, user, auth_header, auth_exception, err_details, dbs):
         request = Request(scope={"type": "http", "headers": [auth_header]})
         request.db_session = dbs
-        with pytest.raises(auth_exception) as err:
+        with pytest.raises(auth_exception) as exc:
             await_(BaseAuthJWTBackend(request).authenticate())
 
-        assert err.value.details == err_details
+        assert exc.value.details == err_details
 
     def test_check_auth__user_not_active__fail(self, client, user, user_session, dbs):
         await_(user.update(dbs, is_active=False))
         await_(dbs.commit())
         request = self._prepare_request(dbs, user, user_session)
-        with pytest.raises(AuthenticationFailedError) as err:
+        with pytest.raises(AuthenticationFailedError) as exc:
             await_(BaseAuthJWTBackend(request).authenticate())
 
-        assert err.value.details == f"Couldn't found active user with id={user.id}."
+        assert exc.value.details == f"Couldn't found active user with id={user.id}."
 
     def test_check_auth__session_not_active__fail(self, client, user, user_session, dbs):
         await_(user_session.update(dbs, is_active=False))
         await_(dbs.commit())
         request = self._prepare_request(dbs, user, user_session)
-        with pytest.raises(AuthenticationFailedError) as err:
+        with pytest.raises(AuthenticationFailedError) as exc:
             await_(BaseAuthJWTBackend(request).authenticate())
 
-        assert err.value.details == (
+        assert exc.value.details == (
             f"Couldn't found active session: user_id={user.id} | "
             f"session_id='{user_session.public_id}'."
         )
@@ -84,10 +84,10 @@ class TestBackendAuth:
         await_(dbs.commit())
         token, _ = encode_jwt({"user_id": user.id}, token_type=token_type)
         request = self._prepare_request(dbs, user, user_session)
-        with pytest.raises(AuthenticationFailedError) as err:
+        with pytest.raises(AuthenticationFailedError) as exc:
             await_(BaseAuthJWTBackend(request).authenticate_user(token, token_type="access"))
 
-        assert err.value.details == f"Token type 'access' expected, got '{token_type}' instead."
+        assert exc.value.details == f"Token type 'access' expected, got '{token_type}' instead."
 
     def test_check_auth__admin_required__ok(self, client, user, user_session, dbs):
         await_(user.update(dbs, is_superuser=True))
@@ -100,7 +100,7 @@ class TestBackendAuth:
         await_(user.update(dbs, is_superuser=False))
         await_(dbs.commit())
         request = self._prepare_request(dbs, user, user_session)
-        with pytest.raises(PermissionDeniedError) as err:
+        with pytest.raises(PermissionDeniedError) as exc:
             await_(AdminRequiredAuthBackend(request).authenticate())
 
-        assert err.value.details == "You don't have an admin privileges."
+        assert exc.value.details == "You don't have an admin privileges."

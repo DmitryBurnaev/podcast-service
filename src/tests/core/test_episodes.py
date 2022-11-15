@@ -130,10 +130,10 @@ class TestEpisodeCreator(BaseTestAPIView):
             source_url=episode_data["watch_url"],
             user_id=user.id,
         )
-        with pytest.raises(SourceFetchError) as error:
+        with pytest.raises(SourceFetchError) as exc:
             await_(episode_creator.create())
 
-        assert error.value.details == f"Extracting data for new Episode failed: {ydl_error}"
+        assert exc.value.details == f"Extracting data for new Episode failed: {ydl_error}"
 
 
 class TestCreateEpisodesWithCookies(BaseTestAPIView):

@@ -52,8 +52,8 @@ class PBKDF2PasswordHasher:
         """Check if the given password is correct."""
         try:
             algorithm, _, salt, _ = encoded.split("$", 3)
-        except ValueError as err:
-            err_message = f"Encoded password has incompatible format: {err}"
+        except ValueError as exc:
+            err_message = f"Encoded password has incompatible format: {exc}"
             logger.warning(err_message)
             return False, err_message
 

@@ -51,10 +51,10 @@ class RQTask:
                 result = await self.run(*args, **kwargs)
                 await self.db_session.commit()
 
-        except Exception as err:
+        except Exception as exc:
             await self.db_session.rollback()
             result = FinishCode.ERROR
-            logger.exception("Couldn't perform task %s | error %s (%s)", self.name, type(err), err)
+            logger.exception("Couldn't perform task %s | error %r", self.name, exc)
 
         return result
 

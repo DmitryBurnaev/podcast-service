@@ -40,8 +40,8 @@ class ChoiceType(types.TypeDecorator):
     impl = types.String(255)
     cache_ok = True
 
-    def __init__(self, enum_class, impl=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, enum_class, impl=None, **kwargs):
+        super().__init__(**kwargs)
         self.enum_class = enum_class
         if impl:
             self.impl = impl
@@ -57,7 +57,8 @@ class ChoiceType(types.TypeDecorator):
     def python_type(self):
         return self.impl.python_type
 
-    def coercion_listener(self, target, value, oldvalue, initiator):  # noqa
+    # pylint: disable=unused-argument
+    def coercion_listener(self, target, value, oldvalue, initiator): # noqa
         return self._coerce(value)
 
     def process_bind_param(self, value, dialect):
@@ -101,13 +102,13 @@ class EnumTypeColumn(Column):
     impl = sa.String(16)
 
     def __new__(
-        cls, enum_class: Type[EnumClass], impl: sa_type_api.TypeEngine = None, *args, **kwargs
+        cls, enum_class: Type[EnumClass], impl: sa_type_api.TypeEngine = None, **kwargs
     ):
         if "default" in kwargs:
             kwargs["default"] = getattr(kwargs["default"], "value") or kwargs["default"]
 
         impl = impl or cls.impl
-        return Column(ChoiceType(enum_class, impl=impl), *args, **kwargs)
+        return Column(ChoiceType(enum_class, impl=impl), **kwargs)
 
 
 def make_session_maker() -> sessionmaker:

@@ -9,7 +9,7 @@ disable=missing-module-docstring,
         missing-function-docstring,
         fixme,
         broad-except,
-
+        too-few-public-methods,
 
 [TYPECHECK]
 
