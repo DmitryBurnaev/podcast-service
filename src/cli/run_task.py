@@ -8,12 +8,12 @@ from modules.podcast.tasks import RQTask
 
 
 def main():
-    p = argparse.ArgumentParser()
+    arg_parser = argparse.ArgumentParser()
     task_map = {task_class.__name__: task_class for task_class in RQTask.get_subclasses()}
 
-    p.add_argument("task_name", choices=task_map.keys())
-    p.add_argument("--args", dest="task_args", required=False, nargs="+")
-    args = p.parse_args()
+    arg_parser.add_argument("task_name", choices=task_map.keys())
+    arg_parser.add_argument("--args", dest="task_args", required=False, nargs="+")
+    args = arg_parser.parse_args()
     rq_queue = rq.Queue(
         name=settings.RQ_QUEUE_NAME,
         connection=Redis(*settings.REDIS_CON),

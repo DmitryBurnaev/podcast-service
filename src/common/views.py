@@ -73,21 +73,21 @@ class BaseHTTPEndpoint(HTTPEndpoint):
                 response = await handler(self.request)  # noqa
                 await self.db_session.commit()
 
-        except (BaseApplicationError, WebargsHTTPException, HTTPException) as err:
+        except (BaseApplicationError, WebargsHTTPException, HTTPException) as exc:
             await self.db_session.rollback()
-            raise err
+            raise exc
 
-        except (DatabaseError, SQLAlchemyError) as err:
+        except (DatabaseError, SQLAlchemyError) as exc:
             await self.db_session.rollback()
             msg_template = "Unexpected DB-related error handled: %r"
-            logger.exception(msg_template, err)
-            raise UnexpectedError("Unexpected DB-related error handled")
+            logger.exception(msg_template, exc)
+            raise UnexpectedError("Unexpected DB-related error handled") from exc
 
-        except Exception as err:
+        except Exception as exc:
             await self.db_session.rollback()
             msg_template = "Unexpected error handled: %r"
-            logger.exception(msg_template, err)
-            raise UnexpectedError(msg_template % (err,))
+            logger.exception(msg_template, exc)
+            raise UnexpectedError(msg_template % (exc,))
 
         await response(self.scope, self.receive, self.send)
 
@@ -118,7 +118,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         schema_request = schema or self.schema_request
         schema_kwargs = {}
         if partial_:
-            schema_kwargs["partial"] = [field for field in schema_request().fields]
+            schema_kwargs["partial"] = list(schema_request().fields)
 
         schema, cleaned_data = schema_request(**schema_kwargs), {}
         try:
@@ -127,7 +127,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
                 schema.is_valid(cleaned_data)
 
         except ValidationError as exc:
-            raise InvalidRequestError(details=exc.data)
+            raise InvalidRequestError(details=exc.data) from exc
 
         return cleaned_data
 
@@ -185,8 +185,8 @@ class HealthCheckAPIView(BaseHTTPEndpoint):
 
         try:
             await Podcast.async_filter(self.db_session)
-        except Exception as error:
-            error_msg = f"Couldn't connect to DB: {error.__class__.__name__} '{error}'"
+        except Exception as exc:
+            error_msg = f"Couldn't connect to DB: {exc!r}"
             logger.exception(error_msg)
             response_data["services"]["postgres"] = "down"
             response_data["errors"].append(error_msg)
@@ -214,8 +214,8 @@ class SentryCheckAPIView(BaseHTTPEndpoint):
         logger.error("Error check sentry")
         try:
             1 / 0
-        except ZeroDivisionError as err:
-            logger.exception(f"Test exc for sentry: {err}")
+        except ZeroDivisionError as exc:
+            logger.exception(f"Test exc for sentry: %r", exc)
 
         raise BaseApplicationError("Oops!")
 
@@ -272,8 +272,8 @@ class BaseWSEndpoint(WebSocketEndpoint):
     def _validate(self, data: str) -> dict:
         try:
             request_data = json.loads(data)
-        except JSONDecodeError as err:
-            raise InvalidRequestError(f"Couldn't parse WS request data: {err}") from err
+        except JSONDecodeError as exc:
+            raise InvalidRequestError(f"Couldn't parse WS request data: {exc}") from exc
 
         return self.request_schema().load(request_data)
 

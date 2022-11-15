@@ -22,10 +22,10 @@ def delete_file(filepath: Union[str, Path]):
 
     try:
         os.remove(filepath)
-    except IOError as error:
-        logger.warning(f"Could not delete file {filepath}: {error}")
+    except IOError as exc:
+        logger.warning(f"Could not delete file %s: %r", filepath, exc)
     else:
-        logger.info(f"File {filepath} deleted")
+        logger.info(f"File %s deleted", filepath)
 
 
 def get_file_size(file_path: str | Path):

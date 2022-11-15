@@ -164,9 +164,9 @@ async def get_source_media_info(source_info: SourceInfo) -> tuple[str, Optional[
             extract_info = partial(ydl.extract_info, source_info.url, download=False)
             source_details = await loop.run_in_executor(None, extract_info)
 
-    except YoutubeDLError as error:
-        logger.exception(f"ydl.extract_info failed: {source_info.url} ({error})")
-        return str(error), None
+    except YoutubeDLError as exc:
+        logger.exception(f"ydl.extract_info failed: %s | Error: %r", source_info.url, exc)
+        return str(exc), None
 
     youtube_info = SourceMediaInfo(
         title=source_details["title"],
@@ -214,13 +214,13 @@ def ffmpeg_preparation(
             check=True,
             timeout=settings.FFMPEG_TIMEOUT,
         )
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
         with suppress(IOError):
             os.remove(tmp_path)
 
-        err_details = f"FFMPEG failed with errors: {err}"
-        if stdout := getattr(err, "stdout", ""):
+        err_details = f"FFMPEG failed with errors: {exc}"
+        if stdout := getattr(exc, "stdout", ""):
             err_details += f"\n{str(stdout, encoding='utf-8')}"
 
         p.terminate()
@@ -237,9 +237,9 @@ def ffmpeg_preparation(
         assert os.path.exists(tmp_path), f"Prepared file {tmp_path} wasn't created"
         os.remove(src_path)
         os.rename(tmp_path, src_path)
-    except (IOError, AssertionError) as err:
+    except (IOError, AssertionError) as exc:
         episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
-        raise FFMPegPreparationError(f"Failed to rename/remove tmp file: {err}")
+        raise FFMPegPreparationError(f"Failed to rename/remove tmp file: {exc}")
 
     total_file_size = get_file_size(src_path)
     if call_process_hook:
@@ -276,9 +276,9 @@ def execute_ffmpeg(command: list[str]) -> str:
             check=True,
             timeout=settings.FFMPEG_TIMEOUT,
         )
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
-        err_details = f"FFMPEG failed with errors: {err}"
-        if stdout := getattr(err, "stdout", ""):
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        err_details = f"FFMPEG failed with errors: {exc}"
+        if stdout := getattr(exc, "stdout", ""):
             err_details += f"\n{str(stdout, encoding='utf-8')}"
 
         raise FFMPegPreparationError(err_details)
@@ -326,8 +326,8 @@ def audio_cover(audio_file_path: Path) -> CoverMetaData | None:
         execute_ffmpeg(
             ["ffmpeg", "-y", "-i", audio_file_path, "-an", "-an", "-c:v", "copy", cover_path]
         )
-    except FFMPegPreparationError as err:
-        logger.warning("Couldn't extract cover from audio file: %r", err)
+    except FFMPegPreparationError as exc:
+        logger.warning("Couldn't extract cover from audio file: %r", exc)
         return None
 
     cover_file_content = cover_path.read_bytes()

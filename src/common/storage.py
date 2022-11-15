@@ -49,17 +49,17 @@ class StorageS3:
             logger.info("Executing request (%s) to S3 kwargs: %s", handler.__name__, handler_kwargs)
             response = handler(**handler_kwargs)
 
-        except botocore.exceptions.ClientError as error:
+        except botocore.exceptions.ClientError as exc:
             logger.log(
                 error_log_level,
-                "Couldn't execute request (%s) to S3: ClientError %s",
+                "Couldn't execute request (%s) to S3: ClientError %r",
                 handler.__name__,
-                str(error),
+                exc,
             )
             return self.CODE_CLIENT_ERROR, None
 
-        except Exception as error:
-            logger.exception("Shit! We couldn't execute %s to S3: %s", handler.__name__, error)
+        except Exception as exc:
+            logger.exception("Shit! We couldn't execute %s to S3: %r", handler.__name__, exc)
             return self.CODE_COMMON_ERROR, None
 
         return self.CODE_OK, response

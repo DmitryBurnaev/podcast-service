@@ -70,8 +70,8 @@ class BaseFileRedirectApiView(BaseHTTPEndpoint):
 
             user_ip = await self._check_ip_address(ip_address, file)
 
-        except Exception as e:
-            logger.exception("Couldn't allow access token to fetch file: %r", e)
+        except Exception as exc:
+            logger.exception("Couldn't allow access token to fetch file: %r", exc)
             raise NotFoundError("File not found")
 
         return file, user_ip

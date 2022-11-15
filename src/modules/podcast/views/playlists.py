@@ -36,8 +36,8 @@ class PlayListAPIView(BaseHTTPEndpoint):
             extract_info = partial(ydl.extract_info, playlist_url, download=False)
             try:
                 source_data = await loop.run_in_executor(None, extract_info)
-            except yt_dlp.utils.DownloadError as err:
-                raise InvalidRequestError(f"Couldn't extract playlist: {err}")
+            except yt_dlp.utils.DownloadError as exc:
+                raise InvalidRequestError(f"Couldn't extract playlist: {exc}")
 
         yt_content_type = source_data.get("_type")
         if yt_content_type != "playlist":

@@ -53,8 +53,8 @@ async def send_email(recipient_email: str, subject: str, html_content: str):
                 details=f"Got status code: {status_code}; response text: {response_text}",
                 request_url=request_url,
             )
-        else:
-            request_logger.info("Email sent to %s. Status code: %s", recipient_email, status_code)
+
+        request_logger.info("Email sent to %s. Status code: %s", recipient_email, status_code)
 
 
 def log_message(exc, error_data, level=logging.ERROR):
@@ -71,7 +71,7 @@ def log_message(exc, error_data, level=logging.ERROR):
     logger.log(level, message, exc_info=(level == logging.ERROR))
 
 
-def custom_exception_handler(request, exc):
+def custom_exception_handler(_, exc):
     """
     Returns the response that should be used for any given exception.
     Response will be formatted by our format: {"error": "text", "detail": details}
@@ -123,22 +123,25 @@ async def download_content(url: str, file_ext: str, retries: int = 5) -> Optiona
     """Allows fetching content from url"""
 
     logger = get_logger(__name__)
-    logger.debug(f"Send request to {url}")
+    logger.debug(f"Send request to %s", url)
     result_content = None
     while retries := (retries - 1):
         async with httpx.AsyncClient() as client:
             await asyncio.sleep(0.1)
             try:
                 response = await client.get(url, timeout=600)
-            except Exception as err:
-                logger.warning(f"Couldn't download {url}! Error: {err}")
+            except Exception as exc:
+                logger.warning(f"Couldn't download %s! Error: %r", url, exc)
                 continue
 
             if response.status_code == status.HTTP_404_NOT_FOUND:
                 raise NotFoundError(f"Resource not found by URL {url}!")
 
-            if not (200 <= response.status_code <= 299):
-                logger.warning(f"Couldn't download {url}! Error: Status: {response.status_code}")
+            if not 200 <= response.status_code <= 299:
+                logger.warning(
+                    f"Couldn't download %s | status: %s | response: %s",
+                    url, response.status_code, response.text
+                )
                 continue
 
             result_content = response.content
@@ -168,11 +171,11 @@ def create_task(
         except asyncio.CancelledError:
             # Task cancellation should not be logged as an error.
             pass
-        except Exception as err:  # pylint: disable=broad-except
+        except Exception as exc:  # pylint: disable=broad-except
             if error_message:
                 logger.exception(error_message, *error_message_message_args)
             else:
-                logger.exception(f"Couldn't complete {coroutine.__name__}: %r", err)
+                logger.exception(f"Couldn't complete {coroutine.__name__}: %r", exc)
 
     task = asyncio.create_task(coroutine)
     task.add_done_callback(handle_task_result)

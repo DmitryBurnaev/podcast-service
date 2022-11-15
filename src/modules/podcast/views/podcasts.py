@@ -167,9 +167,9 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
                     dst_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH,
                     filename=podcast.generate_image_name(),
                 )
-            except Exception as err:
+            except Exception as exc:
                 logger.exception(
-                    "Couldn't upload image to S3. podcast %s | err: %s", podcast.id, err
+                    "Couldn't upload image to S3. podcast %s | err: %r", podcast.id, exc
                 )
                 await asyncio.sleep(settings.RETRY_UPLOAD_TIMEOUT)
             else:
