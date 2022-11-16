@@ -123,7 +123,7 @@ async def download_content(url: str, file_ext: str, retries: int = 5) -> Optiona
     """Allows fetching content from url"""
 
     logger = get_logger(__name__)
-    logger.debug(f"Send request to %s", url)
+    logger.debug("Send request to %s", url)
     result_content = None
     while retries := (retries - 1):
         async with httpx.AsyncClient() as client:
@@ -131,7 +131,7 @@ async def download_content(url: str, file_ext: str, retries: int = 5) -> Optiona
             try:
                 response = await client.get(url, timeout=600)
             except Exception as exc:
-                logger.warning(f"Couldn't download %s! Error: %r", url, exc)
+                logger.warning("Couldn't download %s! Error: %r", url, exc)
                 continue
 
             if response.status_code == status.HTTP_404_NOT_FOUND:
@@ -139,7 +139,7 @@ async def download_content(url: str, file_ext: str, retries: int = 5) -> Optiona
 
             if not 200 <= response.status_code <= 299:
                 logger.warning(
-                    f"Couldn't download %s | status: %s | response: %s",
+                    "Couldn't download %s | status: %s | response: %s",
                     url, response.status_code, response.text
                 )
                 continue

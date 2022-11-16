@@ -1,5 +1,4 @@
 import logging
-from typing import Tuple, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -28,7 +27,7 @@ def encode_jwt(
     payload: dict,
     token_type: str = TOKEN_TYPE_ACCESS,
     expires_in: int = None,
-) -> Tuple[str, datetime]:
+) -> tuple[str, datetime]:
     """Allows to prepare JWT for auth engine"""
 
     if token_type == TOKEN_TYPE_REFRESH:
@@ -50,7 +49,7 @@ def decode_jwt(encoded_jwt: str) -> dict:
     return jwt.decode(encoded_jwt, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
 
 
-def extract_ip_address(request: PRequest) -> Optional[str]:
+def extract_ip_address(request: PRequest) -> str | None:
     """Find IP address from request Headers"""
 
     if ip_address := request.headers.get(settings.REQUEST_IP_HEADER):
@@ -66,7 +65,7 @@ def extract_ip_address(request: PRequest) -> Optional[str]:
         user_id,
         request.headers,
     )
-    return
+    return None
 
 
 async def register_ip(request: PRequest):

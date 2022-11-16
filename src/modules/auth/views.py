@@ -3,15 +3,14 @@ import json
 import uuid
 from uuid import UUID
 from datetime import datetime, timedelta
-from typing import Tuple, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from common.request import PRequest
-from common.statuses import ResponseStatus
 from core import settings
+from common.request import PRequest
 from common.views import BaseHTTPEndpoint
+from common.statuses import ResponseStatus
 from common.utils import send_email, get_logger
 from common.exceptions import AuthenticationFailedError, InvalidRequestError
 from modules.auth.models import User, UserSession, UserInvite
@@ -218,7 +217,7 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         token_collection = await self._update_session(user, user_session)
         return self._response(token_collection)
 
-    async def _validate(self, request, *args, **kwargs) -> Tuple[User, str, Optional[str]]:
+    async def _validate(self, request, *args, **kwargs) -> tuple[User, str, str | None]:
         cleaned_data = await super()._validate(request)
         refresh_token = cleaned_data["refresh_token"]
         user, jwt_payload, _ = await LoginRequiredAuthBackend(request).authenticate_user(

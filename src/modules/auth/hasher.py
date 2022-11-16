@@ -46,7 +46,7 @@ class PBKDF2PasswordHasher:
         assert salt and "$" not in salt
         hash_ = self._pbkdf2(password, salt)
         hash_ = base64.b64encode(hash_).decode("ascii").strip()
-        return "%s$%d$%s$%s" % (self.algorithm, self.iterations, salt, hash_)
+        return f"{self.algorithm}${self.iterations}${salt}${hash_}"
 
     def verify(self, password: str, encoded: str) -> Tuple[bool, str]:
         """Check if the given password is correct."""

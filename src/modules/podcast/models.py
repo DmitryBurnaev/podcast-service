@@ -8,13 +8,14 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
 
-from common.exceptions import UnexpectedError
 from core import settings
 from core.database import ModelBase
 from common.utils import get_logger
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
+from common.exceptions import UnexpectedError
 from common.enums import SourceType, EpisodeStatus
+# pylint: ignore=unused-import
 from modules.media.models import File  # noqa (need for sqlalchemy's relationships)
 
 logger = get_logger(__name__)
@@ -176,10 +177,10 @@ class Cookie(ModelBase, ModelMixin):
         cookies_file = settings.TMP_COOKIES_PATH / f"cookie_{self.source_type}_{self.id}.txt"
         # TODO: can we use async API for this files IO-operations?
         if not os.path.exists(cookies_file):
-            logger.info(f"Cookie #{self.id}: Generation cookie file [{cookies_file}]")
-            with open(cookies_file, "wt") as fh:
-                fh.write(self.data)
+            logger.info("Cookie #%s: Generation cookie file [%s]", self.id, cookies_file)
+            with open(cookies_file, "wt", encoding="utf-8") as f_handler:
+                f_handler.write(self.data)
         else:
-            logger.info(f"Cookie #{self.id}: Found already generated file [{cookies_file}]")
+            logger.info("Cookie #%s: Found already generated file [%s]", self.id, cookies_file)
 
         return cookies_file

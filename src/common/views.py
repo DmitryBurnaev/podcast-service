@@ -46,7 +46,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
     db_session: AsyncSession
     schema_request: ClassVar[Type[Schema]]
     schema_response: ClassVar[Type[Schema]]
-    auth_backend = LoginRequiredAuthBackend
+    auth_backend: ClassVar[Type[BaseAuthJWTBackend] | None] = LoginRequiredAuthBackend
 
     async def dispatch(self) -> None:
         """
@@ -64,7 +64,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
             async with self.app.session_maker() as session:
                 self.request.db_session = session
                 self.db_session = session
-                if self.auth_backend:
+                if self.auth_backend is not None:
                     backend = self.auth_backend(self.request)
                     user, session_id = await backend.authenticate()
                     self.scope["user"] = user
@@ -87,7 +87,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
             await self.db_session.rollback()
             msg_template = "Unexpected error handled: %r"
             logger.exception(msg_template, exc)
-            raise UnexpectedError(msg_template % (exc,))
+            raise UnexpectedError(msg_template % (exc,)) from exc
 
         await response(self.scope, self.receive, self.send)
 
@@ -156,7 +156,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
     async def _run_task(self, task_class: Type[RQTask], *args, **kwargs):
         """Enqueue RQ task"""
 
-        logger.info(f"RUN task {task_class}")
+        logger.info("RUN task %s", task_class)
         loop = asyncio.get_running_loop()
         task = task_class()
         handler = partial(self.app.rq_queue.enqueue, task, *args, **kwargs)
@@ -215,7 +215,7 @@ class SentryCheckAPIView(BaseHTTPEndpoint):
         try:
             1 / 0
         except ZeroDivisionError as exc:
-            logger.exception(f"Test exc for sentry: %r", exc)
+            logger.exception("Test exc for sentry: %r", exc)
 
         raise BaseApplicationError("Oops!")
 
