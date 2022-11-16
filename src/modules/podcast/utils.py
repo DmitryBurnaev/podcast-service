@@ -2,7 +2,7 @@ import os
 import time
 from functools import partial
 from pathlib import Path
-from typing import Union, Iterable, Optional
+from typing import Iterable
 
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
@@ -17,15 +17,15 @@ from common.enums import EpisodeStatus
 logger = get_logger(__name__)
 
 
-def delete_file(filepath: Union[str, Path]):
+def delete_file(filepath: str | Path):
     """Delete local file"""
 
     try:
         os.remove(filepath)
     except IOError as exc:
-        logger.warning(f"Could not delete file %s: %r", filepath, exc)
+        logger.warning("Could not delete file %s: %r", filepath, exc)
     else:
-        logger.info(f"File %s deleted", filepath)
+        logger.info("File %s deleted", filepath)
 
 
 def get_file_size(file_path: str | Path):
@@ -133,7 +133,7 @@ def episode_process_hook(
     logger.debug("[%s] for %s: %s", status, filename, progress)
 
 
-def upload_episode(src_path: str | Path) -> Optional[str]:
+def upload_episode(src_path: str | Path) -> str | None:
     """Allows uploading src_path to S3 storage"""
 
     filename = os.path.basename(src_path)
@@ -152,7 +152,7 @@ def upload_episode(src_path: str | Path) -> Optional[str]:
     if not remote_path:
         logger.warning("Couldn't upload file to S3 storage. SKIP")
         episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0)
-        return
+        return None
 
     logger.info("Great! uploading for %s was done!", filename)
     logger.debug("Finished uploading for file %s. \n Result url is %s", filename, remote_path)
@@ -163,7 +163,7 @@ def remote_copy_episode(
     src_path: str,
     dst_path: str,
     src_file_size: int = 0,
-) -> Optional[str]:
+) -> str | None:
     """Allows uploading src_path to S3 storage"""
 
     filename = os.path.basename(src_path)

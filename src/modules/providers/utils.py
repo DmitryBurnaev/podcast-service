@@ -95,7 +95,7 @@ def extract_source_info(source_url: Optional[str] = None, playlist: bool = False
         random_hash = get_random_hash(size=6)
         return SourceInfo(id=f"U-{random_hash}", type=SourceType.UPLOAD)
 
-    for source_type, source_cfg in SOURCE_CFG_MAP.items():
+    for source_cfg in SOURCE_CFG_MAP.values():
         regexp = source_cfg.regexp if not playlist else source_cfg.regexp_playlist
         if match := (re.match(regexp, source_url) if source_cfg.regexp else None):
             if source_id := match.groupdict().get("source_id"):
@@ -153,7 +153,7 @@ def download_audio(source_url: str, filename: str, cookie: Optional[Cookie]) -> 
 async def get_source_media_info(source_info: SourceInfo) -> tuple[str, Optional[SourceMediaInfo]]:
     """Allows extract info about providers video from Source (powered by yt_dlp)"""
 
-    logger.info(f"Started fetching data for {source_info.url}")
+    logger.info("Started fetching data for %s", source_info.url)
     loop = asyncio.get_running_loop()
     params = {"logger": logger, "noplaylist": True}
     if source_info.cookie:
@@ -165,7 +165,7 @@ async def get_source_media_info(source_info: SourceInfo) -> tuple[str, Optional[
             source_details = await loop.run_in_executor(None, extract_info)
 
     except YoutubeDLError as exc:
-        logger.exception(f"ydl.extract_info failed: %s | Error: %r", source_info.url, exc)
+        logger.exception("ydl.extract_info failed: %s | Error: %r", source_info.url, exc)
         return str(exc), None
 
     youtube_info = SourceMediaInfo(
@@ -188,7 +188,7 @@ def ffmpeg_preparation(
     (in metadata value for this is incorrect, but fact length is fully correct)
     """
     filename = os.path.basename(str(src_path))
-    logger.info(f"Start FFMPEG preparations for {filename} === ")
+    logger.info("Start FFMPEG preparations for %s === ", filename)
     total_bytes = get_file_size(src_path)
     if call_process_hook:
         episode_process_hook(
@@ -199,12 +199,12 @@ def ffmpeg_preparation(
         )
     tmp_path = os.path.join(settings.TMP_AUDIO_PATH, f"tmp_{filename}")
 
-    logger.info(f"Start SUBPROCESS (filesize watching) for {filename} === ")
-    p = Process(
+    logger.info("Start SUBPROCESS (filesize watching) for %s === ", filename)
+    process = Process(
         target=post_processing_process_hook,
         kwargs={"filename": filename, "target_path": tmp_path, "total_bytes": total_bytes},
     )
-    p.start()
+    process.start()
     try:
         ffmpeg_params = ffmpeg_params or ["-vn", "-acodec", "libmp3lame", "-q:a", "5"]
         completed_proc = subprocess.run(
@@ -223,10 +223,10 @@ def ffmpeg_preparation(
         if stdout := getattr(exc, "stdout", ""):
             err_details += f"\n{str(stdout, encoding='utf-8')}"
 
-        p.terminate()
-        raise FFMPegPreparationError(err_details)
+        process.terminate()
+        raise FFMPegPreparationError(err_details) from exc
 
-    p.terminate()
+    process.terminate()
     logger.info(
         "FFMPEG success done preparation for file %s:\n%s",
         filename,
@@ -239,7 +239,7 @@ def ffmpeg_preparation(
         os.rename(tmp_path, src_path)
     except (IOError, AssertionError) as exc:
         episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
-        raise FFMPegPreparationError(f"Failed to rename/remove tmp file: {exc}")
+        raise FFMPegPreparationError(f"Failed to rename/remove tmp file: {exc}") from exc
 
     total_file_size = get_file_size(src_path)
     if call_process_hook:
@@ -281,7 +281,7 @@ def execute_ffmpeg(command: list[str]) -> str:
         if stdout := getattr(exc, "stdout", ""):
             err_details += f"\n{str(stdout, encoding='utf-8')}"
 
-        raise FFMPegPreparationError(err_details)
+        raise FFMPegPreparationError(err_details) from exc
 
     return completed_proc.stdout.decode()
 

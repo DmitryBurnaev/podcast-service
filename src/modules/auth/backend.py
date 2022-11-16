@@ -64,7 +64,7 @@ class BaseAuthJWTBackend:
         except InvalidTokenError as exc:
             msg = "Token could not be decoded: %r"
             logger.exception(msg, exc)
-            raise AuthenticationFailedError(msg % (exc,))
+            raise AuthenticationFailedError(msg % (exc,)) from exc
 
         if jwt_payload["token_type"] != token_type:
             raise AuthenticationFailedError(

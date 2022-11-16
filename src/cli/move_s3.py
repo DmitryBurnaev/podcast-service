@@ -187,7 +187,7 @@ class S3Moving:
                 executor.submit(self._move_episode_files, episode_file): episode_file
                 for i, episode_file in enumerate(episode_files, start=1)
             }
-            logger.info(f"==== Moving [%s] episodes ====", episodes_count)
+            logger.info("==== Moving [%s] episodes ====", episodes_count)
             for ind, future in enumerate(concurrent.futures.as_completed(futures), start=1):
                 episode_file = futures[future]
                 try:
