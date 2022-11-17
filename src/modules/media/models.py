@@ -7,14 +7,14 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import expression
 
-from common.exceptions import NotSupportedError
-from common.storage import StorageS3
 from core import settings
 from core.database import ModelBase
+from common.storage import StorageS3
 from common.enums import FileType
 from common.utils import get_logger
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
+from common.exceptions import NotSupportedError
 from modules.auth.hasher import get_random_hash
 
 # TODO: fix strange behavior (import is needed for working with FK "owner_id")
@@ -68,7 +68,7 @@ class File(ModelBase, ModelMixin):
                 settings.S3_STORAGE_URL, f"{settings.S3_BUCKET_NAME}/{self.path}"
             )
 
-        elif not self.available:
+        if not self.available:
             return None
 
         pattern = {
@@ -119,7 +119,7 @@ class File(ModelBase, ModelMixin):
             logger.debug("Removing file from S3: %s | called by: %s", remote_path, self)
             await StorageS3().delete_files_async([self.name], remote_path=remote_path)
 
-        return await super(File, self).delete(db_session, db_flush)
+        return await super().delete(db_session, db_flush)
 
     @classmethod
     async def create(

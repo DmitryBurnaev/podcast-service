@@ -40,7 +40,7 @@ class ProgressWS(BaseWSEndpoint):
                     async with async_timeout.timeout(1):
                         message = await channel.get_message(ignore_subscribe_messages=True)
                         if message is not None:
-                            logger.debug(f"Redis channel's reader | Message Received: {message}")
+                            logger.debug("Redis channel's reader | Message Received: %s", message)
                             if message["data"] == settings.REDIS_PROGRESS_PUBSUB_SIGNAL:
                                 await self._send_progress_for_episodes(websocket)
 
@@ -59,10 +59,10 @@ class ProgressWS(BaseWSEndpoint):
                     # TODO: recheck unsubscribe logic
                     break
 
-        async with psub as p:
-            await p.subscribe(settings.REDIS_PROGRESS_PUBSUB_CH)
-            await reader(p)  # wait for reader to complete
-            await p.unsubscribe(settings.REDIS_PROGRESS_PUBSUB_CH)
+        async with psub as psub_channel:
+            await psub_channel.subscribe(settings.REDIS_PROGRESS_PUBSUB_CH)
+            await reader(psub_channel)  # wait for reader to complete
+            await psub_channel.unsubscribe(settings.REDIS_PROGRESS_PUBSUB_CH)
 
         # closing all open connections
         await psub.close()

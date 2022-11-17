@@ -17,12 +17,12 @@ class TestFFMPEG(BaseTestCase):
     def setup_method(self):
         self.filename = "episode_123.mp3"
         self.src_path = os.path.join(settings.TMP_AUDIO_PATH, self.filename)
-        with open(self.src_path, "wb") as file:
-            file.write(b"data")
+        with open(self.src_path, "wb") as f:
+            f.write(b"data")
 
         self.tmp_filename = os.path.join(settings.TMP_AUDIO_PATH, f"tmp_{self.filename}")
-        with open(self.tmp_filename, "wb") as file:
-            file.write(b"data")
+        with open(self.tmp_filename, "wb") as f:
+            f.write(b"data")
 
     def assert_hooks_calls(
         self, mocked_process_hook, expected_calls: list[dict] = None, finish_call: dict = None

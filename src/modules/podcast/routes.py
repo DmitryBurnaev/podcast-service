@@ -3,6 +3,7 @@ from modules.podcast import views
 
 # fmt:off
 routes = [
+    # pylint: disable=line-too-long
     Route("/playlist/", views.PlayListAPIView),
     Route("/podcasts/", views.PodcastListCreateAPIView),
     Route("/podcasts/{podcast_id:int}/", views.PodcastRUDAPIView),

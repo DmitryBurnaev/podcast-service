@@ -259,7 +259,7 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
         episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
 
-        logger.info(f'Start download process for "{episode.watch_url}"')
+        logger.info("Start download process for '%s'", episode.watch_url)
         episode.status = Episode.Status.DOWNLOADING
         await episode.update(self.db_session, status=episode.status)
         task_class = self.perform_tasks_map.get(episode.source_type)

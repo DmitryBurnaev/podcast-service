@@ -342,12 +342,12 @@ def user_invite(user, dbs) -> UserInvite:
 @pytest.fixture
 def tmp_file():
     content = b"test-file-content"
-    with tempfile.NamedTemporaryFile() as file:
-        file.write(content)
-        file.content = content
-        file.size = len(content)
-        file.seek(0)
-        yield file
+    with tempfile.NamedTemporaryFile() as f:
+        f.write(content)
+        f.content = content
+        f.size = len(content)
+        f.seek(0)
+        yield f
 
 
 def _mocked_source_info(monkeypatch, source_type) -> Mock:

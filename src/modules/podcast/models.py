@@ -15,7 +15,7 @@ from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
 from common.exceptions import UnexpectedError
 from common.enums import SourceType, EpisodeStatus
-# pylint: ignore=unused-import
+# pylint: disable=unused-import
 from modules.media.models import File  # noqa (need for sqlalchemy's relationships)
 
 logger = get_logger(__name__)
@@ -178,8 +178,8 @@ class Cookie(ModelBase, ModelMixin):
         # TODO: can we use async API for this files IO-operations?
         if not os.path.exists(cookies_file):
             logger.info("Cookie #%s: Generation cookie file [%s]", self.id, cookies_file)
-            with open(cookies_file, "wt", encoding="utf-8") as f_handler:
-                f_handler.write(self.data)
+            with open(cookies_file, "wt", encoding="utf-8") as f:
+                f.write(self.data)
         else:
             logger.info("Cookie #%s: Found already generated file [%s]", self.id, cookies_file)
 
