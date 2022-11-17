@@ -39,8 +39,8 @@ class TestGenerateRSSTask:
         assert result_code == FinishCode.OK
 
         assert os.path.exists(expected_file_path), f"File {expected_file_path} didn't uploaded"
-        with open(expected_file_path) as file:
-            generated_rss_content = file.read()
+        with open(expected_file_path) as f:
+            generated_rss_content = f.read()
 
         assert episode_published.title in generated_rss_content
         assert episode_published.description in generated_rss_content

@@ -2,10 +2,10 @@ import os
 
 from jinja2 import Template
 
-from common.enums import FileType
 from core import settings
-from common.storage import StorageS3
+from common.enums import FileType
 from common.utils import get_logger
+from common.storage import StorageS3
 from modules.media.models import File
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks.base import RQTask, FinishCode
@@ -78,14 +78,15 @@ class GenerateRSSTask(RQTask):
             published_at__ne=None,
         )
         context = {"episodes": episodes, "settings": settings}
-        with open(os.path.join(settings.TEMPLATE_PATH, "rss", "feed_template.xml")) as fh:
-            template = Template(fh.read())
+        rss_path = settings.TEMPLATE_PATH / "rss" / "feed_template.xml"
+        with open(rss_path, encoding="utf-8") as f:
+            template = Template(f.read())
 
         rss_filename = os.path.join(settings.TMP_RSS_PATH, f"{podcast.publish_id}.xml")
         logger.info("Podcast #%i: Generation new file rss [%s]", podcast.id, rss_filename)
-        with open(rss_filename, "w") as fh:
+        with open(rss_filename, "w") as f:
             result_rss = template.render(podcast=podcast, **context)
-            fh.write(result_rss)
+            f.write(result_rss)
 
         logger.info("Podcast #%i: RSS file %s generated.", podcast.id, rss_filename)
         return rss_filename

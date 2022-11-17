@@ -6,10 +6,10 @@ from typing import Optional
 
 from yt_dlp.utils import YoutubeDLError
 
-from common.enums import EpisodeStatus
-from common.redis import RedisClient
 from core import settings
+from common.redis import RedisClient
 from common.storage import StorageS3
+from common.enums import EpisodeStatus
 from common.utils import get_logger, download_content
 from common.exceptions import NotFoundError, MaxAttemptsReached
 from modules.media.models import File
@@ -21,9 +21,9 @@ from modules.providers import utils as provider_utils
 from modules.podcast import utils as podcast_utils
 from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
 
-logger = get_logger(__name__)
-status = Episode.Status
 __all__ = ["DownloadEpisodeTask", "UploadedEpisodeTask", "DownloadEpisodeImageTask"]
+
+logger = get_logger(__name__)
 log_levels = {
     FinishCode.OK: logging.INFO,
     FinishCode.SKIP: logging.INFO,
@@ -84,7 +84,7 @@ class DownloadEpisodeTask(RQTask):
         )
         await self._check_is_needed(episode)
         await self._remove_unfinished(episode)
-        await self._update_episodes(episode, update_data={"status": status.DOWNLOADING})
+        await self._update_episodes(episode, update_data={"status": Episode.Status.DOWNLOADING})
         tmp_audio_path = await self._download_episode(episode)
 
         await self._process_file(episode, tmp_audio_path)
@@ -92,7 +92,7 @@ class DownloadEpisodeTask(RQTask):
         await self._update_episodes(
             episode,
             update_data={
-                "status": status.PUBLISHED,
+                "status": Episode.Status.PUBLISHED,
                 "published_at": episode.created_at,
             },
         )
@@ -120,7 +120,7 @@ class DownloadEpisodeTask(RQTask):
             await self._update_episodes(
                 episode,
                 update_data={
-                    "status": status.PUBLISHED,
+                    "status": Episode.Status.PUBLISHED,
                     "published_at": episode.created_at,
                 },
             )
@@ -197,7 +197,7 @@ class DownloadEpisodeTask(RQTask):
         remote_path = podcast_utils.upload_episode(tmp_audio_path)
         if not remote_path:
             logger.warning("=== [%s] UPLOADING was broken === ")
-            await self._update_episodes(episode, {"status": status.ERROR})
+            await self._update_episodes(episode, {"status": Episode.Status.ERROR})
             raise DownloadingInterrupted(code=FinishCode.ERROR)
 
         await self._update_files(episode, {"path": remote_path})
@@ -222,7 +222,7 @@ class DownloadEpisodeTask(RQTask):
         filter_kwargs = {
             "source_id": episode.source_id,
             "source_type": episode.source_type,
-            "status__ne": status.ARCHIVED,
+            "status__ne": Episode.Status.ARCHIVED,
         }
         logger.debug("Episodes update filter: %s | data: %s", filter_kwargs, update_data)
         await Episode.async_update(
@@ -276,7 +276,7 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
 
         await episode.update(
             self.db_session,
-            status=status.PUBLISHED,
+            status=Episode.Status.PUBLISHED,
             published_at=episode.created_at,
         )
         await episode.audio.update(
@@ -301,7 +301,7 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
         )
         if not remote_path:
             logger.warning("=== [%s] REMOTE COPYING was broken === ")
-            await episode.update(self.db_session, status=status.ERROR)
+            await episode.update(self.db_session, status=Episode.Status.ERROR)
             raise DownloadingInterrupted(code=FinishCode.ERROR)
 
         logger.info(

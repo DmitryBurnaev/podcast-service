@@ -34,8 +34,8 @@ class TestS3Storage:
         remote_dir = "/files-on-cloud/"
         remote_path = os.path.join(remote_dir, "episode-sound.mp3")
 
-        with open(local_path, "wb") as file:
-            file.write(b"Test data\n")
+        with open(local_path, "wb") as f:
+            f.write(b"Test data\n")
 
         mock_boto3_session_client.return_value = mock_client
 

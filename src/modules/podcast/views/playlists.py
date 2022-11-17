@@ -72,8 +72,10 @@ class PlayListAPIView(BaseHTTPEndpoint):
     def _prepare_description(source_type: SourceType, data: dict) -> str:
         if source_type == SourceType.YOUTUBE:
             return cut_string(data["description"], 200)
-        elif source_type == SourceType.YANDEX:
+        if source_type == SourceType.YANDEX:
             return (
                 f'Playlist "{data["playlist"]}" '
                 f'| Track #{data["playlist_index"]} of {data["n_entries"]}'
             )
+
+        raise NotImplementedError(f"Unexpected source_type: {source_type}")

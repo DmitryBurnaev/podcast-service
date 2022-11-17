@@ -22,8 +22,8 @@ class TestDownloadEpisodeTask(BaseTestCase):
     def _source_file(dbs, episode: Episode) -> Path:
         audio: File = await_(File.async_get(dbs, id=episode.audio_id))
         file_path = settings.TMP_AUDIO_PATH / audio.name
-        with open(file_path, "wb") as file:
-            file.write(b"EpisodeData")
+        with open(file_path, "wb") as f:
+            f.write(b"EpisodeData")
         return file_path
 
     def test_downloading_ok(

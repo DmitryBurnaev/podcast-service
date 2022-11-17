@@ -8,11 +8,11 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
 from core import settings
+from common.utils import get_logger
 from common.redis import RedisClient
 from common.storage import StorageS3
-from common.utils import get_logger
-from modules.podcast.models import Episode
 from common.enums import EpisodeStatus
+from modules.podcast.models import Episode
 
 logger = get_logger(__name__)
 
@@ -126,7 +126,7 @@ def episode_process_hook(
     redis_client.set(event_key, event_data, ttl=settings.DOWNLOAD_EVENT_REDIS_TTL)
     redis_client.publish(settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
     if processed_bytes and total_bytes:
-        progress = "{0:.2%}".format(processed_bytes / total_bytes)
+        progress = f"{processed_bytes / total_bytes:.2%}"
     else:
         progress = f"processed = {processed_bytes} | total = {total_bytes}"
 
@@ -178,7 +178,7 @@ def remote_copy_episode(
     if not remote_path:
         logger.warning("Couldn't move file in S3 storage remotely. SKIP")
         episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0)
-        return
+        return None
 
     logger.debug("Finished moving s3 for file %s. \n Remote path is %s", filename, remote_path)
     return remote_path
@@ -190,7 +190,7 @@ async def save_uploaded_file(
     _, file_ext = os.path.splitext(uploaded_file.filename)
     result_file_path = tmp_path / f"{prefix}{file_ext}"
     file_content = await uploaded_file.read()
-    with open(result_file_path, "wb") as f:
+    with open(result_file_path, "wb", encoding="utf-8") as f:
         await run_in_threadpool(f.write, file_content)
 
     file_size = get_file_size(result_file_path)

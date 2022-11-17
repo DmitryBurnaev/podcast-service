@@ -72,7 +72,7 @@ class BaseFileRedirectApiView(BaseHTTPEndpoint):
 
         except Exception as exc:
             logger.exception("Couldn't allow access token to fetch file: %r", exc)
-            raise NotFoundError("File not found")
+            raise NotFoundError("File not found") from exc
 
         return file, user_ip
 
@@ -114,7 +114,7 @@ class RSSRedirectAPIView(BaseFileRedirectApiView):
     async def _check_ip_address(self, ip_address: str, file: File) -> UserIP:
         try:
             return await super()._check_ip_address(ip_address, file)
-        except AuthenticationFailedError as e:
+        except AuthenticationFailedError as exc:
             logger.debug("Finding registrations for access token %s", file.access_token)
             if not await UserIP.async_get(self.db_session, registered_by=file.access_token):
                 logger.debug(
@@ -131,7 +131,7 @@ class RSSRedirectAPIView(BaseFileRedirectApiView):
                 )
                 return user_ip
 
-            raise e
+            raise exc
 
 
 class AudioFileUploadAPIView(BaseHTTPEndpoint):
@@ -232,8 +232,8 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
                 max_file_size=settings.MAX_UPLOAD_AUDIO_FILESIZE,
                 tmp_path=settings.TMP_AUDIO_PATH,
             )
-        except ValueError as e:
-            raise InvalidRequestError(details={"file": str(e)})
+        except ValueError as exc:
+            raise InvalidRequestError(details={"file": str(exc)}) from exc
 
         return tmp_path, upload_file.filename
 

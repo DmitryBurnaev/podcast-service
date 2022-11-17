@@ -47,8 +47,11 @@ class EpisodeCreator:
 
         if episode_in_podcast:
             logger.info(
-                f"Episode for video [{self.source_id}] already exists for current "
-                f"podcast {self.podcast_id}. Retrieving {episode_in_podcast}..."
+                "Episode for video [%s] already exists for current "
+                "podcast %s. Retrieving %s...",
+                self.source_id,
+                self.podcast_id,
+                episode_in_podcast,
             )
             return episode_in_podcast
 
@@ -72,10 +75,10 @@ class EpisodeCreator:
         """
 
         if same_episode:
-            logger.info(f"Episode for video {self.source_id} already exists: {same_episode}.")
+            logger.info("Episode for video %s already exists: %s.", self.source_id, same_episode)
             same_episode_data = same_episode.to_dict()
         else:
-            logger.info(f"New episode for source {self.source_id} will be created.")
+            logger.info("New episode for source %s will be created.", self.source_id)
             same_episode_data = {}
 
         cookie = await Cookie.async_get(
