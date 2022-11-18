@@ -47,7 +47,7 @@ class DownloadEpisodeTask(RQTask):
 
     storage: StorageS3
 
-    async def run(self, episode_id: int) -> int:
+    async def run(self, episode_id: int, **_) -> int:
         self.storage = StorageS3()
 
         try:
@@ -133,11 +133,11 @@ class DownloadEpisodeTask(RQTask):
         if not SOURCE_CFG_MAP[episode.source_type].need_downloading:
             if result_path := episode.audio.path:
                 return Path(result_path)
-            else:
-                raise DownloadingInterrupted(
-                    code=FinishCode.ERROR,
-                    message="Episode [source: UPLOAD] does not contain audio with predefined path",
-                )
+
+            raise DownloadingInterrupted(
+                code=FinishCode.ERROR,
+                message="Episode [source: UPLOAD] does not contain audio with predefined path",
+            )
 
         cookie = (
             await Cookie.async_get(self.db_session, id=episode.cookie_id)
@@ -158,7 +158,7 @@ class DownloadEpisodeTask(RQTask):
             )
             await self._update_episodes(episode, {"status": Episode.Status.ERROR})
             await self._update_files(episode, {"available": False})
-            raise DownloadingInterrupted(code=FinishCode.ERROR)
+            raise DownloadingInterrupted(code=FinishCode.ERROR) from exc
 
         logger.info("=== [%s] DOWNLOADING was done ===", episode.source_id)
         return result_path
@@ -324,7 +324,7 @@ class DownloadEpisodeImageTask(RQTask):
     storage: StorageS3 = None
     MAX_UPLOAD_ATTEMPT = 5
 
-    async def run(self, episode_id: int = None) -> int:
+    async def run(self, episode_id: int | None, **_) -> int:
         self.storage = StorageS3()
 
         try:

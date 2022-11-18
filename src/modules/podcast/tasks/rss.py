@@ -20,7 +20,7 @@ class GenerateRSSTask(RQTask):
 
     storage: StorageS3
 
-    async def run(self, *podcast_ids: int) -> FinishCode:
+    async def run(self, *podcast_ids: int, **_) -> FinishCode:
         """Run process for generation and upload RSS to the cloud (S3)"""
 
         self.storage = StorageS3()
@@ -84,7 +84,7 @@ class GenerateRSSTask(RQTask):
 
         rss_filename = os.path.join(settings.TMP_RSS_PATH, f"{podcast.publish_id}.xml")
         logger.info("Podcast #%i: Generation new file rss [%s]", podcast.id, rss_filename)
-        with open(rss_filename, "w") as f:
+        with open(rss_filename, "wt", encoding="utf-8") as f:
             result_rss = template.render(podcast=podcast, **context)
             f.write(result_rss)
 

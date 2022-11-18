@@ -217,7 +217,7 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         token_collection = await self._update_session(user, user_session)
         return self._response(token_collection)
 
-    async def _validate(self, request, **_) -> tuple[User, str, str | None]:
+    async def _validate(self, request, *_) -> tuple[User, str, str | None]:
         cleaned_data = await super()._validate(request)
         refresh_token = cleaned_data["refresh_token"]
         user, jwt_payload, _ = await LoginRequiredAuthBackend(request).authenticate_user(

@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 class BaseCookieAPIView(BaseHTTPEndpoint):
     """Common actions for cookie's update API view"""
 
-    async def _validate(self, request, **_) -> dict:
+    async def _validate(self, request, *_) -> dict:
         cleaned_data = await super()._validate(request, location="form")
         cleaned_data["data"] = (await cleaned_data.pop("file").read()).decode()
         return cleaned_data

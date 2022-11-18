@@ -33,15 +33,7 @@ S3_AWS_ACCESS_KEY_ID_TO = settings.config("S3_AWS_ACCESS_KEY_ID_TO")
 S3_AWS_SECRET_ACCESS_KEY_TO = settings.config("S3_AWS_SECRET_ACCESS_KEY_TO")
 S3_BUCKET_TO = settings.config("S3_BUCKET_NAME_TO")
 S3_REGION_TO = settings.config("S3_REGION_NAME_TO")
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "standard": {
-            "format": "%(asctime)s | %(threadName)s | %(levelname)s | %(message)s",
-            "datefmt": "%d.%m.%Y %H:%M:%S",
-        },
-    },
+MOVE_S3_LOGGING = {
     "handlers": {
         "file": {"class": "logging.FileHandler", "formatter": "standard", "filename": LOG_FILENAME},
         "console": {"class": "logging.StreamHandler", "formatter": "standard", "level": "INFO"},
@@ -53,7 +45,7 @@ LOGGING = {
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(LOG_FILENAME), exist_ok=True)
 
-logging.config.dictConfig(LOGGING)
+logging.config.dictConfig(settings.LOGGING | MOVE_S3_LOGGING)
 logger = logging.getLogger("move_s3")
 
 
