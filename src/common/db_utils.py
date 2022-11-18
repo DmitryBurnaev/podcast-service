@@ -78,7 +78,7 @@ class ChoiceType(types.TypeDecorator):
         return self.enum_class(value)
 
 
-# pylint: disable=too-many-ancestors
+# pylint: disable=too-many-ancestors,abstract-method
 class EnumTypeColumn(Column):
     """Just wrapper for ChoiceType db column
 

@@ -4,11 +4,11 @@ from functools import partial
 import yt_dlp
 from starlette.requests import Request
 
-from modules.providers import utils
 from common.enums import SourceType
 from common.views import BaseHTTPEndpoint
 from common.utils import cut_string, get_logger
 from common.exceptions import InvalidRequestError
+from modules.providers import utils
 from modules.podcast.models import Cookie
 from modules.podcast.schemas import PlayListRequestSchema, PlayListResponseSchema
 
@@ -37,7 +37,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
             try:
                 source_data = await loop.run_in_executor(None, extract_info)
             except yt_dlp.utils.DownloadError as exc:
-                raise InvalidRequestError(f"Couldn't extract playlist: {exc}")
+                raise InvalidRequestError(f"Couldn't extract playlist: {exc}") from exc
 
         yt_content_type = source_data.get("_type")
         if yt_content_type != "playlist":

@@ -71,17 +71,17 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
     schema_response = PodcastDetailsSchema
 
     async def get(self, request):
-        podcast = await self._get_object(request)
+        podcast = await self._get_podcast(request)
         return self._response(podcast)
 
     async def patch(self, request):
         cleaned_data = await self._validate(request, partial_=True)
-        podcast = await self._get_object(request)
+        podcast = await self._get_podcast(request)
         await podcast.update(self.db_session, **cleaned_data)
         return self._response(podcast)
 
     async def delete(self, request):
-        podcast = await self._get_object(request)
+        podcast = await self._get_podcast(request)
         await self._delete_episodes(podcast)
         if podcast.rss_id:
             await podcast.rss.delete(self.db_session, remote_path=settings.S3_BUCKET_RSS_PATH)
@@ -94,9 +94,9 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         await podcast.delete(self.db_session)
         return self._response()
 
-    async def _get_object(self, request: Request, **_) -> Podcast:
+    async def _get_podcast(self, request: Request) -> Podcast:
         podcast_id = int(request.path_params["podcast_id"])
-        return await super()._get_object(podcast_id)
+        return await self._get_object(podcast_id)
 
     async def _delete_episodes(self, podcast: Podcast):
         episodes = await Episode.async_filter(self.db_session, podcast_id=podcast.id)
@@ -147,7 +147,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
 
         return self._response(podcast)
 
-    async def _validate(self, request, **_) -> dict:
+    async def _validate(self, request, *_) -> dict:
         form = await request.form()
         if not (image := form.get("image")):
             raise InvalidRequestError(details="Image is required field")
