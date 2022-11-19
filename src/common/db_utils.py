@@ -58,7 +58,7 @@ class ChoiceType(types.TypeDecorator):
         return self.impl.python_type
 
     # pylint: disable=unused-argument
-    def coercion_listener(self, target, value, oldvalue, initiator): # noqa
+    def coercion_listener(self, target, value, oldvalue, initiator):  # noqa
         return self._coerce(value)
 
     def process_bind_param(self, value, dialect):
@@ -102,9 +102,7 @@ class EnumTypeColumn(Column):
 
     impl = sa.String(16)
 
-    def __new__(
-        cls, enum_class: Type[EnumClass], impl: sa_type_api.TypeEngine = None, **kwargs
-    ):
+    def __new__(cls, enum_class: Type[EnumClass], impl: sa_type_api.TypeEngine = None, **kwargs):
         if "default" in kwargs:
             kwargs["default"] = getattr(kwargs["default"], "value") or kwargs["default"]
 

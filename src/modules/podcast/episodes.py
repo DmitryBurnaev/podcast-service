@@ -47,8 +47,7 @@ class EpisodeCreator:
 
         if episode_in_podcast:
             logger.info(
-                "Episode for video [%s] already exists for current "
-                "podcast %s. Retrieving %s...",
+                "Episode for video [%s] already exists for current podcast %s. Retrieving %s...",
                 self.source_id,
                 self.podcast_id,
                 episode_in_podcast,

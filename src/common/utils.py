@@ -140,7 +140,9 @@ async def download_content(url: str, file_ext: str, retries: int = 5) -> Optiona
             if not 200 <= response.status_code <= 299:
                 logger.warning(
                     "Couldn't download %s | status: %s | response: %s",
-                    url, response.status_code, response.text
+                    url,
+                    response.status_code,
+                    response.text,
                 )
                 continue
 

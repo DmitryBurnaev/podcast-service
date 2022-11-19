@@ -6,12 +6,12 @@ run_rq:
 
 migrations_upgrade:
 	. ./.env && echo "Upgrade migrations for: $$DB_NAME" && \
-	PIPENV_VERBOSITY=-1 PIPENV_DONT_LOAD_ENV=1 DATABASE_NAME=$$DB_NAME \
+	PIPENV_DONT_LOAD_ENV=1 DATABASE_NAME=$$DB_NAME \
 	pipenv run alembic upgrade head
 
 migrations_downgrade:
 	. ./.env && echo "Downgrade migration for: $$DB_NAME" && \
-	PIPENV_VERBOSITY=-1 PIPENV_DONT_LOAD_ENV=1 DATABASE_NAME=$$DB_NAME \
+	PIPENV_DONT_LOAD_ENV=1 DATABASE_NAME=$$DB_NAME \
 	pipenv run alembic downgrade "${revision}"
 
 migrations_history:
@@ -33,11 +33,10 @@ clean-pyc:
 
 lint:
 	pipenv run black . --exclude migrations --line-length 100
-	pipenv run flake8
+	PYTHONPATH=./src pipenv run pylint src/
 	make clean-pyc
 
 test:
 	cd src && \
-		pipenv run flake8 --count && \
 		pipenv run coverage run --concurrency=thread,greenlet -m pytest && \
 		pipenv run coverage report
