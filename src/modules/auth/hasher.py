@@ -4,7 +4,6 @@ import hmac
 import secrets
 import string
 import uuid
-from typing import Tuple
 
 from common.utils import get_logger
 
@@ -48,7 +47,7 @@ class PBKDF2PasswordHasher:
         hash_ = base64.b64encode(hash_).decode("ascii").strip()
         return f"{self.algorithm}${self.iterations}${salt}${hash_}"
 
-    def verify(self, password: str, encoded: str) -> Tuple[bool, str]:
+    def verify(self, password: str, encoded: str) -> tuple[bool, str]:
         """Check if the given password is correct."""
         try:
             algorithm, _, salt, _ = encoded.split("$", 3)

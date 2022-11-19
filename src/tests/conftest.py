@@ -1,8 +1,7 @@
+import uuid
 import logging
 import tempfile
-import uuid
 from datetime import datetime, timedelta
-from typing import Tuple
 from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
@@ -195,7 +194,7 @@ def mocked_auth_send() -> AsyncMock:
 
 
 @pytest.fixture()
-def user_data() -> Tuple[str, str]:
+def user_data() -> tuple[str, str]:
     return get_user_data()
 
 

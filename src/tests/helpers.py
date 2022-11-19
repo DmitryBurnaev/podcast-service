@@ -2,11 +2,11 @@ import io
 import random
 import time
 import uuid
+from typing import Type
+from unittest import mock
+from hashlib import blake2b
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from hashlib import blake2b
-from typing import Tuple, Type, Optional
-from unittest import mock
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.testclient import TestClient
@@ -82,7 +82,7 @@ def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
     del mock_obj
 
 
-def get_user_data() -> Tuple[str, str]:
+def get_user_data() -> tuple[str, str]:
     return f"u_{uuid.uuid4().hex[:10]}@test.com", "password"
 
 
@@ -99,7 +99,7 @@ def get_episode_data(
     podcast: Podcast = None,
     status: EpisodeStatus = EpisodeStatus.NEW,
     creator: User = None,
-    source_id: Optional[str] = None,
+    source_id: str | None = None,
 ) -> dict:
     source_id = source_id or get_source_id()
     episode_data = {
