@@ -14,7 +14,7 @@ elif [ "${APP_SERVICE}" = "rq" ]
 elif [ "${APP_SERVICE}" = "test" ]
   then
     cd /podcast &&
-    flake8 --count && \
+    PYTHONPATH=$(pwd)/src pyline src/ && \
     PYTHONPATH=$(pwd)/src coverage run --concurrency=thread,greenlet -m pytest && \
     coverage report
 

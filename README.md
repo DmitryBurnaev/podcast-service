@@ -111,7 +111,7 @@ make migrations_history       # show applied migrations
 cd "<PATH_TO_PROJECT>"/src && pytest 
 ```
 
-+ Apply formatting (`black`) and lint code (`flake8`)
++ Apply formatting (`black`) and lint code (`pylint`)
 ```shell script
 make lint
 ```

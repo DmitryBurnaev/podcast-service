@@ -39,7 +39,7 @@ COPY etc/entrypoint.sh .
 COPY pytest.ini .
 COPY alembic.ini .
 COPY .coveragerc .
-COPY .flake8 .
+COPY .pylintrc .
 
 RUN chown -R podcast:podcast /podcast
 

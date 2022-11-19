@@ -47,7 +47,7 @@ class DownloadEpisodeTask(RQTask):
 
     storage: StorageS3
 
-    async def run(self, episode_id: int) -> int:   # pylint: disable=arguments-differ
+    async def run(self, episode_id: int) -> int:  # pylint: disable=arguments-differ
         self.storage = StorageS3()
 
         try:
