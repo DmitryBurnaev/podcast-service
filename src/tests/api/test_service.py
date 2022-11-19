@@ -18,7 +18,7 @@ class TestHealthCheckAPIView(BaseTestAPIView):
         response_data = self.assert_fail_response(response, status_code=503)
         assert response_data == {
             "services": {"postgres": "down"},
-            "errors": ["Couldn't connect to DB: RuntimeError 'Oops'"],
+            "errors": ["Couldn't connect to DB: RuntimeError('Oops')"],
         }
 
 

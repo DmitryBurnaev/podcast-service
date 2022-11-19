@@ -190,7 +190,7 @@ async def save_uploaded_file(
     _, file_ext = os.path.splitext(uploaded_file.filename)
     result_file_path = tmp_path / f"{prefix}{file_ext}"
     file_content = await uploaded_file.read()
-    with open(result_file_path, "wb", encoding="utf-8") as f:
+    with open(result_file_path, "wb") as f:
         await run_in_threadpool(f.write, file_content)
 
     file_size = get_file_size(result_file_path)

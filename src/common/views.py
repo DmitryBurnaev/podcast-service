@@ -210,7 +210,8 @@ class SentryCheckAPIView(BaseHTTPEndpoint):
 
     auth_backend = None
 
-    async def get(self, **_):  # noqa
+    @staticmethod
+    async def get(*_):
         logger.error("Error check sentry")
         try:
             1 / 0
