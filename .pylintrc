@@ -11,11 +11,6 @@ disable=missing-module-docstring,
         broad-except,
         too-few-public-methods,
 
-[TYPECHECK]
-
-ignored-classes=scoped_session,SQLAlchemy,alembic.context,ldap
-
-
 [FORMAT]
 
 max-line-length=100

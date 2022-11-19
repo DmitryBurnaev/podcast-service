@@ -47,7 +47,7 @@ class DownloadEpisodeTask(RQTask):
 
     storage: StorageS3
 
-    async def run(self, episode_id: int, **_) -> int:
+    async def run(self, episode_id: int) -> int:   # pylint: disable=arguments-differ
         self.storage = StorageS3()
 
         try:
@@ -324,7 +324,7 @@ class DownloadEpisodeImageTask(RQTask):
     storage: StorageS3 = None
     MAX_UPLOAD_ATTEMPT = 5
 
-    async def run(self, episode_id: int | None, **_) -> int:
+    async def run(self, episode_id: int | None = None) -> int:  # pylint: disable=arguments-differ
         self.storage = StorageS3()
 
         try:
