@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 from functools import partial
-from typing import Iterable, Any, Union
+from typing import Iterable, Any
 
 import redis
 
@@ -14,7 +14,7 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 
 logger = get_logger(__name__)
 
-JSONT = Union[list[Any], dict[str, Any], str]
+JSONT = list[Any] | dict[str, Any] | str
 
 
 # TODO: make async redis

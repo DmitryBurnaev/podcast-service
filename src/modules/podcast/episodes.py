@@ -1,6 +1,5 @@
 import re
 from collections.abc import Iterable
-from typing import Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -64,7 +63,7 @@ class EpisodeCreator:
         res = self.http_link_regex.sub("[LINK]", value)
         return self.symbols_regex.sub("", res)
 
-    async def _get_episode_data(self, same_episode: Optional[Episode]) -> dict:
+    async def _get_episode_data(self, same_episode: Episode | None) -> dict:
         """
         Allows getting information for new episode.
         This info can be given from same episode (episode which has same source_id)
@@ -122,7 +121,7 @@ class EpisodeCreator:
 
     async def _create_files(
         self, same_episode: Episode, source_info: SourceMediaInfo
-    ) -> Tuple[File, File]:
+    ) -> tuple[File, File]:
 
         if same_episode:
             image_file = await File.copy(

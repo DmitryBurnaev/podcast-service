@@ -7,10 +7,10 @@ import dataclasses
 import tempfile
 import uuid
 from pathlib import Path
+from typing import NamedTuple
 from functools import partial
 from contextlib import suppress
 from multiprocessing import Process
-from typing import Optional, NamedTuple
 
 import yt_dlp
 from yt_dlp.utils import YoutubeDLError
@@ -45,10 +45,9 @@ class SourceMediaInfo(NamedTuple):
 
 class SourceConfig(NamedTuple):
     type: SourceType
-    regexp: Optional[str] = None
-    regexp_playlist: Optional[str] = None
+    regexp: str | None = None
+    regexp_playlist: str | None = None
     need_postprocessing: bool = False
-    # TODO: are we need to have this field?
     need_downloading: bool = True
 
 
@@ -56,8 +55,8 @@ class SourceConfig(NamedTuple):
 class SourceInfo:
     id: str
     type: SourceType
-    url: Optional[str] = None
-    cookie: Optional[Cookie] = None
+    url: str | None = None
+    cookie: Cookie | None = None
 
 
 SOURCE_CFG_MAP = {
@@ -88,7 +87,7 @@ SOURCE_CFG_MAP = {
 AUDIO_META_REGEXP = re.compile(r"(?P<meta>Metadata.+)?(?P<duration>Duration:\s?[\d:]+)", re.DOTALL)
 
 
-def extract_source_info(source_url: Optional[str] = None, playlist: bool = False) -> SourceInfo:
+def extract_source_info(source_url: str | None = None, playlist: bool = False) -> SourceInfo:
     """Extracts providers (source) info and finds source ID"""
 
     if not source_url:
@@ -124,7 +123,7 @@ def download_process_hook(event: dict):
     )
 
 
-def download_audio(source_url: str, filename: str, cookie: Optional[Cookie]) -> Path:
+def download_audio(source_url: str, filename: str, cookie: Cookie | None) -> Path:
     """
     Download providers video and perform to audio (.mp3) file
 
@@ -150,7 +149,7 @@ def download_audio(source_url: str, filename: str, cookie: Optional[Cookie]) -> 
     return result_path
 
 
-async def get_source_media_info(source_info: SourceInfo) -> tuple[str, Optional[SourceMediaInfo]]:
+async def get_source_media_info(source_info: SourceInfo) -> tuple[str, SourceMediaInfo | None]:
     """Allows extract info about providers video from Source (powered by yt_dlp)"""
 
     logger.info("Started fetching data for %s", source_info.url)
@@ -255,9 +254,9 @@ def ffmpeg_preparation(
 class AudioMetaData(NamedTuple):
     title: str
     duration: int
-    track: Optional[str] = None
-    album: Optional[str] = None
-    author: Optional[str] = None
+    track: str | None = None
+    album: str | None = None
+    author: str | None = None
 
 
 class CoverMetaData(NamedTuple):
@@ -337,7 +336,7 @@ def audio_cover(audio_file_path: Path) -> CoverMetaData | None:
     return CoverMetaData(path=new_cover_path, hash=cover_hash, size=get_file_size(new_cover_path))
 
 
-def _raw_meta_to_dict(meta: Optional[str]) -> dict:
+def _raw_meta_to_dict(meta: str | None) -> dict:
     """
     Converts raw metadata from ffmpeg to dict values
 

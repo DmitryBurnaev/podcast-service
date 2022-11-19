@@ -1,6 +1,5 @@
 import json
 from json import JSONDecodeError
-from typing import Union, Optional
 
 from requests import Response
 from starlette.testclient import TestClient
@@ -47,7 +46,7 @@ class BaseTestAPIView(BaseTestCase):
     default_fail_response_status = ResponseStatus.INTERNAL_ERROR
 
     @staticmethod
-    def assert_ok_response(response: Response, status_code: int = 200) -> Union[dict, list]:
+    def assert_ok_response(response: Response, status_code: int = 200) -> dict | list:
         assert (
             response.status_code == status_code
         ), f"Unexpected status code. Response: {response.content}"
@@ -63,7 +62,7 @@ class BaseTestAPIView(BaseTestCase):
 
     def assert_fail_response(
         self, response: Response, status_code: int = None, response_status: str = None
-    ) -> Union[dict, list]:
+    ) -> dict | list:
 
         assert response.status_code == (
             status_code or self.default_fail_status_code
@@ -112,8 +111,8 @@ class BaseTestAPIView(BaseTestCase):
 
     def assert_auth_invalid(
         self,
-        response_data: Union[Response, dict],
-        details: Optional[str],
+        response_data: Response | dict,
+        details: str | None,
         response_status=ResponseStatus.AUTH_FAILED,
     ):
         if isinstance(response_data, Response):

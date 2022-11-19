@@ -1,5 +1,3 @@
-from typing import Tuple
-
 from jwt import InvalidTokenError, ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,7 +23,7 @@ class BaseAuthJWTBackend:
         self.request = request
         self.db_session: AsyncSession = request.db_session
 
-    async def authenticate(self) -> Tuple[User, str]:
+    async def authenticate(self) -> tuple[User, str]:
         request = self.request
         auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
         if not auth_header:
@@ -46,7 +44,7 @@ class BaseAuthJWTBackend:
         self,
         jwt_token: str,
         token_type: str = TOKEN_TYPE_ACCESS,
-    ) -> Tuple[User, dict, str]:
+    ) -> tuple[User, dict, str]:
         """Allows to find active user by jwt_token"""
 
         logger.debug("Logging via JWT auth. Got token: %s", jwt_token)
@@ -102,7 +100,7 @@ class AdminRequiredAuthBackend(BaseAuthJWTBackend):
 
     async def authenticate_user(
         self, jwt_token: str, token_type: str = TOKEN_TYPE_ACCESS
-    ) -> Tuple[User, dict, str]:
+    ) -> tuple[User, dict, str]:
         user, jwt_payload, session_id = await super().authenticate_user(jwt_token)
         if not user.is_superuser:
             raise PermissionDeniedError("You don't have an admin privileges.")

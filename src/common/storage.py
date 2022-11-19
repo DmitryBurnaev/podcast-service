@@ -4,7 +4,7 @@ import mimetypes
 import os
 from functools import partial
 from pathlib import Path
-from typing import Callable, Optional, Tuple
+from typing import Callable
 
 import boto3
 import botocore
@@ -44,7 +44,7 @@ class StorageS3:
 
     def __call(
         self, handler: Callable, error_log_level: int = logging.ERROR, **handler_kwargs
-    ) -> Tuple[int, Optional[dict]]:
+    ) -> tuple[int, dict | None]:
         try:
             logger.info("Executing request (%s) to S3 kwargs: %s", handler.__name__, handler_kwargs)
             response = handler(**handler_kwargs)
@@ -68,9 +68,9 @@ class StorageS3:
         self,
         src_path: str | Path,
         dst_path: str,
-        filename: Optional[str] = None,
-        callback: Optional[Callable] = None,
-    ) -> Optional[str]:
+        filename: str | None = None,
+        callback: Callable | None = None,
+    ) -> str | None:
         """Upload file to S3 storage"""
 
         mimetype, _ = mimetypes.guess_type(src_path)
@@ -90,7 +90,7 @@ class StorageS3:
         logger.info("File %s successful uploaded. Remote path: %s", filename, dst_path)
         return dst_path
 
-    def copy_file(self, src_path: str, dst_path: str) -> Optional[str]:
+    def copy_file(self, src_path: str, dst_path: str) -> str | None:
         """Upload file to S3 storage"""
 
         code, _ = self.__call(
@@ -109,8 +109,8 @@ class StorageS3:
         self,
         src_path: str | Path,
         dst_path: str,
-        filename: Optional[str] = None,
-        callback: Callable = None,
+        filename: str | None = None,
+        callback: Callable | None = None,
     ):
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
@@ -129,8 +129,8 @@ class StorageS3:
         filename: str,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         error_log_level: int = logging.ERROR,
-        dst_path: Optional[str] = None,
-    ) -> Optional[dict]:
+        dst_path: str | None = None,
+    ) -> dict | None:
         """
         Allows finding file information (headers) on remote storage (S3)
         Headers content info about downloaded file
@@ -146,9 +146,9 @@ class StorageS3:
 
     def get_file_size(
         self,
-        filename: Optional[str] = None,
+        filename: str | None = None,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
-        dst_path: Optional[str] = None,
+        dst_path: str | None = None,
     ) -> int:
         """
         Allows finding file on remote storage (S3) and calculate size
@@ -167,9 +167,9 @@ class StorageS3:
 
     async def get_file_size_async(
         self,
-        filename: Optional[str] = None,
+        filename: str | None = None,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
-        dst_path: Optional[str] = None,
+        dst_path: str | None = None,
     ):
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
@@ -184,9 +184,9 @@ class StorageS3:
 
     def delete_file(
         self,
-        filename: Optional[str] = None,
+        filename: str | None = None,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
-        dst_path: Optional[str] = None,
+        dst_path: str | None = None,
     ):
         if not dst_path and not filename:
             raise ValueError("At least one argument must be set: dst_path | filename")

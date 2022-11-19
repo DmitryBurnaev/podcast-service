@@ -3,7 +3,7 @@ import asyncio
 import logging
 import logging.config
 from pathlib import Path
-from typing import Optional, Coroutine, Any
+from typing import Coroutine, Any
 
 import httpx
 import aioredis
@@ -119,7 +119,7 @@ def cut_string(source_string: str, max_length: int, finish_seq: str = "...") -> 
     return source_string
 
 
-async def download_content(url: str, file_ext: str, retries: int = 5) -> Optional[Path]:
+async def download_content(url: str, file_ext: str, retries: int = 5) -> Path | None:
     """Allows fetching content from url"""
 
     logger = get_logger(__name__)

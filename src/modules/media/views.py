@@ -4,7 +4,7 @@ import uuid
 from contextlib import suppress
 from hashlib import md5
 from pathlib import Path
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from starlette.datastructures import UploadFile
 from starlette.responses import RedirectResponse, Response
@@ -192,7 +192,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         )
 
     async def _upload_file(
-        self, local_path: Path, remote_path: str, uploaded_file: Optional[UploadedFileData] = None
+        self, local_path: Path, remote_path: str, uploaded_file: UploadedFileData | None = None
     ) -> str:
         tmp_filename = os.path.basename(local_path)
 

@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 from yt_dlp.utils import ExtractorError
 
@@ -148,7 +146,7 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         return self.assert_ok_response(response, status_code=201)
 
     @staticmethod
-    def assert_source(episode_creator: EpisodeCreator, cookie_id: Optional[int] = None):
+    def assert_source(episode_creator: EpisodeCreator, cookie_id: int | None = None):
         episode = await_(episode_creator.create())
         assert episode.source_id == "source-id"
         assert episode.source_type == SourceType.YANDEX

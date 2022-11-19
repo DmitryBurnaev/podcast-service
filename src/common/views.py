@@ -3,7 +3,7 @@ import json
 from dataclasses import dataclass
 from functools import partial
 from json import JSONDecodeError
-from typing import Type, Union, Iterable, Any, ClassVar
+from typing import Type, Iterable, Any, ClassVar
 
 from sqlalchemy.exc import SQLAlchemyError, DatabaseError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -133,7 +133,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
     def _response(
         self,
-        instance: Union[DBModel, Iterable[DBModel], TokenCollection, dict] = None,
+        instance: DBModel | Iterable[DBModel] | TokenCollection | dict | None = None,
         data: Any = None,
         status_code: int = status.HTTP_200_OK,
         response_status: ResponseStatus = ResponseStatus.OK,

@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os.path
 from pathlib import Path
-from typing import Optional
 
 from yt_dlp.utils import YoutubeDLError
 
@@ -337,7 +336,7 @@ class DownloadEpisodeImageTask(RQTask):
 
         return code.value
 
-    async def perform_run(self, episode_id: Optional[int]) -> FinishCode:
+    async def perform_run(self, episode_id: int | None) -> FinishCode:
         filter_kwargs = {}
         if episode_id:
             filter_kwargs["id"] = int(episode_id)
@@ -370,7 +369,7 @@ class DownloadEpisodeImageTask(RQTask):
         return FinishCode.OK
 
     @staticmethod
-    async def _download_and_crop_image(episode: Episode) -> Optional[Path]:
+    async def _download_and_crop_image(episode: Episode) -> Path | None:
         try:
             tmp_path = await download_content(episode.image.source_url, file_ext="jpg")
         except NotFoundError:
