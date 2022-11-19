@@ -57,21 +57,20 @@ class TestS3Storage:
     @patch("boto3.session.Session.client")
     def test_upload_file__s3_client_error__ok(self, mock_boto3_session_client):
         mock_client = MockedClient()
-
-        mock_boto3_session_client.return_value = mock_client
-        mock_client.upload_file.side_effect = botocore.exceptions.ClientError(
+        error = botocore.exceptions.ClientError(
             {"Error": {"Message": "Oops", "Code": "SideEffect"}}, operation_name="test error"
         )
+        mock_boto3_session_client.return_value = mock_client
+        mock_client.upload_file.side_effect = error
         with patch.object(logging.Logger, "log") as mocked_logger:
             result_utl = StorageS3().upload_file("/tmp/episode-sound.mp3", "/dir-on-cloud/")
             assert result_utl is None
 
-        error_msg = "An error occurred (SideEffect) when calling the test error operation: Oops"
         mocked_logger.assert_called_with(
             logging.ERROR,
-            "Couldn't execute request (%s) to S3: ClientError %s",
+            "Couldn't execute request (%s) to S3: ClientError %r",
             "my_mock",
-            error_msg,
+            error,
         )
 
     @patch("boto3.session.Session.client")

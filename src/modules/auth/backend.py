@@ -62,7 +62,7 @@ class BaseAuthJWTBackend:
             raise exception_class("JWT signature has been expired for token") from exc
 
         except InvalidTokenError as exc:
-            msg = "Token could not be decoded: %r"
+            msg = "Token could not be decoded: %s"
             logger.exception(msg, exc)
             raise AuthenticationFailedError(msg % (exc,)) from exc
 
