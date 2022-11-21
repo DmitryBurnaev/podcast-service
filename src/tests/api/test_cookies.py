@@ -10,11 +10,17 @@ from tests.helpers import create_user, await_, create_file
 
 INVALID_UPDATE_DATA = [
     [{"source_type": "FAKE-TYPE"}, {"source_type": "Must be one of: YOUTUBE, YANDEX, UPLOAD."}],
-    [{"file": None}, {"file": "Missing data for required field."}],
+    [{"source_type": "YOUTUBE"}, {"file": "Missing data for required field."}],
 ]
 
-INVALID_CREATE_DATA = INVALID_UPDATE_DATA + [
-    [{}, {"source_type": "Missing data for required field."}],
+INVALID_CREATE_DATA = [
+    [
+        {},
+        {
+            "source_type": "Missing data for required field.",
+            "file": "Missing data for required field.",
+        },
+    ],
 ]
 
 
@@ -49,7 +55,7 @@ class TestCookieListCreateAPIView(BaseTestAPIView):
         assert cookie is not None
         assert response_data == _cookie(cookie)
 
-    @pytest.mark.parametrize("invalid_data, error_details", INVALID_CREATE_DATA)
+    @pytest.mark.parametrize("invalid_data, error_details", INVALID_UPDATE_DATA)
     def test_create__invalid_request__fail(
         self, client, user, invalid_data: dict, error_details: dict
     ):

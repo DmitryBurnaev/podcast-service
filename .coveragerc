@@ -2,6 +2,7 @@
 source = src/
 omit =
     *__init__.py
+    src/cli/*
     src/tests/*
     src/asgi.py
     src/worker.py
@@ -9,6 +10,7 @@ omit =
 [report]
 omit =
     *__init__.py
+    src/cli/*
     src/tests/*
     src/asgi.py
     src/worker.py
