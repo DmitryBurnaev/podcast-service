@@ -1,7 +1,7 @@
 import enum
 
 
-class SourceType(enum.Enum):
+class SourceType(str, enum.Enum):
     YOUTUBE = "YOUTUBE"
     YANDEX = "YANDEX"
     UPLOAD = "UPLOAD"
@@ -10,7 +10,7 @@ class SourceType(enum.Enum):
         return self.value
 
 
-class EpisodeStatus(enum.Enum):
+class EpisodeStatus(str, enum.Enum):
     NEW = "new"
     DOWNLOADING = "downloading"
     PUBLISHED = "published"
@@ -34,7 +34,7 @@ class EpisodeStatus(enum.Enum):
         return [str(v) for v in cls.__members__.values()]
 
 
-class FileType(enum.Enum):
+class FileType(str, enum.Enum):
     AUDIO = "AUDIO"
     IMAGE = "IMAGE"
     RSS = "RSS"

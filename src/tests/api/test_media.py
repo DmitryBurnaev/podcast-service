@@ -30,7 +30,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
         assert response.status_code == 200
         assert response.headers == image_file.headers
 
-        response = client.get(url, headers={"X-Real-IP": self.user_ip}, allow_redirects=False)
+        response = client.get(url, headers={"X-Real-IP": self.user_ip}, follow_redirects=False)
         assert response.status_code == 302
         assert response.headers["location"] == temp_link
 
@@ -49,7 +49,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.head(url)
         assert response.status_code == 404
 
-        response = client.get(url, allow_redirects=False)
+        response = client.get(url, follow_redirects=False)
         assert response.status_code == 404
 
     def test_get_media_file_bad_token__fail(self, client, image_file, user, mocked_s3):
@@ -61,7 +61,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
-        response = client.get(url, allow_redirects=False, headers={"X-Real-IP": self.user_ip})
+        response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
     def test_get_media_file_not_found__fail(self, client, image_file, user, mocked_s3):
@@ -75,7 +75,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
-        response = client.get(url, allow_redirects=False, headers={"X-Real-IP": self.user_ip})
+        response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
     def test_get_image_file_not_allowed__fail(self, client, image_file, user, mocked_s3):
@@ -89,7 +89,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
-        response = client.get(url, allow_redirects=False, headers={"X-Real-IP": self.user_ip})
+        response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
     def test_get_public_image_file__ok(self, dbs, user, mocked_s3):
@@ -115,7 +115,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
-        response = client.get(url, allow_redirects=False, headers={"X-Real-IP": self.user_ip})
+        response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
     def test_get_media_file_user_ip_rss_registered__fail(self, client, image_file, rss_file, user):
@@ -135,7 +135,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
         assert response.status_code == 200
         assert response.headers == image_file.headers
 
-        response = client.get(url, headers={"X-Real-IP": self.user_ip}, allow_redirects=False)
+        response = client.get(url, headers={"X-Real-IP": self.user_ip}, follow_redirects=False)
         assert response.status_code == 200
         assert response.headers == {"content-length": "2"}
 
@@ -162,7 +162,9 @@ class TestRSSFileAPIView(BaseTestAPIView):
         url = self.url.format(token=rss_file.access_token)
         client.login(user)
 
-        response = client.request(method, url, headers={"X-Real-IP": self.user_ip})
+        response = client.request(
+            method, url, headers={"X-Real-IP": self.user_ip}, follow_redirects=False
+        )
         assert response.status_code == status_code
         assert response.headers == headers
 
@@ -194,7 +196,7 @@ class TestRSSFileAPIView(BaseTestAPIView):
         assert response.status_code == 200
         assert response.headers == rss_file.headers
 
-        response = client.get(url, allow_redirects=False, headers={"X-Real-IP": self.user_ip})
+        response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 302
         assert response.headers["location"] == self.temp_link
 
@@ -218,7 +220,7 @@ class TestRSSFileAPIView(BaseTestAPIView):
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 200
 
-        response = client.get(url, allow_redirects=False, headers={"X-Real-IP": self.user_ip})
+        response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 302
         assert response.headers["location"] == self.temp_link
 
@@ -228,7 +230,7 @@ class TestRSSFileAPIView(BaseTestAPIView):
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
-        response = client.get(url, allow_redirects=False, headers={"X-Real-IP": self.user_ip})
+        response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
 

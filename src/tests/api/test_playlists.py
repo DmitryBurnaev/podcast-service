@@ -1,8 +1,12 @@
+import uuid
+from unittest.mock import patch
+
 import yt_dlp
 
 from common.enums import SourceType
 from common.statuses import ResponseStatus
 from modules.podcast.models import Cookie
+from modules.providers.utils import SourceInfo
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import await_, create_user
 from tests.mocks import MockYoutubeDL
@@ -100,21 +104,27 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         self.assert_ok_response(response)
         mocked_youtube.assert_called_with(cookiefile=cookie.as_file())
 
-    def test_retrieve__invalid_playlist_link__fail(self, client, user, mocked_youtube):
+    @patch("modules.providers.utils.extract_source_info")
+    def test_retrieve__invalid_playlist_link__fail(
+        self, mocked_src_info, client, user, mocked_youtube
+    ):
         mocked_youtube.extract_info.return_value = {"_type": "video"}
+        mocked_src_info.return_value = SourceInfo(id=uuid.uuid4().hex, type=SourceType.YOUTUBE)
         client.login(user)
-        response = client.get(self.url, data={"url": mocked_youtube.watch_url})
+        response = client.get(self.url, params={"url": mocked_youtube.watch_url})
         response_data = self.assert_fail_response(response, status_code=400)
         assert response_data == {
             "error": "Requested data is not valid.",
             "details": "It seems like incorrect playlist. yt_content_type='video'",
         }
 
-    def test_retrieve__unsupported_url__fail(self, client, user, mocked_youtube):
-        err_msg = "Unsupported URL: https://ya.ru"
+    @patch("modules.providers.utils.extract_source_info")
+    def test_retrieve__unsupported_url__fail(self, mocked_src_info, client, user, mocked_youtube):
+        err_msg = "Unsupported URL: https://fake.url"
         mocked_youtube.extract_info.side_effect = yt_dlp.utils.DownloadError(err_msg)
+        mocked_src_info.return_value = SourceInfo(id=uuid.uuid4().hex, type=SourceType.YOUTUBE)
         client.login(user)
-        response = client.get(self.url, data={"url": "https://ya.ru"})
+        response = client.get(self.url, params={"url": "https://fake.url"})
         response_data = self.assert_fail_response(response, status_code=400)
         assert response_data == {
             "error": "Requested data is not valid.",

@@ -1,7 +1,7 @@
 import json
 from json import JSONDecodeError
 
-from requests import Response
+from httpx import Response
 from starlette.testclient import TestClient
 
 from common.models import ModelMixin
@@ -84,8 +84,12 @@ class BaseTestAPIView(BaseTestCase):
         response_data = response_data["payload"]
         assert response_data["error"] == "Requested data is not valid."
         for error_field, error_value in error_details.items():
-            assert error_field in response_data["details"]
-            assert error_value in response_data["details"][error_field]
+            assert (
+                error_field in response_data["details"]
+            ), f"{error_field} not found in {response_data['details']}"
+            assert (
+                error_value in response_data["details"][error_field]
+            ), f"{error_value} not found in {response_data['details'][error_field]}"
 
     @staticmethod
     def assert_not_found(response: Response, instance: ModelMixin):
