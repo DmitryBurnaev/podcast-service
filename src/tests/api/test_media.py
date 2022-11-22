@@ -20,7 +20,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
 
     def test_get_media_file__ok(self, client, image_file, user, mocked_s3):
         temp_link = f"https://s3.storage/tmp.link/{image_file.access_token}"
-        mocked_s3.get_presigned_url.return_value = mocked_s3.async_return(temp_link)
+        mocked_s3.get_presigned_url.return_value = temp_link
         url = self.url.format(token=image_file.access_token)
         client.login(user)
         await_(UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip))
@@ -158,7 +158,7 @@ class TestRSSFileAPIView(BaseTestAPIView):
         await_(rss_file.update(client.db_session, size=1024))
         await_(client.db_session.commit())
 
-        mocked_s3.get_presigned_url.return_value = mocked_s3.async_return(self.temp_link)
+        mocked_s3.get_presigned_url.return_value = self.temp_link
         url = self.url.format(token=rss_file.access_token)
         client.login(user)
 
@@ -177,7 +177,7 @@ class TestRSSFileAPIView(BaseTestAPIView):
     def test_get_rss__user_ip_already_registered_by__with_current_rss__ok(
         self, client, rss_file, user, mocked_s3
     ):
-        mocked_s3.get_presigned_url.return_value = mocked_s3.async_return(self.temp_link)
+        mocked_s3.get_presigned_url.return_value = self.temp_link
 
         await_(
             UserIP.async_create(
@@ -203,7 +203,7 @@ class TestRSSFileAPIView(BaseTestAPIView):
     def test_get_rss__user_ip_already_registered_by__with_another_file__ok(
         self, client, rss_file, user, mocked_s3
     ):
-        mocked_s3.get_presigned_url.return_value = mocked_s3.async_return(self.temp_link)
+        mocked_s3.get_presigned_url.return_value = self.temp_link
         await_(
             UserIP.async_create(
                 client.db_session,

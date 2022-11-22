@@ -124,7 +124,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         mocked_rq_queue,
         dbs,
     ):
-        mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
+        mocked_episode_creator.create.return_value = episode
         client.login(user)
         episode_data = {"source_url": episode_data["watch_url"]}
         url = self.url.format(id=podcast.id)
@@ -145,7 +145,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
     def test_create__start_downloading__ok(
         self, client, podcast, episode, episode_data, user, mocked_episode_creator, mocked_rq_queue
     ):
-        mocked_episode_creator.create.return_value = mocked_episode_creator.async_return(episode)
+        mocked_episode_creator.create.return_value = episode
         client.login(user)
         url = self.url.format(id=podcast.id)
         response = client.post(url, json={"source_url": episode_data["watch_url"]})
