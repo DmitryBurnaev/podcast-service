@@ -1,4 +1,3 @@
-import asyncio
 import multiprocessing
 import os
 import shutil
@@ -45,12 +44,6 @@ class BaseMock:
 
     def mock_init(self, *args, **kwargs):
         ...
-
-    @staticmethod
-    def async_return(result):
-        f = asyncio.Future()
-        f.set_result(result)
-        return f
 
 
 class MockYoutubeDL(BaseMock):
@@ -134,11 +127,11 @@ class MockS3Client(BaseMock):
         self.get_file_size = Mock(return_value=0)
         self.get_file_info = Mock(return_value={})
         self.get_file_size_async = AsyncMock(return_value=0)
-        self.delete_files_async = AsyncMock(return_value=self.async_return(self.CODE_OK))
+        self.delete_files_async = AsyncMock(return_value=self.CODE_OK)
         self.upload_file = Mock(side_effect=self.upload_file_mock)
         self.copy_file = Mock(return_value="")
         self.upload_file_async = AsyncMock(return_value="")
-        self.get_presigned_url = Mock(return_value=self.async_return("https://s3.storage/link"))
+        self.get_presigned_url = AsyncMock(return_value="https://s3.storage/link")
 
     def upload_file_mock(self, src_path, *_, **__):
         target_path = self.tmp_upload_dir / os.path.basename(src_path)
@@ -150,7 +143,7 @@ class MockEpisodeCreator(BaseMock):
     target_class = EpisodeCreator
 
     def __init__(self):
-        self.create = Mock(return_value=self.async_return(None))
+        self.create = AsyncMock(return_value=None)
 
 
 class MockRQQueue(BaseMock):
@@ -164,7 +157,7 @@ class MockGenerateRSS(BaseMock):
     target_class = GenerateRSSTask
 
     def __init__(self):
-        self.run = Mock(return_value=self.async_return(self.CODE_OK))
+        self.run = AsyncMock(return_value=self.CODE_OK)
 
 
 class MockArgumentParser(BaseMock):

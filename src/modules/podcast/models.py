@@ -85,7 +85,8 @@ class Episode(ModelBase, ModelMixin):
     title = Column(String(length=256), nullable=False)
     source_id = Column(String(length=32), index=True, nullable=False)
     source_type = EnumTypeColumn(SourceType, default=SourceType.YOUTUBE, nullable=True)
-    podcast_id = Column(Integer, ForeignKey("podcast_podcasts.id", ondelete="CASCADE"), index=True)
+    # TODO: refactor fields
+    podcast_id = Column(Integer, ForeignKey("podcast_podcasts.id", ondelete="RESTRICT"), index=True)
     audio_id = Column(Integer, ForeignKey("media_files.id", ondelete="SET NULL"))
     image_id = Column(Integer, ForeignKey("media_files.id", ondelete="SET NULL"))
     owner_id = Column(Integer, ForeignKey("auth_users.id"), index=True)

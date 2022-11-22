@@ -192,13 +192,14 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
 
         ra = settings.S3_BUCKET_AUDIO_PATH
         ri = settings.S3_BUCKET_EPISODE_IMAGES_PATH
+        # episode_1 is in NEW state. we don't need to remove remote files for it
         self.assert_not_called_with(
             mocked_s3.delete_files_async, [episode_1.audio_filename], remote_path=ra
         )
         self.assert_not_called_with(
             mocked_s3.delete_files_async, [episode_1.image.name], remote_path=ri
         )
-
+        # episode_2 is in PUBLISH state. we have to remove files from S3
         mocked_s3.delete_files_async.assert_any_call([episode_2.audio.name], remote_path=ra)
         mocked_s3.delete_files_async.assert_any_call([episode_2.image.name], remote_path=ri)
 
