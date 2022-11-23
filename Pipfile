@@ -19,7 +19,6 @@ alembic = "==1.8.1"
 PyJWT = "==2.6.0"
 httpx = "==0.23.0"
 redis = "==4.3.4"
-aioredis = "==2.0.1" # TODO: using redis.asyncio module instead (aioredis is archived now)
 boto3 = "==1.26.3"
 yt-dlp = "==2022.10.4"
 sentry-sdk = "==1.10.1"

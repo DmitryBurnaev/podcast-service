@@ -4,13 +4,13 @@ import logging.config
 import rq
 import sentry_sdk
 from redis import Redis
-from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
-from sentry_sdk.integrations.logging import LoggingIntegration
 from sqlalchemy.orm import sessionmaker
-from starlette.applications import Starlette
 from starlette.middleware import Middleware
+from starlette.applications import Starlette
 from starlette.middleware.cors import CORSMiddleware
 from webargs_starlette import WebargsHTTPException
+from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 from core import settings
 from core.routes import routes
@@ -25,7 +25,7 @@ exception_handlers = {
 
 
 class PodcastApp(Starlette):
-    """Simple adaptation of Starlette APP for podcast-service. Small addons here."""
+    """Simple adaptation of Starlette APP for podcast-service. Small addons are here."""
 
     rq_queue: rq.Queue
     session_maker: sessionmaker
@@ -40,7 +40,7 @@ class PodcastApp(Starlette):
         self.session_maker = make_session_maker()
 
 
-def get_app():
+def get_app() -> PodcastApp:
     middlewares = [Middleware(SentryAsgiMiddleware)]
     if settings.APP_DEBUG:
         middlewares.append(
@@ -65,8 +65,3 @@ def get_app():
         sentry_sdk.init(settings.SENTRY_DSN, integrations=[logging_integration])
 
     return app
-
-
-# TODO:
-#  - tests DB
-#  - DEBUG logs

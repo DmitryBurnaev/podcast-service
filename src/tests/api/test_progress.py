@@ -70,7 +70,7 @@ class TestProgressAPIView(BaseTestWSAPI):
         # p2_episode_new
         create_episode(dbs, episode_data, podcast_2, STATUS.NEW, MB_1)
 
-        mocked_redis.async_get_many.side_effect = lambda *_, **__: (
+        mocked_redis.get_many.side_effect = lambda *_, **__: (
             {
                 _redis_key(p1_episode_new.audio_filename): {
                     "status": EpisodeStatus.DL_PENDING,
@@ -113,7 +113,7 @@ class TestProgressAPIView(BaseTestWSAPI):
 
         await_(dbs.commit())
 
-        mocked_redis.async_get_many.side_effect = lambda *_, **__: (
+        mocked_redis.get_many.side_effect = lambda *_, **__: (
             {
                 _redis_key(p1_episode_down.audio_filename): {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
@@ -147,7 +147,7 @@ class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
 
         await_(dbs.commit())
 
-        mocked_redis.async_get_many.side_effect = lambda *_, **__: (
+        mocked_redis.get_many.side_effect = lambda *_, **__: (
             {
                 _redis_key(episode_1.audio_filename): {
                     "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
@@ -186,7 +186,7 @@ class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
         episode_status,
         progress_status,
     ):
-        mocked_redis.async_get_many.return_value = lambda *_, **__: {}
+        mocked_redis.get_many.return_value = lambda *_, **__: {}
         await_(episode.update(dbs, status=episode_status))
         await_(dbs.commit())
 
@@ -204,4 +204,4 @@ class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
             ]
         }
         expected_redis_key = episode.audio_filename.removesuffix(".mp3")
-        mocked_redis.async_get_many.assert_awaited_with({expected_redis_key}, pkey="event_key")
+        mocked_redis.get_many.assert_awaited_with({expected_redis_key}, pkey="event_key")

@@ -41,7 +41,7 @@ async def check_state(episodes: Iterable[Episode]) -> list[dict]:
 
     redis_client = RedisClient()
     filenames = {redis_client.get_key_by_filename(episode.audio_filename) for episode in episodes}
-    current_states = await redis_client.async_get_many(filenames, pkey="event_key")
+    current_states = await redis_client.get_many(filenames, pkey="event_key")
     result = []
     for episode in episodes:
         filename = episode.audio_filename
@@ -112,7 +112,7 @@ def episode_process_hook(
     redis_client = RedisClient()
     filename = os.path.basename(filename)
     event_key = redis_client.get_key_by_filename(filename)
-    current_event_data = redis_client.get(event_key) or {}
+    current_event_data = redis_client.sync_get(event_key) or {}
     total_bytes = total_bytes or current_event_data.get("total_bytes", 0)
     if processed_bytes is None:
         processed_bytes = current_event_data.get("processed_bytes") + chunk
