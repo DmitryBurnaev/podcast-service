@@ -1,9 +1,10 @@
 import asyncio
 import logging
 from json import JSONDecodeError
+from typing import cast, Iterable
 
-import aioredis
 import async_timeout
+from redis import asyncio as aioredis
 from starlette.websockets import WebSocket
 
 from common.views import BaseWSEndpoint
@@ -81,7 +82,7 @@ class ProgressWS(BaseWSEndpoint):
                 for episode in await Episode.get_in_progress(self.db_session, self.user.id)
             }
 
-        progress_items = await check_state(episodes.values())
+        progress_items = await check_state(cast(Iterable, episodes.values()))
 
         for progress_item in progress_items:
             podcast: Podcast = podcast_items.get(progress_item.pop("podcast_id"))

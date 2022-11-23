@@ -214,13 +214,13 @@ class StorageS3:
         #  https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html
 
         redis = RedisClient()
-        if not (url := await redis.async_get(remote_path)):
+        if not (url := await redis.get(remote_path)):
             _, url = self.__call(
                 self.s3.generate_presigned_url,
                 ClientMethod="get_object",
                 Params={"Bucket": settings.S3_BUCKET_NAME, "Key": remote_path},
                 ExpiresIn=settings.S3_LINK_EXPIRES_IN,
             )
-            await redis.async_set(remote_path, value=url, ttl=settings.S3_LINK_CACHE_EXPIRES_IN)
+            await redis.set(remote_path, value=url, ttl=settings.S3_LINK_CACHE_EXPIRES_IN)
 
         return url

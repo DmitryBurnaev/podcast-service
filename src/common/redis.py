@@ -1,47 +1,42 @@
-import asyncio
 import json
-import os
-from functools import partial
 from typing import Iterable, Any
 
 import redis
+from redis import asyncio as aioredis
 
-from common.utils import get_logger
 from core import settings
-
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+from common.utils import get_logger
 
 logger = get_logger(__name__)
 
 JSONT = list[Any] | dict[str, Any] | str
 
 
-# TODO: make async redis
 class RedisClient:
     """The class is used to create a redis connection in a single instance."""
 
     __instance = None
+    sync_redis: redis.Redis
+    async_redis: aioredis.Redis
 
     def __new__(cls):
         if cls.__instance is None:
             cls.__instance = super().__new__(cls)
-            cls.redis = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, max_connections=32)
-
+            cls.async_redis: aioredis.Redis = aioredis.Redis(**settings.REDIS)
+            cls.sync_redis: redis.Redis | None = None
         return cls.__instance
 
-    def set(self, key: str, value: JSONT, ttl: int = 120) -> None:
+    async def set(self, key: str, value: JSONT, ttl: int = 120) -> None:
+        await self.async_redis.set(key, json.dumps(value), ttl)
 
-        self.redis.set(key, json.dumps(value), ttl)
+    async def get(self, key: str) -> JSONT:
+        return json.loads(await self.async_redis.get(key) or "null")
 
-    def get(self, key: str) -> JSONT:
-        return json.loads(self.redis.get(key) or "null")
-
-    def publish(self, message: str, channel: str = settings.REDIS_PROGRESS_PUBSUB_CH):
+    async def publish(self, message: str, channel: str = settings.REDIS_PROGRESS_PUBSUB_CH):
         logger.debug("Redis > Publishing message %s to channel %s ", message, channel)
-        self.redis.publish(channel, message)
+        await self.async_redis.publish(channel, message)
 
-    def get_many(self, keys: Iterable[str], pkey: str) -> dict:
+    async def get_many(self, keys: Iterable[str], pkey: str) -> dict:
         """
         Allows to get several values from redis for 1 request
         :param keys: any iterable object with needed keys
@@ -49,7 +44,7 @@ class RedisClient:
         :return: dict with keys (given from stored records by `pkey`)
 
         """
-        stored_items = map(json.loads, [item for item in self.redis.mget(keys) if item])
+        stored_items = map(json.loads, [item for item in await self.async_redis.mget(keys) if item])
         try:
             result = {stored_item[pkey]: stored_item for stored_item in stored_items}
         except (TypeError, KeyError) as exc:
@@ -59,21 +54,14 @@ class RedisClient:
 
         return result
 
-    async def async_get(self, key: str) -> JSONT:
-        loop = asyncio.get_running_loop()
-        handler = partial(self.get, key)
-        return await loop.run_in_executor(None, handler)
-
-    async def async_set(self, key: str, value: JSONT, ttl: int = 120) -> None:
-        loop = asyncio.get_running_loop()
-        handler = partial(self.set, key, value, ttl)
-        return await loop.run_in_executor(None, handler)
-
-    async def async_get_many(self, keys: Iterable[str], pkey: str) -> dict:
-        loop = asyncio.get_running_loop()
-        get_many_handler = partial(self.get_many, keys, pkey=pkey)
-        return await loop.run_in_executor(None, get_many_handler)
-
     @staticmethod
     def get_key_by_filename(filename) -> str:
         return filename.partition(".")[0]
+
+    # TODO: rename: sync_get -> get, set -> aset / publish -> apublish ....
+    def sync_get(self, key: str) -> JSONT:
+        if not (redis_client := self.sync_redis):
+            redis_client = redis.Redis(*settings.REDIS_CON)
+            self.sync_redis = redis_client
+
+        return json.loads(redis_client.get(key) or "null")

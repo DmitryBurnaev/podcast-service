@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Coroutine, Any
 
 import httpx
-import aioredis
 from starlette import status
+from redis import asyncio as aioredis
 from starlette.responses import JSONResponse
 from webargs_starlette import WebargsHTTPException
 
