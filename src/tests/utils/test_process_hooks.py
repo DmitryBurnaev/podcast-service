@@ -25,7 +25,7 @@ class TestEpisodeProcessHooks:
         mocked_redis.publish.assert_called_with(settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
 
     def test_call_hook__with_chunks__ok(self, mocked_redis):
-        mocked_redis.sync_get.return_value = {"total_bytes": 1024, "processed_bytes": 200}
+        mocked_redis.get.return_value = {"total_bytes": 1024, "processed_bytes": 200}
 
         episode_process_hook(EpisodeStatus.DL_EPISODE_DOWNLOADING, "test-episode.mp3", chunk=100)
         mocked_redis.set.assert_called_with(

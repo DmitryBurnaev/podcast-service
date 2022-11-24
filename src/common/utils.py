@@ -7,7 +7,6 @@ from typing import Coroutine, Any
 
 import httpx
 from starlette import status
-from redis import asyncio as aioredis
 from starlette.responses import JSONResponse
 from webargs_starlette import WebargsHTTPException
 
@@ -182,11 +181,3 @@ def create_task(
     task = asyncio.create_task(coroutine)
     task.add_done_callback(handle_task_result)
     return task
-
-
-async def publish_message_to_redis_pubsub(
-    message: str,
-    channel: str = settings.REDIS_PROGRESS_PUBSUB_CH,
-):
-    pub = aioredis.Redis(**settings.REDIS)
-    await pub.publish(channel, message)
