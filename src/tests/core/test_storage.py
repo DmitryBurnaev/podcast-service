@@ -149,7 +149,7 @@ class TestS3Storage:
             Params={"Bucket": settings.S3_BUCKET_NAME, "Key": "remote-path/test.mp3"},
             ExpiresIn=settings.S3_LINK_EXPIRES_IN,
         )
-        mocked_redis.set.assert_awaited_with(
+        mocked_redis.async_set.assert_awaited_with(
             "remote-path/test.mp3", value=presigned_url, ttl=settings.S3_LINK_CACHE_EXPIRES_IN
         )
 
@@ -159,11 +159,11 @@ class TestS3Storage:
         mock_boto3_session_client.return_value = mock_client
 
         presigned_url = "https://presigned.url"
-        mocked_redis.get.return_value = presigned_url
+        mocked_redis.async_get.return_value = presigned_url
 
         url = await_(StorageS3().get_presigned_url("remote-path/test.mp3"))
         assert url == presigned_url
 
         mock_client.generate_presigned_url.assert_not_called()
-        mocked_redis.get.assert_awaited_with("remote-path/test.mp3")
-        mocked_redis.set.assert_not_awaited()
+        mocked_redis.async_get.assert_awaited_with("remote-path/test.mp3")
+        mocked_redis.async_set.assert_not_awaited()

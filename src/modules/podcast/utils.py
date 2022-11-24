@@ -112,7 +112,7 @@ def episode_process_hook(
     redis_client = RedisClient()
     filename = os.path.basename(filename)
     event_key = redis_client.get_key_by_filename(filename)
-    current_event_data = redis_client.sync_get(event_key) or {}
+    current_event_data = redis_client.get(event_key) or {}
     total_bytes = total_bytes or current_event_data.get("total_bytes", 0)
     if processed_bytes is None:
         processed_bytes = current_event_data.get("processed_bytes") + chunk
@@ -124,7 +124,10 @@ def episode_process_hook(
         "total_bytes": total_bytes,
     }
     redis_client.set(event_key, event_data, ttl=settings.DOWNLOAD_EVENT_REDIS_TTL)
-    redis_client.publish(settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
+    redis_client.publish(
+        channel=settings.REDIS_PROGRESS_PUBSUB_CH,
+        message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL
+    )
     if processed_bytes and total_bytes:
         progress = f"{processed_bytes / total_bytes:.2%}"
     else:

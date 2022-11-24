@@ -101,7 +101,10 @@ class DownloadEpisodeTask(RQTask):
         podcast_utils.delete_file(tmp_audio_path)
 
         logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
-        RedisClient().publish(settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
+        await RedisClient().async_publish(
+            channel=settings.REDIS_PROGRESS_PUBSUB_CH,
+            message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
+        )
         return FinishCode.OK
 
     async def _check_is_needed(self, episode: Episode):
