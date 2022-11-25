@@ -18,6 +18,7 @@ from common.exceptions import NotSupportedError
 from modules.auth.hasher import get_random_hash
 
 # TODO: fix strange behavior (import is needed for working with FK "owner_id")
+# pylint: disable=unused-import
 from modules.auth.models import User  # noqa
 
 logger = get_logger(__name__)
