@@ -16,8 +16,8 @@ class RedisClient:
     """The class is used to create a redis connection in a single instance."""
 
     __instance = None
-    __sync_redis: redis.Redis
-    __async_redis: aioredis.Redis
+    __sync_redis: redis.Redis = None
+    __async_redis: aioredis.Redis = None
 
     def __new__(cls):
         if cls.__instance is None:

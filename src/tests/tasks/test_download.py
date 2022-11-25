@@ -48,7 +48,9 @@ class TestDownloadEpisodeTask(BaseTestCase):
             dst_path=settings.S3_BUCKET_AUDIO_PATH,
         )
         mocked_generate_rss_task.run.assert_called_with(episode.podcast_id)
-        mocked_redis.publish.assert_called_with(settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
+        mocked_redis.publish.assert_called_with(
+            channel=settings.REDIS_PROGRESS_PUBSUB_CH, message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL
+        )
 
         assert result == FinishCode.OK
         assert episode.status == Episode.Status.PUBLISHED

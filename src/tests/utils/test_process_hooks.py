@@ -22,7 +22,9 @@ class TestEpisodeProcessHooks:
             },
             ttl=settings.DOWNLOAD_EVENT_REDIS_TTL,
         )
-        mocked_redis.publish.assert_called_with(settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
+        mocked_redis.publish.assert_called_with(
+            channel=settings.REDIS_PROGRESS_PUBSUB_CH, message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL
+        )
 
     def test_call_hook__with_chunks__ok(self, mocked_redis):
         mocked_redis.get.return_value = {"total_bytes": 1024, "processed_bytes": 200}
@@ -38,4 +40,6 @@ class TestEpisodeProcessHooks:
             },
             ttl=settings.DOWNLOAD_EVENT_REDIS_TTL,
         )
-        mocked_redis.publish.assert_called_with(settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
+        mocked_redis.publish.assert_called_with(
+            channel=settings.REDIS_PROGRESS_PUBSUB_CH, message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL
+        )
