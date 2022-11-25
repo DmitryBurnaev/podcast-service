@@ -54,7 +54,9 @@ class TestUploadedEpisodeTask(BaseTestCase):
 
         self.assert_called_with(mocked_s3.copy_file, src_path=tmp_remote)
         mocked_generate_rss_task.run.assert_called_with(episode.podcast_id)
-        mocked_redis.publish.assert_called_with(settings.REDIS_PROGRESS_PUBSUB_SIGNAL)
+        mocked_redis.publish.assert_called_with(
+            channel=settings.REDIS_PROGRESS_PUBSUB_CH, message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL
+        )
 
     def test_file_bad_size__error(
         self,

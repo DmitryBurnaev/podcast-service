@@ -41,7 +41,7 @@ async def check_state(episodes: Iterable[Episode]) -> list[dict]:
 
     redis_client = RedisClient()
     filenames = {redis_client.get_key_by_filename(episode.audio_filename) for episode in episodes}
-    current_states = await redis_client.get_many(filenames, pkey="event_key")
+    current_states = await redis_client.async_get_many(filenames, pkey="event_key")
     result = []
     for episode in episodes:
         filename = episode.audio_filename
@@ -125,8 +125,7 @@ def episode_process_hook(
     }
     redis_client.set(event_key, event_data, ttl=settings.DOWNLOAD_EVENT_REDIS_TTL)
     redis_client.publish(
-        channel=settings.REDIS_PROGRESS_PUBSUB_CH,
-        message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL
+        channel=settings.REDIS_PROGRESS_PUBSUB_CH, message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL
     )
     if processed_bytes and total_bytes:
         progress = f"{processed_bytes / total_bytes:.2%}"
