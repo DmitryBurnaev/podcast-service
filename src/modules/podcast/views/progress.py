@@ -7,11 +7,11 @@ import async_timeout
 from redis import asyncio as aioredis
 from starlette.websockets import WebSocket
 
-from common.views import BaseWSEndpoint
 from core import settings
+from common.views import BaseWSEndpoint
 from modules.podcast.models import Podcast, Episode
-from modules.podcast.schemas import ProgressResponseSchema, WSProgressRequestSchema
 from modules.podcast.utils import check_state
+from modules.podcast.schemas import ProgressResponseSchema, WSProgressRequestSchema
 
 logger = logging.getLogger(__name__)
 

@@ -2,8 +2,8 @@ import logging
 import secrets
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
 
 from core.database import ModelBase
 from common.models import ModelMixin
@@ -52,13 +52,13 @@ class UserInvite(ModelBase, ModelMixin):
     TOKEN_MAX_LENGTH = 32
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("auth_users.id"), unique=True)
+    user_id = Column(ForeignKey("auth_users.id"), unique=True)
     email = Column(String(length=128), unique=True)
     token = Column(String(length=32), unique=True, nullable=False, index=True)
     is_applied = Column(Boolean, default=False, nullable=False)
     expired_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    owner_id = Column(Integer, ForeignKey("auth_users.id"), nullable=False)
+    owner_id = Column(ForeignKey("auth_users.id"), nullable=False)
 
     def __repr__(self):
         return f"<UserInvite #{self.id} {self.token}>"
@@ -73,7 +73,7 @@ class UserSession(ModelBase, ModelMixin):
 
     id = Column(Integer, primary_key=True)
     public_id = Column(String(length=36), index=True, nullable=False, unique=True)
-    user_id = Column(Integer, ForeignKey("auth_users.id"))
+    user_id = Column(ForeignKey("auth_users.id"))
     refresh_token = Column(String(length=512))
     is_active = Column(Boolean, default=True, nullable=False)
     expired_at = Column(DateTime, nullable=False)
@@ -89,7 +89,7 @@ class UserIP(ModelBase, ModelMixin):
 
     id = Column(Integer, primary_key=True)
     ip_address = Column(String(length=16), index=True, nullable=False)
-    user_id = Column(Integer, ForeignKey("auth_users.id"))
+    user_id = Column(ForeignKey("auth_users.id"))
     registered_by = Column(String(length=128), index=True, nullable=False, server_default="")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

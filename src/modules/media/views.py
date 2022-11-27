@@ -9,6 +9,7 @@ from typing import ClassVar
 from starlette.datastructures import UploadFile
 from starlette.responses import RedirectResponse, Response
 
+from core import settings
 from common.enums import FileType
 from common.exceptions import (
     NotFoundError,
@@ -20,10 +21,9 @@ from common.request import PRequest
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
 from common.utils import get_logger
-from core import settings
+from modules.media.models import File
 from modules.auth.models import UserIP
 from modules.auth.utils import extract_ip_address
-from modules.media.models import File
 from modules.media.schemas import AudioFileUploadSchema, AudioFileResponseSchema
 from modules.podcast.utils import save_uploaded_file, get_file_size
 from modules.providers import utils as provider_utils
@@ -38,11 +38,11 @@ class BaseFileRedirectApiView(BaseHTTPEndpoint):
     file_type: ClassVar[FileType] = None
     auth_backend = None
 
-    async def get(self, request):
+    async def get(self, request: PRequest) -> Response:
         file, _ = await self._get_file(request)
         return RedirectResponse(await file.presigned_url, status_code=302)
 
-    async def head(self, request):
+    async def head(self, request: PRequest) -> Response:
         file, _ = await self._get_file(request)
         return Response(headers=file.headers)
 
@@ -92,7 +92,7 @@ class BaseFileRedirectApiView(BaseHTTPEndpoint):
 
 
 class MediaFileRedirectAPIView(BaseFileRedirectApiView):
-    async def get(self, request):
+    async def get(self, request: PRequest) -> Response:
         file, user_ip = await self._get_file(request)
         if user_ip.registered_by != "":
             logger.debug(
@@ -160,7 +160,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         super().__init__(*args, **kwargs)
         self.storage = StorageS3()
 
-    async def post(self, request):
+    async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request, location="form")
         tmp_path, filename = await self._save_audio(cleaned_data["file"])
         uploaded_file = self.UploadedFileData(

@@ -2,9 +2,10 @@ import asyncio
 from functools import partial
 
 import yt_dlp
-from starlette.requests import Request
+from starlette.responses import Response
 
 from common.enums import SourceType
+from common.request import PRequest
 from common.views import BaseHTTPEndpoint
 from common.utils import cut_string, get_logger
 from common.exceptions import InvalidRequestError
@@ -21,7 +22,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
     schema_request = PlayListRequestSchema
     schema_response = PlayListResponseSchema
 
-    async def get(self, request: Request):
+    async def get(self, request: PRequest) -> Response:
 
         cleaned_data = await self._validate(request, location="query")
         playlist_url = cleaned_data.get("url")
@@ -60,7 +61,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
         res = {"id": source_data["id"], "title": source_data["title"], "entries": entries}
         return self._response(res)
 
-    async def _fetch_cookie(self, request: Request, source_type: SourceType) -> Cookie:
+    async def _fetch_cookie(self, request: PRequest, source_type: SourceType) -> Cookie:
         cookie = await Cookie.async_get(
             self.db_session,
             source_type=source_type,

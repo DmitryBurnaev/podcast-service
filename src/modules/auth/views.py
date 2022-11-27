@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+from starlette.responses import Response
 
 from core import settings
 from common.request import PRequest
@@ -93,7 +94,7 @@ class SignInAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     schema_request = SignInSchema
     auth_backend = None
 
-    async def post(self, request):
+    async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request)
         user = await self.authenticate(cleaned_data["email"], cleaned_data["password"])
         token_collection = await self._create_session(request, user)
@@ -125,7 +126,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     schema_request = SignUpSchema
     auth_backend = None
 
-    async def post(self, request):
+    async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request)
         user_invite: UserInvite = cleaned_data["user_invite"]
         user = await User.async_create(
@@ -138,7 +139,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         token_collection = await self._create_session(request, user)
         return self._response(token_collection, status_code=status.HTTP_201_CREATED)
 
-    async def _validate(self, request, *_) -> dict:
+    async def _validate(self, request: PRequest, *_) -> dict:
         cleaned_data = await super()._validate(request)
         email = cleaned_data["email"]
 
@@ -174,7 +175,7 @@ class SignOutAPIView(BaseHTTPEndpoint):
      - deactivate current session on BE (this allows to block use regular or refresh token)
     """
 
-    async def delete(self, request):
+    async def delete(self, request: PRequest) -> Response:
         user = request.user
         logger.info("Log out for user %s", user)
 
@@ -199,7 +200,7 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     schema_request = RefreshTokenSchema
     auth_backend = None
 
-    async def post(self, request):
+    async def post(self, request: PRequest) -> Response:
         user, refresh_token, session_id = await self._validate(request)
         if session_id is None:
             raise AuthenticationFailedError("No session ID in token found")
@@ -217,7 +218,7 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         token_collection = await self._update_session(user, user_session)
         return self._response(token_collection)
 
-    async def _validate(self, request, *_) -> tuple[User, str, str | None]:
+    async def _validate(self, request: PRequest, *_) -> tuple[User, str, str | None]:
         cleaned_data = await super()._validate(request)
         refresh_token = cleaned_data["refresh_token"]
         user, jwt_payload, _ = await LoginRequiredAuthBackend(request).authenticate_user(
@@ -232,7 +233,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
     schema_request = UserInviteRequestSchema
     schema_response = UserInviteResponseSchema
 
-    async def post(self, request):
+    async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request)
         email = cleaned_data["email"]
         token = UserInvite.generate_token()
@@ -257,7 +258,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
         return self._response(user_invite, status_code=status.HTTP_201_CREATED)
 
     @staticmethod
-    async def _send_email(user_invite: UserInvite):
+    async def _send_email(user_invite: UserInvite) -> None:
         invite_data = {"token": user_invite.token, "email": user_invite.email}
         invite_data = base64.urlsafe_b64encode(json.dumps(invite_data).encode()).decode()
         link = f"{settings.SITE_URL}/sign-up/?i={invite_data}"
@@ -272,7 +273,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
             html_content=body.strip(),
         )
 
-    async def _validate(self, request, *_) -> dict:
+    async def _validate(self, request: PRequest, *_) -> dict:
         cleaned_data = await super()._validate(request)
         if exists_user := await User.async_get(self.db_session, email=cleaned_data["email"]):
             raise InvalidRequestError(f"User with email=[{exists_user.email}] already exists.")
@@ -287,13 +288,13 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
     schema_response = ResetPasswordResponseSchema
     auth_backend = AdminRequiredAuthBackend
 
-    async def post(self, request):
+    async def post(self, request: PRequest) -> Response:
         user = await self._validate(request)
         token = self._generate_token(user)
         await self._send_email(user, token)
         return self._response(data={"user_id": user.id, "email": user.email, "token": token})
 
-    async def _validate(self, request, *_) -> User:
+    async def _validate(self, request: PRequest, *_) -> User:
         cleaned_data = await super()._validate(request)
         user = await User.async_get(self.db_session, email=cleaned_data["email"])
         if not user:
@@ -302,7 +303,7 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
         return user
 
     @staticmethod
-    async def _send_email(user: User, token: str):
+    async def _send_email(user: User, token: str) -> None:
         link = f"{settings.SITE_URL}/change-password/?t={token}"
         body = (
             f"<p>You can reset your password for {settings.SITE_URL}</p>"
@@ -337,7 +338,7 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
     schema_request = ChangePasswordSchema
     auth_backend = None
 
-    async def post(self, request):
+    async def post(self, request: PRequest) -> Response:
         """Check is email unique and create new User"""
         # TODO: recheck logic
         cleaned_data = await self._validate(request)
@@ -357,6 +358,6 @@ class ProfileApiView(BaseHTTPEndpoint):
 
     schema_response = UserResponseSchema
 
-    async def get(self, request):
+    async def get(self, request: PRequest) -> Response:
         await register_ip(request)
         return self._response(request.user)

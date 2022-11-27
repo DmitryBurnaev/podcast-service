@@ -4,8 +4,8 @@ import enum
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from common.utils import get_logger
 from core import settings
+from common.utils import get_logger
 
 
 logger = get_logger(__name__)
