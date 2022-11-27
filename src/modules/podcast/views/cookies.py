@@ -1,7 +1,9 @@
 from sqlalchemy import exists
 from starlette import status
+from starlette.responses import Response
 
 from common.utils import get_logger
+from common.request import PRequest
 from common.views import BaseHTTPEndpoint
 from common.exceptions import PermissionDeniedError
 from modules.podcast.models import Cookie, Episode
@@ -13,7 +15,7 @@ logger = get_logger(__name__)
 class BaseCookieAPIView(BaseHTTPEndpoint):
     """Common actions for cookie's update API view"""
 
-    async def _validate(self, request, *_) -> dict:
+    async def _validate(self, request: PRequest, *_) -> dict:
         cleaned_data = await super()._validate(request, location="form")
         cleaned_data["data"] = (await cleaned_data.pop("file").read()).decode()
         return cleaned_data
@@ -25,11 +27,11 @@ class CookieListCreateAPIView(BaseCookieAPIView):
     schema_response = CookieResponseSchema
     schema_request = CookieCreateUpdateSchema
 
-    async def get(self, request):
+    async def get(self, request: PRequest) -> Response:
         cookies = await Cookie.async_filter(self.db_session, owner_id=request.user.id)
         return self._response(cookies)
 
-    async def post(self, request):
+    async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request)
         cookie = await Cookie.async_create(
             db_session=request.db_session, owner_id=request.user.id, **cleaned_data
@@ -44,19 +46,19 @@ class CookieRDAPIView(BaseCookieAPIView):
     schema_response = CookieResponseSchema
     schema_request = CookieCreateUpdateSchema
 
-    async def get(self, request):
+    async def get(self, request: PRequest) -> Response:
         cookie_id = request.path_params["cookie_id"]
         cookie = await self._get_object(cookie_id)
         return self._response(cookie)
 
-    async def put(self, request):
+    async def put(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request)
         cookie_id = int(request.path_params["cookie_id"])
         cookie = await self._get_object(cookie_id)
         await cookie.update(self.db_session, **cleaned_data)
         return self._response(cookie)
 
-    async def delete(self, request):
+    async def delete(self, request: PRequest) -> Response:
         cookie_id = int(request.path_params["cookie_id"])
         query = Episode.prepare_query(cookie_id=cookie_id)
         (has_episodes,) = next(await self.db_session.execute(exists(query).select()))

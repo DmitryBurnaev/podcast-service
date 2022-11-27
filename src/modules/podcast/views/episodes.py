@@ -1,7 +1,12 @@
+from typing import Type
+
+from marshmallow import Schema
 from sqlalchemy import exists
 from starlette import status
+from starlette.responses import Response
 
 from common.enums import FileType, SourceType
+from common.request import PRequest
 from common.statuses import ResponseStatus
 from common.utils import get_logger, cut_string
 from common.views import BaseHTTPEndpoint
@@ -27,16 +32,16 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
     """List and Create (based on `EpisodeCreator` logic) API for episodes"""
 
     @property
-    def schema_request(self):
+    def schema_request(self) -> Type[Schema]:
         schema_map = {"get": EpisodeListRequestSchema, "post": EpisodeCreateSchema}
         return schema_map.get(self.request.method.lower())
 
     @property
-    def schema_response(self):
+    def schema_response(self) -> Type[Schema]:
         schema_map = {"get": EpisodeListResponseSchema, "post": EpisodeListSchema}
         return schema_map.get(self.request.method.lower())
 
-    async def get(self, request):
+    async def get(self, request: PRequest) -> Response:
         filter_kwargs = {"owner_id": request.user.id}
         cleaned_data = await self._validate(request, location="query")
         limit, offset = cleaned_data["limit"], cleaned_data["offset"]
@@ -54,7 +59,7 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
         (has_next_episodes,) = next(await self.db_session.execute(exists(query).select()))
         return self._response({"has_next": has_next_episodes, "items": episodes})
 
-    async def post(self, request):
+    async def post(self, request: PRequest) -> Response:
         if not (podcast_id := request.path_params.get("podcast_id")):
             raise MethodNotAllowedError("Couldn't create episode without provided podcast_id")
 
@@ -80,7 +85,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
     schema_response = EpisodeDetailsSchema
     db_model = Podcast
 
-    async def get(self, request):
+    async def get(self, request: PRequest) -> Response:
         podcast: Podcast = await self._get_object(request.path_params["podcast_id"])
         logger.info(
             "Fetching episode for uploaded file for podcast %(podcast_id)s | hash %(hash)s",
@@ -94,7 +99,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             response_status=ResponseStatus.EXPECTED_NOT_FOUND,
         )
 
-    async def post(self, request):
+    async def post(self, request: PRequest) -> Response:
         podcast: Podcast = await self._get_object(request.path_params["podcast_id"])
         logger.info("Creating episode for uploaded file for podcast %s", podcast)
 
@@ -224,19 +229,19 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
     schema_request = EpisodeUpdateSchema
     schema_response = EpisodeDetailsSchema
 
-    async def get(self, request):
+    async def get(self, request: PRequest) -> Response:
         episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
         return self._response(episode)
 
-    async def patch(self, request):
+    async def patch(self, request: PRequest) -> Response:
         episode_id = request.path_params["episode_id"]
         cleaned_data = await self._validate(request, partial_=True)
         episode = await self._get_object(episode_id)
         await episode.update(self.db_session, **cleaned_data)
         return self._response(episode)
 
-    async def delete(self, request):
+    async def delete(self, request: PRequest) -> Response:
         episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
         await episode.delete(self.db_session)
@@ -255,7 +260,7 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
         SourceType.UPLOAD: tasks.UploadedEpisodeTask,
     }
 
-    async def put(self, request):
+    async def put(self, request: PRequest) -> Response:
         episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
 
@@ -265,14 +270,3 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
         task_class = self.perform_tasks_map.get(episode.source_type)
         await self._run_task(task_class, episode_id=episode.id)
         return self._response(episode)
-
-
-# Upload file as a new episode
-# 1) create new endpoint for uploading file
-# 2) save file to tmp directory
-# 3) create episode + audio (without image, use default instead)
-#       link episode with downloaded file in tmp dir (ex.: save local path to "path" field)
-# 4) run task for uploading to s3 storage (or reuse DownloadEpisodeTask instead: override )
-# 5) task: upload file to S3 (without postprocessing)
-# 6) task: update episode, audio + regenerate RSS
-# 7) task: remove tmp file

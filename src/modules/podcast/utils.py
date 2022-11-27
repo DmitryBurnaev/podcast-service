@@ -1,8 +1,8 @@
 import os
 import time
-from functools import partial
 from pathlib import Path
 from typing import Iterable
+from functools import partial
 
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile

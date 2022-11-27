@@ -35,9 +35,9 @@ class Podcast(ModelBase, ModelMixin):
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     download_automatically = Column(Boolean, default=True)
 
-    rss_id = Column(Integer, ForeignKey("media_files.id", ondelete="SET NULL"))
-    image_id = Column(Integer, ForeignKey("media_files.id", ondelete="SET NULL"))
-    owner_id = Column(Integer, ForeignKey("auth_users.id"))
+    rss_id = Column(ForeignKey("media_files.id", ondelete="SET NULL"))
+    image_id = Column(ForeignKey("media_files.id", ondelete="SET NULL"))
+    owner_id = Column(ForeignKey("auth_users.id"))
 
     episodes = relationship("Episode")
     rss = relationship("File", foreign_keys=[rss_id], lazy="subquery")
@@ -85,12 +85,11 @@ class Episode(ModelBase, ModelMixin):
     title = Column(String(length=256), nullable=False)
     source_id = Column(String(length=32), index=True, nullable=False)
     source_type = EnumTypeColumn(SourceType, default=SourceType.YOUTUBE, nullable=True)
-    # TODO: refactor fields
-    podcast_id = Column(Integer, ForeignKey("podcast_podcasts.id", ondelete="RESTRICT"), index=True)
-    audio_id = Column(Integer, ForeignKey("media_files.id", ondelete="SET NULL"))
-    image_id = Column(Integer, ForeignKey("media_files.id", ondelete="SET NULL"))
-    owner_id = Column(Integer, ForeignKey("auth_users.id"), index=True)
-    cookie_id = Column(Integer, ForeignKey("podcast_cookies.id", ondelete="SET NULL"))
+    podcast_id = Column(ForeignKey("podcast_podcasts.id", ondelete="RESTRICT"), index=True)
+    audio_id = Column(ForeignKey("media_files.id", ondelete="SET NULL"))
+    image_id = Column(ForeignKey("media_files.id", ondelete="SET NULL"))
+    owner_id = Column(ForeignKey("auth_users.id"), index=True)
+    cookie_id = Column(ForeignKey("podcast_cookies.id", ondelete="SET NULL"))
     watch_url = Column(String(length=128))
     length = Column(Integer, default=0)
     description = Column(String)
@@ -167,7 +166,7 @@ class Cookie(ModelBase, ModelMixin):
     data = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    owner_id = Column(Integer, ForeignKey("auth_users.id"))
+    owner_id = Column(ForeignKey("auth_users.id"))
 
     class Meta:
         order_by = ("-created_at",)

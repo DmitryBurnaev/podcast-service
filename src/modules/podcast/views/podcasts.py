@@ -5,11 +5,12 @@ from pathlib import Path
 from sqlalchemy import select, func
 from starlette import status
 from starlette.concurrency import run_in_threadpool
-from starlette.requests import Request
+from starlette.responses import Response
 
 from core import settings
 from common.enums import FileType
 from common.utils import get_logger
+from common.request import PRequest
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
 from common.exceptions import MaxAttemptsReached, InvalidRequestError
@@ -32,7 +33,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
     schema_request = PodcastCreateUpdateSchema
     schema_response = PodcastDetailsSchema
 
-    async def get(self, request):
+    async def get(self, request: PRequest) -> Response:
         func_count = func.count(Episode.id).label("episodes_count")
         stmt = (
             select([Podcast, func_count])
@@ -51,7 +52,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
 
         return self._response(podcast_list)
 
-    async def post(self, request):
+    async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request)
         podcast = await Podcast.async_create(
             db_session=request.db_session,
@@ -70,17 +71,17 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
     schema_request = PodcastCreateUpdateSchema
     schema_response = PodcastDetailsSchema
 
-    async def get(self, request):
+    async def get(self, request: PRequest) -> Response:
         podcast = await self._get_podcast(request)
         return self._response(podcast)
 
-    async def patch(self, request):
+    async def patch(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request, partial_=True)
         podcast = await self._get_podcast(request)
         await podcast.update(self.db_session, **cleaned_data)
         return self._response(podcast)
 
-    async def delete(self, request):
+    async def delete(self, request: PRequest) -> Response:
         podcast = await self._get_podcast(request)
         await self._delete_episodes(podcast)
         if podcast.rss_id:
@@ -94,7 +95,7 @@ class PodcastRUDAPIView(BaseHTTPEndpoint):
         await podcast.delete(self.db_session)
         return self._response()
 
-    async def _get_podcast(self, request: Request) -> Podcast:
+    async def _get_podcast(self, request: PRequest) -> Podcast:
         podcast_id = int(request.path_params["podcast_id"])
         return await self._get_object(podcast_id)
 
@@ -110,18 +111,20 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
     db_model = Podcast
     schema_response = PodcastUploadImageResponseSchema
 
-    async def post(self, request):
+    async def post(self, request: PRequest) -> Response:
         podcast_id = request.path_params["podcast_id"]
         podcast: Podcast = await self._get_object(podcast_id)
         logger.info("Uploading cover for podcast %s", podcast)
         cleaned_data = await self._validate(request)
-        # TODO: ValueError
-        tmp_path = await save_uploaded_file(
-            uploaded_file=cleaned_data["image"],
-            prefix=f"podcast_cover_{uuid.uuid4().hex}",
-            max_file_size=settings.MAX_UPLOAD_IMAGE_FILESIZE,
-            tmp_path=settings.TMP_IMAGE_PATH,
-        )
+        try:
+            tmp_path = await save_uploaded_file(
+                uploaded_file=cleaned_data["image"],
+                prefix=f"podcast_cover_{uuid.uuid4().hex}",
+                max_file_size=settings.MAX_UPLOAD_IMAGE_FILESIZE,
+                tmp_path=settings.TMP_IMAGE_PATH,
+            )
+        except ValueError as exc:
+            raise InvalidRequestError(str(exc)) from exc
 
         image_remote_path = await self._upload_cover(podcast, tmp_path)
         image_data = {
@@ -147,7 +150,7 @@ class PodcastUploadImageAPIView(BaseHTTPEndpoint):
 
         return self._response(podcast)
 
-    async def _validate(self, request, *_) -> dict:
+    async def _validate(self, request: PRequest, *_) -> dict:
         form = await request.form()
         if not (image := form.get("image")):
             raise InvalidRequestError(details="Image is required field")
@@ -183,7 +186,7 @@ class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):
 
     db_model = Podcast
 
-    async def put(self, request):
+    async def put(self, request: PRequest) -> Response:
         podcast_id = request.path_params["podcast_id"]
         podcast = await self._get_object(podcast_id)
         await self._run_task(GenerateRSSTask, podcast.id)
