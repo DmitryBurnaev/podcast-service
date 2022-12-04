@@ -7,17 +7,15 @@ from datetime import datetime
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
+from starlette_web.common.database import EnumTypeColumn, ModelMixin, ModelBase
 
 from core import settings
-from core.database import ModelBase
 from common.utils import get_logger
-from common.models import ModelMixin
-from common.db_utils import EnumTypeColumn
 from common.exceptions import UnexpectedError
 from common.enums import SourceType, EpisodeStatus
 
 # pylint: disable=unused-import
-from modules.media.models import File  # noqa (need for sqlalchemy's relationships)
+# from modules.media.models import File  # noqa (need for sqlalchemy's relationships)
 
 logger = get_logger(__name__)
 

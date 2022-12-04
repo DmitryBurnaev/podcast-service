@@ -1,8 +1,8 @@
 import io
 
 import pytest
+from starlette_web.common.http.statuses import ResponseStatus
 
-from common.statuses import ResponseStatus
 from modules.podcast.models import Cookie
 from common.enums import SourceType
 from tests.api.test_base import BaseTestAPIView

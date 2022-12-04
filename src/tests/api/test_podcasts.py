@@ -2,9 +2,9 @@ import io
 from unittest.mock import patch
 
 import pytest
+from starlette_web.common.http.statuses import ResponseStatus
 
 from common.enums import EpisodeStatus
-from common.statuses import ResponseStatus
 from core import settings
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks import GenerateRSSTask

@@ -8,14 +8,15 @@ from sqlalchemy.orm import sessionmaker
 from starlette.middleware import Middleware
 from starlette.applications import Starlette
 from starlette.middleware.cors import CORSMiddleware
+from starlette_web.common.database import make_session_maker
 from webargs_starlette import WebargsHTTPException
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 from sentry_sdk.integrations.logging import LoggingIntegration
 
 from core import settings
 from core.routes import routes
-from common.db_utils import make_session_maker
-from common.utils import custom_exception_handler
+# from common.db_utils import make_session_maker
+# from common.utils import custom_exception_handler
 from common.exceptions import BaseApplicationError
 
 exception_handlers = {

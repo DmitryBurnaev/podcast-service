@@ -10,8 +10,9 @@ from sqlalchemy.engine import URL
 from sqlalchemy.util import concurrency
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import ProgrammingError, OperationalError
+from starlette_web.common import database
 
-from core import settings, database
+from core import settings
 from modules.auth.models import UserInvite
 from modules.media.models import File
 from modules.podcast.models import Podcast, Episode, Cookie

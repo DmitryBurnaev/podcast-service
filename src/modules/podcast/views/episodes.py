@@ -1,13 +1,13 @@
-from typing import Type
+from typing import Type, Mapping
 
 from marshmallow import Schema
 from sqlalchemy import exists
 from starlette import status
 from starlette.responses import Response
+from starlette_web.common.http.statuses import ResponseStatus
 
 from common.enums import FileType, SourceType
 from common.request import PRequest
-from common.statuses import ResponseStatus
 from common.utils import get_logger, cut_string
 from common.views import BaseHTTPEndpoint
 from common.exceptions import MethodNotAllowedError, NotFoundError
@@ -130,7 +130,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
 
         return episode
 
-    async def _create_episode(self, podcast_id: int, cleaned_data: dict) -> Episode:
+    async def _create_episode(self, podcast_id: int, cleaned_data: Mapping) -> Episode:
         metadata = cleaned_data.get("meta")
         audio_file, image_file = await self._create_files(cleaned_data)
 
@@ -159,7 +159,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
         episode.image = image_file
         return episode
 
-    async def _create_files(self, cleaned_data: dict) -> tuple[File, File | None]:
+    async def _create_files(self, cleaned_data: Mapping) -> tuple[File, File | None]:
         metadata = cleaned_data.get("meta")
         audio_file = await File.create(
             self.db_session,
@@ -195,7 +195,7 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
         return f"upl_{audio_hash[:11]}"
 
     @staticmethod
-    def _prepare_meta(cleaned_data: dict) -> tuple[str, str]:
+    def _prepare_meta(cleaned_data: Mapping) -> tuple[str, str]:
         metadata = cleaned_data["meta"]
         if not (title := metadata.get("title")):
             filename = cleaned_data["name"]

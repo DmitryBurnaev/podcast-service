@@ -2,9 +2,9 @@ import uuid
 from functools import partial
 
 import pytest
+from starlette_web.common.http.statuses import ResponseStatus
 
 from common.enums import SourceType, EpisodeStatus
-from common.statuses import ResponseStatus
 from core import settings
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks

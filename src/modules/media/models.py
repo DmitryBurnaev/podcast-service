@@ -6,14 +6,15 @@ from sqlalchemy.sql import expression
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+from starlette_web.common.database import EnumTypeColumn, ModelMixin, ModelBase
 
 from core import settings
-from core.database import ModelBase
+# from core.database import ModelBase
 from common.storage import StorageS3
 from common.enums import FileType
 from common.utils import get_logger
-from common.models import ModelMixin
-from common.db_utils import EnumTypeColumn
+# from common.models import ModelMixin
+# from common.db_utils import EnumTypeColumn
 from common.exceptions import NotSupportedError
 from modules.auth.hasher import get_random_hash
 

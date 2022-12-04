@@ -1,6 +1,6 @@
 from starlette.routing import Mount, Route
+from starlette_web.tests.views import SentryCheckAPIView, HealthCheckAPIView
 
-from common.views import HealthCheckAPIView, SentryCheckAPIView
 from modules.auth.routes import routes as auth_routes
 from modules.podcast.routes import routes as podcast_routes, ws_routes as podcast_ws_routes
 from modules.media.routes import routes as media_routes

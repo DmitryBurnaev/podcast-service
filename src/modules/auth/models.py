@@ -4,10 +4,12 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from starlette_web.common.database import ModelBase, ModelMixin
+from starlette_web.contrib.auth.hashers import PBKDF2PasswordHasher
 
-from core.database import ModelBase
-from common.models import ModelMixin
-from modules.auth.hasher import PBKDF2PasswordHasher
+# from core.database import ModelBase
+# from common.models import ModelMixin
+# from modules.auth.hasher import PBKDF2PasswordHasher
 
 logger = logging.getLogger(__name__)
 

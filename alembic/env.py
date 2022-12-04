@@ -6,12 +6,13 @@ from logging.config import fileConfig
 from alembic import context
 from alembic.script import ScriptDirectory
 from sqlalchemy import engine_from_config
+from starlette_web.common.database import ModelBase
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(BASE_DIR, "src"))
 
 from core import settings  # noqa
-from core.database import ModelBase  # noqa
+# from core.database import ModelBase  # noqa
 from modules.podcast import models  # noqa
 from modules.auth import models  # noqa
 from modules.media import models  # noqa

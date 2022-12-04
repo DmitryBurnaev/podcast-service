@@ -5,9 +5,9 @@ from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette_web.common.http.statuses import ResponseStatus
 
 from common.request import PRequest
-from common.statuses import ResponseStatus
 from core import settings
 from modules.auth.models import User, UserSession, UserInvite, UserIP
 from modules.auth.utils import (

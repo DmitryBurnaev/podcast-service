@@ -3,9 +3,9 @@ from json import JSONDecodeError
 
 from httpx import Response
 from starlette.testclient import TestClient
+from starlette_web.common.database import ModelBase
+from starlette_web.common.http.statuses import ResponseStatus
 
-from common.models import ModelMixin
-from common.statuses import ResponseStatus
 from modules.auth.models import UserSession
 from modules.auth.views import JWTSessionMixin
 
@@ -92,7 +92,7 @@ class BaseTestAPIView(BaseTestCase):
             ), f"{error_value} not found in {response_data['details'][error_field]}"
 
     @staticmethod
-    def assert_not_found(response: Response, instance: ModelMixin):
+    def assert_not_found(response: Response, instance: ModelBase):
         assert response.status_code == 404
         response_data = response.json()
         assert response_data["status"] == ResponseStatus.NOT_FOUND
@@ -135,7 +135,7 @@ class BaseTestWSAPI(BaseTestCase):
 
     @staticmethod
     def _get_headers(user_session: UserSession) -> dict:
-        token_col = JWTSessionMixin._get_tokens(user_session.user_id, user_session.public_id)
+        token_col = JWTSessionMixin._get_tokens(user_session.user_id, user_session.public_id) # noqa
         return {"Authorization": f"Bearer {token_col.access_token}"}
 
     def _ws_request(
