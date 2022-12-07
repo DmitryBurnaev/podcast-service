@@ -224,34 +224,26 @@ class SentryCheckAPIView(BaseHTTPEndpoint):
 @dataclass
 class WSRequest:
     headers: dict[str, str]
-    db_session: AsyncSession
     data: dict | None = None
 
 
 class BaseWSEndpoint(WebSocketEndpoint):
     auth_backend: ClassVar[Type[BaseAuthJWTBackend]] = LoginRequiredAuthBackend
     request_schema: ClassVar[Type[Schema]] = WSRequestAuthSchema
-    request: WSRequest
-    db_session: AsyncSession
     user: User
-    background_task: asyncio.Task | None = None
+    request: WSRequest
+    background_task: asyncio.Task
 
     async def dispatch(self) -> None:
-        app = self.scope.get("app")
-        async with app.session_maker() as session:
-            self.db_session = session
-            await super().dispatch()
+        self.app = self.scope.get("app")  # noqa
+        await super().dispatch()
 
     async def on_connect(self, websocket: WebSocket) -> None:
         await websocket.accept()
 
     async def on_receive(self, websocket: WebSocket, data: Any) -> None:
         cleaned_data = self._validate(data)
-        self.request = WSRequest(
-            headers=cleaned_data["headers"],
-            db_session=self.db_session,
-            data=cleaned_data,
-        )
+        self.request = WSRequest(headers=cleaned_data["headers"], data=cleaned_data)
         self.user = await self._auth()
         self.background_task = create_task(
             self._background_handler(websocket),
@@ -279,7 +271,9 @@ class BaseWSEndpoint(WebSocketEndpoint):
         return self.request_schema().load(request_data)
 
     async def _auth(self) -> User:
-        backend = self.auth_backend(self.request)
-        user, _ = await backend.authenticate()
-        self.scope["user"] = user
+        async with self.app.session_maker() as db_session:
+            backend = self.auth_backend(self.request, db_session)
+            user, _ = await backend.authenticate()
+            self.scope["user"] = user
+
         return user

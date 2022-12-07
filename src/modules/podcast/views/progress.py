@@ -5,6 +5,7 @@ from typing import cast, Iterable
 
 import async_timeout
 from redis import asyncio as aioredis
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.websockets import WebSocket
 
 from core import settings
@@ -27,8 +28,10 @@ class ProgressWS(BaseWSEndpoint):
 
     async def _send_progress_for_episodes(self, websocket: WebSocket):
         episode_id = self.request.data.get("episode_id")
-        progress_data = await self._get_progress_items(episode_id)
-        progress_items = ProgressResponseSchema(many=True).dump(progress_data)
+        async with self.app.session_maker() as db_session:
+            progress_data = await self._get_progress_items(db_session, episode_id)
+            progress_items = ProgressResponseSchema(many=True).dump(progress_data)
+
         await websocket.send_json({"progressItems": progress_items})
 
     async def _pubsub(self, websocket: WebSocket):
@@ -57,7 +60,7 @@ class ProgressWS(BaseWSEndpoint):
                     logger.error("Couldn't read message from redis pubsub channel: timeout")
 
                 if self.background_task.cancelled():
-                    # TODO: recheck unsubscribe logic
+                    logger.debug("Background task was cancelled!")
                     break
 
         async with psub as psub_channel:
@@ -68,18 +71,22 @@ class ProgressWS(BaseWSEndpoint):
         # closing all open connections
         await psub.close()
 
-    async def _get_progress_items(self, episode_id: int | None = None) -> list[dict]:
+    async def _get_progress_items(
+        self,
+        db_session: AsyncSession,
+        episode_id: int | None = None
+    ) -> list[dict]:
         podcast_items = {
             podcast.id: podcast
-            for podcast in await Podcast.async_filter(self.db_session, owner_id=self.user.id)
+            for podcast in await Podcast.async_filter(db_session, owner_id=self.user.id)
         }
         if episode_id:
-            episode = await Episode.async_get(self.db_session, id=episode_id)
+            episode = await Episode.async_get(db_session, id=episode_id)
             episodes = {episode.id: episode}
         else:
             episodes = {
                 episode.id: episode
-                for episode in await Episode.get_in_progress(self.db_session, self.user.id)
+                for episode in await Episode.get_in_progress(db_session, self.user.id)
             }
 
         progress_items = await check_state(cast(Iterable, episodes.values()))
