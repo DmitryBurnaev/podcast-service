@@ -19,9 +19,9 @@ class BaseAuthJWTBackend:
 
     keyword = "Bearer"
 
-    def __init__(self, request):
+    def __init__(self, request, db_session: AsyncSession | None = None):
         self.request = request
-        self.db_session: AsyncSession = request.db_session
+        self.db_session: AsyncSession = db_session or request.db_session
 
     async def authenticate(self) -> tuple[User, str]:
         request = self.request
