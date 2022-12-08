@@ -5,9 +5,9 @@ from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette_web.common.http.statuses import ResponseStatus
 
 from common.request import PRequest
-from common.statuses import ResponseStatus
 from core import settings
 from modules.auth.models import User, UserSession, UserInvite, UserIP
 from modules.auth.utils import (
@@ -107,21 +107,6 @@ def assert_tokens(response_data: dict, user: User, session_id: str = None):
 
     if session_id:
         assert decoded_refresh_token.get("session_id") == session_id
-
-
-class TestAuthMeAPIView(BaseTestAPIView):
-    url = "/api/auth/me/"
-
-    def test_get__ok(self, client, user):
-        client.login(user)
-        response = client.get(self.url)
-        response_data = self.assert_ok_response(response)
-        assert response_data == {
-            "id": user.id,
-            "email": user.email,
-            "is_active": True,
-            "is_superuser": user.is_superuser,
-        }
 
 
 class TestAuthSignInAPIView(BaseTestAPIView):
