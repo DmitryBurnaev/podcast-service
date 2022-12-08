@@ -85,3 +85,7 @@ class UserResponseSchema(Schema):
     email = fields.Email(required=True)
     is_active = fields.Bool(required=True)
     is_superuser = fields.Bool(required=True)
+
+
+class UserPatchRequestSchema(Schema):
+    email = fields.Email()

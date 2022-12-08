@@ -72,9 +72,7 @@ class ProgressWS(BaseWSEndpoint):
         await psub.close()
 
     async def _get_progress_items(
-        self,
-        db_session: AsyncSession,
-        episode_id: int | None = None
+        self, db_session: AsyncSession, episode_id: int | None = None
     ) -> list[dict]:
         podcast_items = {
             podcast.id: podcast

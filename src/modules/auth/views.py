@@ -35,6 +35,7 @@ from modules.auth.schemas import (
     UserInviteResponseSchema,
     ResetPasswordRequestSchema,
     ResetPasswordResponseSchema,
+    UserPatchRequestSchema,
 )
 from modules.podcast.models import Podcast
 
@@ -357,7 +358,15 @@ class ProfileApiView(BaseHTTPEndpoint):
     """Simple retrieves profile information (for authenticated user)"""
 
     schema_response = UserResponseSchema
+    schema_request = UserPatchRequestSchema
 
     async def get(self, request: PRequest) -> Response:
         await register_ip(request)
+        return self._response(request.user)
+
+    async def patch(self, request: PRequest) -> Response:
+        cleaned_data = await self._validate(request)
+        await request.user.update(self.db_session, **cleaned_data)
+        await self.db_session.refresh(request.user)
+        await self.db_session.commit()
         return self._response(request.user)

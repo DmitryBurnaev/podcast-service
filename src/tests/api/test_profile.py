@@ -1,4 +1,5 @@
 from tests.api.test_base import BaseTestAPIView
+from tests.helpers import await_
 
 
 class TestAuthMeAPIView(BaseTestAPIView):
@@ -15,7 +16,7 @@ class TestAuthMeAPIView(BaseTestAPIView):
             "is_superuser": user.is_superuser,
         }
 
-    def test_patch__ok(self, client, user):
+    def test_patch__ok(self, dbs, client, user):
         client.login(user)
         response = client.patch(self.url, json={"email": "new-user@test.com"})
         response_data = self.assert_ok_response(response)
@@ -25,3 +26,6 @@ class TestAuthMeAPIView(BaseTestAPIView):
             "is_active": True,
             "is_superuser": user.is_superuser,
         }
+
+        await_(dbs.refresh(user))
+        assert user.email == "new-user@test.com"

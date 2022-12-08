@@ -235,6 +235,7 @@ class BaseWSEndpoint(WebSocketEndpoint):
     background_task: asyncio.Task
 
     async def dispatch(self) -> None:
+        # pylint: disable=attribute-defined-outside-init
         self.app = self.scope.get("app")  # noqa
         await super().dispatch()
 
