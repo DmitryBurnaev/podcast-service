@@ -1,6 +1,6 @@
 import pytest
-from starlette_web.common.http.statuses import ResponseStatus
 
+from common.statuses import ResponseStatus
 from modules.auth.utils import encode_jwt, TOKEN_TYPE_RESET_PASSWORD, TOKEN_TYPE_REFRESH
 from tests.api.test_auth import assert_tokens, INVALID_CHANGE_PASSWORD_DATA
 from tests.api.test_base import BaseTestAPIView
