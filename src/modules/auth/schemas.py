@@ -18,9 +18,18 @@ __all__ = [
 
 
 class TwoPasswordsMixin:
-    @staticmethod
-    def is_valid(data: typing.Mapping) -> typing.Mapping:
-        if data["password_1"] != data["password_2"]:
+    PASSWORDS_IS_REQUIRED = True
+
+    password_1 = fields.Str(validate=validate.Length(min=2, max=32), allow_none=True)
+    password_2 = fields.Str(validate=validate.Length(min=2, max=32), allow_none=True)
+
+    def is_valid(self, data: typing.Mapping) -> typing.Mapping:
+        password_1, password_2 = data.get("password_1"), data.get("password_2")
+        if not password_1 and self.PASSWORDS_IS_REQUIRED:
+            msg = "Password is required"
+            raise ValidationError(msg, data={"password_1": msg, "password_2": msg})
+
+        if password_1 != password_2:
             msg = "Passwords must be equal"
             raise ValidationError(msg, data={"password_1": msg, "password_2": msg})
 
@@ -34,8 +43,6 @@ class SignInSchema(Schema):
 
 class SignUpSchema(TwoPasswordsMixin, Schema):
     email = fields.Email(required=True, validate=validate.Length(max=128))
-    password_1 = fields.Str(required=True, validate=validate.Length(min=2, max=32))
-    password_2 = fields.Str(required=True, validate=validate.Length(min=2, max=32))
     invite_token = fields.Str(required=True, validate=validate.Length(min=10, max=32))
 
 
@@ -46,9 +53,6 @@ class RefreshTokenSchema(Schema):
 class JWTResponseSchema(Schema):
     access_token = fields.Str(required=True)
     refresh_token = fields.Str(required=True)
-
-    class Meta:
-        fields = ("access_token", "refresh_token")
 
 
 class UserInviteRequestSchema(Schema):
@@ -76,8 +80,6 @@ class ResetPasswordResponseSchema(Schema):
 
 class ChangePasswordSchema(TwoPasswordsMixin, Schema):
     token = fields.Str(required=True, validate=validate.Length(min=1))
-    password_1 = fields.Str(required=True, validate=validate.Length(min=2, max=32))
-    password_2 = fields.Str(required=True, validate=validate.Length(min=2, max=32))
 
 
 class UserResponseSchema(Schema):
@@ -87,5 +89,7 @@ class UserResponseSchema(Schema):
     is_superuser = fields.Bool(required=True)
 
 
-class UserPatchRequestSchema(Schema):
+class UserPatchRequestSchema(TwoPasswordsMixin, Schema):
+    PASSWORDS_IS_REQUIRED = False  # password is not required for user's patch logic
+
     email = fields.Email()

@@ -20,6 +20,10 @@ class BaseApplicationError(Exception):
         self.response_status = response_status or self.response_status
 
 
+class DBError(BaseApplicationError):
+    message = "Some error with DB communication"
+
+
 class UnexpectedError(BaseApplicationError):
     message = "Something unexpected happened."
 
