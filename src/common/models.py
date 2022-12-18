@@ -6,6 +6,8 @@ from sqlalchemy.engine import ScalarResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
+from common.exceptions import DBError
+
 
 class ModelMixin:
     """Base model for Gino (sqlalchemy) ORM"""
@@ -48,7 +50,16 @@ class ModelMixin:
         return result.scalars().first()
 
     @classmethod
-    async def async_update(cls, db_session: AsyncSession, filter_kwargs: dict, update_data: dict):
+    async def async_update(
+        cls,
+        db_session: AsyncSession,
+        filter_kwargs: dict,
+        update_data: dict,
+        db_commit: bool = False
+    ):
+        if not update_data:
+            raise DBError("No data for update instances detected!")
+
         query = (
             update(cls)
             .where(cls._filter_criteria(filter_kwargs))
@@ -56,6 +67,8 @@ class ModelMixin:
             .execution_options(synchronize_session="fetch")
         )
         await db_session.execute(query)
+        if db_commit:
+            await db_session.commit()
 
     @classmethod
     async def async_delete(cls, db_session: AsyncSession, filter_kwargs: dict):
@@ -75,10 +88,16 @@ class ModelMixin:
             await db_session.commit()
         return instance
 
-    async def update(self, db_session: AsyncSession, **update_data):
+    async def update(self, db_session: AsyncSession, db_commit: bool = False, **update_data):
         if hasattr(self, "updated_at"):
             update_data["updated_at"] = datetime.datetime.utcnow()
-        await self.async_update(db_session, {"id": self.id}, update_data=update_data)
+
+        await self.async_update(
+            db_session,
+            filter_kwargs={"id": self.id},
+            update_data=update_data,
+            db_commit=db_commit
+        )
 
     async def delete(self, db_session: AsyncSession, db_flush: bool = True):
         await db_session.delete(self)

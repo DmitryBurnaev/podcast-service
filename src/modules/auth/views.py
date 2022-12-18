@@ -1,9 +1,11 @@
 import base64
 import json
 import uuid
+from typing import Type
 from uuid import UUID
 from datetime import datetime, timedelta
 
+from marshmallow import Schema
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from starlette.responses import Response
@@ -366,7 +368,20 @@ class ProfileApiView(BaseHTTPEndpoint):
 
     async def patch(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request)
-        await request.user.update(self.db_session, **cleaned_data)
-        await self.db_session.refresh(request.user)
-        await self.db_session.commit()
+        if cleaned_data:
+            await request.user.update(self.db_session, db_commit=True, **cleaned_data)
+            await self.db_session.refresh(request.user)
         return self._response(request.user)
+
+    async def _validate(self, request, schema: Type[Schema] = None, **kwargs) -> dict:
+        cleaned_data = await super()._validate(request)
+        update_data = {}
+
+        if cleaned_data["email"] and request.user.email != cleaned_data["email"]:
+            update_data["email"] = cleaned_data["email"]
+
+        if cleaned_data["password_1"]:
+            update_data["password"] = User.make_password(cleaned_data["password_1"])
+
+        return update_data
+
