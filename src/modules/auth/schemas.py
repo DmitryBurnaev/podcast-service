@@ -18,18 +18,28 @@ __all__ = [
 
 
 class TwoPasswordsMixin:
-    PASSWORDS_IS_REQUIRED = True
+    PASSWORDS_REQUIRED = True
+    PASSWORDS_MIN_LEN = 6
+    PASSWORDS_MAX_LEN = 32
 
-    password_1 = fields.Str(validate=validate.Length(min=2, max=32), allow_none=True)
-    password_2 = fields.Str(validate=validate.Length(min=2, max=32), allow_none=True)
+    password_1 = fields.Str(validate=validate.Length(max=PASSWORDS_MAX_LEN), allow_none=True)
+    password_2 = fields.Str(validate=validate.Length(max=PASSWORDS_MAX_LEN), allow_none=True)
 
     def is_valid(self, data: typing.Mapping) -> typing.Mapping:
-        password_1, password_2 = data.get("password_1"), data.get("password_2")
-        if not password_1 and self.PASSWORDS_IS_REQUIRED:
-            msg = "Password is required"
-            raise ValidationError(msg, data={"password_1": msg, "password_2": msg})
+        errors, err_message = {}, ""
+        for field in ("password_1", "password_2"):
+            password = data.get(field)
+            if password and len(password) < self.PASSWORDS_MIN_LEN:
+                err_message = "Password's length is not enough"
+                errors[field] = f"Passwords len must be at least {self.PASSWORDS_MIN_LEN} symbols"
+            elif not password and self.PASSWORDS_REQUIRED:
+                err_message = "Password is required"
+                errors[field] = err_message
 
-        if password_1 != password_2:
+        if errors:
+            raise ValidationError(err_message, data=errors)
+
+        if data.get("password_1") != data.get("password_2"):
             msg = "Passwords must be equal"
             raise ValidationError(msg, data={"password_1": msg, "password_2": msg})
 
@@ -90,6 +100,6 @@ class UserResponseSchema(Schema):
 
 
 class UserPatchRequestSchema(TwoPasswordsMixin, Schema):
-    PASSWORDS_IS_REQUIRED = False  # password is not required for user's patch logic
+    PASSWORDS_REQUIRED = False  # password is not required for user's patch logic
 
     email = fields.Email()
