@@ -163,9 +163,8 @@ class CookieCreateUpdateSchema(Schema):
 
 class CookieResponseSchema(Schema):
     id = fields.Int()
-    source_type = fields.Str()
-    created_at = fields.DateTime()
-    updated_at = fields.DateTime()
+    source_type = fields.Str(data_key="sourceType")
+    created_at = fields.DateTime(data_key="createdAt")
 
 
 class WSProgressRequestSchema(WSRequestAuthSchema):
