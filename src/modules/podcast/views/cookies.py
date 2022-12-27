@@ -5,7 +5,7 @@ from starlette.responses import Response
 from common.utils import get_logger
 from common.request import PRequest
 from common.views import BaseHTTPEndpoint
-from common.exceptions import PermissionDeniedError
+from common.exceptions import PermissionDeniedError, InvalidRequestError
 from modules.podcast.models import Cookie, Episode
 from modules.podcast.schemas import CookieResponseSchema, CookieCreateUpdateSchema
 
@@ -17,7 +17,12 @@ class BaseCookieAPIView(BaseHTTPEndpoint):
 
     async def _validate(self, request: PRequest, *_) -> dict:
         cleaned_data = await super()._validate(request, location="form")
-        cleaned_data["data"] = (await cleaned_data.pop("file").read()).decode()
+        file_content = (await cleaned_data.pop("file").read())
+        try:
+            cleaned_data["data"] = file_content.decode()
+        except UnicodeDecodeError as exc:
+            raise InvalidRequestError({"file": f"Unexpected cookie's file content: {exc}"})
+
         return cleaned_data
 
 
@@ -28,8 +33,23 @@ class CookieListCreateAPIView(BaseCookieAPIView):
     schema_request = CookieCreateUpdateSchema
 
     async def get(self, request: PRequest) -> Response:
-        cookies = await Cookie.async_filter(self.db_session, owner_id=request.user.id)
-        return self._response(cookies)
+        cookies_query = (
+            Cookie.with_entities(
+                Cookie.id,
+                Cookie.source_type.distinct(),
+                Cookie.created_at
+            )
+            .filter(
+                Cookie.owner_id == request.user.id
+            )
+            .order_by(
+                Cookie.source_type,
+                Cookie.created_at.desc(),
+            )
+        )
+        print(cookies_query)
+        cookies = await self.db_session.execute(cookies_query)
+        return self._response(cookies.scalar())
 
     async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request)
@@ -39,7 +59,7 @@ class CookieListCreateAPIView(BaseCookieAPIView):
         return self._response(cookie, status_code=status.HTTP_201_CREATED)
 
 
-class CookieRDAPIView(BaseCookieAPIView):
+class CookieRUDAPIView(BaseCookieAPIView):
     """Retrieve, Update, Delete API for cookies"""
 
     db_model = Cookie

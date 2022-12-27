@@ -27,9 +27,8 @@ INVALID_CREATE_DATA = [
 def _cookie(cookie):
     return {
         "id": cookie.id,
-        "source_type": cookie.source_type.value,
-        "created_at": cookie.created_at.isoformat(),
-        "updated_at": cookie.updated_at.isoformat(),
+        "sourceType": cookie.source_type.value,
+        "createdAt": cookie.created_at.isoformat(),
     }
 
 
@@ -45,6 +44,23 @@ class TestCookieListCreateAPIView(BaseTestAPIView):
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
         assert response_data == [_cookie(cookie)]
+
+    def test_get_list__unique_results__ok(self, dbs, client, user):
+        cd = {
+            "data": "Cookie at netscape format\n",
+            "owner_id": user.id,
+        }
+        await_(Cookie.async_create(dbs, source_type=SourceType.YANDEX, **cd))
+        await_(Cookie.async_create(dbs, source_type=SourceType.YANDEX, **cd))
+        await_(Cookie.async_create(dbs, source_type=SourceType.YOUTUBE, **cd))
+        cookie_youtube_2 = await_(Cookie.async_create(dbs, source_type=SourceType.YOUTUBE, **cd))
+        cookie_yandex_3 = await_(Cookie.async_create(dbs, source_type=SourceType.YOUTUBE, **cd))
+        await_(dbs.commit())
+
+        client.login(user)
+        response = client.get(self.url)
+        response_data = self.assert_ok_response(response)
+        assert response_data == [_cookie(cookie_yandex_3), _cookie(cookie_youtube_2)]
 
     def test_create__ok(self, client, user, dbs):
         cookie_data = {"source_type": SourceType.YANDEX}
