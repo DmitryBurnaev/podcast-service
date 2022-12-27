@@ -18,15 +18,21 @@ class ModelMixin:
         order_by = ("id",)
 
     @classmethod
-    def prepare_query(cls, limit: int = None, offset: int = None, **filter_kwargs) -> Select:
-        order_by = []
-        for field in cls.Meta.order_by:
+    def prepare_query(
+        cls,
+        limit: int | None = None,
+        offset: int | None = None,
+        order_by: tuple | None = None,
+        **filter_kwargs
+    ) -> Select:
+        order_by_fields = []
+        for field in order_by or cls.Meta.order_by:
             if field.startswith("-"):
-                order_by.append(getattr(cls, field.replace("-", "")).desc())
+                order_by_fields.append(getattr(cls, field.replace("-", "")).desc())
             else:
-                order_by.append(getattr(cls, field))
+                order_by_fields.append(getattr(cls, field))
 
-        query = select(cls).filter(cls._filter_criteria(filter_kwargs)).order_by(*order_by)
+        query = select(cls).filter(cls._filter_criteria(filter_kwargs)).order_by(*order_by_fields)
         if limit is not None:
             query = query.limit(limit)
         if offset is not None:

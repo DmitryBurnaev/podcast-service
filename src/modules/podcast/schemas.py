@@ -1,8 +1,11 @@
-from marshmallow import Schema
 from webargs import fields, validate
+from starlette.datastructures import UploadFile
+from marshmallow import Schema, validates, ValidationError
 
 from core import settings
 from common.schemas import WSRequestAuthSchema
+from common.enums import SourceType, EpisodeStatus
+from modules.media.schemas import MetaDataSchema, CoverSchema
 
 __all__ = [
     "PodcastDetailsSchema",
@@ -22,9 +25,6 @@ __all__ = [
     "EpisodeUploadedSchema",
     "WSProgressRequestSchema",
 ]
-
-from common.enums import SourceType, EpisodeStatus
-from modules.media.schemas import MetaDataSchema, CoverSchema
 
 
 class BaseLimitOffsetSchema(Schema):
@@ -159,6 +159,11 @@ class ProgressResponseSchema(Schema):
 class CookieCreateUpdateSchema(Schema):
     source_type = fields.Str(required=True, validate=validate.OneOf(SourceType.__members__.keys()))
     file = fields.Raw(required=True, metadata={"type": "file"})
+
+    @validates("file")
+    def file_validator(self, value):
+        if not isinstance(value, UploadFile):
+            raise ValidationError(f"Required file's type here, found; {type(value)}")
 
 
 class CookieResponseSchema(Schema):

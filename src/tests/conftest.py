@@ -257,9 +257,9 @@ def cookie(user, dbs) -> Cookie:
         "data": "Cookie at netscape format\n",
         "owner_id": user.id,
     }
-    podcast = await_(Cookie.async_create(dbs, **cookie_data))
+    cookie = await_(Cookie.async_create(dbs, **cookie_data))
     await_(dbs.commit())
-    return podcast
+    return cookie
 
 
 @pytest.fixture
