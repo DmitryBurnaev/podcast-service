@@ -61,7 +61,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
         res = {"id": source_data["id"], "title": source_data["title"], "entries": entries}
         return self._response(res)
 
-    async def _fetch_cookie(self, request: PRequest, source_type: SourceType) -> Cookie:
+    async def _fetch_cookie(self, request: PRequest, source_type: SourceType) -> Cookie | None:
         cookie = await Cookie.async_get(
             self.db_session,
             source_type=source_type,
