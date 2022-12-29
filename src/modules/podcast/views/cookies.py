@@ -1,4 +1,4 @@
-from sqlalchemy import exists
+from sqlalchemy import exists, select
 from starlette import status
 from starlette.responses import Response
 
@@ -34,19 +34,35 @@ class CookieListCreateAPIView(BaseCookieAPIView):
 
     async def get(self, request: PRequest) -> Response:
         cookies_query = (
-            Cookie.with_entities(
-                Cookie.id,
-                Cookie.source_type.distinct(),
-                Cookie.created_at
-            )
-            .filter(
-                Cookie.owner_id == request.user.id
-            )
-            .order_by(
-                Cookie.source_type,
-                Cookie.created_at.desc(),
-            )
+            # TODO: fix distinct on field
+            select(Cookie.id, Cookie.source_type.distinct(Cookie.source_type), Cookie.created_at)
+            .filter(Cookie.owner_id == request.user.id)
+            .order_by(Cookie.source_type, Cookie.created_at.desc())
         )
+        # cookies_query = Cookie.prepare_query(
+        #     owner_id=request.user.id,
+        #     order_by=("source_type", "-created_at")
+        # )
+        # cookies_query = cookies_query.with_entities(
+        #     Cookie.id,
+        #     Cookie.source_type.distinct(),
+        #     Cookie.created_at
+        # )
+
+        # cookies_query = (
+        #     Cookie.query.with_entities(
+        #         Cookie.id,
+        #         Cookie.source_type.distinct(),
+        #         Cookie.created_at
+        #     )
+        #     .filter(
+        #         Cookie.owner_id == request.user.id
+        #     )
+        #     .order_by(
+        #         Cookie.source_type,
+        #         Cookie.created_at.desc(),
+        #     )
+        # )
         print(cookies_query)
         cookies = await self.db_session.execute(cookies_query)
         return self._response(cookies.scalar())
