@@ -35,10 +35,12 @@ class CookieListCreateAPIView(BaseCookieAPIView):
     async def get(self, request: PRequest) -> Response:
         cookies_query = (
             # TODO: fix distinct on field
-            select(Cookie.id, Cookie.source_type.distinct(Cookie.source_type), Cookie.created_at)
+            select(Cookie.id, Cookie.created_at, Cookie.source_type)
             .filter(Cookie.owner_id == request.user.id)
             .order_by(Cookie.source_type, Cookie.created_at.desc())
+            .distinct(Cookie.source_type)
         )
+        # cookies_query
         # cookies_query = Cookie.prepare_query(
         #     owner_id=request.user.id,
         #     order_by=("source_type", "-created_at")
