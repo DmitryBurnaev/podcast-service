@@ -53,14 +53,14 @@ class TestCookieListCreateAPIView(BaseTestAPIView):
         await_(Cookie.async_create(dbs, source_type=SourceType.YANDEX, **cd))
         await_(Cookie.async_create(dbs, source_type=SourceType.YANDEX, **cd))
         await_(Cookie.async_create(dbs, source_type=SourceType.YOUTUBE, **cd))
-        cookie_youtube_2 = await_(Cookie.async_create(dbs, source_type=SourceType.YOUTUBE, **cd))
-        cookie_yandex_3 = await_(Cookie.async_create(dbs, source_type=SourceType.YOUTUBE, **cd))
+        last_cookie_youtube = await_(Cookie.async_create(dbs, source_type=SourceType.YOUTUBE, **cd))
+        last_cookie_yandex = await_(Cookie.async_create(dbs, source_type=SourceType.YANDEX, **cd))
         await_(dbs.commit())
 
         client.login(user)
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
-        assert response_data == [_cookie(cookie_yandex_3), _cookie(cookie_youtube_2)]
+        assert response_data == [_cookie(last_cookie_yandex), _cookie(last_cookie_youtube)]
 
     def test_create__ok(self, client, user, dbs):
         cookie_data = {"source_type": SourceType.YANDEX}

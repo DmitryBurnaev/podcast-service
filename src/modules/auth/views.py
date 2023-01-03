@@ -380,8 +380,8 @@ class ProfileApiView(BaseHTTPEndpoint):
         if cleaned_data["email"] and request.user.email != cleaned_data["email"]:
             update_data["email"] = cleaned_data["email"]
 
-        if cleaned_data["password_1"]:
-            update_data["password"] = User.make_password(cleaned_data["password_1"])
+        if password := cleaned_data.get("password_1"):
+            update_data["password"] = User.make_password(password)
 
         return update_data
 
