@@ -1,14 +1,12 @@
-import base64
 import json
 import uuid
-from typing import Type
+import base64
 from uuid import UUID
 from datetime import datetime, timedelta
 
-from marshmallow import Schema
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from starlette.responses import Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import settings
 from common.request import PRequest
@@ -21,10 +19,10 @@ from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
 from modules.auth.utils import (
     encode_jwt,
+    register_ip,
     TokenCollection,
     TOKEN_TYPE_REFRESH,
     TOKEN_TYPE_RESET_PASSWORD,
-    register_ip,
 )
 from modules.auth.schemas import (
     SignInSchema,
@@ -373,7 +371,7 @@ class ProfileApiView(BaseHTTPEndpoint):
             await self.db_session.refresh(request.user)
         return self._response(request.user)
 
-    async def _validate(self, request, schema: Type[Schema] = None, **kwargs) -> dict:
+    async def _validate(self, request, *_) -> dict:
         cleaned_data = await super()._validate(request)
         update_data = {}
 
@@ -384,4 +382,3 @@ class ProfileApiView(BaseHTTPEndpoint):
             update_data["password"] = User.make_password(password)
 
         return update_data
-
