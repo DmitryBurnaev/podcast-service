@@ -23,7 +23,7 @@ class ModelMixin:
         limit: int | None = None,
         offset: int | None = None,
         order_by: tuple | None = None,
-        **filter_kwargs
+        **filter_kwargs,
     ) -> Select:
         order_by_fields = []
         for field in order_by or cls.Meta.order_by:
@@ -61,7 +61,7 @@ class ModelMixin:
         db_session: AsyncSession,
         filter_kwargs: dict,
         update_data: dict,
-        db_commit: bool = False
+        db_commit: bool = False,
     ):
         if not update_data:
             raise DBError("No data for update instances detected!")
@@ -99,10 +99,7 @@ class ModelMixin:
             update_data["updated_at"] = datetime.datetime.utcnow()
 
         await self.async_update(
-            db_session,
-            filter_kwargs={"id": self.id},
-            update_data=update_data,
-            db_commit=db_commit
+            db_session, filter_kwargs={"id": self.id}, update_data=update_data, db_commit=db_commit
         )
 
     async def delete(self, db_session: AsyncSession, db_flush: bool = True):

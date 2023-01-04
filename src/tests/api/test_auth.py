@@ -39,9 +39,16 @@ INVALID_SIGN_UP_DATA = [
         {},
         {
             "email": "Missing data for required field.",
-            "password_1": "Missing data for required field.",
-            "password_2": "Missing data for required field.",
             "invite_token": "Missing data for required field.",
+        },
+    ],
+    [
+        {
+            "email": "test@test.com",
+            "invite_token": uuid.uuid4().hex,
+        },
+        {
+            "password_1": "Password is required",
         },
     ],
     [
@@ -56,8 +63,8 @@ INVALID_SIGN_UP_DATA = [
         {
             "email": "test@test.com",
             "invite_token": uuid.uuid4().hex,
-            "password_1": "Head",
-            "password_2": "Foo",
+            "password_1": "Header",
+            "password_2": "Footer",
         },
         {"password_1": "Passwords must be equal", "password_2": "Passwords must be equal"},
     ],
@@ -71,7 +78,7 @@ INVALID_INVITE_DATA = [
     [{}, {"email": "Missing data for required field."}],
 ]
 INVALID_CHANGE_PASSWORD_DATA = [
-    [{"password_1": "123456", "token": "t"}, {"password_2": "Missing data for required field."}],
+    [{"password_1": "123456", "token": "t"}, {"password_2": "Password is required"}],
     [{"password_1": "foo", "password_2": "foo"}, {"token": "Missing data for required field."}],
     [
         {"password_1": "header", "password_2": "footer", "token": "t"},

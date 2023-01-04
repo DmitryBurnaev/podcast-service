@@ -17,11 +17,11 @@ class BaseCookieAPIView(BaseHTTPEndpoint):
 
     async def _validate(self, request: PRequest, *_) -> dict:
         cleaned_data = await super()._validate(request, location="form")
-        file_content = (await cleaned_data.pop("file").read())
+        file_content = await cleaned_data.pop("file").read()
         try:
             cleaned_data["data"] = file_content.decode()
         except UnicodeDecodeError as exc:
-            raise InvalidRequestError({"file": f"Unexpected cookie's file content: {exc}"})
+            raise InvalidRequestError({"file": f"Unexpected cookie's file content: {exc}"}) from exc
 
         return cleaned_data
 

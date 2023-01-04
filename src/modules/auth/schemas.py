@@ -10,6 +10,7 @@ __all__ = [
     "UserResponseSchema",
     "RefreshTokenSchema",
     "ChangePasswordSchema",
+    "UserPatchRequestSchema",
     "UserInviteRequestSchema",
     "UserInviteResponseSchema",
     "ResetPasswordRequestSchema",
