@@ -94,7 +94,7 @@ def extract_source_info(source_url: str | None = None, playlist: bool = False) -
         random_hash = get_random_hash(size=6)
         return SourceInfo(id=f"U-{random_hash}", type=SourceType.UPLOAD)
 
-    for source_cfg in SOURCE_CFG_MAP.values():
+    for _, source_cfg in SOURCE_CFG_MAP.items():
         regexp = source_cfg.regexp if not playlist else source_cfg.regexp_playlist
         if match := (re.match(regexp, source_url) if source_cfg.regexp else None):
             if source_id := match.groupdict().get("source_id"):
@@ -252,8 +252,8 @@ def ffmpeg_preparation(
 
 
 class AudioMetaData(NamedTuple):
-    title: str
-    duration: int
+    title: str | None = None
+    duration: int | None = None
     track: str | None = None
     album: str | None = None
     author: str | None = None

@@ -33,10 +33,10 @@ class CoverSchema(Schema):
 
 class MetaDataSchema(Schema):
     duration = fields.Int(required=True)
-    title = fields.Str()
-    author = fields.Str()
-    album = fields.Str()
-    track = fields.Str()
+    title = fields.Str(allow_none=True)
+    author = fields.Str(allow_none=True)
+    album = fields.Str(allow_none=True)
+    track = fields.Str(allow_none=True)
 
 
 class AudioFileResponseSchema(Schema):

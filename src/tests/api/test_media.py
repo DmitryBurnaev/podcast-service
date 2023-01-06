@@ -246,6 +246,7 @@ class TestFileURL:
 class TestUploadAudioAPIView(BaseTestAPIView):
     url = "/api/media/upload/audio/"
 
+    @pytest.mark.parametrize("metadata", ("full", "empty"))
     def test_upload__ok(
         self,
         client,
@@ -253,14 +254,19 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         mocked_s3,
         tmp_file,
         mocked_audio_metadata,
+        metadata,
     ):
-        audio_metadata = {
-            "duration": 90,
-            "author": "Test Author",
-            "title": f"Test Title {uuid.uuid4().hex}",
-            "album": f"Album #{uuid.uuid4().hex}",
-            "track": "01",
-        }
+        if metadata == "full":
+            audio_metadata = {
+                "duration": 90,
+                "author": "Test Author",
+                "title": f"Test Title {uuid.uuid4().hex}",
+                "album": f"Album #{uuid.uuid4().hex}",
+                "track": "01",
+            }
+        else:
+            audio_metadata = {}
+
         remote_tmp_path = f"remote/tmp/{uuid.uuid4().hex}.mp3"
 
         mocked_audio_metadata.return_value = AudioMetaData(**audio_metadata)
@@ -275,17 +281,23 @@ class TestUploadAudioAPIView(BaseTestAPIView):
                 {
                     "filename": os.path.basename(tmp_file.name),
                     "filesize": tmp_file.size,
-                    "title": audio_metadata["title"],
-                    "duration": audio_metadata["duration"],
-                    "track": audio_metadata["track"],
-                    "album": audio_metadata["album"],
-                    "author": audio_metadata["author"],
+                    "title": audio_metadata.get("title"),
+                    "duration": audio_metadata.get("duration"),
+                    "track": audio_metadata.get("track"),
+                    "album": audio_metadata.get("album"),
+                    "author": audio_metadata.get("author"),
                 }
             ).encode()
         ).hexdigest()
 
         assert response_data["name"] == os.path.basename(tmp_file.name)
-        assert response_data["meta"] == audio_metadata
+        assert response_data["meta"] == {
+            "title": audio_metadata.get("title"),
+            "duration": audio_metadata.get("duration"),
+            "track": audio_metadata.get("track"),
+            "album": audio_metadata.get("album"),
+            "author": audio_metadata.get("author"),
+        }
         assert response_data["path"] == remote_tmp_path
         assert response_data["size"] == tmp_file.size
         assert response_data["hash"] == result_hash

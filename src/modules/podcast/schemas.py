@@ -81,7 +81,7 @@ class EpisodeUploadedSchema(Schema):
     size = fields.Int(required=True)
     hash = fields.Str(required=True, validate=validate.Length(max=32))
     meta = fields.Nested(MetaDataSchema)
-    cover = fields.Nested(CoverSchema)
+    cover = fields.Nested(CoverSchema, allow_none=True)
 
 
 class EpisodeListSchema(Schema):
