@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import Mock, AsyncMock
 
 import rq
+import httpx
 from yt_dlp import YoutubeDL
 
 from common.enums import SourceType
@@ -182,3 +183,7 @@ class MockAuthBackend(BaseMock):
 
     def __init__(self):
         self.authenticate = AsyncMock(return_value=None)
+
+
+class MockHTTPXClient(BaseMock):
+    target_class = httpx.AsyncClient

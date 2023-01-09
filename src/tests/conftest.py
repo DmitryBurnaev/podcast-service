@@ -40,6 +40,7 @@ from tests.mocks import (
     MockArgumentParser,
     MockProcess,
     MockAuthBackend,
+    MockHTTPXClient,
 )
 
 
@@ -165,6 +166,11 @@ def mocked_process(monkeypatch) -> MockProcess:
 @pytest.fixture
 def mocked_auth_backend(monkeypatch) -> MockAuthBackend:
     yield from mock_target_class(MockAuthBackend, monkeypatch)
+
+
+@pytest.fixture
+def mocked_httpx_client(monkeypatch) -> MockHTTPXClient:
+    yield from mock_target_class(MockHTTPXClient, monkeypatch)
 
 
 @pytest.fixture
