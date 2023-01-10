@@ -1,3 +1,4 @@
+import dataclasses
 import multiprocessing
 import os
 import shutil
@@ -187,3 +188,16 @@ class MockAuthBackend(BaseMock):
 
 class MockHTTPXClient(BaseMock):
     target_class = httpx.AsyncClient
+
+    @dataclasses.dataclass
+    class Response:
+        status_code: int
+        data: dict
+
+        def json(self):
+            return self.data
+
+    def __init__(self):
+        self.__aenter__ = AsyncMock(return_value=self)
+        self.__aexit__ = AsyncMock()
+        self.post = AsyncMock()
