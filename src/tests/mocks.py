@@ -199,5 +199,10 @@ class MockHTTPXClient(BaseMock):
 
     def __init__(self):
         self.__aenter__ = AsyncMock(return_value=self)
-        self.__aexit__ = AsyncMock()
+        self.__aexit__ = AsyncMock(side_effect=self._process_exit)
         self.post = AsyncMock()
+
+    @staticmethod
+    async def _process_exit(exc_type, exc_val, exc_tb):
+        if exc_val:
+            raise exc_val
