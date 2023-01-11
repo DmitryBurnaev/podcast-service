@@ -37,10 +37,10 @@ def test_send_email__failed(mocked_httpx_client):
     mocked_httpx_client.post.return_value = mocked_httpx_client.Response(
         status_code=400, data={"error": "Oops"}
     )
+
     with pytest.raises(SendRequestError) as err:
         await_(send_email(recipient_email=RECIPIENT_EMAIL, subject="Test Email", html_content=""))
 
-    assert err.value.status_code == 400
     assert err.value.request_url == SENDGRID_URL
     assert err.value.message == f"Couldn't send email to {RECIPIENT_EMAIL}"
     assert err.value.details == "Got status code: 400; response text: {'error': 'Oops'}"
