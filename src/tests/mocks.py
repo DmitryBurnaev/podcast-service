@@ -197,10 +197,15 @@ class MockHTTPXClient(BaseMock):
         def json(self):
             return self.data
 
+        @property
+        def content(self) -> bytes:
+            return str(self.data).encode("utf-8")
+
     def __init__(self):
         self.__aenter__ = AsyncMock(return_value=self)
         self.__aexit__ = AsyncMock(side_effect=self._process_exit)
         self.post = AsyncMock()
+        self.get = AsyncMock()
 
     @staticmethod
     async def _process_exit(exc_type, exc_val, exc_tb):

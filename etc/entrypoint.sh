@@ -15,7 +15,7 @@ elif [ "${APP_SERVICE}" = "test" ]
   then
     cd /podcast &&
     PYTHONPATH=$(pwd)/src pylint src/ && \
-    PYTHONPATH=$(pwd)/src coverage run --concurrency=thread,greenlet -m pytest && \
+    PYTHONPATH=$(pwd)/src coverage run -m pytest && \
     coverage report
 
 elif [ "${APP_SERVICE}" = "migrate_db" ]
