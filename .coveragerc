@@ -6,6 +6,9 @@ omit =
     src/tests/*
     src/asgi.py
     src/worker.py
+concurrency =
+    thread
+    greenlet
 
 [report]
 omit =
@@ -14,3 +17,4 @@ omit =
     src/tests/*
     src/asgi.py
     src/worker.py
+
