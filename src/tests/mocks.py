@@ -192,14 +192,18 @@ class MockHTTPXClient(BaseMock):
     @dataclasses.dataclass
     class Response:
         status_code: int
-        data: dict
+        data: dict | None
 
         def json(self):
             return self.data
 
         @property
         def content(self) -> bytes:
-            return str(self.data).encode("utf-8")
+            return str(self.data).encode("utf-8") if self.data else None
+
+        @property
+        def text(self) -> str:
+            return str(self.json())
 
     def __init__(self):
         self.__aenter__ = AsyncMock(return_value=self)
