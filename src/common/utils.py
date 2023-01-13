@@ -118,19 +118,25 @@ def cut_string(source_string: str, max_length: int, finish_seq: str = "...") -> 
     return source_string
 
 
-async def download_content(url: str, file_ext: str, retries: int = 5) -> Path | None:
+async def download_content(
+    url: str,
+    file_ext: str,
+    retries: int = 5,
+    sleep_retry: float = 0.1
+) -> Path | None:
     """Allows fetching content from url"""
 
     logger = get_logger(__name__)
     logger.debug("Send request to %s", url)
     result_content = None
+    retries += 1
     while retries := (retries - 1):
         async with httpx.AsyncClient() as client:
-            await asyncio.sleep(0.1)
             try:
                 response = await client.get(url, timeout=600)
             except Exception as exc:
                 logger.warning("Couldn't download %s! Error: %r", url, exc)
+                await asyncio.sleep(sleep_retry)
                 continue
 
             if response.status_code == status.HTTP_404_NOT_FOUND:
@@ -143,9 +149,11 @@ async def download_content(url: str, file_ext: str, retries: int = 5) -> Path | 
                     response.status_code,
                     response.text,
                 )
+                await asyncio.sleep(sleep_retry)
                 continue
 
             result_content = response.content
+            break
 
     if not result_content:
         raise NotFoundError(f"Couldn't download url {url} after {retries} retries.")
