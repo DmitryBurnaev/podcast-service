@@ -69,15 +69,25 @@ class RedisClient:
         Allows to get several values from redis for 1 request
         :param keys: any iterable object with needed keys
         :param pkey: key in each record for grouping by it
+
         :return: dict with keys (given from stored records by `pkey`)
 
+        input from redis: ['{"event_key": "episode-1", "data": {"key": 1}}', ...]
+        >>> await RedisClient().async_get_many(["episode-1"], pkey="event_key")
+        {"episode-1": {"event_key": "episode-1", "data": {"key": 1}}, ...}
+
         """
-        stored_items = map(json.loads, [item for item in await self.async_redis.mget(keys) if item])
+        stored_items = [json.loads(item) for item in await self.async_redis.mget(keys) if item]
+        # stored_items = (json.loads(item) for item in await self.async_redis.mget(keys) if item)
         try:
-            result = {stored_item[pkey]: stored_item for stored_item in stored_items}
-        except (TypeError, KeyError) as exc:
             logger.debug("Try to extract redis data: %s", list(stored_items))
-            logger.exception("Couldn't extract event data from redis: %s", exc)
+            result = {
+                stored_item[pkey]: stored_item
+                for stored_item in stored_items
+                if pkey in stored_item
+            }
+        except TypeError as exc:
+            logger.exception("Couldn't extract event data from redis: %r", exc)
             result = {}
 
         return result
