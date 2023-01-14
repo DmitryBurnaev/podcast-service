@@ -52,7 +52,7 @@ def _redis_key(filename: str) -> str:
 class TestProgressAPIView(BaseTestWSAPI):
     url = "/ws/progress/"
 
-    def test_no_items(self, client, user_session):
+    def test_no_items(self, client, user_session, mocked_redis):
         response = self._ws_request(client, user_session)
         assert response == {"progressItems": []}
 

@@ -55,15 +55,12 @@ def test_download_content__not_success_response(mocked_httpx_client):
             await_(download_content(url=TEST_FILE_URL, file_ext="jpg", retries=2, sleep_retry=0))
 
     mocked_logger.assert_called_with(
-        "Couldn't download %s | status: %s | response: %s",
-        TEST_FILE_URL, 400, "{'error': 'Oops'}"
+        "Couldn't download %s | status: %s | response: %s", TEST_FILE_URL, 400, "{'error': 'Oops'}"
     )
     assert mocked_logger.call_count == 2
 
 
 def test_download_content__missed_content(mocked_httpx_client):
-    mocked_httpx_client.get.return_value = mocked_httpx_client.Response(
-        status_code=200, data=None
-    )
+    mocked_httpx_client.get.return_value = mocked_httpx_client.Response(status_code=200, data=None)
     with pytest.raises(NotFoundError) as mocked_exception:
         await_(download_content(url=TEST_FILE_URL, file_ext="jpg", retries=1))

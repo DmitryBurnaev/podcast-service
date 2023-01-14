@@ -119,10 +119,7 @@ def cut_string(source_string: str, max_length: int, finish_seq: str = "...") -> 
 
 
 async def download_content(
-    url: str,
-    file_ext: str,
-    retries: int = 5,
-    sleep_retry: float = 0.1
+    url: str, file_ext: str, retries: int = 5, sleep_retry: float = 0.1
 ) -> Path | None:
     """Allows fetching content from url"""
 

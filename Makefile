@@ -37,6 +37,5 @@ lint:
 	make clean-pyc
 
 test:
-	cd src && \
-		pipenv run coverage run --concurrency=thread,greenlet -m pytest && \
-		pipenv run coverage report
+	PYTHONPATH=./src pipenv run coverage run -m pytest && \
+	PYTHONPATH=./src pipenv run coverage report

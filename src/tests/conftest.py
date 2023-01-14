@@ -128,7 +128,7 @@ def mocked_youtube(monkeypatch) -> MockYoutubeDL:
     yield from mock_target_class(MockYoutubeDL, monkeypatch)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mocked_redis(monkeypatch) -> MockRedisClient:
     yield from mock_target_class(MockRedisClient, monkeypatch)
 
