@@ -8,6 +8,7 @@ from redis import asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.websockets import WebSocket
 
+from common.redis import RedisClient
 from core import settings
 from common.views import BaseWSEndpoint
 from modules.podcast.models import Podcast, Episode
@@ -35,8 +36,8 @@ class ProgressWS(BaseWSEndpoint):
         await websocket.send_json({"progressItems": progress_items})
 
     async def _pubsub(self, websocket: WebSocket):
-        redis = aioredis.Redis(**settings.REDIS)
-        psub = redis.pubsub()
+        redis_client = RedisClient()
+        pubsub = redis_client.async_pubsub()
 
         async def reader(channel: aioredis.client.PubSub):
             while True:
@@ -63,13 +64,13 @@ class ProgressWS(BaseWSEndpoint):
                     logger.debug("Background task was cancelled!")
                     break
 
-        async with psub as psub_channel:
+        async with pubsub as psub_channel:
             await psub_channel.subscribe(settings.REDIS_PROGRESS_PUBSUB_CH)
             await reader(psub_channel)  # wait for reader to complete
             await psub_channel.unsubscribe(settings.REDIS_PROGRESS_PUBSUB_CH)
 
         # closing all open connections
-        await psub.close()
+        await pubsub.close()
 
     async def _get_progress_items(
         self, db_session: AsyncSession, episode_id: int | None = None

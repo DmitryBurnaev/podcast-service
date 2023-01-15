@@ -109,6 +109,12 @@ class MockYoutubeDL(BaseMock):
 class MockRedisClient(BaseMock):
     target_class = RedisClient
 
+    class PubSubClient:
+        def __init__(self):
+            self.__aenter__ = AsyncMock()
+            self.__aexit__ = AsyncMock()
+            self.get_message = AsyncMock()
+
     def __init__(self, content=None):
         self._content = content or {}
         self.set = Mock()
@@ -118,6 +124,7 @@ class MockRedisClient(BaseMock):
         self.async_get = AsyncMock(return_value=None)
         self.async_get_many = AsyncMock(side_effect=lambda *_, **__: self._content)
         self.async_publish = AsyncMock()
+        self.async_pubsub = Mock(return_value=self.PubSubClient())
 
 
 class MockS3Client(BaseMock):

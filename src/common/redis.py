@@ -53,16 +53,20 @@ class RedisClient:
         self.sync_redis.publish(channel, message)
 
     async def async_set(self, key: str, value: JSONT, ttl: int = 120) -> None:
-        logger.debug("Redis > Setting value by key %s", key)
+        logger.debug("AsyncRedis > Setting value by key %s", key)
         await self.async_redis.set(key, json.dumps(value), ttl)
 
     async def async_get(self, key: str) -> JSONT:
-        logger.debug("Redis > Getting value by key %s", key)
+        logger.debug("AsyncRedis > Getting value by key %s", key)
         return json.loads(await self.async_redis.get(key) or "null")
 
     async def async_publish(self, channel: str, message: str) -> None:
-        logger.debug("Redis > Publishing message %s to channel %s ", message, channel)
+        logger.debug("AsyncRedis > Publishing message %s to channel %s ", message, channel)
         await self.async_redis.publish(channel, message)
+
+    def async_pubsub(self, **kwargs) -> aioredis.client.PubSub:
+        logger.debug("AsyncRedis > PubSub with kwargs %s", kwargs)
+        return self.async_redis.pubsub(**kwargs)
 
     async def async_get_many(self, keys: Iterable[str], pkey: str) -> dict:
         """
