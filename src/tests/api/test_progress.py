@@ -1,5 +1,6 @@
 import pytest
 
+from core import settings
 from modules.podcast.models import Podcast, Episode
 from common.enums import EpisodeStatus
 from tests.api.test_base import BaseTestWSAPI
@@ -167,19 +168,20 @@ class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
         ]
 
     def test_single_episode__pubsub_ok(self, client, user, user_session, podcast, mocked_redis, dbs):
+        mocked_redis.pubsub_channel.get_message.return_value = settings.REDIS_PROGRESS_PUBSUB_SIGNAL
+
         ep_data_1 = get_episode_data(creator=user)
         episode_1 = create_episode(dbs, ep_data_1, podcast, STATUS.DOWNLOADING, MB_2)
         await_(dbs.commit())
 
-        mocked_redis.async_get_many.side_effect = lambda *_, **__: (
-            {
-                _redis_key(episode_1.audio_filename): {
-                    "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
-                    "processed_bytes": MB_1,
-                    "total_bytes": MB_2,
-                },
-            }
-        )
+        mocked_redis.async_get_many.side_effect = lambda *_, **__: {
+            _redis_key(episode_1.audio_filename): {
+                "status": EpisodeStatus.DL_EPISODE_DOWNLOADING,
+                "processed_bytes": MB_1,
+                "total_bytes": MB_2,
+            },
+        }
+
         response_data = self._ws_request(client, user_session, data={"episodeID": episode_1.id})
         progress_items = response_data["progressItems"]
         assert progress_items == [

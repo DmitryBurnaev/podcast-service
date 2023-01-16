@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from json import JSONDecodeError
 from typing import cast, Iterable
 
 import async_timeout
@@ -51,12 +50,6 @@ class ProgressWS(BaseWSEndpoint):
 
                         await asyncio.sleep(0.01)
 
-                except JSONDecodeError as exc:
-                    logger.exception(
-                        "Couldn't decode JSON body from pubsub channel: msg: %s | err %r",
-                        message,
-                        exc,
-                    )
                 except asyncio.TimeoutError:
                     logger.error("Couldn't read message from redis pubsub channel: timeout")
 
