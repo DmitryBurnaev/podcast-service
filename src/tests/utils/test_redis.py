@@ -31,6 +31,7 @@ class MockAIORedis(BaseMock):
         self.mget = AsyncMock()
         self.publish = AsyncMock()
         self.mget = AsyncMock()
+        self.pubsub = Mock()
 
 
 @pytest.fixture
@@ -78,6 +79,13 @@ async def test_async_redis__set(m_aioredis):
 async def test_async_redis__publish(m_aioredis):
     await RedisClient().async_publish("test-channel", "test-message")
     m_aioredis.publish.assert_awaited_with("test-channel", "test-message")
+
+
+async def test_async_redis__pubsub(m_aioredis):
+    pubsub = RedisClient().async_pubsub()
+    assert pubsub is not None
+    assert False
+    m_aioredis.pubsub.assert_called_with()
 
 
 @pytest.mark.asyncio
