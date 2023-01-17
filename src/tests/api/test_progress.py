@@ -3,6 +3,7 @@ import pytest
 from core import settings
 from modules.podcast.models import Podcast, Episode
 from common.enums import EpisodeStatus
+from modules.podcast.views import ProgressWS
 from tests.api.test_base import BaseTestWSAPI
 from tests.helpers import (
     await_,
@@ -167,7 +168,9 @@ class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
             _episode_in_progress(podcast, episode_1, current_size=MB_1, completed=50.0),
         ]
 
-    def test_single_episode__pubsub_ok(self, client, user, user_session, podcast, mocked_redis, dbs):
+    def test_single_episode__pubsub_ok(
+        self, client, user, user_session, podcast, mocked_redis, dbs
+    ):
         mocked_redis.pubsub_channel.get_message.return_value = settings.REDIS_PROGRESS_PUBSUB_SIGNAL
 
         ep_data_1 = get_episode_data(creator=user)
@@ -181,7 +184,6 @@ class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
                 "total_bytes": MB_2,
             },
         }
-
         response_data = self._ws_request(client, user_session, data={"episodeID": episode_1.id})
         progress_items = response_data["progressItems"]
         assert progress_items == [
