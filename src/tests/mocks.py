@@ -111,11 +111,16 @@ class MockRedisClient(BaseMock):
 
     class PubSubChannel:
         def __init__(self):
-            self.__aenter__ = AsyncMock(return_value=self)
-            self.__aexit__ = AsyncMock()
             self.get_message = AsyncMock()
             self.subscribe = AsyncMock()
             self.unsubscribe = AsyncMock()
+            self.close = AsyncMock()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_, **__):
+            pass
 
     def __init__(self, content=None):
         self._content = content or {}

@@ -7,8 +7,8 @@ from redis import asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.websockets import WebSocket
 
-from common.redis import RedisClient
 from core import settings
+from common.redis import RedisClient
 from common.views import BaseWSEndpoint
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.utils import check_state
@@ -21,6 +21,7 @@ class ProgressWS(BaseWSEndpoint):
     """Provide updates for episodes progress (storage - Redis)"""
 
     request_schema = WSProgressRequestSchema
+    max_timeout_attempt = 3
 
     async def _background_handler(self, websocket: WebSocket):
         await self._send_progress_for_episodes(websocket)
@@ -34,11 +35,16 @@ class ProgressWS(BaseWSEndpoint):
 
         await websocket.send_json({"progressItems": progress_items})
 
+    @staticmethod
+    async def _send_error(websocket: WebSocket, error_message: str):
+        await websocket.send_json({"errorDetails": error_message})
+
     async def _pubsub(self, websocket: WebSocket):
         redis_client = RedisClient()
         pubsub = redis_client.async_pubsub()
 
         async def reader(channel: aioredis.client.PubSub):
+            current_error_attempt = 1
             while True:
                 try:
                     async with async_timeout.timeout(1):
@@ -52,6 +58,10 @@ class ProgressWS(BaseWSEndpoint):
 
                 except asyncio.TimeoutError:
                     logger.error("Couldn't read message from redis pubsub channel: timeout")
+                    current_error_attempt += 1
+                    if current_error_attempt > self.max_timeout_attempt:
+                        await self._send_error(websocket, "Couldn't retrieve progress message")
+                        break
 
                 if self.background_task.cancelled():
                     logger.debug("Background task was cancelled!")
