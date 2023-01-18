@@ -1,9 +1,11 @@
+import asyncio
+from unittest.mock import patch
+
 import pytest
 
 from core import settings
 from modules.podcast.models import Podcast, Episode
 from common.enums import EpisodeStatus
-from modules.podcast.views import ProgressWS
 from tests.api.test_base import BaseTestWSAPI
 from tests.helpers import (
     await_,
@@ -171,7 +173,9 @@ class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
     def test_single_episode__pubsub_ok(
         self, client, user, user_session, podcast, mocked_redis, dbs
     ):
-        mocked_redis.pubsub_channel.get_message.return_value = settings.REDIS_PROGRESS_PUBSUB_SIGNAL
+        mocked_redis.pubsub_channel.get_message.side_effect = {
+            "data": settings.REDIS_PROGRESS_PUBSUB_SIGNAL
+        }
 
         ep_data_1 = get_episode_data(creator=user)
         episode_1 = create_episode(dbs, ep_data_1, podcast, STATUS.DOWNLOADING, MB_2)
@@ -189,6 +193,22 @@ class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
         assert progress_items == [
             _episode_in_progress(podcast, episode_1, current_size=MB_1, completed=50.0),
         ]
+        mocked_redis.pubsub_channel.subscribe.assert_awaited_with(settings.REDIS_PROGRESS_PUBSUB_CH)
+
+    @patch("modules.podcast.views.progress.ProgressWS._send_progress_for_episodes")
+    def test_single_episode__pubsub_timeout(
+        self, _, client, user, user_session, podcast, mocked_redis, dbs
+    ):
+        mocked_redis.pubsub_channel.get_message.side_effect = asyncio.TimeoutError()
+
+        response_data = self._ws_request(client, user_session, data={"episodeID": 1})
+
+        assert response_data == {"errorDetails": "Couldn't retrieve progress message"}
+        mocked_redis.pubsub_channel.subscribe.assert_awaited_with(settings.REDIS_PROGRESS_PUBSUB_CH)
+        mocked_redis.pubsub_channel.unsubscribe.assert_awaited_with(
+            settings.REDIS_PROGRESS_PUBSUB_CH
+        )
+        mocked_redis.pubsub_channel.close.assert_awaited_once()
 
     @pytest.mark.parametrize(
         "episode_status, progress_status",
