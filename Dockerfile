@@ -1,6 +1,34 @@
-FROM python:3.11-slim-buster
+# download and extract ffmpeg
+ARG FFMPEG_VERSION=4.4.1
+
+FROM alpine:3.17 as download-ffmpeg
+WORKDIR /ffmpeg
+RUN apk add wget unzip \
+    && wget https://github.com/vot/ffbinaries-prebuilt/releases/download/v${FFMPEG_VERSION}/ffmpeg-${FFMPEG_VERSION}-linux-64.zip -q -O /tmp/ffmpeg-${FFMPEG_VERSION}-linux-64.zip \
+    && unzip /tmp/ffmpeg-${FFMPEG_VERSION}-linux-64.zip -d /ffmpeg \
+    && rm /tmp/ffmpeg-${FFMPEG_VERSION}-linux-64.zip \
+    && rm -rf /var/cache/apk/*
+
+
+# copy source code
+FROM alpine:3.17 as code-layer
 WORKDIR /podcast
+
+COPY src ./src
+COPY alembic ./alembic
+COPY etc/deploy.sh ./deploy.sh
+COPY etc/migrate_db.sh ./migrate_db.sh
+COPY etc/entrypoint.sh .
+COPY pytest.ini .
+COPY alembic.ini .
+COPY .coveragerc .
+COPY .pylintrc .
+
+
+# build running version
+FROM python:3.11-slim-buster
 ARG DEV_DEPS
+WORKDIR /podcast
 
 COPY Pipfile /podcast
 COPY Pipfile.lock /podcast
@@ -11,13 +39,8 @@ RUN apt-get update \
 		gcc \
 		libpq-dev \
 		python-dev \
-		wget \
-		unzip \
 		nano \
         git \
-	&& wget https://github.com/vot/ffbinaries-prebuilt/releases/download/v4.2/ffmpeg-4.2-linux-64.zip -q -O /tmp/ffmpeg-4.2-linux-64.zip \
-	&& unzip /tmp/ffmpeg-4.2-linux-64.zip -d /usr/bin \
-	&& rm /tmp/ffmpeg-4.2-linux-64.zip \
 	&& pip install pipenv==2022.12.19 \
 	&& if [ ${DEV_DEPS} = "true" ]; then \
 	     echo "=== Install DEV dependencies ===" && \
@@ -31,15 +54,8 @@ RUN apt-get update \
 	&& apt-get clean \
 	&& rm -rf /var/lib/apt/lists/*
 
-COPY src ./src
-COPY alembic ./alembic
-COPY etc/deploy.sh ./deploy.sh
-COPY etc/migrate_db.sh ./migrate_db.sh
-COPY etc/entrypoint.sh .
-COPY pytest.ini .
-COPY alembic.ini .
-COPY .coveragerc .
-COPY .pylintrc .
+COPY --from=code-layer /podcast /podcast
+COPY --from=download-ffmpeg /ffmpeg/ffmpeg /usr/bin/ffmpeg
 
 RUN chown -R podcast:podcast /podcast
 
