@@ -13,7 +13,7 @@ rq = "==1.11.1"
 asyncpg = "==0.27.0"
 psycopg2-binary = "==2.9.5" # for alembic only
 sqlalchemy = "==1.4.46"
-alembic = "==1.9.1"
+alembic = "==1.9.2"
 
 PyJWT = "==2.6.0"
 httpx = "==0.23.3"
