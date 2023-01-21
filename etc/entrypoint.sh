@@ -23,7 +23,7 @@ elif [ "${APP_SERVICE}" = "migrate_db" ]
     cd /podcast && alembic upgrade head
 
 else
-  echo "ENV environment variable is unexpected or was not provided (ENV='${ENV}')" >&2
+  echo "APP_SERVICE environment variable is unexpected or was not provided (APP_SERVICE='${APP_SERVICE}')" >&2
   kill -s SIGINT 1
 
 fi
