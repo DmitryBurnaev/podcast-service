@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import type_api as sa_type_api
 
-from common.typing import EnumClass
+from common.typing import StringEnumT
 from core import settings
 
 
@@ -85,28 +85,31 @@ class EnumTypeColumn(Column):
     >>> import enum
     >>> from core.database import ModelBase
     >>> from sqlalchemy import String
+    >>> from common.enums import StringEnum
 
-    >>> class UserType(enum.Enum):
-    >>>    admin = 'admin'
-    >>>    regular = 'regular'
+    >>> class UserType(StringEnum):
+    >>>    ADMIN = 'ADMIN'
+    >>>    REGULAR = 'REGULAR'
 
     >>> class User(ModelBase):
     >>>     ...
-    >>>     type = EnumTypeColumn(UserType, impl=String(16), default=UserType.admin)
+    >>>     type = EnumTypeColumn(UserType, default=UserType.ADMIN)
 
-    >>> user = User(type='admin')
+    >>> user = User(type=UserType.ADMIN)
     >>> user.type
-    [0] 'admin'
+    [0] 'ADMIN'
 
     """
 
-    impl = sa.String(16)
+    impl = sa.Enum
 
-    def __new__(cls, enum_class: Type[EnumClass], impl: sa_type_api.TypeEngine = None, **kwargs):
+    def __new__(cls, enum_class: Type[StringEnumT], impl: sa_type_api.TypeEngine = None, **kwargs):
         if "default" in kwargs:
             kwargs["default"] = getattr(kwargs["default"], "value") or kwargs["default"]
 
-        impl = impl or cls.impl
+        if not impl:
+            return Column(sa.Enum(*enum_class.members(), name=enum_class.__enum_name__), **kwargs)
+
         return Column(ChoiceType(enum_class, impl=impl), **kwargs)
 
 

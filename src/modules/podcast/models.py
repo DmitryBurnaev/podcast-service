@@ -84,7 +84,7 @@ class Episode(ModelBase, ModelMixin):
     id = Column(Integer, primary_key=True)
     title = Column(String(length=256), nullable=False)
     source_id = Column(String(length=32), index=True, nullable=False)
-    source_type = EnumTypeColumn(SourceType, default=SourceType.YOUTUBE, nullable=True)
+    source_type = EnumTypeColumn(SourceType, default=SourceType.YOUTUBE, nullable=False)
     podcast_id = Column(ForeignKey("podcast_podcasts.id", ondelete="RESTRICT"), index=True)
     audio_id = Column(ForeignKey("media_files.id", ondelete="SET NULL"))
     image_id = Column(ForeignKey("media_files.id", ondelete="SET NULL"))
