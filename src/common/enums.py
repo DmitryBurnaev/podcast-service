@@ -1,43 +1,48 @@
 import enum
+from typing import ClassVar
 
 
-class SourceType(str, enum.Enum):
+class StringEnum(enum.StrEnum):
+    __enum_name__: ClassVar[str] = NotImplemented
+
+    @classmethod
+    def members(cls) -> list[str]:
+        return list(cls.__members__.keys())
+
+
+class SourceType(StringEnum):
+    __enum_name__: ClassVar[str] = "source_type"
+
     YOUTUBE = "YOUTUBE"
     YANDEX = "YANDEX"
     UPLOAD = "UPLOAD"
 
-    def __str__(self):
-        return self.value
 
+class EpisodeStatus(StringEnum):
+    __enum_name__: ClassVar[str] = "episode_status"
 
-class EpisodeStatus(str, enum.Enum):
-    NEW = "new"
-    DOWNLOADING = "downloading"
-    PUBLISHED = "published"
-    ARCHIVED = "archived"
-    ERROR = "error"
+    NEW = "NEW"
+    DOWNLOADING = "DOWNLOADING"
+    PUBLISHED = "PUBLISHED"
+    ARCHIVED = "ARCHIVED"
+    ERROR = "ERROR"
 
-    DL_PENDING = "pending"
-    DL_EPISODE_DOWNLOADING = "episode_downloading"
-    DL_EPISODE_POSTPROCESSING = "episode_postprocessing"
-    DL_EPISODE_UPLOADING = "episode_uploading"
-    DL_COVER_DOWNLOADING = "cover_downloading"
-    DL_COVER_UPLOADING = "cover_uploading"
-
-    def __str__(self):
-        return self.value
+    # sub-statuses for DOWNLOADING (that statuses are not written to the DB, just for progress):
+    DL_PENDING = "DL_PENDING"
+    DL_EPISODE_DOWNLOADING = "DL_EPISODE_DOWNLOADING"
+    DL_EPISODE_POSTPROCESSING = "DL_EPISODE_POSTPROCESSING"
+    DL_EPISODE_UPLOADING = "DL_EPISODE_UPLOADING"
+    DL_COVER_DOWNLOADING = "DL_COVER_DOWNLOADING"
+    DL_COVER_UPLOADING = "DL_COVER_UPLOADING"
 
     @classmethod
-    def members(cls):
-        # TODO: using capitalized values will allow to avoid this hack
-        #       will be replaced -> cls.__members__.keys()
-        return [str(v) for v in cls.__members__.values()]
+    def members(cls) -> list[str]:
+        return [status for status in super().members() if not status.startswith("DL_")]
 
 
-class FileType(str, enum.Enum):
+class FileType(StringEnum):
+    __enum_name__: ClassVar[str] = "file_type"
+
     AUDIO = "AUDIO"
     IMAGE = "IMAGE"
     RSS = "RSS"
-
-    def __str__(self):
-        return self.value

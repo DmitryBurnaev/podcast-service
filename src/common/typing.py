@@ -1,8 +1,9 @@
 import enum
 from typing import TypeVar
 
-# from core.database import BaseModel
+from common.enums import StringEnum
 
 
-EnumClass = TypeVar("EnumClass", bound=enum.Enum)
+EnumT = TypeVar("EnumT", bound=enum.Enum)
+StringEnumT = TypeVar("StringEnumT", bound=StringEnum)
 T = TypeVar("T")
