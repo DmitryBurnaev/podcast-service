@@ -31,7 +31,7 @@ class File(ModelBase, ModelMixin):
     __tablename__ = "media_files"
 
     id = Column(Integer, primary_key=True)
-    type = EnumTypeColumn(FileType, nullable=False)
+    type = EnumTypeColumn(FileType, prefix="media_files")
     path = Column(String(length=256), nullable=False, default="")
     size = Column(Integer, default=0)
     source_url = Column(String(length=512), nullable=False, default="")
