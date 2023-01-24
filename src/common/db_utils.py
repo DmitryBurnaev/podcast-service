@@ -108,7 +108,12 @@ class EnumTypeColumn(Column):
             kwargs["default"] = getattr(kwargs["default"], "value") or kwargs["default"]
 
         if not impl:
-            return Column(sa.Enum(*enum_class.members(), name=enum_class.__enum_name__), **kwargs)
+            enum_name = enum_class.__enum_name__
+            if enum_prefix := kwargs.pop("prefix", None):
+                enum_name = f"{enum_prefix}__{enum_name}"
+            if "nullable" not in kwargs:
+                kwargs["nullable"] = False
+            return Column(sa.Enum(*enum_class.members(), name=enum_name), **kwargs)
 
         return Column(ChoiceType(enum_class, impl=impl), **kwargs)
 
