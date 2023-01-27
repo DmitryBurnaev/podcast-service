@@ -6,6 +6,7 @@ Create Date: 2023-01-24 09:21:16.226588
 
 """
 from alembic import op
+import sqlalchemy as sa
 from sqlalchemy import text
 from sqlalchemy.dialects import postgresql
 
@@ -64,9 +65,16 @@ def convert_back_to_varchar(table: str, column: str, column_type: str = "VARCHAR
 
 
 def upgrade():
-    change_to_upper(table="media_files", column="type")
     # TODO: fix error with data inserts (type correction)
+    change_to_upper(table="media_files", column="type")
     convert_to_enum(table="media_files", column="type", enum_values=MEDIA_TYPE_ENUM)
+
+    # new state column (test enum)
+    state_enum_postgres = postgresql.ENUM('ACTIVE', 'PENDING', 'BLOCKED', name='state')
+    state_enum_postgres.create(op.get_bind())
+
+    op.add_column('media_files',
+                  sa.Column('state', sa.Enum('ACTIVE', 'PENDING', 'BLOCKED', name='state'), nullable=False, server_default='ACTIVE'))
 
     change_to_upper(table="podcast_cookies", column="source_type")
     convert_to_enum(table="podcast_cookies", column="source_type", enum_values=SOURCE_TYPE_ENUM)
@@ -99,6 +107,10 @@ def downgrade():
         ["id"],
         ondelete="CASCADE",
     )
+    # removed test-only column
+    op.drop_column("media_files", "state")
+    bind = op.get_bind()
+    bind.execute(f"DROP TYPE IF EXISTS state")
     convert_back_to_varchar(table="podcast_episodes", column="status")
     change_to_lower(table="podcast_episodes", column="status")
 
