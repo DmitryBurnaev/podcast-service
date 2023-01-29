@@ -124,6 +124,7 @@ FILENAME_SALT = config("FILENAME_SALT", default="HH78NyP4EXsGy99")
 
 SENTRY_DSN = config("SENTRY_DSN", default=None)
 LOG_LEVEL = config("LOG_LEVEL", default="INFO")
+LOG_SQLALCHEMY_LEVEL = config("LOG_SQLALCHEMY_LEVEL", default="WARNING")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -141,5 +142,10 @@ LOGGING = {
         "app": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
         "yt_dlp": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
         "rq.worker": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "sqlalchemy.engine": {
+            "handlers": ["console"],
+            "level": LOG_SQLALCHEMY_LEVEL,
+            "propagate": True,
+        },
     },
 }
