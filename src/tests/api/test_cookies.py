@@ -27,7 +27,7 @@ INVALID_CREATE_DATA = [
 def _cookie(cookie):
     return {
         "id": cookie.id,
-        "sourceType": cookie.source_type.value,
+        "sourceType": cookie.source_type,
         "createdAt": cookie.created_at.isoformat(),
     }
 
@@ -60,7 +60,7 @@ class TestCookieListCreateAPIView(BaseTestAPIView):
         client.login(user)
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
-        assert response_data == [_cookie(last_cookie_yandex), _cookie(last_cookie_youtube)]
+        assert response_data == [_cookie(last_cookie_youtube), _cookie(last_cookie_yandex)]
 
     def test_create__ok(self, client, user, dbs):
         cookie_data = {"source_type": SourceType.YANDEX}

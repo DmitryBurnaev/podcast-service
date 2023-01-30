@@ -31,7 +31,7 @@ class File(ModelBase, ModelMixin):
     __tablename__ = "media_files"
 
     id = Column(Integer, primary_key=True)
-    type = EnumTypeColumn(FileType, prefix="media_files")
+    type = EnumTypeColumn(FileType)
     path = Column(String(length=256), nullable=False, default="")
     size = Column(Integer, default=0)
     source_url = Column(String(length=512), nullable=False, default="")
@@ -85,7 +85,7 @@ class File(ModelBase, ModelMixin):
 
     @property
     def content_type(self) -> str:
-        return f"{self.type.value.lower()}/{self.name.split('.')[-1]}"
+        return f"{self.type.lower()}/{self.name.split('.')[-1]}"
 
     @property
     def headers(self) -> dict:
@@ -100,7 +100,7 @@ class File(ModelBase, ModelMixin):
     ):
         filter_kwargs = {"path": self.path, "id__ne": self.id, "available__is": True}
         if same_files := (await File.async_filter(db_session, **filter_kwargs)).all():
-            file_infos = [(file.id, file.type.value) for file in same_files]
+            file_infos = [(file.id, file.type) for file in same_files]
             logger.warning(
                 "There are another relations for the file %s: %s. Skip file removing.",
                 self.path,

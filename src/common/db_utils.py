@@ -85,9 +85,9 @@ class EnumTypeColumn(Column):
     >>> import enum
     >>> from core.database import ModelBase
     >>> from sqlalchemy import String
-    >>> from common.enums import StringEnum
+    >>> from common.enums import StringEnumMixin
 
-    >>> class UserType(StringEnum):
+    >>> class UserType(StringEnumMixin):
     >>>    ADMIN = 'ADMIN'
     >>>    REGULAR = 'REGULAR'
 
@@ -109,8 +109,6 @@ class EnumTypeColumn(Column):
 
         if not impl:
             enum_name = enum_class.__enum_name__
-            if enum_prefix := kwargs.pop("prefix", None):
-                enum_name = f"{enum_prefix}__{enum_name}"
             if "nullable" not in kwargs:
                 kwargs["nullable"] = False
             return Column(sa.Enum(*enum_class.members(), name=enum_name), **kwargs)

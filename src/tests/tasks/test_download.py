@@ -133,7 +133,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode = create_episode(dbs, episode_data=episode_data)
         await_(episode.audio.update(dbs, size=1024))
 
-        episode_data["status"] = "new"
+        episode_data["status"] = EpisodeStatus.NEW
         episode_data["podcast_id"] = podcast_2.id
         episode_data["audio_path"] = episode.audio.path
         episode_2 = create_episode(dbs, episode_data=episode_data)
