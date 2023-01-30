@@ -84,7 +84,7 @@ class Episode(ModelBase, ModelMixin):
     id = Column(Integer, primary_key=True)
     title = Column(String(length=256), nullable=False)
     source_id = Column(String(length=32), index=True, nullable=False)
-    source_type = EnumTypeColumn(SourceType, default=SourceType.YOUTUBE, prefix="episodes")
+    source_type = EnumTypeColumn(SourceType, default=SourceType.YOUTUBE)
     podcast_id = Column(ForeignKey("podcast_podcasts.id", ondelete="RESTRICT"), index=True)
     audio_id = Column(ForeignKey("media_files.id", ondelete="SET NULL"))
     image_id = Column(ForeignKey("media_files.id", ondelete="SET NULL"))
@@ -94,7 +94,7 @@ class Episode(ModelBase, ModelMixin):
     length = Column(Integer, default=0)
     description = Column(String)
     author = Column(String(length=256))
-    status = EnumTypeColumn(Status, default=Status.NEW, prefix="episodes")
+    status = EnumTypeColumn(Status, default=Status.NEW)
     created_at = Column(DateTime, default=datetime.utcnow)
     published_at = Column(DateTime)
 
@@ -162,7 +162,7 @@ class Cookie(ModelBase, ModelMixin):
     __tablename__ = "podcast_cookies"
 
     id = Column(Integer, primary_key=True)
-    source_type = EnumTypeColumn(SourceType, prefix="cookies")
+    source_type = EnumTypeColumn(SourceType)
     data = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)

@@ -2,15 +2,11 @@ import enum
 from typing import ClassVar
 
 
-class StringEnum(enum.StrEnum):
+class StringEnumMixin:
     __enum_name__: ClassVar[str] = NotImplemented
 
-    @classmethod
-    def members(cls) -> list[str]:
-        return list(cls.__members__.keys())
 
-
-class SourceType(StringEnum):
+class SourceType(enum.StrEnum, StringEnumMixin):
     __enum_name__: ClassVar[str] = "source_type"
 
     YOUTUBE = "YOUTUBE"
@@ -18,7 +14,7 @@ class SourceType(StringEnum):
     UPLOAD = "UPLOAD"
 
 
-class EpisodeStatus(StringEnum):
+class EpisodeStatus(enum.StrEnum, StringEnumMixin):
     __enum_name__: ClassVar[str] = "episode_status"
 
     NEW = "NEW"
@@ -37,11 +33,11 @@ class EpisodeStatus(StringEnum):
 
     @classmethod
     def members(cls) -> list[str]:
-        return [status for status in super().members() if not status.startswith("DL_")]
+        return [status for status in cls.__members__ if not status.startswith("DL_")]
 
 
-class FileType(StringEnum):
-    __enum_name__: ClassVar[str] = "file_type"
+class FileType(enum.StrEnum, StringEnumMixin):
+    __enum_name__: ClassVar[str] = "media_type"
 
     AUDIO = "AUDIO"
     IMAGE = "IMAGE"
