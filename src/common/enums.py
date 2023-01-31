@@ -1,12 +1,18 @@
 import enum
+from types import MappingProxyType
 from typing import ClassVar
 
 
 class StringEnumMixin:
     __enum_name__: ClassVar[str] = NotImplemented
+    __members__: MappingProxyType = NotImplemented
+
+    @classmethod
+    def members(cls) -> list[str]:
+        return [str(status) for status in cls.__members__]
 
 
-class SourceType(enum.StrEnum, StringEnumMixin):
+class SourceType(StringEnumMixin, enum.StrEnum):
     __enum_name__: ClassVar[str] = "source_type"
 
     YOUTUBE = "YOUTUBE"
@@ -14,7 +20,7 @@ class SourceType(enum.StrEnum, StringEnumMixin):
     UPLOAD = "UPLOAD"
 
 
-class EpisodeStatus(enum.StrEnum, StringEnumMixin):
+class EpisodeStatus(StringEnumMixin, enum.StrEnum):
     __enum_name__: ClassVar[str] = "episode_status"
 
     NEW = "NEW"
@@ -36,7 +42,7 @@ class EpisodeStatus(enum.StrEnum, StringEnumMixin):
         return [status for status in cls.__members__ if not status.startswith("DL_")]
 
 
-class FileType(enum.StrEnum, StringEnumMixin):
+class FileType(StringEnumMixin, enum.StrEnum):
     __enum_name__: ClassVar[str] = "media_type"
 
     AUDIO = "AUDIO"
