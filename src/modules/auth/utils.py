@@ -71,7 +71,6 @@ def extract_ip_address(request: PRequest) -> str | None:
 async def register_ip(request: PRequest):
     """Allows registration new IP for requested user"""
 
-    # TODO: remove logging after testing issue #100
     logger.debug(
         "Requested register IP from: user: %i | headers: %s", request.user.id, request.headers
     )
