@@ -8,11 +8,11 @@ from functools import partial
 from typing import Iterable, NamedTuple
 
 import boto3
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import settings
 from common.enums import EpisodeStatus
+from common.db_utils import make_session_maker
 from modules.podcast.models import Episode
 from modules.podcast.utils import get_file_size
 
@@ -164,8 +164,7 @@ class S3Moving:
             aws_secret_access_key=S3_AWS_SECRET_ACCESS_KEY_TO,
             region_name=S3_REGION_TO,
         )
-        db_engine = create_async_engine(settings.DATABASE_DSN, echo=settings.DB_ECHO)
-        self.session_maker = sessionmaker(db_engine, expire_on_commit=False, class_=AsyncSession)
+        self.session_maker = make_session_maker()
         self.s3_from = session_s3_from.client(service_name="s3", endpoint_url=S3_STORAGE_URL_FROM)
         self.s3_to = session_s3_to.client(service_name="s3", endpoint_url=S3_STORAGE_URL_TO)
 

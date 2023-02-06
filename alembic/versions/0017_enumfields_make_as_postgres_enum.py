@@ -41,7 +41,9 @@ def convert_to_enum(table: str, column: str, enum_values: tuple[str, ...], enum_
     )
 
 
-def convert_to_varchar(table: str, column: str, column_type: str = "VARCHAR(16)"):
+def convert_to_varchar(
+    table: str, column: str, column_type: str = "VARCHAR(16)", to_lower: bool = False
+):
     bind = op.get_bind()
     bind.execute(
         text(
@@ -51,14 +53,15 @@ def convert_to_varchar(table: str, column: str, column_type: str = "VARCHAR(16)"
         """
         )
     )
-    bind.execute(
-        text(
-            f"""
-            UPDATE {table}
-            SET {column} = LOWER({column}) WHERE {column} IS NOT NULL;
-        """
+    if to_lower:
+        bind.execute(
+            text(
+                f"""
+                UPDATE {table}
+                SET {column} = LOWER({column}) WHERE {column} IS NOT NULL;
+            """
+            )
         )
-    )
 
 
 def upgrade():
@@ -109,7 +112,7 @@ def downgrade():
         ondelete="CASCADE",
     )
 
-    convert_to_varchar(table="podcast_episodes", column="status")
+    convert_to_varchar(table="podcast_episodes", column="status", to_lower=True)
     convert_to_varchar(table="podcast_episodes", column="source_type")
     convert_to_varchar(table="podcast_cookies", column="source_type")
     convert_to_varchar(table="media_files", column="type")
