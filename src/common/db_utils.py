@@ -39,6 +39,17 @@ class EnumTypeColumn(Column):
         return Column(sa.Enum(*enum_class.members(), name=enum_class.__enum_name__), **kwargs)
 
 
+# pylint: disable=line-too-long
 def make_session_maker() -> sessionmaker:
-    db_engine = create_async_engine(settings.DATABASE_DSN, echo=settings.DB_ECHO)
+    """
+    Provides DB's session for async context.
+    Using disabled JIT ("jit": "off") fixes asyncpg improvements problem with native enums
+    see for details https://docs.sqlalchemy.org/en/14/dialects/postgresql.html#disabling-the-postgresql-jit-to-improve-enum-datatype-handling
+    """
+
+    db_engine = create_async_engine(
+        settings.DATABASE_DSN,
+        echo=settings.DB_ECHO,
+        connect_args={"server_settings": {"jit": "off"}},
+    )
     return sessionmaker(db_engine, expire_on_commit=False, class_=AsyncSession)

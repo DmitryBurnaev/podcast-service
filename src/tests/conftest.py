@@ -199,7 +199,7 @@ def mocked_auth_send() -> AsyncMock:
     patcher.stop()
 
 
-@pytest.fixture()
+@pytest.fixture
 def user_data() -> tuple[str, str]:
     return get_user_data()
 
@@ -367,16 +367,16 @@ def _mocked_source_info(monkeypatch, source_type) -> Mock:
     del mock
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_source_info_youtube(monkeypatch) -> Mock:
     yield from _mocked_source_info(monkeypatch, source_type=SourceType.YOUTUBE)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_source_info_yandex(monkeypatch) -> Mock:
     yield from _mocked_source_info(monkeypatch, source_type=SourceType.YANDEX)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_source_info_upload(monkeypatch) -> Mock:
     yield from _mocked_source_info(monkeypatch, source_type=SourceType.UPLOAD)

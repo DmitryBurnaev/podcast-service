@@ -1,11 +1,10 @@
 import asyncio
 import enum
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import settings
 from common.utils import get_logger
+from common.db_utils import make_session_maker
 
 
 logger = get_logger(__name__)
@@ -42,9 +41,7 @@ class RQTask:
     async def _perform_and_run(self, *args, **kwargs):
         """Allows calling `self.run` in transaction block with catching any exceptions"""
 
-        db_engine = create_async_engine(settings.DATABASE_DSN, echo=settings.DB_ECHO)
-        session_maker = sessionmaker(db_engine, expire_on_commit=False, class_=AsyncSession)
-
+        session_maker = make_session_maker()
         try:
             async with session_maker() as db_session:
                 self.db_session = db_session
