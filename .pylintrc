@@ -7,7 +7,6 @@ ignore-paths=src/tests/
 disable=missing-module-docstring,
         missing-class-docstring,
         missing-function-docstring,
-        fixme,
         broad-except,
         too-few-public-methods,
 

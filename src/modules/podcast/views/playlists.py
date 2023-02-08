@@ -1,7 +1,8 @@
-import asyncio
+# import asyncio
 from functools import partial
 
 import yt_dlp
+from starlette.concurrency import run_in_threadpool
 from starlette.responses import Response
 
 from common.enums import SourceType
@@ -26,7 +27,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
 
         cleaned_data = await self._validate(request, location="query")
         playlist_url = cleaned_data.get("url")
-        loop = asyncio.get_running_loop()
+        # loop = asyncio.get_running_loop()
         source_info = utils.extract_source_info(playlist_url, playlist=True)
 
         params = {"logger": logger, "noplaylist": False}
@@ -36,7 +37,8 @@ class PlayListAPIView(BaseHTTPEndpoint):
         with yt_dlp.YoutubeDL(params) as ydl:
             extract_info = partial(ydl.extract_info, playlist_url, download=False)
             try:
-                source_data = await loop.run_in_executor(None, extract_info)
+                source_data = await run_in_threadpool(extract_info)
+                # source_data = await loop.run_in_executor(None, extract_info)
             except yt_dlp.utils.DownloadError as exc:
                 raise InvalidRequestError(f"Couldn't extract playlist: {exc}") from exc
 
