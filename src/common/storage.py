@@ -1,13 +1,14 @@
-import asyncio
+# import asyncio
 import logging
 import mimetypes
 import os
-from functools import partial
+# from functools import partial
 from pathlib import Path
 from typing import Callable
 
 import boto3
 import botocore
+from starlette.concurrency import run_in_threadpool
 
 from common.redis import RedisClient
 from common.utils import get_logger
@@ -64,6 +65,11 @@ class StorageS3:
 
         return self.CODE_OK, response
 
+    async def __async_call(
+        self, handler: Callable, error_log_level: int = logging.ERROR, **handler_kwargs
+    ) -> tuple[int, dict | None]:
+        return await run_in_threadpool(self.__call, error_log_level, handler, **handler_kwargs)
+
     def upload_file(
         self,
         src_path: str | Path,
@@ -112,17 +118,24 @@ class StorageS3:
         filename: str | None = None,
         callback: Callable | None = None,
     ):
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None,
-            partial(
-                self.upload_file,
-                src_path=src_path,
-                dst_path=dst_path,
-                filename=filename,
-                callback=callback,
-            ),
+        return await run_in_threadpool(
+            self.upload_file,
+            src_path=src_path,
+            dst_path=dst_path,
+            filename=filename,
+            callback=callback,
         )
+        # loop = asyncio.get_running_loop()
+        # return await loop.run_in_executor(
+        #     None,
+        #     partial(
+        #         self.upload_file,
+        #         src_path=src_path,
+        #         dst_path=dst_path,
+        #         filename=filename,
+        #         callback=callback,
+        #     ),
+        # )
 
     def get_file_info(
         self,
@@ -171,16 +184,23 @@ class StorageS3:
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         dst_path: str | None = None,
     ):
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None,
-            partial(
-                self.get_file_size,
-                filename=filename,
-                remote_path=remote_path,
-                dst_path=dst_path,
-            ),
+        return await run_in_threadpool(
+            self.get_file_size,
+            filename=filename,
+            remote_path=remote_path,
+            dst_path=dst_path,
         )
+        #
+        # loop = asyncio.get_running_loop()
+        # return await loop.run_in_executor(
+        #     None,
+        #     partial(
+        #         self.get_file_size,
+        #         filename=filename,
+        #         remote_path=remote_path,
+        #         dst_path=dst_path,
+        #     ),
+        # )
 
     def delete_file(
         self,
@@ -196,26 +216,28 @@ class StorageS3:
         return result
 
     async def delete_files_async(self, filenames: list[str], remote_path: str):
-        loop = asyncio.get_running_loop()
+        # loop = asyncio.get_running_loop()
         for filename in filenames:
             dst_path = os.path.join(remote_path, filename)
-            await loop.run_in_executor(
-                None,
-                partial(
-                    self.__call,
-                    self.s3.delete_object,
-                    Key=dst_path,
-                    Bucket=self.BUCKET_NAME,
-                ),
+            return await self.__async_call(
+                self.s3.delete_object,
+                Key=dst_path,
+                Bucket=self.BUCKET_NAME
             )
 
-    async def get_presigned_url(self, remote_path: str) -> str:
-        # TODO: make async call
-        #  https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html
+            # await loop.run_in_executor(
+            # None,
+            # partial(
+            #     self.__call,
+            #     self.s3.delete_object,
+            #     Key=dst_path,
+            #     Bucket=self.BUCKET_NAME,
+            # ),
 
+    async def get_presigned_url(self, remote_path: str) -> str:
         redis = RedisClient()
         if not (url := await redis.async_get(remote_path)):
-            _, url = self.__call(
+            _, url = await self.__async_call(
                 self.s3.generate_presigned_url,
                 ClientMethod="get_object",
                 Params={"Bucket": settings.S3_BUCKET_NAME, "Key": remote_path},
