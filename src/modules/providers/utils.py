@@ -163,7 +163,6 @@ async def get_source_media_info(source_info: SourceInfo) -> tuple[str, SourceMed
         with yt_dlp.YoutubeDL(params) as ydl:
             extract_info = partial(ydl.extract_info, source_info.url, download=False)
             source_details = await run_in_threadpool(extract_info)
-            # source_details = await loop.run_in_executor(None, extract_info)
 
     except YoutubeDLError as exc:
         logger.exception("ydl.extract_info failed: %s | Error: %r", source_info.url, exc)

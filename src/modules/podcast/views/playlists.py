@@ -1,9 +1,8 @@
-# import asyncio
 from functools import partial
 
 import yt_dlp
-from starlette.concurrency import run_in_threadpool
 from starlette.responses import Response
+from starlette.concurrency import run_in_threadpool
 
 from common.enums import SourceType
 from common.request import PRequest
@@ -38,7 +37,6 @@ class PlayListAPIView(BaseHTTPEndpoint):
             extract_info = partial(ydl.extract_info, playlist_url, download=False)
             try:
                 source_data = await run_in_threadpool(extract_info)
-                # source_data = await loop.run_in_executor(None, extract_info)
             except yt_dlp.utils.DownloadError as exc:
                 raise InvalidRequestError(f"Couldn't extract playlist: {exc}") from exc
 
