@@ -1,8 +1,6 @@
-# import asyncio
+import os
 import logging
 import mimetypes
-import os
-# from functools import partial
 from pathlib import Path
 from typing import Callable
 
@@ -10,9 +8,9 @@ import boto3
 import botocore
 from starlette.concurrency import run_in_threadpool
 
+from core import settings
 from common.redis import RedisClient
 from common.utils import get_logger
-from core import settings
 
 logger = get_logger(__name__)
 
@@ -68,7 +66,7 @@ class StorageS3:
     async def __async_call(
         self, handler: Callable, error_log_level: int = logging.ERROR, **handler_kwargs
     ) -> tuple[int, dict | None]:
-        return await run_in_threadpool(self.__call, error_log_level, handler, **handler_kwargs)
+        return await run_in_threadpool(self.__call, handler, error_log_level, **handler_kwargs)
 
     def upload_file(
         self,
@@ -125,17 +123,6 @@ class StorageS3:
             filename=filename,
             callback=callback,
         )
-        # loop = asyncio.get_running_loop()
-        # return await loop.run_in_executor(
-        #     None,
-        #     partial(
-        #         self.upload_file,
-        #         src_path=src_path,
-        #         dst_path=dst_path,
-        #         filename=filename,
-        #         callback=callback,
-        #     ),
-        # )
 
     def get_file_info(
         self,
@@ -190,17 +177,6 @@ class StorageS3:
             remote_path=remote_path,
             dst_path=dst_path,
         )
-        #
-        # loop = asyncio.get_running_loop()
-        # return await loop.run_in_executor(
-        #     None,
-        #     partial(
-        #         self.get_file_size,
-        #         filename=filename,
-        #         remote_path=remote_path,
-        #         dst_path=dst_path,
-        #     ),
-        # )
 
     def delete_file(
         self,
@@ -216,23 +192,13 @@ class StorageS3:
         return result
 
     async def delete_files_async(self, filenames: list[str], remote_path: str):
-        # loop = asyncio.get_running_loop()
         for filename in filenames:
             dst_path = os.path.join(remote_path, filename)
-            return await self.__async_call(
+            await self.__async_call(
                 self.s3.delete_object,
                 Key=dst_path,
                 Bucket=self.BUCKET_NAME
             )
-
-            # await loop.run_in_executor(
-            # None,
-            # partial(
-            #     self.__call,
-            #     self.s3.delete_object,
-            #     Key=dst_path,
-            #     Bucket=self.BUCKET_NAME,
-            # ),
 
     async def get_presigned_url(self, remote_path: str) -> str:
         redis = RedisClient()

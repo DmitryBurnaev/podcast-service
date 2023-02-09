@@ -1,18 +1,17 @@
-import asyncio
 import json
-from dataclasses import dataclass
-# from functools import partial
+import asyncio
 from json import JSONDecodeError
+from dataclasses import dataclass
 from typing import Type, Iterable, Any, ClassVar
 
-from sqlalchemy.exc import SQLAlchemyError, DatabaseError
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from starlette.concurrency import run_in_threadpool
 from starlette.websockets import WebSocket
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse, Response
 from starlette.endpoints import HTTPEndpoint, WebSocketEndpoint
+from sqlalchemy.exc import SQLAlchemyError, DatabaseError
+from sqlalchemy.ext.asyncio import AsyncSession
 from marshmallow import Schema, ValidationError, fields
 from webargs_starlette import parser, WebargsHTTPException
 
@@ -158,11 +157,8 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         """Enqueue RQ task"""
 
         logger.info("RUN task %s", task_class)
-        # loop = asyncio.get_running_loop()
         task = task_class()
-        # handler = partial(self.app.rq_queue.enqueue, task, *args, **kwargs)
         await run_in_threadpool(self.app.rq_queue.enqueue, task, *args, **kwargs)
-        # await loop.run_in_executor(None, handler)
 
 
 class ServicesCheckSchema(Schema):
