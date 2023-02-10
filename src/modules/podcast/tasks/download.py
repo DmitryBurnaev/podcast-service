@@ -148,7 +148,7 @@ class DownloadEpisodeTask(RQTask):
         )
 
         try:
-            result_path = provider_utils.download_audio(
+            result_path = await provider_utils.download_audio(
                 episode.watch_url, filename=episode.audio_filename, cookie=cookie
             )
         except YoutubeDLError as exc:

@@ -191,7 +191,6 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
 
     @staticmethod
     def _get_source_id(audio_hash: str) -> str:
-        # TODO: move to common place for getting source_id for uploaded files =)
         return f"upl_{audio_hash[:11]}"
 
     @staticmethod

@@ -194,11 +194,7 @@ class StorageS3:
     async def delete_files_async(self, filenames: list[str], remote_path: str):
         for filename in filenames:
             dst_path = os.path.join(remote_path, filename)
-            await self.__async_call(
-                self.s3.delete_object,
-                Key=dst_path,
-                Bucket=self.BUCKET_NAME
-            )
+            await self.__async_call(self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME)
 
     async def get_presigned_url(self, remote_path: str) -> str:
         redis = RedisClient()

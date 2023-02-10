@@ -74,7 +74,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         result = await_(DownloadEpisodeTask(db_session=dbs).run(episode.id))
         episode = await_(Episode.async_get(dbs, id=episode.id))
 
-        mocked_youtube.assert_called_with(cookiefile=cookie.as_file())
+        mocked_youtube.assert_called_with(cookiefile=await_(cookie.as_file()))
         mocked_ffmpeg.assert_called_with(src_path=file_path)
 
         assert result == FinishCode.OK

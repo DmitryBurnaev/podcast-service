@@ -3,10 +3,12 @@ import uuid
 from functools import cached_property
 from hashlib import md5
 from datetime import datetime
+from pathlib import Path
 
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
+from starlette.concurrency import run_in_threadpool
 
 from core import settings
 from core.database import ModelBase
@@ -174,14 +176,18 @@ class Cookie(ModelBase, ModelMixin):
     def __str__(self):
         return f'<Cookie #{self.id} "{self.domain}" at {self.created_at}>'
 
-    def as_file(self) -> str:
-        cookies_file = settings.TMP_COOKIES_PATH / f"cookie_{self.source_type}_{self.id}.txt"
-        # TODO: can we use async API for this files IO-operations?
-        if not os.path.exists(cookies_file):
-            logger.info("Cookie #%s: Generation cookie file [%s]", self.id, cookies_file)
-            with open(cookies_file, "wt", encoding="utf-8") as f:
-                f.write(self.data)
-        else:
-            logger.info("Cookie #%s: Found already generated file [%s]", self.id, cookies_file)
+    async def as_file(self) -> Path:
+        """Library for downloading content takes only path to cookie's file (stored on the disk)"""
 
-        return cookies_file
+        def store_tmp_file():
+            cookies_file = settings.TMP_COOKIES_PATH / f"cookie_{self.source_type}_{self.id}.txt"
+            if not os.path.exists(cookies_file):
+                logger.info("Cookie #%s: Generation cookie file [%s]", self.id, cookies_file)
+                with open(cookies_file, "wt", encoding="utf-8") as f:
+                    f.write(self.data)
+            else:
+                logger.info("Cookie #%s: Found already generated file [%s]", self.id, cookies_file)
+
+            return cookies_file
+
+        return await run_in_threadpool(store_tmp_file)

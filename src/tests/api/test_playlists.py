@@ -72,7 +72,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         client.login(user)
         response = client.get(self.url, params={"url": "http://link.to.source/"})
         self.assert_ok_response(response)
-        mocked_youtube.assert_called_with(cookiefile=cookie.as_file())
+        mocked_youtube.assert_called_with(cookiefile=await_(cookie.as_file()))
 
     def test_retrieve__cookies_from_another_user(
         self, dbs, client, user, mocked_source_info_yandex, mocked_youtube
@@ -88,7 +88,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         client.login(user)
         response = client.get(self.url, params={"url": "http://link.to.source/"})
         self.assert_ok_response(response)
-        mocked_youtube.assert_called_with(cookiefile=cookie.as_file())
+        mocked_youtube.assert_called_with(cookiefile=await_(cookie.as_file()))
 
     def test_retrieve__last_cookie(
         self, dbs, client, user, mocked_source_info_yandex, mocked_youtube
@@ -102,7 +102,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         client.login(user)
         response = client.get(self.url, params={"url": "http://link.to.source/"})
         self.assert_ok_response(response)
-        mocked_youtube.assert_called_with(cookiefile=cookie.as_file())
+        mocked_youtube.assert_called_with(cookiefile=await_(cookie.as_file()))
 
     @patch("modules.providers.utils.extract_source_info")
     def test_retrieve__invalid_playlist_link__fail(

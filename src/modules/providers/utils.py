@@ -1,7 +1,6 @@
 import hashlib
 import os
 import re
-import asyncio
 import subprocess
 import dataclasses
 import tempfile
@@ -124,7 +123,7 @@ def download_process_hook(event: dict):
     )
 
 
-def download_audio(source_url: str, filename: str, cookie: Cookie | None) -> Path:
+async def download_audio(source_url: str, filename: str, cookie: Cookie | None) -> Path:
     """
     Download providers video and perform to audio (.mp3) file
 
@@ -142,7 +141,7 @@ def download_audio(source_url: str, filename: str, cookie: Cookie | None) -> Pat
         "noprogress": True,
     }
     if cookie:
-        params["cookiefile"] = cookie.as_file()
+        params["cookiefile"] = await cookie.as_file()
 
     with yt_dlp.YoutubeDL(params) as ydl:
         ydl.download([source_url])
@@ -154,10 +153,9 @@ async def get_source_media_info(source_info: SourceInfo) -> tuple[str, SourceMed
     """Allows extract info about providers video from Source (powered by yt_dlp)"""
 
     logger.info("Started fetching data for %s", source_info.url)
-    loop = asyncio.get_running_loop()
     params = {"logger": logger, "noplaylist": True}
     if source_info.cookie:
-        params["cookiefile"] = source_info.cookie.as_file()
+        params["cookiefile"] = await source_info.cookie.as_file()
 
     try:
         with yt_dlp.YoutubeDL(params) as ydl:
