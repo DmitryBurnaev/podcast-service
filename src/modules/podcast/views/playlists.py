@@ -31,7 +31,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
 
         params = {"logger": logger, "noplaylist": False}
         if cookie := await self._fetch_cookie(request, source_info.type):
-            params["cookiefile"] = cookie.as_file()
+            params["cookiefile"] = await cookie.as_file()
 
         with yt_dlp.YoutubeDL(params) as ydl:
             extract_info = partial(ydl.extract_info, playlist_url, download=False)

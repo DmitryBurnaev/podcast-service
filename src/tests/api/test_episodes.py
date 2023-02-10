@@ -203,7 +203,6 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         mocked_rq_queue,
         auto_start_task,
     ):
-        # TODO: improve test's speed
         audio_duration = 90
         await_(podcast.update(dbs, download_automatically=auto_start_task))
         await_(dbs.commit())
