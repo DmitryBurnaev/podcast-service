@@ -22,15 +22,15 @@ MAX_CONCUR_REQ = 3
 
 # S3 storage "FROM"
 S3_STORAGE_URL_FROM = settings.config("S3_STORAGE_URL_FROM")
-S3_AWS_ACCESS_KEY_ID_FROM = settings.config("S3_AWS_ACCESS_KEY_ID_FROM")
-S3_AWS_SECRET_ACCESS_KEY_FROM = settings.config("S3_AWS_SECRET_ACCESS_KEY_FROM")
+S3_ACCESS_KEY_ID_FROM = settings.config("S3_ACCESS_KEY_ID_FROM")
+S3_SECRET_ACCESS_KEY_FROM = settings.config("S3_SECRET_ACCESS_KEY_FROM")
 S3_BUCKET_FROM = settings.config("S3_BUCKET_NAME_FROM")
 S3_REGION_FROM = settings.config("S3_REGION_NAME_FROM")
 
 # S3 storage "TO"
 S3_STORAGE_URL_TO = settings.config("S3_STORAGE_URL_TO")
-S3_AWS_ACCESS_KEY_ID_TO = settings.config("S3_AWS_ACCESS_KEY_ID_TO")
-S3_AWS_SECRET_ACCESS_KEY_TO = settings.config("S3_AWS_SECRET_ACCESS_KEY_TO")
+S3_ACCESS_KEY_ID_TO = settings.config("S3_ACCESS_KEY_ID_TO")
+S3_SECRET_ACCESS_KEY_TO = settings.config("S3_SECRET_ACCESS_KEY_TO")
 S3_BUCKET_TO = settings.config("S3_BUCKET_NAME_TO")
 S3_REGION_TO = settings.config("S3_REGION_NAME_TO")
 MOVE_S3_LOGGING = {
@@ -155,13 +155,13 @@ async def update_episode(dbs: AsyncSession, upload_result: EpisodeUploadData) ->
 class S3Moving:
     def __init__(self):
         session_s3_from = boto3.session.Session(
-            aws_access_key_id=S3_AWS_ACCESS_KEY_ID_FROM,
-            aws_secret_access_key=S3_AWS_SECRET_ACCESS_KEY_FROM,
+            aws_access_key_id=S3_ACCESS_KEY_ID_FROM,
+            aws_secret_access_key=S3_SECRET_ACCESS_KEY_FROM,
             region_name=S3_REGION_FROM,
         )
         session_s3_to = boto3.session.Session(
-            aws_access_key_id=S3_AWS_ACCESS_KEY_ID_TO,
-            aws_secret_access_key=S3_AWS_SECRET_ACCESS_KEY_TO,
+            aws_access_key_id=S3_ACCESS_KEY_ID_TO,
+            aws_secret_access_key=S3_SECRET_ACCESS_KEY_TO,
             region_name=S3_REGION_TO,
         )
         self.session_maker = make_session_maker()

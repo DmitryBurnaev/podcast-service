@@ -80,8 +80,8 @@ JWT_REFRESH_EXPIRES_IN = 30 * 24 * 3600  # 30 days
 JWT_ALGORITHM = "HS512"  # see https://pyjwt.readthedocs.io/en/latest/algorithms.html for details
 
 S3_STORAGE_URL = config("S3_STORAGE_URL")
-S3_AWS_ACCESS_KEY_ID = config("S3_AWS_ACCESS_KEY_ID")
-S3_AWS_SECRET_ACCESS_KEY = config("S3_AWS_SECRET_ACCESS_KEY")
+S3_ACCESS_KEY_ID = config("S3_ACCESS_KEY_ID")
+S3_SECRET_ACCESS_KEY = config("S3_SECRET_ACCESS_KEY")
 S3_REGION_NAME = config("S3_REGION_NAME")
 
 S3_BUCKET_NAME = config("S3_BUCKET_NAME", default="podcast")
@@ -95,7 +95,6 @@ S3_BUCKET_PODCAST_IMAGES_PATH = Path(os.path.join(S3_BUCKET_IMAGES_PATH, "podcas
 S3_LINK_EXPIRES_IN = config("S3_LINK_EXPIRES_IN", default=600, cast=int)
 S3_LINK_CACHE_EXPIRES_IN = config("S3_LINK_CACHE_EXPIRES_IN", default=120, cast=int)
 
-# TODO: upload images with persistent public links
 DEFAULT_EPISODE_COVER = config("DEFAULT_EPISODE_COVER", default="episode-default.jpg")
 DEFAULT_PODCAST_COVER = config("DEFAULT_PODCAST_COVER", default="podcast-default.jpg")
 
@@ -119,7 +118,6 @@ MAX_UPLOAD_IMAGE_FILESIZE = config("MAX_UPLOAD_FILESIZE", default=(1024 * 1024 *
 
 RETRY_UPLOAD_TIMEOUT = 1  # 1 second
 REQUEST_IP_HEADER = config("REQUEST_IP_HEADER", default="X-Real-IP", cast=str)
-# TODO: add salt to the env
 FILENAME_SALT = config("FILENAME_SALT", default="HH78NyP4EXsGy99")
 
 SENTRY_DSN = config("SENTRY_DSN", default=None)
