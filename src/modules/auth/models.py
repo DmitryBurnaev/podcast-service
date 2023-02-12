@@ -61,7 +61,7 @@ class UserInvite(ModelBase, ModelMixin):
     owner_id = Column(ForeignKey("auth_users.id"), nullable=False)
 
     def __repr__(self):
-        return f"<UserInvite #{self.id} {self.token}>"
+        return f"<UserInvite #{self.id} {self.email}>"
 
     @classmethod
     def generate_token(cls):

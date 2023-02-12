@@ -180,7 +180,6 @@ class SignOutAPIView(BaseHTTPEndpoint):
         user = request.user
         logger.info("Log out for user %s", user)
 
-        # TODO: test logout from current session (if another exist)
         user_session = await UserSession.async_get(
             self.db_session, public_id=request.user_session_id, is_active=True
         )
@@ -215,7 +214,6 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         if user_session.refresh_token != refresh_token:
             raise AuthenticationFailedError("Refresh token does not match with user session.")
 
-        # TODO: think about refreshing refresh token
         token_collection = await self._update_session(user, user_session)
         return self._response(token_collection)
 
@@ -254,7 +252,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
                 owner_id=request.user.id,
             )
 
-        logger.info("Invite object %r created. Sending message...", user_invite)
+        logger.info("Invite object %r created/updated. Sending message...", user_invite)
         await self._send_email(user_invite)
         return self._response(user_invite, status_code=status.HTTP_201_CREATED)
 
@@ -343,7 +341,7 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         """Check is email unique and create new User"""
         # TODO: recheck logic
         cleaned_data = await self._validate(request)
-        user, _, _ = await LoginRequiredAuthBackend(request).authenticate_user(
+        user, *_ = await LoginRequiredAuthBackend(request).authenticate_user(
             jwt_token=cleaned_data["token"],
             token_type=TOKEN_TYPE_RESET_PASSWORD,
         )
