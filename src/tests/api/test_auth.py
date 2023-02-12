@@ -311,6 +311,21 @@ class TestSignOutAPIView(BaseTestAPIView):
         response = client.delete(self.url)
         assert response.status_code == 200
 
+    def test_sign_out__another_session_exists__ok(self, client, user, user_session, dbs):
+        another_user_session = user_session
+        current_user_session = client.login(user)
+
+        response = client.delete(self.url)
+        assert response.status_code == 200
+
+        # current login
+        current_user_session = await_(UserSession.async_get(dbs, id=current_user_session.id))
+        assert current_user_session.is_active is False
+
+        # user's login from another browser / device
+        another_user_session = await_(UserSession.async_get(dbs, id=another_user_session.id))
+        assert another_user_session.is_active
+
 
 class TestUserInviteApiView(BaseTestAPIView):
     url = "/api/auth/invite-user/"
@@ -371,31 +386,37 @@ class TestUserInviteApiView(BaseTestAPIView):
             "details": f"User with email=[{user.email}] already exists.",
         }
 
-    # TODO: test
-    def _test_invite__user_already_invited__update_invite__ok(
-        self, client, user, mocked_auth_send, db_session
+    def test_invite__user_already_invited__update_invite__ok(
+        self, client, user, mocked_auth_send, dbs
     ):
         old_token = UserInvite.generate_token()
         old_expired_at = datetime.utcnow()
         user_invite = await_(
             UserInvite.async_create(
-                db_session,
+                dbs,
                 email=self.email,
                 token=old_token,
                 expired_at=old_expired_at,
                 owner_id=user.id,
+                db_commit=True,
             )
         )
 
         client.login(user)
         client.post(self.url, json={"email": self.email})
-        updated_user_invite: UserInvite = await_(UserInvite.async_get(db_session, email=self.email))
+
+        dbs.expunge(user_invite) # for refreshing instance
+        updated_user_invite: UserInvite = await_(UserInvite.async_get(dbs, email=self.email))
 
         assert updated_user_invite is not None
         assert updated_user_invite.id == user_invite.id
-        assert updated_user_invite.token != user_invite.token
-        assert updated_user_invite.expired_at != user_invite.expired_at
-        assert mocked_auth_send.assert_awaited_once
+        assert updated_user_invite.owner_id == user.id
+        assert updated_user_invite.token != old_token
+        assert updated_user_invite.expired_at > old_expired_at
+
+        mocked_auth_send.assert_awaited_once()
+        _, call_kwargs = mocked_auth_send.call_args_list[0]
+        assert call_kwargs["recipient_email"] == self.email
 
 
 class TestResetPasswordAPIView(BaseTestAPIView):
