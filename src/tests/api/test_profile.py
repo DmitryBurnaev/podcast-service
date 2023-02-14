@@ -2,7 +2,7 @@ import pytest
 
 from common.statuses import ResponseStatus
 from modules.auth.utils import encode_jwt, TOKEN_TYPE_RESET_PASSWORD, TOKEN_TYPE_REFRESH
-from tests.api.test_auth import assert_tokens, INVALID_CHANGE_PASSWORD_DATA
+from tests.api.test_auth import INVALID_CHANGE_PASSWORD_DATA
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import await_
 
@@ -55,10 +55,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         return response.json()["payload"]
 
     def test_change_password__ok(self, client, user, user_session, dbs):
-        token, _ = encode_jwt(
-            {"user_id": user.id, "session_id": user_session.public_id},
-            token_type=TOKEN_TYPE_RESET_PASSWORD,
-        )
+        token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
         request_data = {
             "token": token,
             "password_1": self.new_password,
@@ -67,10 +64,12 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         client.logout()
         response = client.post(self.url, json=request_data)
         response_data = self.assert_ok_response(response)
-        assert_tokens(response_data, user)
+        assert response_data == {}
 
         await_(dbs.refresh(user))
+        await_(dbs.refresh(user_session))
         assert user.verify_password(self.new_password)
+        assert not user_session.is_active
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_CHANGE_PASSWORD_DATA)
     def test_invalid_request__fail(self, client, invalid_data: dict, error_details: dict):

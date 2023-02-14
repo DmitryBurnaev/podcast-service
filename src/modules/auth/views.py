@@ -339,7 +339,6 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
 
     async def post(self, request: PRequest) -> Response:
         """Check is email unique and create new User"""
-        # TODO: recheck logic
         cleaned_data = await self._validate(request)
         user, *_ = await LoginRequiredAuthBackend(request).authenticate_user(
             jwt_token=cleaned_data["token"],
@@ -347,9 +346,13 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         )
         new_password = User.make_password(cleaned_data["password_1"])
         await user.update(self.db_session, password=new_password)
-
-        token_collection = await self._create_session(request, user)
-        return self._response(token_collection)
+        # deactivate all user's sessions
+        await UserSession.async_update(
+            self.db_session,
+            filter_kwargs={"user_id": user.id},
+            update_data={"is_active": False}
+        )
+        return self._response()
 
 
 class ProfileApiView(BaseHTTPEndpoint):

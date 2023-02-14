@@ -9,7 +9,7 @@ from common.exceptions import (
 )
 from common.utils import get_logger
 from modules.auth.models import User, UserSession
-from modules.auth.utils import decode_jwt, TOKEN_TYPE_ACCESS
+from modules.auth.utils import decode_jwt, TOKEN_TYPE_ACCESS, TOKEN_TYPE_RESET_PASSWORD
 
 logger = get_logger(__name__)
 
@@ -44,7 +44,7 @@ class BaseAuthJWTBackend:
         self,
         jwt_token: str,
         token_type: str = TOKEN_TYPE_ACCESS,
-    ) -> tuple[User, dict, str]:
+    ) -> tuple[User, dict, str | None]:
         """Allows to find active user by jwt_token"""
 
         logger.debug("Logging via JWT auth. Got token: %s", jwt_token)
@@ -75,6 +75,9 @@ class BaseAuthJWTBackend:
             msg = "Couldn't found active user with id=%s."
             logger.warning(msg, user_id)
             raise AuthenticationFailedError(details=(msg % (user_id,)))
+
+        if token_type == TOKEN_TYPE_RESET_PASSWORD:
+            return user, jwt_payload, None
 
         session_id = jwt_payload.get("session_id")
         if not session_id:
