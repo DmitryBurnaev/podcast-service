@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from common.enums import FileType
+from common.exceptions import NotSupportedError
 from core import settings
 from modules.auth.models import UserIP
 from modules.media.models import File
@@ -234,13 +235,55 @@ class TestRSSFileAPIView(BaseTestAPIView):
         assert response.status_code == 404
 
 
-# TODO: Add tests
+@patch("core.settings.S3_BUCKET_NAME", "test-bucket")
+@patch("core.settings.S3_STORAGE_URL", "https://storage.test.url")
+@patch("core.settings.SERVICE_URL", "https://self-service.test.url")
 class TestFileURL:
-    def test_public_url(self, image_file):
-        ...
+    test_access_token = uuid.uuid4().hex
 
-    def test_presigned_url(self):
-        ...
+    @pytest.mark.parametrize(
+        "file_type,url_path_pattern", (
+            (FileType.RSS, "/r/{access_token}/"),
+            (FileType.IMAGE, "/m/{access_token}/"),
+            (FileType.AUDIO, "/m/{access_token}/"),
+        )
+    )
+    def test_url(self, dbs, user, file_type, url_path_pattern):
+        file = await_(
+            File.create(dbs, file_type, owner_id=user.id, path="/remote/path/to/file", size=1)
+        )
+        url_path = url_path_pattern.format(access_token=file.access_token)
+        assert file.url == f"https://self-service.test.url{url_path}"
+
+    def test_url__file_not_available(self, dbs, image_file):
+        await_(image_file.update(dbs, available=False, db_commit=True))
+        assert image_file.url is None
+
+    def test_public_url(self, dbs, image_file):
+        await_(image_file.update(dbs, public=True, db_commit=True))
+        assert image_file.url == f"https://storage.test.url/test-bucket{image_file.path}"
+
+    def test_public_url__from_source(self, dbs, image_file):
+        await_(
+            image_file.update(
+                dbs, public=True, source_url="https://test.file-src.com", db_commit=True
+            )
+        )
+        assert image_file.url == "https://test.file-src.com"
+
+    def test_presigned_url(self, mocked_s3, image_file):
+        mocked_url = f"https://storage.test.url/presigned-url-to-file/{image_file.id}"
+        mocked_s3.get_presigned_url.return_value = mocked_url
+        assert await_(image_file.presigned_url) == mocked_url
+
+    def test_presigned_url__file_has_not_path(self, dbs, mocked_s3, image_file):
+        await_(image_file.update(dbs, path="", db_commit=True))
+        mocked_url = f"https://storage.test.url/presigned-url-to-file/{image_file.id}"
+        mocked_s3.get_presigned_url.return_value = mocked_url
+        with pytest.raises(NotSupportedError) as err:
+            assert await_(image_file.presigned_url) == mocked_url
+
+        assert err.value.args == (f"Remote file {image_file} available but has not remote path.",)
 
 
 class TestUploadAudioAPIView(BaseTestAPIView):
