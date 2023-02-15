@@ -83,7 +83,6 @@ SOURCE_CFG_MAP = {
     ),
 }
 
-# TODO: write another regexp (finding all metadata with single regexp construction)
 AUDIO_META_REGEXP = re.compile(r"(?P<meta>Metadata.+)?(?P<duration>Duration:\s?[\d:]+)", re.DOTALL)
 
 
