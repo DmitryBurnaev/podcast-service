@@ -122,7 +122,6 @@ class EpisodeCreator:
     async def _create_files(
         self, same_episode: Episode, source_info: SourceMediaInfo
     ) -> tuple[File, File]:
-
         if same_episode:
             image_file = await File.copy(
                 self.db_session,

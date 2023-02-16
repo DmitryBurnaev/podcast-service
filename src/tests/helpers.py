@@ -43,6 +43,7 @@ def await_(coroutine):
     from asyncio import _get_running_loop, get_event_loop_policy  # noqa
 
     if not (current_loop := _get_running_loop()):
+        # FIXME: deprecation warn (no current event loop). May be we can use pytest-async instead?
         current_loop = get_event_loop_policy().get_event_loop()
 
     return current_loop.run_until_complete(coroutine)
