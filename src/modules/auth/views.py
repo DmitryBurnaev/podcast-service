@@ -348,9 +348,7 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         await user.update(self.db_session, password=new_password)
         # deactivate all user's sessions
         await UserSession.async_update(
-            self.db_session,
-            filter_kwargs={"user_id": user.id},
-            update_data={"is_active": False}
+            self.db_session, filter_kwargs={"user_id": user.id}, update_data={"is_active": False}
         )
         return self._response()
 

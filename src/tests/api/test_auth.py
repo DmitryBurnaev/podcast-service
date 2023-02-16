@@ -405,7 +405,7 @@ class TestUserInviteApiView(BaseTestAPIView):
         client.login(user)
         client.post(self.url, json={"email": self.email})
 
-        dbs.expunge(user_invite) # for refreshing instance
+        dbs.expunge(user_invite)  # for refreshing instance
         updated_user_invite: UserInvite = await_(UserInvite.async_get(dbs, email=self.email))
 
         assert updated_user_invite is not None

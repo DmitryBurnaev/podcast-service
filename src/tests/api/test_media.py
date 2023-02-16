@@ -242,11 +242,12 @@ class TestFileURL:
     test_access_token = uuid.uuid4().hex
 
     @pytest.mark.parametrize(
-        "file_type,url_path_pattern", (
+        "file_type,url_path_pattern",
+        (
             (FileType.RSS, "/r/{access_token}/"),
             (FileType.IMAGE, "/m/{access_token}/"),
             (FileType.AUDIO, "/m/{access_token}/"),
-        )
+        ),
     )
     def test_url(self, dbs, user, file_type, url_path_pattern):
         file = await_(
