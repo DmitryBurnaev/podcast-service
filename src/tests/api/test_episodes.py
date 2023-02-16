@@ -432,7 +432,6 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
                     assert e_key in response_data["details"][error_field]
                     assert e_val in response_data["details"][error_field][e_key]
             else:
-
                 assert error_field in response_data["details"]
                 assert error_value in response_data["details"][error_field]
 

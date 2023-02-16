@@ -89,7 +89,7 @@ def db_prep():
     conn = engine.connect()
     try:
         conn = conn.execution_options(autocommit=False)
-        conn.execute("ROLLBACK")
+        conn.execute("ROLLBACK")  # FIXME: it will be deprecated in SA 2.0
         conn.execute(f"DROP DATABASE {settings.DB_NAME}")
     except ProgrammingError:
         print("Could not drop the database, probably does not exist.")

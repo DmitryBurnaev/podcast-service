@@ -10,6 +10,7 @@ disable=missing-module-docstring,
         fixme,
         broad-except,
         too-few-public-methods,
+        superfluous-parens,
 
 [FORMAT]
 

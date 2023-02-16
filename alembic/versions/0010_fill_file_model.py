@@ -79,7 +79,6 @@ def _fill_media(conn: Connection, _table, items: list[dict]):
             files_data.append(audio)
 
         if item.get("image_path"):
-
             if item["image_path"].startswith("http"):
                 image_path = ""
                 image_url = item["image_path"]

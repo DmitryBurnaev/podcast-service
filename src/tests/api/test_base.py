@@ -63,7 +63,6 @@ class BaseTestAPIView(BaseTestCase):
     def assert_fail_response(
         self, response: Response, status_code: int = None, response_status: str = None
     ) -> dict | list:
-
         assert response.status_code == (
             status_code or self.default_fail_status_code
         ), f"Unexpected status code. Response: {response.content}"

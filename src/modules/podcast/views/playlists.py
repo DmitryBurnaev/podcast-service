@@ -23,7 +23,6 @@ class PlayListAPIView(BaseHTTPEndpoint):
     schema_response = PlayListResponseSchema
 
     async def get(self, request: PRequest) -> Response:
-
         cleaned_data = await self._validate(request, location="query")
         playlist_url = cleaned_data.get("url")
         # loop = asyncio.get_running_loop()

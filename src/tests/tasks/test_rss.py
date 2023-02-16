@@ -14,7 +14,6 @@ class TestGenerateRSSTask:
     """Checks RSS generation logic"""
 
     def test_generate__single_podcast__ok(self, user, mocked_s3, dbs):
-
         podcast_1: Podcast = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
         podcast_2: Podcast = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
 
