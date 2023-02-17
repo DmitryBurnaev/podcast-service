@@ -2,9 +2,11 @@ import uuid
 import logging
 import tempfile
 from datetime import datetime, timedelta
+from typing import Any
 from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
+import pytest_asyncio
 import sqlalchemy
 from sqlalchemy.engine import URL
 from sqlalchemy.util import concurrency
@@ -12,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import ProgrammingError, OperationalError
 
 from core import settings, database
-from modules.auth.models import UserInvite
+from modules.auth.models import UserInvite, User, UserSession
 from modules.media.models import File
 from modules.podcast.models import Podcast, Episode, Cookie
 from common.enums import SourceType, FileType
@@ -29,6 +31,8 @@ from tests.helpers import (
     make_db_session,
     await_,
     get_source_id,
+    async_create_user_session,
+    async_make_db_session,
 )
 from tests.mocks import (
     MockYoutubeDL,
@@ -59,12 +63,26 @@ def cap_log(caplog):
     logging.getLogger("modules").setLevel(logging.INFO)
 
 
+# TODO: use async fixt instead
 @pytest.fixture(autouse=True, scope="session")
 def client() -> PodcastTestClient:
     from core.app import get_app
 
     with PodcastTestClient(get_app()) as client:
         with make_db_session() as db_session:
+            client.db_session = db_session
+            yield client
+
+
+# TODO: turn-on autouse=True, scope="session" (for pytest-asyncio global mode may be?)
+@pytest_asyncio.fixture
+# @pytest_asyncio.fixture(autouse=True, scope="session")
+async def async_client() -> PodcastTestClient:
+    from core.app import get_app
+
+    # TODO: support async with for PodcastTestClient
+    with PodcastTestClient(get_app()) as client:
+        async with async_make_db_session() as db_session:
             client.db_session = db_session
             yield client
 
@@ -205,22 +223,35 @@ def user_data() -> tuple[str, str]:
 
 
 @pytest.fixture
-def user(dbs):
+def user(dbs) -> User:
     return create_user(dbs)
 
 
+# @pytest.fixture
+# async def auser(dbs) -> User:
+#     email, password = get_user_data()
+#     return await User.async_create(dbs, db_commit=True, email=email, password=password)
+#     # return await acreate_user(dbs)
+
+
 @pytest.fixture
-def user_session(user, dbs):
+def user_session(user, dbs) -> UserSession:
     return create_user_session(dbs, user)
 
 
+# TODO: replace
+@pytest_asyncio.fixture
+async def async_user_session(user, dbs) -> UserSession:
+    return await async_create_user_session(dbs, user)
+
+
 @pytest.fixture
-def podcast_data() -> dict:
+def podcast_data() -> dict[str, Any]:
     return get_podcast_data()
 
 
 @pytest.fixture
-def episode_data(podcast) -> dict:
+def episode_data(podcast) -> dict[str, Any]:
     return get_episode_data(podcast=podcast)
 
 
