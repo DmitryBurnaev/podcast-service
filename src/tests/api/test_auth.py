@@ -295,7 +295,7 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
 
 
 @pytest_asyncio.fixture
-async def auser(dbs) -> User:
+async def user(dbs) -> User:
     email, password = get_user_data()
     return await User.async_create(dbs, db_commit=True, email=email, password=password)
     # return await acreate_user(dbs)
@@ -304,21 +304,21 @@ async def auser(dbs) -> User:
 class TestSignOutAPIView(BaseTestAPIView):
     url = "/api/auth/sign-out/"
 
-    async def test_sign_out__ok(self, async_client, auser, dbs):
-        user_session = await async_client.async_login(auser)
-        response = async_client.delete(self.url)
+    async def test_sign_out__ok(self, client, user, dbs):
+        user_session = await client.login(user)
+        response = client.delete(self.url)
         assert response.status_code == 200
         user_session = await UserSession.async_get(dbs, id=user_session.id)
         assert user_session.is_active is False
 
-    async def test_sign_out__user_session_not_found__ok(self, async_client, auser):
-        await async_client.async_login(auser)
-        response = async_client.delete(self.url)
+    async def test_sign_out__user_session_not_found__ok(self, client, user):
+        await client.login(user)
+        response = client.delete(self.url)
         assert response.status_code == 200
 
-    async def test_sign_out__another_session_exists__ok(self, client, auser, async_user_session, dbs):
+    async def test_sign_out__another_session_exists__ok(self, client, user, async_user_session, dbs):
         another_user_session = async_user_session
-        current_user_session = await client.async_login(auser)
+        current_user_session = await client.login(user)
 
         response = client.delete(self.url)
         assert response.status_code == 200
@@ -340,10 +340,10 @@ class TestUserInviteApiView(BaseTestAPIView):
     def setup_method(self):
         self.email = f"user_{uuid.uuid4().hex[:10]}@test.com"
 
-    async def test_invite__ok(self, async_client, auser, mocked_auth_send, dbs):
-        await async_client.async_login(auser)
+    async def test_invite__ok(self, client, user, mocked_auth_send, dbs):
+        await client.login(user)
         # TODO: await post ?
-        response = async_client.post(self.url, json={"email": self.email})
+        response = client.post(self.url, json={"email": self.email})
         response_data = self.assert_ok_response(response, status_code=201)
 
         user_invite: UserInvite = await UserInvite.async_get(dbs, email=self.email)
@@ -352,7 +352,7 @@ class TestUserInviteApiView(BaseTestAPIView):
             "id": user_invite.id,
             "token": user_invite.token,
             "email": user_invite.email,
-            "owner_id": auser.id,
+            "owner_id": user.id,
             "created_at": user_invite.created_at.isoformat(),
             "expired_at": user_invite.expired_at.isoformat(),
         }
@@ -374,26 +374,26 @@ class TestUserInviteApiView(BaseTestAPIView):
         )
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_INVITE_DATA)
-    async def test_invalid_request__fail(self, async_client, auser, invalid_data: dict, error_details: dict):
-        await async_client.async_login(auser)
-        self.assert_bad_request(async_client.post(self.url, json=invalid_data), error_details)
+    async def test_invalid_request__fail(self, client, user, invalid_data: dict, error_details: dict):
+        await client.login(user)
+        self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
 
-    async def test_invite__unauth__fail(self, async_client):
-        async_client.logout()
-        self.assert_unauth(async_client.post(self.url, json={"email": self.email}))
+    async def test_invite__unauth__fail(self, client):
+        client.logout()
+        self.assert_unauth(client.post(self.url, json={"email": self.email}))
 
-    async def test_invite__user_already_exists__fail(self, async_client, auser):
-        await async_client.async_login(auser)
-        response = async_client.post(self.url, json={"email": auser.email})
+    async def test_invite__user_already_exists__fail(self, client, user):
+        await client.login(user)
+        response = client.post(self.url, json={"email": user.email})
 
         response_data = self.assert_fail_response(response)
         assert response_data == {
             "error": "Requested data is not valid.",
-            "details": f"User with email=[{auser.email}] already exists.",
+            "details": f"User with email=[{user.email}] already exists.",
         }
 
     async def test_invite__user_already_invited__update_invite__ok(
-        self, async_client, auser, mocked_auth_send, dbs
+        self, client, user, mocked_auth_send, dbs
     ):
         old_token = UserInvite.generate_token()
         old_expired_at = datetime.utcnow()
@@ -402,19 +402,19 @@ class TestUserInviteApiView(BaseTestAPIView):
             email=self.email,
             token=old_token,
             expired_at=old_expired_at,
-            owner_id=auser.id,
+            owner_id=user.id,
             db_commit=True,
         )
 
-        await async_client.async_login(auser)
-        async_client.post(self.url, json={"email": self.email})
+        await client.login(user)
+        client.post(self.url, json={"email": self.email})
 
         dbs.expunge(user_invite)  # for refreshing instance
         updated_user_invite: UserInvite = await UserInvite.async_get(dbs, email=self.email)
 
         assert updated_user_invite is not None
         assert updated_user_invite.id == user_invite.id
-        assert updated_user_invite.owner_id == auser.id
+        assert updated_user_invite.owner_id == user.id
         assert updated_user_invite.token != old_token
         assert updated_user_invite.expired_at > old_expired_at
 
@@ -429,15 +429,15 @@ class TestResetPasswordAPIView(BaseTestAPIView):
     def setup_method(self):
         self.email = f"user_{uuid.uuid4().hex[:10]}@test.com"
 
-    async def test_reset_password__ok(self, async_client, auser, mocked_auth_send, dbs):
-        request_user = auser
+    async def test_reset_password__ok(self, client, user, mocked_auth_send, dbs):
+        request_user = user
         await request_user.update(dbs, is_superuser=True)
         target_user = await User.async_create(
             dbs, db_commit=True, email=self.email, password="pass"
         )
 
-        await async_client.async_login(auser)
-        response = async_client.post(self.url, json={"email": target_user.email})
+        await client.login(user)
+        response = client.post(self.url, json={"email": target_user.email})
         response_data = self.assert_ok_response(response)
         token = response_data.get("token")
 
@@ -457,16 +457,16 @@ class TestResetPasswordAPIView(BaseTestAPIView):
             html_content=expected_body,
         )
 
-    async def test_reset_password__unauth__fail(self, async_client):
-        async_client.logout()
-        self.assert_unauth(async_client.post(self.url, json={"email": self.email}))
+    async def test_reset_password__unauth__fail(self, client):
+        client.logout()
+        self.assert_unauth(client.post(self.url, json={"email": self.email}))
 
-    async def test_reset_password__user_not_found__fail(self, async_client, auser, mocked_auth_send, dbs):
-        request_user = auser
+    async def test_reset_password__user_not_found__fail(self, client, user, mocked_auth_send, dbs):
+        request_user = user
         await request_user.update(dbs, is_superuser=True, db_commit=True)
 
-        await async_client.async_login(request_user)
-        response = async_client.post(self.url, json={"email": "fake-email@test.com"})
+        await client.login(request_user)
+        response = client.post(self.url, json={"email": "fake-email@test.com"})
         response_data = self.assert_fail_response(
             response, status_code=400, response_status=ResponseStatus.INVALID_PARAMETERS
         )
@@ -475,9 +475,9 @@ class TestResetPasswordAPIView(BaseTestAPIView):
             "details": "User with email=[fake-email@test.com] not found.",
         }
 
-    async def test_reset_password__user_is_not_superuser__fail(self, async_client, auser):
-        await async_client.async_login(auser)
-        response = async_client.post(self.url, json={"email": auser.email})
+    async def test_reset_password__user_is_not_superuser__fail(self, client, user):
+        await client.login(user)
+        response = client.post(self.url, json={"email": user.email})
         response_data = self.assert_fail_response(
             response, status_code=403, response_status=ResponseStatus.FORBIDDEN
         )
@@ -593,43 +593,43 @@ class TestUserIPRegistration(BaseTestAPIView):
         request.scope["user"] = user
         return request
 
-    async def test_register_success(self, async_client, auser, user_session):
-        self.client = async_client
-        request = self._request(user=auser)
+    async def test_register_success(self, client, user, user_session):
+        self.client = client
+        request = self._request(user=user)
         await register_ip(request)
-        # TODO: use async_client.db_session everywhere (if possible)
-        user_ip = await UserIP.async_get(async_client.db_session, user_id=auser.id, ip_address=self.IP)
+        # TODO: use client.db_session everywhere (if possible)
+        user_ip = await UserIP.async_get(client.db_session, user_id=user.id, ip_address=self.IP)
         assert user_ip is not None
 
-    async def test_register_ip_already_exists(self, dbs, async_client, auser, user_session):
+    async def test_register_ip_already_exists(self, dbs, client, user, user_session):
         # fixme: can we use async fixture in a setup_method?
-        self.client = async_client
+        self.client = client
         old_user_ip = await UserIP.async_create(
-            dbs, user_id=auser.id, ip_address=self.IP, db_commit=True
+            dbs, user_id=user.id, ip_address=self.IP, db_commit=True
         )
 
-        request = self._request(user=auser, ip_address=self.IP)
+        request = self._request(user=user, ip_address=self.IP)
         await register_ip(request)
 
-        new_user_ip = await UserIP.async_get(dbs, user_id=auser.id, ip_address=self.IP)
+        new_user_ip = await UserIP.async_get(dbs, user_id=user.id, ip_address=self.IP)
         assert new_user_ip is not None
         assert new_user_ip.id == old_user_ip.id
 
-    async def test_register_ip_several_requests(self, async_client, auser, user_session):
-        self.client = async_client
-        request_1 = self._request(user=auser, ip_address="172.17.0.1")
-        request_2 = self._request(user=auser, ip_address="172.17.0.2")
+    async def test_register_ip_several_requests(self, client, user, user_session):
+        self.client = client
+        request_1 = self._request(user=user, ip_address="172.17.0.1")
+        request_2 = self._request(user=user, ip_address="172.17.0.2")
         await register_ip(request_1)
         await register_ip(request_2)
 
-        user_ips = await UserIP.async_filter(async_client.db_session, user_id=auser.id)
+        user_ips = await UserIP.async_filter(client.db_session, user_id=user.id)
         actual_ips = [user_ip.ip_address for user_ip in user_ips]
         assert actual_ips == ["172.17.0.1", "172.17.0.2"]
 
-    async def test_register_missed_ip_header(self, dbs, auser):
+    async def test_register_missed_ip_header(self, dbs, user):
         request = prepare_request(dbs, headers={"WRONG-X-Real-IP": "172.17.0.1"})
-        request.scope["user"] = auser
+        request.scope["user"] = user
         await register_ip(request)
 
-        user_ip = await UserIP.async_get(dbs, user_id=auser.id, ip_address="172.17.0.1")
+        user_ip = await UserIP.async_get(dbs, user_id=user.id, ip_address="172.17.0.1")
         assert user_ip is None

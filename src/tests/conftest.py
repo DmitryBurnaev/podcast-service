@@ -31,8 +31,6 @@ from tests.helpers import (
     make_db_session,
     await_,
     get_source_id,
-    async_create_user_session,
-    async_make_db_session,
 )
 from tests.mocks import (
     MockYoutubeDL,
@@ -62,27 +60,27 @@ def cap_log(caplog):
     caplog.set_level(logging.INFO)
     logging.getLogger("modules").setLevel(logging.INFO)
 
-
-# TODO: use async fixt instead
-@pytest.fixture(autouse=True, scope="session")
-def client() -> PodcastTestClient:
-    from core.app import get_app
-
-    with PodcastTestClient(get_app()) as client:
-        with make_db_session() as db_session:
-            client.db_session = db_session
-            yield client
+#
+# # TODO: use async fixt instead
+# @pytest.fixture(autouse=True, scope="session")
+# def client() -> PodcastTestClient:
+#     from core.app import get_app
+#
+#     with PodcastTestClient(get_app()) as client:
+#         with make_db_session() as db_session:
+#             client.db_session = db_session
+#             yield client
 
 
 # TODO: turn-on autouse=True, scope="session" (for pytest-asyncio global mode may be?)
 @pytest_asyncio.fixture
 # @pytest_asyncio.fixture(autouse=True, scope="session")
-async def async_client() -> PodcastTestClient:
+async def client() -> PodcastTestClient:
     from core.app import get_app
 
     # TODO: support async with for PodcastTestClient
     with PodcastTestClient(get_app()) as client:
-        async with async_make_db_session() as db_session:
+        async with make_db_session() as db_session:
             client.db_session = db_session
             yield client
 
@@ -222,9 +220,9 @@ def user_data() -> tuple[str, str]:
     return get_user_data()
 
 
-@pytest.fixture
-def user(dbs) -> User:
-    return create_user(dbs)
+@pytest_asyncio.fixture
+async def user(dbs) -> User:
+    return await create_user(dbs)
 
 
 # @pytest.fixture
@@ -234,16 +232,16 @@ def user(dbs) -> User:
 #     # return await acreate_user(dbs)
 
 
-@pytest.fixture
-def user_session(user, dbs) -> UserSession:
-    return create_user_session(dbs, user)
+@pytest_asyncio.fixture
+async def user_session(user, dbs) -> UserSession:
+    return await create_user_session(dbs, user)
 
 
 # TODO: replace
-@pytest_asyncio.fixture
-async def async_user_session(user, dbs) -> UserSession:
-    return await async_create_user_session(dbs, user)
-
+# @pytest_asyncio.fixture
+# async def async_user_session(user, dbs) -> UserSession:
+#     return await create_user_session(dbs, user)
+#
 
 @pytest.fixture
 def podcast_data() -> dict[str, Any]:
