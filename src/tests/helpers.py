@@ -5,7 +5,7 @@ import uuid
 from typing import Type
 from unittest import mock
 from hashlib import blake2b
-from contextlib import contextmanager, asynccontextmanager
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,14 +24,8 @@ from tests.mocks import BaseMock
 class PodcastTestClient(TestClient):
     db_session: AsyncSession = None
 
-    def login(self, user: User):
-        user_session = create_user_session(self.db_session, user)
-        jwt, _ = encode_jwt({"user_id": user.id, "session_id": user_session.public_id})
-        self.headers["Authorization"] = f"Bearer {jwt}"
-        return user_session
-
-    async def async_login(self, user: User):
-        user_session = await async_create_user_session(self.db_session, user)
+    async def login(self, user: User) -> UserSession:
+        user_session = await create_user_session(self.db_session, user)
         jwt, _ = encode_jwt({"user_id": user.id, "session_id": user_session.public_id})
         self.headers["Authorization"] = f"Bearer {jwt}"
         return user_session
@@ -140,18 +134,18 @@ def get_podcast_data(**kwargs):
     }
     return podcast_data | kwargs
 
-
-@contextmanager
-def make_db_session():
-    session_maker = make_session_maker()
-    async_session = session_maker()
-    await_(async_session.__aenter__())
-    yield async_session
-    await_(async_session.__aexit__(None, None, None))
+#
+# @contextmanager
+# def make_db_session():
+#     session_maker = make_session_maker()
+#     async_session = session_maker()
+#     await_(async_session.__aenter__())
+#     yield async_session
+#     await_(async_session.__aexit__(None, None, None))
 
 
 @asynccontextmanager
-async def async_make_db_session():
+async def make_db_session():
     session_maker = make_session_maker()
     async_session = session_maker()
     await async_session.__aenter__()
@@ -159,12 +153,7 @@ async def async_make_db_session():
     await async_session.__aexit__(None, None, None)
 
 
-def create_user(db_session):
-    email, password = get_user_data()
-    return await_(User.async_create(db_session, db_commit=True, email=email, password=password))
-
-
-async def acreate_user(db_session):
+async def create_user(db_session) -> User:
     email, password = get_user_data()
     return await User.async_create(db_session, db_commit=True, email=email, password=password)
 
@@ -176,24 +165,7 @@ def create_file(content: str | bytes) -> io.BytesIO:
     return io.BytesIO(content)
 
 
-def create_user_session(db_session, user) -> UserSession:
-    return await_(
-        UserSession.async_create(
-            db_session,
-            db_commit=True,
-            user_id=user.id,
-            public_id=str(uuid.uuid4()),
-            refresh_token="refresh-token",
-            is_active=True,
-            expired_at=datetime.utcnow() + timedelta(seconds=120),
-            created_at=datetime.utcnow(),
-            refreshed_at=datetime.utcnow(),
-        )
-    )
-
-
-# TODO: replace
-async def async_create_user_session(db_session, user) -> UserSession:
+async def create_user_session(db_session, user) -> UserSession:
     return await UserSession.async_create(
         db_session,
         db_commit=True,
@@ -205,8 +177,23 @@ async def async_create_user_session(db_session, user) -> UserSession:
         created_at=datetime.utcnow(),
         refreshed_at=datetime.utcnow(),
     )
+#
+#
+# # TODO: replace
+# async def async_create_user_session(db_session, user) -> UserSession:
+#     return await UserSession.async_create(
+#         db_session,
+#         db_commit=True,
+#         user_id=user.id,
+#         public_id=str(uuid.uuid4()),
+#         refresh_token="refresh-token",
+#         is_active=True,
+#         expired_at=datetime.utcnow() + timedelta(seconds=120),
+#         created_at=datetime.utcnow(),
+#         refreshed_at=datetime.utcnow(),
+#     )
 
-
+# TODO: replace to await
 def create_episode(
     db_session: AsyncSession,
     episode_data: dict,
