@@ -225,23 +225,10 @@ async def user(dbs) -> User:
     return await create_user(dbs)
 
 
-# @pytest.fixture
-# async def auser(dbs) -> User:
-#     email, password = get_user_data()
-#     return await User.async_create(dbs, db_commit=True, email=email, password=password)
-#     # return await acreate_user(dbs)
-
-
 @pytest_asyncio.fixture
 async def user_session(user, dbs) -> UserSession:
     return await create_user_session(dbs, user)
 
-
-# TODO: replace
-# @pytest_asyncio.fixture
-# async def async_user_session(user, dbs) -> UserSession:
-#     return await create_user_session(dbs, user)
-#
 
 @pytest.fixture
 def podcast_data() -> dict[str, Any]:
@@ -253,123 +240,111 @@ def episode_data(podcast) -> dict[str, Any]:
     return get_episode_data(podcast=podcast)
 
 
-@pytest.fixture
-def podcast(podcast_data, user, dbs) -> Podcast:
+@pytest_asyncio.fixture
+async def podcast(podcast_data, user, dbs) -> Podcast:
     podcast_data["owner_id"] = user.id
     publish_id = podcast_data["publish_id"]
-    image = await_(
-        File.create(
-            dbs,
-            FileType.IMAGE,
-            owner_id=user.id,
-            path=f"/remote/path/to/audio/podcast_{publish_id}_image.png",
-            available=True,
-            public=True,
-        )
+    image = await File.create(
+        dbs,
+        FileType.IMAGE,
+        owner_id=user.id,
+        path=f"/remote/path/to/audio/podcast_{publish_id}_image.png",
+        available=True,
+        public=True,
     )
-    rss = await_(
-        File.create(
-            dbs,
-            FileType.RSS,
-            owner_id=user.id,
-            path=f"/remote/path/to/rss/podcast_{publish_id}_rss.xml",
-            available=True,
-        )
+
+    rss = await File.create(
+        dbs,
+        FileType.RSS,
+        owner_id=user.id,
+        path=f"/remote/path/to/rss/podcast_{publish_id}_rss.xml",
+        available=True,
     )
+
     podcast_data["image_id"] = image.id
     podcast_data["rss_id"] = rss.id
     podcast = await_(Podcast.async_create(dbs, **podcast_data))
-    await_(dbs.commit())
+    await dbs.commit()
     podcast.image = image
     podcast.rss = rss
     return podcast
 
 
-@pytest.fixture
-def cookie(user, dbs) -> Cookie:
+@pytest_asyncio.fixture
+async def cookie(user, dbs) -> Cookie:
     cookie_data = {
         "source_type": SourceType.YANDEX,
         "data": "Cookie at netscape format\n",
         "owner_id": user.id,
     }
-    cookie = await_(Cookie.async_create(dbs, **cookie_data))
-    await_(dbs.commit())
+    cookie = await Cookie.async_create(dbs, **cookie_data)
+    await dbs.commit()
     return cookie
 
 
-@pytest.fixture
-def image_file(user, dbs) -> File:
-    image = await_(
-        File.create(
-            dbs,
-            FileType.IMAGE,
-            owner_id=user.id,
-            path="/remote/path/to/image_file.png",
-            size=1,
-        )
+@pytest_asyncio.fixture
+async def image_file(user, dbs) -> File:
+    return await File.create(
+        dbs,
+        FileType.IMAGE,
+        owner_id=user.id,
+        path="/remote/path/to/image_file.png",
+        size=1,
+        db_commit=True
     )
-    await_(dbs.commit())
-    return image
 
 
-@pytest.fixture
-def rss_file(user, dbs) -> File:
-    image = await_(
-        File.create(
-            dbs,
-            FileType.RSS,
-            owner_id=user.id,
-            path="/remote/path/to/rss_file.xml",
-        )
+@pytest_asyncio.fixture
+async def rss_file(user, dbs) -> File:
+    return await File.create(
+        dbs,
+        FileType.RSS,
+        owner_id=user.id,
+        path="/remote/path/to/rss_file.xml",
+        db_commit=True
     )
-    await_(dbs.commit())
-    return image
 
 
-@pytest.fixture
-def episode(podcast, user, dbs) -> Episode:
+@pytest_asyncio.fixture
+async def episode(podcast, user, dbs) -> Episode:
     episode_data = get_episode_data(podcast=podcast, creator=user)
     source_id = get_source_id()
-    audio = await_(
-        File.create(
-            dbs,
-            FileType.AUDIO,
-            owner_id=user.id,
-            path=f"/remote/path/to/audio/episode_{source_id}_audio.mp3",
-            available=True,
-            size=1024,
-        )
+    audio = await File.create(
+        dbs,
+        FileType.AUDIO,
+        owner_id=user.id,
+        path=f"/remote/path/to/audio/episode_{source_id}_audio.mp3",
+        available=True,
+        size=1024,
     )
-    image = await_(
-        File.create(
-            dbs,
-            FileType.IMAGE,
-            owner_id=user.id,
-            source_url=f"http://link.to.source-image/{source_id}.png",
-            path=f"/remote/path/to/images/episode_{source_id}_image.png",
-            available=True,
-        )
+
+    image = await File.create(
+        dbs,
+        FileType.IMAGE,
+        owner_id=user.id,
+        source_url=f"http://link.to.source-image/{source_id}.png",
+        path=f"/remote/path/to/images/episode_{source_id}_image.png",
+        available=True,
     )
+
     episode_data["audio_id"] = audio.id
     episode_data["image_id"] = image.id
-    episode = await_(Episode.async_create(dbs, **episode_data))
-    await_(dbs.commit())
+    episode = await Episode.async_create(dbs, **episode_data)
+    await dbs.commit()
     episode.image = image
     episode.audio = audio
     return episode
 
 
-@pytest.fixture
-def user_invite(user, dbs) -> UserInvite:
-    return await_(
-        UserInvite.async_create(
-            dbs,
-            db_commit=True,
-            email=f"user_{uuid.uuid4().hex[:10]}@test.com",
-            token=f"{uuid.uuid4().hex}",
-            expired_at=datetime.utcnow() + timedelta(days=1),
-            owner_id=user.id,
-        )
+@pytest_asyncio.fixture
+async def user_invite(user, dbs) -> UserInvite:
+    return await UserInvite.async_create(
+        dbs,
+        db_commit=True,
+        email=f"user_{uuid.uuid4().hex[:10]}@test.com",
+        token=f"{uuid.uuid4().hex}",
+        expired_at=datetime.utcnow() + timedelta(days=1),
+        owner_id=user.id,
     )
 
 
