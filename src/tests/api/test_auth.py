@@ -294,10 +294,6 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
         assert response_data["error"] == "Email does not match with your invitation."
 
 
-@pytest_asyncio.fixture
-async def user(dbs) -> User:
-    email, password = get_user_data()
-    return await User.async_create(dbs, db_commit=True, email=email, password=password)
     # return await acreate_user(dbs)
 
 
