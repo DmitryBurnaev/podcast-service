@@ -193,8 +193,8 @@ async def create_user_session(db_session, user) -> UserSession:
 #         refreshed_at=datetime.utcnow(),
 #     )
 
-# TODO: replace to await
-def create_episode(
+
+async def create_episode(
     db_session: AsyncSession,
     episode_data: dict,
     podcast: Podcast = None,
@@ -215,28 +215,25 @@ def create_episode(
     }
 
     owner_id = episode_data.get("owner_id") or (podcast.owner_id if podcast else None)
-    audio = await_(
-        File.create(
-            db_session,
-            FileType.AUDIO,
-            owner_id=owner_id,
-            path=audio_path,
-            size=file_size,
-            available=(status == Episode.Status.PUBLISHED),
-        )
+    audio = await File.create(
+        db_session,
+        FileType.AUDIO,
+        owner_id=owner_id,
+        path=audio_path,
+        size=file_size,
+        available=(status == Episode.Status.PUBLISHED),
     )
-    image = await_(
-        File.create(
-            db_session,
-            FileType.IMAGE,
-            owner_id=owner_id,
-            path=f"images/ep_{source_id}_{uuid.uuid4().hex}.png",
-            available=(status == Episode.Status.PUBLISHED),
-        )
+    image = await File.create(
+        db_session,
+        FileType.IMAGE,
+        owner_id=owner_id,
+        path=f"images/ep_{source_id}_{uuid.uuid4().hex}.png",
+        available=(status == Episode.Status.PUBLISHED),
     )
+
     _episode_data["audio_id"] = audio.id
     _episode_data["image_id"] = image.id
-    episode = await_(Episode.async_create(db_session, db_commit=True, **_episode_data))
+    episode = await Episode.async_create(db_session, db_commit=True, **_episode_data)
     episode.audio = audio
     episode.image = image
     return episode
