@@ -9,7 +9,7 @@ import pytest
 import pytest_asyncio
 import sqlalchemy
 from sqlalchemy.engine import URL
-from sqlalchemy.util import concurrency
+# from sqlalchemy.util import concurrency
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import ProgrammingError, OperationalError
 
@@ -29,7 +29,6 @@ from tests.helpers import (
     mock_target_class,
     create_user_session,
     make_db_session,
-    await_,
     get_source_id,
 )
 from tests.mocks import (
@@ -135,7 +134,8 @@ def db_migration():
         engine = sqlalchemy.create_engine(settings.DATABASE_DSN)
         database.ModelBase.metadata.create_all(engine)
 
-    await_(concurrency.greenlet_spawn(create_tables))
+    create_tables()
+    # await_(concurrency.greenlet_spawn(create_tables))
     print("DB and tables were successful created.")
 
 
@@ -252,7 +252,6 @@ async def podcast(podcast_data, user, dbs) -> Podcast:
         available=True,
         public=True,
     )
-
     rss = await File.create(
         dbs,
         FileType.RSS,
@@ -260,11 +259,9 @@ async def podcast(podcast_data, user, dbs) -> Podcast:
         path=f"/remote/path/to/rss/podcast_{publish_id}_rss.xml",
         available=True,
     )
-
     podcast_data["image_id"] = image.id
     podcast_data["rss_id"] = rss.id
-    podcast = await_(Podcast.async_create(dbs, **podcast_data))
-    await dbs.commit()
+    podcast = await Podcast.async_create(dbs, db_commit=True, **podcast_data)
     podcast.image = image
     podcast.rss = rss
     return podcast
