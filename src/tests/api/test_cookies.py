@@ -89,8 +89,8 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert response_data == _cookie(cookie)
 
-    def test_get__cookie_from_another_user__fail(self, client, cookie, dbs):
-        client.login(create_user(dbs))
+    async def test_get__cookie_from_another_user__fail(self, client, cookie, dbs):
+        await client.login(create_user(dbs))
         url = self.url.format(id=cookie.id)
         self.assert_not_found(client.get(url), cookie)
 
@@ -106,7 +106,7 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         assert cookie.updated_at > cookie.created_at
 
     async def test_update__cookie_from_another_user__fail(self, client, cookie, dbs):
-        client.login(create_user(dbs))
+        await client.login(create_user(dbs))
         url = self.url.format(id=cookie.id)
         data = {"source_type": SourceType.YANDEX}
         self.assert_not_found(client.put(url, data=data, files={"file": _cookie_file()}), cookie)
@@ -128,13 +128,12 @@ class TestCookieRUDAPIView(BaseTestAPIView):
 
     async def test_delete__cookie_from_another_user__fail(self, client, cookie, user, dbs):
         user_2 = create_user(dbs)
-        client.login(user_2)
+        await client.login(user_2)
         url = self.url.format(id=cookie.id)
         self.assert_not_found(client.delete(url), cookie)
 
     async def test_delete__linked_episodes___fail(self, client, episode, cookie, user, dbs):
         await episode.update(dbs, db_commit=True, cookie_id=cookie.id)
-
         await client.login(user)
         url = self.url.format(id=cookie.id)
         self.assert_fail_response(
