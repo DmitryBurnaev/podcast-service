@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 import logging
 import tempfile
@@ -12,6 +13,7 @@ from sqlalchemy.engine import URL
 # from sqlalchemy.util import concurrency
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import ProgrammingError, OperationalError
+from sqlalchemy.util import concurrency
 
 from core import settings, database
 from modules.auth.models import UserInvite, User, UserSession
@@ -59,6 +61,12 @@ def cap_log(caplog):
     caplog.set_level(logging.INFO)
     logging.getLogger("modules").setLevel(logging.INFO)
 
+
+@pytest.fixture(scope="session")
+def event_loop():
+    return asyncio.get_event_loop()
+
+
 #
 # # TODO: use async fixt instead
 # @pytest.fixture(autouse=True, scope="session")
@@ -72,8 +80,8 @@ def cap_log(caplog):
 
 
 # TODO: turn-on autouse=True, scope="session" (for pytest-asyncio global mode may be?)
-@pytest_asyncio.fixture
-# @pytest_asyncio.fixture(autouse=True, scope="session")
+# @pytest_asyncio.fixture
+@pytest_asyncio.fixture(autouse=True, scope="session")
 async def client() -> PodcastTestClient:
     from core.app import get_app
 
@@ -84,9 +92,9 @@ async def client() -> PodcastTestClient:
             yield client
 
 
-@pytest.fixture
-def dbs() -> AsyncSession:
-    with make_db_session() as db_session:
+@pytest_asyncio.fixture
+async def dbs() -> AsyncSession:
+    async with make_db_session() as db_session:
         yield db_session
 
 
@@ -126,16 +134,16 @@ def db_prep():
     conn.close()
 
 
-@pytest.fixture(autouse=True, scope="session")
-def db_migration():
+@pytest_asyncio.fixture(autouse=True, scope="session")
+async def db_migration():
     def create_tables():
         db_prep()
         print("Creating tables...")
         engine = sqlalchemy.create_engine(settings.DATABASE_DSN)
         database.ModelBase.metadata.create_all(engine)
 
-    create_tables()
-    # await_(concurrency.greenlet_spawn(create_tables))
+    # create_tables()
+    await concurrency.greenlet_spawn(create_tables)
     print("DB and tables were successful created.")
 
 

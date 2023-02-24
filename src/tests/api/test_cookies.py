@@ -22,6 +22,7 @@ INVALID_CREATE_DATA = [
         },
     ],
 ]
+pytestmark = pytest.mark.asyncio
 
 
 def _cookie(cookie):
@@ -90,7 +91,7 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         assert response_data == _cookie(cookie)
 
     async def test_get__cookie_from_another_user__fail(self, client, cookie, dbs):
-        await client.login(create_user(dbs))
+        await client.login(await create_user(dbs))
         url = self.url.format(id=cookie.id)
         self.assert_not_found(client.get(url), cookie)
 
@@ -106,7 +107,7 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         assert cookie.updated_at > cookie.created_at
 
     async def test_update__cookie_from_another_user__fail(self, client, cookie, dbs):
-        await client.login(create_user(dbs))
+        await client.login(await create_user(dbs))
         url = self.url.format(id=cookie.id)
         data = {"source_type": SourceType.YANDEX}
         self.assert_not_found(client.put(url, data=data, files={"file": _cookie_file()}), cookie)
@@ -127,7 +128,7 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         assert await Cookie.async_get(dbs, id=cookie.id) is None
 
     async def test_delete__cookie_from_another_user__fail(self, client, cookie, user, dbs):
-        user_2 = create_user(dbs)
+        user_2 = await create_user(dbs)
         await client.login(user_2)
         url = self.url.format(id=cookie.id)
         self.assert_not_found(client.delete(url), cookie)

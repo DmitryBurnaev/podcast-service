@@ -1,10 +1,9 @@
-import base64
 import json
 import uuid
+import base64
 from datetime import datetime, timedelta
 
 import pytest
-import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.request import PRequest
@@ -21,7 +20,7 @@ from modules.auth.utils import (
 )
 from modules.podcast.models import Podcast
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import prepare_request, get_user_data
+from tests.helpers import prepare_request
 
 INVALID_SIGN_IN_DATA = [
     [{"email": "fake-email"}, {"email": "Not a valid email address."}],
@@ -312,8 +311,8 @@ class TestSignOutAPIView(BaseTestAPIView):
         response = client.delete(self.url)
         assert response.status_code == 200
 
-    async def test_sign_out__another_session_exists__ok(self, client, user, async_user_session, dbs):
-        another_user_session = async_user_session
+    async def test_sign_out__another_session_exists__ok(self, client, user, user_session, dbs):
+        another_user_session = user_session
         current_user_session = await client.login(user)
 
         response = client.delete(self.url)

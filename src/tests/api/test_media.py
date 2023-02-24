@@ -12,20 +12,22 @@ from modules.auth.models import UserIP
 from modules.media.models import File
 from modules.providers.utils import AudioMetaData
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import await_, create_file
+from tests.helpers import create_file
+
+pytestmark = pytest.mark.asyncio
 
 
 class TestMediaFileAPIView(BaseTestAPIView):
     url = "/m/{token}/"
     user_ip = "172.17.0.2"
 
-    def test_get_media_file__ok(self, client, image_file, user, mocked_s3):
+    async def test_get_media_file__ok(self, client, image_file, user, mocked_s3):
         temp_link = f"https://s3.storage/tmp.link/{image_file.access_token}"
         mocked_s3.get_presigned_url.return_value = temp_link
         url = self.url.format(token=image_file.access_token)
-        client.login(user)
-        await_(UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip))
-        await_(client.db_session.commit())
+        await client.login(user)
+        await UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip)
+        await client.db_session.commit()
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 200
@@ -35,17 +37,17 @@ class TestMediaFileAPIView(BaseTestAPIView):
         assert response.status_code == 302
         assert response.headers["location"] == temp_link
 
-    def test_file_headers(self, dbs, image_file):
-        await_(image_file.update(dbs, size=1024))
-        await_(dbs.flush())
+    async def test_file_headers(self, dbs, image_file):
+        await image_file.update(dbs, size=1024)
+        await dbs.flush()
         assert image_file.headers == {"content-length": "1024", "content-type": "image/png"}
 
     @patch("core.settings.APP_DEBUG", False)
-    def test_get_media_file_missed_ip__fail(self, client, image_file, user, mocked_s3):
+    async def test_get_media_file_missed_ip__fail(self, client, image_file, user, mocked_s3):
         url = self.url.format(token=image_file.access_token)
-        client.login(user)
-        await_(UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip))
-        await_(client.db_session.commit())
+        await client.login(user)
+        await UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip)
+        await client.db_session.commit()
 
         response = client.head(url)
         assert response.status_code == 404
@@ -53,11 +55,11 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.get(url, follow_redirects=False)
         assert response.status_code == 404
 
-    def test_get_media_file_bad_token__fail(self, client, image_file, user, mocked_s3):
+    async def test_get_media_file_bad_token__fail(self, client, user, mocked_s3):
         url = self.url.format(token="fake-token")
-        client.login(user)
-        await_(UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip))
-        await_(client.db_session.commit())
+        await client.login(user)
+        await UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip)
+        await client.db_session.commit()
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
@@ -65,13 +67,13 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
-    def test_get_media_file_not_found__fail(self, client, image_file, user, mocked_s3):
+    async def test_get_media_file_not_found__fail(self, client, image_file, user, mocked_s3):
         url = self.url.format(token=image_file.access_token)
-        client.login(user)
+        await client.login(user)
 
-        await_(image_file.update(client.db_session, available=False))
-        await_(UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip))
-        await_(client.db_session.commit())
+        await image_file.update(client.db_session, available=False)
+        await UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip)
+        await client.db_session.commit()
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
@@ -79,13 +81,13 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
-    def test_get_image_file_not_allowed__fail(self, client, image_file, user, mocked_s3):
+    async def test_get_image_file_not_allowed__fail(self, client, image_file, user, mocked_s3):
         url = self.url.format(token=image_file.access_token)
-        client.login(user)
+        await client.login(user)
 
-        await_(image_file.update(client.db_session, available=False, source_url=""))
-        await_(UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip))
-        await_(client.db_session.commit())
+        await image_file.update(client.db_session, available=False, source_url="")
+        await UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip)
+        await client.db_session.commit()
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
@@ -93,9 +95,9 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
-    def test_get_public_image_file__ok(self, dbs, user, mocked_s3):
+    async def test_get_public_image_file__ok(self, dbs, user, mocked_s3):
         source_url = f"https://test.source.url/{uuid.uuid4().hex}.jpg"
-        image_file = await_(
+        image_file = await (
             File.create(
                 dbs,
                 FileType.IMAGE,
@@ -104,14 +106,14 @@ class TestMediaFileAPIView(BaseTestAPIView):
                 public=True,
             )
         )
-        await_(dbs.commit())
+        await dbs.commit()
 
-        await_(dbs.refresh(image_file))
+        await dbs.refresh(image_file)
         assert image_file.url == source_url
 
-    def test_get_media_file_unknown_user_ip__fail(self, client, image_file, user, mocked_s3):
+    async def test_get_media_file_unknown_user_ip__fail(self, client, image_file, user, mocked_s3):
         url = self.url.format(token=image_file.access_token)
-        client.login(user)
+        await client.login(user)
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
@@ -119,18 +121,16 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
-    def test_get_media_file_user_ip_rss_registered__fail(self, client, image_file, rss_file, user):
+    async def test_get_media_file_user_ip_rss_registered__fail(self, client, image_file, rss_file, user):
         url = self.url.format(token=image_file.access_token)
-        client.login(user)
-        await_(
-            UserIP.async_create(
-                client.db_session,
-                user_id=user.id,
-                ip_address=self.user_ip,
-                registered_by=rss_file.access_token,
-            )
+        await client.login(user)
+        await UserIP.async_create(
+            client.db_session,
+            user_id=user.id,
+            ip_address=self.user_ip,
+            registered_by=rss_file.access_token,
+            db_commit=True
         )
-        await_(client.db_session.commit())
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 200
@@ -153,15 +153,14 @@ class TestRSSFileAPIView(BaseTestAPIView):
             ("get", 302, {"content-length": "0", "location": temp_link}),
         ],
     )
-    def test_get_rss__register_user_ip__ok(
+    async def test_get_rss__register_user_ip__ok(
         self, client, rss_file, user, mocked_s3, method, status_code, headers
     ):
-        await_(rss_file.update(client.db_session, size=1024))
-        await_(client.db_session.commit())
+        await rss_file.update(client.db_session, size=1024, db_commit=True)
 
         mocked_s3.get_presigned_url.return_value = self.temp_link
         url = self.url.format(token=rss_file.access_token)
-        client.login(user)
+        await client.login(user)
 
         response = client.request(
             method, url, headers={"X-Real-IP": self.user_ip}, follow_redirects=False
@@ -169,29 +168,27 @@ class TestRSSFileAPIView(BaseTestAPIView):
         assert response.status_code == status_code
         assert response.headers == headers
 
-        user_ip = await_(
-            UserIP.async_get(client.db_session, user_id=user.id, ip_address=self.user_ip)
+        user_ip = await UserIP.async_get(
+            client.db_session, user_id=user.id, ip_address=self.user_ip
         )
         assert user_ip is not None
         assert user_ip.registered_by == rss_file.access_token
 
-    def test_get_rss__user_ip_already_registered_by__with_current_rss__ok(
+    async def test_get_rss__user_ip_already_registered_by__with_current_rss__ok(
         self, client, rss_file, user, mocked_s3
     ):
         mocked_s3.get_presigned_url.return_value = self.temp_link
 
-        await_(
-            UserIP.async_create(
-                client.db_session,
-                user_id=user.id,
-                ip_address=self.user_ip,
-                registered_by=rss_file.access_token,
-            )
+        await UserIP.async_create(
+            client.db_session,
+            user_id=user.id,
+            ip_address=self.user_ip,
+            registered_by=rss_file.access_token,
+            db_commit=True
         )
-        await_(client.db_session.commit())
 
         url = self.url.format(token=rss_file.access_token)
-        client.login(user)
+        await client.login(user)
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 200
@@ -201,22 +198,20 @@ class TestRSSFileAPIView(BaseTestAPIView):
         assert response.status_code == 302
         assert response.headers["location"] == self.temp_link
 
-    def test_get_rss__user_ip_already_registered_by__with_another_file__ok(
+    async def test_get_rss__user_ip_already_registered_by__with_another_file__ok(
         self, client, rss_file, user, mocked_s3
     ):
         mocked_s3.get_presigned_url.return_value = self.temp_link
-        await_(
-            UserIP.async_create(
-                client.db_session,
-                user_id=user.id,
-                ip_address=self.user_ip,
-                registered_by=File.generate_token(),
-            )
+        await UserIP.async_create(
+            client.db_session,
+            user_id=user.id,
+            ip_address=self.user_ip,
+            registered_by=File.generate_token(),
+            db_commit=True,
         )
-        await_(client.db_session.commit())
 
         url = self.url.format(token=rss_file.access_token)
-        client.login(user)
+        await client.login(user)
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 200
@@ -225,8 +220,8 @@ class TestRSSFileAPIView(BaseTestAPIView):
         assert response.status_code == 302
         assert response.headers["location"] == self.temp_link
 
-    def test_get_not_rss__fail(self, client, image_file, user):
-        client.login(user)
+    async def test_get_not_rss__fail(self, client, image_file, user):
+        await client.login(user)
         url = self.url.format(token=image_file.access_token)
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
@@ -249,40 +244,42 @@ class TestFileURL:
             (FileType.AUDIO, "/m/{access_token}/"),
         ),
     )
-    def test_url(self, dbs, user, file_type, url_path_pattern):
-        file = await_(
-            File.create(dbs, file_type, owner_id=user.id, path="/remote/path/to/file", size=1)
+    async def test_url(self, dbs, user, file_type, url_path_pattern):
+        file = await File.create(
+            dbs,
+            file_type=file_type,
+            owner_id=user.id,
+            path="/remote/path/to/file",
+            db_commit=True,
         )
         url_path = url_path_pattern.format(access_token=file.access_token)
         assert file.url == f"https://self-service.test.url{url_path}"
 
-    def test_url__file_not_available(self, dbs, image_file):
-        await_(image_file.update(dbs, available=False, db_commit=True))
+    async def test_url__file_not_available(self, dbs, image_file):
+        await image_file.update(dbs, available=False, db_commit=True)
         assert image_file.url is None
 
-    def test_public_url(self, dbs, image_file):
-        await_(image_file.update(dbs, public=True, db_commit=True))
+    async def test_public_url(self, dbs, image_file):
+        await image_file.update(dbs, public=True, db_commit=True)
         assert image_file.url == f"https://storage.test.url/test-bucket{image_file.path}"
 
-    def test_public_url__from_source(self, dbs, image_file):
-        await_(
-            image_file.update(
-                dbs, public=True, source_url="https://test.file-src.com", db_commit=True
-            )
+    async def test_public_url__from_source(self, dbs, image_file):
+        await image_file.update(
+            dbs, public=True, source_url="https://test.file-src.com", db_commit=True
         )
         assert image_file.url == "https://test.file-src.com"
 
-    def test_presigned_url(self, mocked_s3, image_file):
+    async def test_presigned_url(self, mocked_s3, image_file):
         mocked_url = f"https://storage.test.url/presigned-url-to-file/{image_file.id}"
         mocked_s3.get_presigned_url.return_value = mocked_url
-        assert await_(image_file.presigned_url) == mocked_url
+        assert await image_file.presigned_url == mocked_url
 
-    def test_presigned_url__file_has_not_path(self, dbs, mocked_s3, image_file):
-        await_(image_file.update(dbs, path="", db_commit=True))
+    async def test_presigned_url__file_has_not_path(self, dbs, mocked_s3, image_file):
+        await image_file.update(dbs, path="", db_commit=True)
         mocked_url = f"https://storage.test.url/presigned-url-to-file/{image_file.id}"
         mocked_s3.get_presigned_url.return_value = mocked_url
         with pytest.raises(NotSupportedError) as err:
-            assert await_(image_file.presigned_url) == mocked_url
+            assert await image_file.presigned_url == mocked_url
 
         assert err.value.args == (f"Remote file {image_file} available but has not remote path.",)
 
@@ -291,7 +288,7 @@ class TestUploadAudioAPIView(BaseTestAPIView):
     url = "/api/media/upload/audio/"
 
     @pytest.mark.parametrize("metadata", ("full", "empty"))
-    def test_upload__ok(
+    async def test_upload__ok(
         self,
         client,
         user,
@@ -316,7 +313,7 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         mocked_audio_metadata.return_value = AudioMetaData(**audio_metadata)
         mocked_s3.upload_file_async.return_value = remote_tmp_path
 
-        client.login(user)
+        await client.login(user)
         file = (os.path.basename(tmp_file.name), tmp_file, "audio/mpeg")
         response = client.post(self.url, files={"file": file})
         response_data = self.assert_ok_response(response)
@@ -348,7 +345,7 @@ class TestUploadAudioAPIView(BaseTestAPIView):
 
         mocked_audio_metadata.assert_called()
 
-    def test_upload__duplicate_uploaded_file__ok(
+    async def test_upload__duplicate_uploaded_file__ok(
         self,
         user,
         client,
@@ -376,7 +373,7 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         mocked_audio_metadata.return_value = AudioMetaData(**audio_metadata)
         mocked_s3.get_file_size_async.return_value = tmp_file.size
 
-        client.login(user)
+        await client.login(user)
         file = (os.path.basename(tmp_file.name), tmp_file, "audio/mpeg")
         response = client.post(self.url, files={"file": file})
         response_data = self.assert_ok_response(response)
@@ -391,26 +388,26 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         mocked_s3.upload_file_async.assert_not_awaited()
         mocked_audio_metadata.assert_called()
 
-    def test_upload__empty_file__fail(self, client, user):
-        client.login(user)
+    async def test_upload__empty_file__fail(self, client, user):
+        await client.login(user)
         file = ("test-audio.mp3", create_file(b""), "audio/mpeg")
         response = client.post(self.url, files={"file": file})
         self.assert_bad_request(response, {"file": "result file-size is less than allowed"})
 
-    def test_upload__too_big_file__fail(self, client, user):
-        client.login(user)
+    async def test_upload__too_big_file__fail(self, client, user):
+        await client.login(user)
         file = ("test-audio.mp3", create_file(b"test-data-too-big" * 10), "audio/mpeg")
         response = client.post(self.url, files={"file": file})
         self.assert_bad_request(response, {"file": "result file-size is more than allowed"})
 
-    def test_upload__incorrect_content_type__fail(self, client, user):
-        client.login(user)
+    async def test_upload__incorrect_content_type__fail(self, client, user):
+        await client.login(user)
         file = ("test-audio.mp3", create_file(b"test-data"), "image/jpeg")
         response = client.post(self.url, files={"file": file})
         self.assert_bad_request(response, {"file": "File must be audio, not image/jpeg"})
 
-    def test_upload__missed_file__fail(self, client, user):
-        client.login(user)
+    async def test_upload__missed_file__fail(self, client, user):
+        await client.login(user)
         response = client.post(self.url, files={"fake": create_file(b"")})
         self.assert_bad_request(
             response, {"file": "Missing data for required field.", "fake": "Unknown field."}
