@@ -15,7 +15,6 @@ from tests.helpers import (
     get_podcast_data,
     get_episode_data,
     create_episode,
-    await_,
     get_source_id,
 )
 
@@ -28,6 +27,8 @@ INVALID_UPDATE_DATA = [
 INVALID_CREATE_DATA = INVALID_UPDATE_DATA + [
     [{}, {"name": "Missing data for required field."}],
 ]
+
+pytestmark = pytest.mark.asyncio
 
 
 def _podcast(podcast):
@@ -50,21 +51,21 @@ def _podcast(podcast):
 class TestPodcastListCreateAPIView(BaseTestAPIView):
     url = "/api/podcasts/"
 
-    def test_get_list__ok(self, client, podcast, user):
-        client.login(user)
+    async def test_get_list__ok(self, client, podcast, user):
+        await client.login(user)
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
         assert response_data == [_podcast(podcast)]
 
-    def test_get_list__check_episodes_count__ok(self, client, user, dbs):
-        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
-        create_episode(dbs, get_episode_data(), podcast_1)
-        create_episode(dbs, get_episode_data(), podcast_1)
+    async def test_get_list__check_episodes_count__ok(self, client, user, dbs):
+        podcast_1 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id))
+        await create_episode(dbs, get_episode_data(), podcast_1)
+        await create_episode(dbs, get_episode_data(), podcast_1)
 
-        podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
-        create_episode(dbs, get_episode_data(), podcast_2)
+        podcast_2 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id))
+        await create_episode(dbs, get_episode_data(), podcast_2)
 
-        client.login(user)
+        await client.login(user)
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
 
@@ -74,64 +75,64 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         }
         assert expected_episodes_counts == actual_episodes_counts
 
-    def test_get_list__filter_by_owner__ok(self, client, dbs, image_file, rss_file):
-        user_1 = create_user(dbs)
-        user_2 = create_user(dbs)
+    async def test_get_list__filter_by_owner__ok(self, client, dbs, image_file, rss_file):
+        user_1 = await create_user(dbs)
+        user_2 = await create_user(dbs)
 
         podcast_data = get_podcast_data()
         podcast_data["owner_id"] = user_1.id
         podcast_data["image_id"] = image_file.id
         podcast_data["rss_id"] = rss_file.id
-        await_(Podcast.async_create(dbs, db_commit=True, **podcast_data))
+        await Podcast.async_create(dbs, db_commit=True, **podcast_data)
 
         podcast_data = get_podcast_data()
         podcast_data["owner_id"] = user_2.id
         podcast_data["image_id"] = image_file.id
         podcast_data["rss_id"] = rss_file.id
-        podcast_2 = await_(Podcast.async_create(dbs, db_commit=True, **podcast_data))
+        podcast_2 = await Podcast.async_create(dbs, db_commit=True, **podcast_data)
 
-        client.login(user_2)
+        await client.login(user_2)
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
         assert response_data == [_podcast(podcast_2)]
 
-    def test_create__ok(self, client, user, podcast_data, dbs):
+    async def test_create__ok(self, client, user, podcast_data, dbs):
         podcast_data = {
             "name": podcast_data["name"],
             "description": podcast_data["description"],
         }
-        client.login(user)
+        await client.login(user)
         response = client.post(self.url, json=podcast_data)
         response_data = self.assert_ok_response(response, status_code=201)
-        podcast = await_(Podcast.async_get(dbs, id=response_data["id"]))
+        podcast = await Podcast.async_get(dbs, id=response_data["id"])
         assert podcast is not None
         assert response_data == _podcast(podcast)
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_CREATE_DATA)
-    def test_create__invalid_request__fail(
+    async def test_create__invalid_request__fail(
         self, client, user, invalid_data: dict, error_details: dict
     ):
-        client.login(user)
+        await client.login(user)
         self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
 
 
 class TestPodcastRUDAPIView(BaseTestAPIView):
     url = "/api/podcasts/{id}/"
 
-    def test_get_detailed__ok(self, client, podcast, user):
-        client.login(user)
+    async def test_get_detailed__ok(self, client, podcast, user):
+        await client.login(user)
         url = self.url.format(id=podcast.id)
         response = client.get(url)
         response_data = self.assert_ok_response(response)
         assert response_data == _podcast(podcast)
 
-    def test_get__podcast_from_another_user__fail(self, client, podcast, dbs):
-        client.login(create_user(dbs))
+    async def test_get__podcast_from_another_user__fail(self, client, podcast, dbs):
+        client.login(await create_user(dbs))
         url = self.url.format(id=podcast.id)
         self.assert_not_found(client.get(url), podcast)
 
-    def test_update__ok(self, client, podcast, user, dbs):
-        client.login(user)
+    async def test_update__ok(self, client, podcast, user, dbs):
+        await client.login(user)
         url = self.url.format(id=podcast.id)
         patch_data = {
             "name": "New name",
@@ -139,32 +140,32 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
             "download_automatically": True,
         }
         response = client.patch(url, json=patch_data)
-        await_(dbs.refresh(podcast))
+        await (dbs.refresh(podcast))
         response_data = self.assert_ok_response(response)
         assert response_data == _podcast(podcast)
         assert podcast.name == "New name"
         assert podcast.description == "New description"
         assert podcast.download_automatically is True
 
-    def test_update__podcast_from_another_user__fail(self, client, podcast, dbs):
-        client.login(create_user(dbs))
+    async def test_update__podcast_from_another_user__fail(self, client, podcast, dbs):
+        client.login(await create_user(dbs))
         url = self.url.format(id=podcast.id)
         self.assert_not_found(client.patch(url, json={}), podcast)
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_UPDATE_DATA)
-    def test_update__invalid_request__fail(
+    async def test_update__invalid_request__fail(
         self, client, podcast, user, invalid_data: dict, error_details: dict
     ):
-        client.login(user)
+        await client.login(user)
         url = self.url.format(id=podcast.id)
         self.assert_bad_request(client.patch(url, json=invalid_data), error_details)
 
-    def test_delete__ok(self, client, podcast, user, mocked_s3, dbs):
-        client.login(user)
+    async def test_delete__ok(self, client, podcast, user, mocked_s3, dbs):
+        await client.login(user)
         url = self.url.format(id=podcast.id)
         response = client.delete(url)
         assert response.status_code == 200
-        assert await_(Podcast.async_get(dbs, id=podcast.id)) is None
+        assert await Podcast.async_get(dbs, id=podcast.id) is None
         mocked_s3.delete_files_async.assert_any_call(
             [podcast.rss.name], remote_path=settings.S3_BUCKET_RSS_PATH
         )
@@ -172,24 +173,24 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
             [podcast.image.name], remote_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH
         )
 
-    def test_delete__podcast_from_another_user__fail(self, client, podcast, user, dbs):
-        user_2 = create_user(dbs)
+    async def test_delete__podcast_from_another_user__fail(self, client, podcast, dbs):
+        user_2 = await create_user(dbs)
         client.login(user_2)
         url = self.url.format(id=podcast.id)
         self.assert_not_found(client.delete(url), podcast)
 
-    def test_delete__episodes_deleted_too__ok(self, client, podcast, user, mocked_s3, dbs):
-        episode_1 = create_episode(dbs, get_episode_data(podcast), status=EpisodeStatus.NEW)
-        episode_2 = create_episode(dbs, get_episode_data(podcast), status=EpisodeStatus.PUBLISHED)
-        await_(dbs.commit())
+    async def test_delete__episodes_deleted_too__ok(self, client, podcast, user, mocked_s3, dbs):
+        episode_1 = await create_episode(dbs, get_episode_data(podcast), status=EpisodeStatus.NEW)
+        episode_2 = await create_episode(dbs, get_episode_data(podcast), status=EpisodeStatus.PUBLISHED)
+        await (dbs.commit())
 
-        client.login(user)
+        await client.login(user)
         url = self.url.format(id=podcast.id)
         response = client.delete(url)
         assert response.status_code == 200
-        assert await_(Podcast.async_get(dbs, id=podcast.id)) is None
-        assert await_(Episode.async_get(dbs, id=episode_1.id)) is None
-        assert await_(Episode.async_get(dbs, id=episode_2.id)) is None
+        assert await Podcast.async_get(dbs, id=podcast.id) is None
+        assert await Episode.async_get(dbs, id=episode_1.id) is None
+        assert await Episode.async_get(dbs, id=episode_2.id) is None
 
         ra = settings.S3_BUCKET_AUDIO_PATH
         ri = settings.S3_BUCKET_EPISODE_IMAGES_PATH
@@ -204,36 +205,36 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         mocked_s3.delete_files_async.assert_any_call([episode_2.audio.name], remote_path=ra)
         mocked_s3.delete_files_async.assert_any_call([episode_2.image.name], remote_path=ri)
 
-    def test_delete__episodes_in_another_podcast__ok(self, client, user, mocked_s3, dbs):
-        podcast_1 = await_(Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
+    async def test_delete__episodes_in_another_podcast__ok(self, client, user, mocked_s3, dbs):
+        podcast_1 = await (Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
         episode_data = get_episode_data(podcast_1, creator=user)
 
         episode_data["podcast_id"] = podcast_1.id
         episode_data["status"] = Episode.Status.PUBLISHED
 
-        episode_1 = create_episode(dbs, episode_data)
+        episode_1 = await create_episode(dbs, episode_data)
 
         source_id = get_source_id()
-        episode_1_1 = create_episode(dbs, episode_data, source_id=source_id)
+        episode_1_1 = await create_episode(dbs, episode_data, source_id=source_id)
 
-        podcast_2 = await_(Podcast.async_create(dbs, **get_podcast_data()))
+        podcast_2 = await Podcast.async_create(dbs, **get_podcast_data())
         episode_data["podcast_id"] = podcast_2.id
 
         # creating episode with same `source_id` in another podcast
         # not-available files (with same source_id will NOT be deleted)
-        episode_2 = create_episode(dbs, episode_data, source_id=source_id, status=EpisodeStatus.NEW)
+        episode_2 = await create_episode(dbs, episode_data, source_id=source_id, status=EpisodeStatus.NEW)
 
-        await_(dbs.commit())
-        client.login(user)
+        await (dbs.commit())
+        await client.login(user)
         url = self.url.format(id=podcast_1.id)
         response = client.delete(url)
 
         assert response.status_code == 200
-        assert await_(Podcast.async_get(dbs, id=podcast_1.id)) is None
-        assert await_(Episode.async_get(dbs, id=episode_1.id)) is None
+        assert await Podcast.async_get(dbs, id=podcast_1.id) is None
+        assert await Episode.async_get(dbs, id=episode_1.id) is None
 
-        assert await_(Podcast.async_get(dbs, id=podcast_2.id)) is not None
-        assert await_(Episode.async_get(dbs, id=episode_2.id)) is not None
+        assert await Podcast.async_get(dbs, id=podcast_2.id) is not None
+        assert await Episode.async_get(dbs, id=episode_2.id) is not None
 
         ra = settings.S3_BUCKET_AUDIO_PATH
         ri = settings.S3_BUCKET_EPISODE_IMAGES_PATH
@@ -255,15 +256,15 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
 class TestPodcastGenerateRSSAPIView(BaseTestAPIView):
     url = "/api/podcasts/{id}/generate-rss/"
 
-    def test_run_generation__ok(self, client, podcast, user, mocked_rq_queue):
-        client.login(user)
+    async def test_run_generation__ok(self, client, podcast, user, mocked_rq_queue):
+        await client.login(user)
         url = self.url.format(id=podcast.id)
         response = client.put(url)
         assert response.status_code == 202
         mocked_rq_queue.enqueue.assert_called_with(GenerateRSSTask(), podcast.id)
 
-    def test_run_generation__podcast_from_another_user__fail(self, client, podcast, user, dbs):
-        client.login(create_user(dbs))
+    async def test_run_generation__podcast_from_another_user__fail(self, client, podcast, dbs):
+        client.login(await create_user(dbs))
         url = self.url.format(id=podcast.id)
         self.assert_not_found(client.put(url), podcast)
 
@@ -278,21 +279,21 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
         return io.BytesIO(b"Binary image data: \x00\x01")
 
     @patch("common.storage.StorageS3.upload_file")
-    def test_upload__ok(self, mocked_upload_file, mocked_s3, client, user, dbs):
+    async def test_upload__ok(self, mocked_upload_file, mocked_s3, client, user, dbs):
         podcast_data = get_podcast_data(owner_id=user.id)
-        podcast = await_(Podcast.async_create(dbs, db_commit=True, **podcast_data))
+        podcast = await (Podcast.async_create(dbs, db_commit=True, **podcast_data))
 
-        client.login(user)
+        await client.login(user)
         mocked_upload_file.return_value = self.remote_path
         response = client.post(url=self.url.format(id=podcast.id), files={"image": self._file()})
-        await_(dbs.refresh(podcast))
+        await dbs.refresh(podcast)
         response_data = self.assert_ok_response(response)
         assert response_data == {"id": podcast.id, "image_url": podcast.image_url}
         assert podcast.image.path == self.remote_path
         mocked_s3.delete_files_async.assert_not_called()
 
     @patch("common.storage.StorageS3.upload_file")
-    def test_upload__replace_image__ok(
+    async def test_upload__replace_image__ok(
         self, mocked_upload_file, mocked_s3, client, podcast, user, dbs
     ):
         assert podcast.image_id is not None
@@ -300,14 +301,14 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
         old_image_name = podcast.image.name
         old_image_url = podcast.image.url
 
-        client.login(user)
+        await client.login(user)
         mocked_upload_file.return_value = self.remote_path
         response = client.post(url=self.url.format(id=podcast.id), files={"image": self._file()})
         response_data = self.assert_ok_response(response)
 
         dbs.expunge(podcast)
         dbs.expunge(podcast.image)
-        podcast = await_(Podcast.async_get(dbs, id=podcast.id))
+        podcast = await Podcast.async_get(dbs, id=podcast.id)
 
         assert response_data == {"id": podcast.id, "image_url": podcast.image.url}
         assert podcast.image.path == self.remote_path
@@ -322,8 +323,8 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
         )
 
     @patch("common.storage.StorageS3.upload_file")
-    def test_upload__upload_failed__fail(self, mocked_upload_file, client, podcast, user, dbs):
-        client.login(user)
+    async def test_upload__upload_failed__fail(self, mocked_upload_file, client, podcast, user, dbs):
+        await client.login(user)
         mocked_upload_file.side_effect = RuntimeError("Oops")
         response = client.post(url=self.url.format(id=podcast.id), files={"image": self._file()})
         response_data = self.assert_fail_response(
@@ -334,8 +335,8 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
             "details": f"Couldn't upload cover for podcast {podcast.id}",
         }
 
-    def test_upload__image_missing__fail(self, client, podcast, user):
-        client.login(user)
+    async def test_upload__image_missing__fail(self, client, podcast, user):
+        await client.login(user)
         response = client.post(
             url=self.url.format(id=podcast.id), files={"fake-image": self._file()}
         )

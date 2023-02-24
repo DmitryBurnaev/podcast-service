@@ -35,6 +35,7 @@ INVALID_UPLOADED_EPISODES_DATA = [
     [{"meta": {"title": "1"}}, {"meta": {"duration": "Missing data for required field."}}],
     [{"size": "fake-int"}, {"size": "Not a valid integer."}],
 ]
+pytestmark = pytest.mark.asyncio
 
 
 def _episode_in_list(episode: Episode):
@@ -182,7 +183,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         self.assert_bad_request(client.post(url, json=invalid_data), error_details)
 
     async def test_create__podcast_from_another_user__fail(self, client, podcast, dbs):
-        await client.login(create_user(dbs))
+        await client.login(await create_user(dbs))
         url = self.url.format(id=podcast.id)
         data = {"source_url": "http://link.to.resource/"}
         self.assert_not_found(client.post(url, json=data), podcast)
@@ -441,7 +442,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         assert response_data == _episode_details(episode)
 
     async def test_get_details__episode_from_another_user__fail(self, client, episode, dbs):
-        await client.login(create_user(dbs))
+        await client.login(await create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.get(url), episode)
 
@@ -526,7 +527,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         )
 
         url = self.url.format(id=episode_2.id)
-        client.login(user_2)
+        await client.login(user_2)
         response = client.delete(url)
         assert response.status_code == 204, f"Delete API is not available: {response.text}"
         assert await Episode.async_get(dbs, id=episode_2.id) is None
@@ -571,7 +572,7 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
 class TestEpisodeFlatListAPIView(BaseTestAPIView):
     url = "/api/episodes/"
 
-    def setup_episodes(self, dbs, user, episode_data):
+    async def setup_episodes(self, dbs, user, episode_data):
         self.user_2 = await create_user(dbs)
         podcast_1 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id))
         podcast_2 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id))
@@ -591,7 +592,7 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
         assert actual_episode_ids == expected_episode_ids
 
     async def test_get_list__ok(self, client, episode_data, user, dbs):
-        self.setup_episodes(dbs, user, episode_data)
+        await self.setup_episodes(dbs, user, episode_data)
 
         await client.login(user)
         response = client.get(self.url)
@@ -600,7 +601,7 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
         self.assert_episodes(response_data, expected_episode_ids)
 
     async def test_get_list__limited__ok(self, client, episode_data, user, dbs):
-        self.setup_episodes(dbs, user, episode_data)
+        await self.setup_episodes(dbs, user, episode_data)
         await client.login(user)
         response = client.get(self.url, params={"limit": 1})
         response_data = self.assert_ok_response(response)
@@ -608,7 +609,7 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
         assert response_data["has_next"] is True, response_data
 
     async def test_get_list__offset__ok(self, client, episode_data, user, dbs):
-        self.setup_episodes(dbs, user, episode_data)
+        await self.setup_episodes(dbs, user, episode_data)
         await client.login(user)
         response = client.get(self.url, params={"offset": 1})
         response_data = self.assert_ok_response(response)
@@ -625,7 +626,7 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
     async def test_get_list__filter_by_title__ok(
         self, client, episode_data, user, dbs, search, title1, title2, expected_titles
     ):
-        self.setup_episodes(dbs, user, episode_data)
+        await self.setup_episodes(dbs, user, episode_data)
         await self.episode_1.update(dbs, **{"title": title1})
         await self.episode_2.update(dbs, **{"title": title2})
         await dbs.commit()
