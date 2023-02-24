@@ -127,7 +127,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         assert response_data == _podcast(podcast)
 
     async def test_get__podcast_from_another_user__fail(self, client, podcast, dbs):
-        client.login(await create_user(dbs))
+        await client.login(await create_user(dbs))
         url = self.url.format(id=podcast.id)
         self.assert_not_found(client.get(url), podcast)
 
@@ -148,7 +148,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         assert podcast.download_automatically is True
 
     async def test_update__podcast_from_another_user__fail(self, client, podcast, dbs):
-        client.login(await create_user(dbs))
+        await client.login(await create_user(dbs))
         url = self.url.format(id=podcast.id)
         self.assert_not_found(client.patch(url, json={}), podcast)
 
@@ -175,7 +175,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
 
     async def test_delete__podcast_from_another_user__fail(self, client, podcast, dbs):
         user_2 = await create_user(dbs)
-        client.login(user_2)
+        await client.login(user_2)
         url = self.url.format(id=podcast.id)
         self.assert_not_found(client.delete(url), podcast)
 
@@ -264,7 +264,7 @@ class TestPodcastGenerateRSSAPIView(BaseTestAPIView):
         mocked_rq_queue.enqueue.assert_called_with(GenerateRSSTask(), podcast.id)
 
     async def test_run_generation__podcast_from_another_user__fail(self, client, podcast, dbs):
-        client.login(await create_user(dbs))
+        await client.login(await create_user(dbs))
         url = self.url.format(id=podcast.id)
         self.assert_not_found(client.put(url), podcast)
 

@@ -34,21 +34,6 @@ class PodcastTestClient(TestClient):
         self.headers.pop("Authorization", None)
 
 
-def await_(coroutine):
-    """
-    Run coroutine in the current event loop.
-    This is ugly hack may be, but we can avoid problems with closing event loops.
-    """
-
-    from asyncio import _get_running_loop, get_event_loop_policy  # noqa
-
-    if not (current_loop := _get_running_loop()):
-        # FIXME: deprecation warn (no current event loop). May be we can use pytest-async instead?
-        current_loop = get_event_loop_policy().get_event_loop()
-
-    return current_loop.run_until_complete(coroutine)
-
-
 def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
     """Allows to mock any classes (is used as fixture)
 
@@ -134,15 +119,6 @@ def get_podcast_data(**kwargs):
     }
     return podcast_data | kwargs
 
-#
-# @contextmanager
-# def make_db_session():
-#     session_maker = make_session_maker()
-#     async_session = session_maker()
-#     await_(async_session.__aenter__())
-#     yield async_session
-#     await_(async_session.__aexit__(None, None, None))
-
 
 @asynccontextmanager
 async def make_db_session():
@@ -177,21 +153,6 @@ async def create_user_session(db_session, user) -> UserSession:
         created_at=datetime.utcnow(),
         refreshed_at=datetime.utcnow(),
     )
-#
-#
-# # TODO: replace
-# async def async_create_user_session(db_session, user) -> UserSession:
-#     return await UserSession.async_create(
-#         db_session,
-#         db_commit=True,
-#         user_id=user.id,
-#         public_id=str(uuid.uuid4()),
-#         refresh_token="refresh-token",
-#         is_active=True,
-#         expired_at=datetime.utcnow() + timedelta(seconds=120),
-#         created_at=datetime.utcnow(),
-#         refreshed_at=datetime.utcnow(),
-#     )
 
 
 async def create_episode(
