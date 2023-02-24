@@ -337,7 +337,6 @@ class TestUserInviteApiView(BaseTestAPIView):
 
     async def test_invite__ok(self, client, user, mocked_auth_send, dbs):
         await client.login(user)
-        # TODO: await post ?
         response = client.post(self.url, json={"email": self.email})
         response_data = self.assert_ok_response(response, status_code=201)
 
@@ -588,16 +587,14 @@ class TestUserIPRegistration(BaseTestAPIView):
         request.scope["user"] = user
         return request
 
-    async def test_register_success(self, client, user, user_session):
+    async def test_register_success(self, client, user):
         self.client = client
         request = self._request(user=user)
         await register_ip(request)
-        # TODO: use client.db_session everywhere (if possible)
         user_ip = await UserIP.async_get(client.db_session, user_id=user.id, ip_address=self.IP)
         assert user_ip is not None
 
-    async def test_register_ip_already_exists(self, dbs, client, user, user_session):
-        # fixme: can we use async fixture in a setup_method?
+    async def test_register_ip_already_exists(self, dbs, client, user):
         self.client = client
         old_user_ip = await UserIP.async_create(
             dbs, user_id=user.id, ip_address=self.IP, db_commit=True

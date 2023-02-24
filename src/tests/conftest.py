@@ -10,10 +10,9 @@ import pytest
 import pytest_asyncio
 import sqlalchemy
 from sqlalchemy.engine import URL
-# from sqlalchemy.util import concurrency
+from sqlalchemy.util import concurrency
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import ProgrammingError, OperationalError
-from sqlalchemy.util import concurrency
 
 from core import settings, database
 from modules.auth.models import UserInvite, User, UserSession
@@ -67,25 +66,10 @@ def event_loop():
     return asyncio.get_event_loop()
 
 
-#
-# # TODO: use async fixt instead
-# @pytest.fixture(autouse=True, scope="session")
-# def client() -> PodcastTestClient:
-#     from core.app import get_app
-#
-#     with PodcastTestClient(get_app()) as client:
-#         with make_db_session() as db_session:
-#             client.db_session = db_session
-#             yield client
-
-
-# TODO: turn-on autouse=True, scope="session" (for pytest-asyncio global mode may be?)
-# @pytest_asyncio.fixture
 @pytest_asyncio.fixture(autouse=True, scope="session")
 async def client() -> PodcastTestClient:
     from core.app import get_app
 
-    # TODO: support async with for PodcastTestClient
     with PodcastTestClient(get_app()) as client:
         async with make_db_session() as db_session:
             client.db_session = db_session

@@ -1,3 +1,5 @@
+import pytest
+
 from core import settings
 from modules.auth.models import User
 from modules.media.models import File
@@ -6,7 +8,9 @@ from common.enums import EpisodeStatus, SourceType, FileType
 from modules.podcast.tasks import UploadedEpisodeTask
 from modules.podcast.tasks.base import FinishCode
 from tests.api.test_base import BaseTestCase
-from tests.helpers import await_, get_episode_data, get_source_id
+from tests.helpers import get_episode_data, get_source_id
+
+pytestmark = pytest.mark.asyncio
 
 
 class TestUploadedEpisodeTask(BaseTestCase):
@@ -32,20 +36,20 @@ class TestUploadedEpisodeTask(BaseTestCase):
         episode.audio = audio
         return episode
 
-    def test_run_ok(self, dbs, podcast, user, mocked_s3, mocked_redis, mocked_generate_rss_task):
+    async def test_run_ok(self, dbs, podcast, user, mocked_s3, mocked_redis, mocked_generate_rss_task):
         mocked_s3.get_file_size.return_value = 1024
         source_id = get_source_id(prefix="upl")
-        episode = await_(self._episode(dbs, podcast, user, file_size=1024, source_id=source_id))
+        episode = await self._episode(dbs, podcast, user, file_size=1024, source_id=source_id)
 
         tmp_remote = f"/tmp/remote/episode_{episode.source_id}.mp3"
         new_remote = f"audio/episode_{episode.source_id}.mp3"
         mocked_s3.copy_file.return_value = new_remote
 
-        result = await_(UploadedEpisodeTask(db_session=dbs).run(episode.id))
+        result = await UploadedEpisodeTask(db_session=dbs).run(episode.id)
         assert result == FinishCode.OK
 
-        await_(dbs.refresh(episode))
-        await_(dbs.refresh(episode.audio))
+        await dbs.refresh(episode)
+        await dbs.refresh(episode.audio)
 
         assert episode.status == EpisodeStatus.PUBLISHED
         assert episode.published_at == episode.created_at
@@ -58,7 +62,7 @@ class TestUploadedEpisodeTask(BaseTestCase):
             channel=settings.REDIS_PROGRESS_PUBSUB_CH, message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL
         )
 
-    def test_file_bad_size__error(
+    async def test_file_bad_size__error(
         self,
         dbs,
         user,
@@ -67,10 +71,10 @@ class TestUploadedEpisodeTask(BaseTestCase):
         mocked_generate_rss_task,
     ):
         mocked_s3.get_file_size.return_value = 32
-        episode = await_(self._episode(dbs, podcast, user, file_size=1024))
+        episode = await self._episode(dbs, podcast, user, file_size=1024)
 
-        result = await_(UploadedEpisodeTask(db_session=dbs).run(episode.id))
-        await_(dbs.refresh(episode))
+        result = await UploadedEpisodeTask(db_session=dbs).run(episode.id)
+        await dbs.refresh(episode)
 
         assert result == FinishCode.ERROR
         assert episode.status == Episode.Status.NEW
@@ -80,16 +84,16 @@ class TestUploadedEpisodeTask(BaseTestCase):
         mocked_s3.upload_file.assert_not_called()
         mocked_generate_rss_task.run.assert_not_called()
 
-    def test_move_s3_failed__error(self, dbs, podcast, user, mocked_s3, mocked_generate_rss_task):
+    async def test_move_s3_failed__error(self, dbs, podcast, user, mocked_s3, mocked_generate_rss_task):
         mocked_s3.get_file_size.return_value = 1024
         mocked_s3.copy_file.side_effect = RuntimeError("Oops")
-        episode = await_(self._episode(dbs, podcast, user, file_size=1024))
+        episode = await self._episode(dbs, podcast, user, file_size=1024)
 
-        result = await_(UploadedEpisodeTask(db_session=dbs).run(episode.id))
+        result = await UploadedEpisodeTask(db_session=dbs).run(episode.id)
         assert result == FinishCode.ERROR
 
         mocked_generate_rss_task.run.assert_not_called()
-        episode = await_(Episode.async_get(dbs, id=episode.id))
+        episode = await Episode.async_get(dbs, id=episode.id)
         assert episode.status == Episode.Status.ERROR
         assert episode.published_at is None
         assert not episode.audio.available

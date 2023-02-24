@@ -472,7 +472,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         self.assert_bad_request(client.patch(url, json=invalid_data), error_details)
 
     async def test_update__episode_from_another_user__fail(self, client, episode, dbs):
-        client.login(create_user(dbs))
+        await client.login(await create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.patch(url, json={}), episode)
 
@@ -488,7 +488,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         )
 
     async def test_delete__episode_from_another_user__fail(self, client, episode, dbs):
-        client.login(create_user(dbs))
+        await client.login(await create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.delete(url), episode)
 
@@ -564,7 +564,7 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
         mocked_rq_queue.enqueue.assert_called_with(task(), episode_id=episode.id)
 
     async def test_download__episode_from_another_user__fail(self, client, episode, dbs):
-        client.login(create_user(dbs))
+        await client.login(await create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.put(url), episode)
 

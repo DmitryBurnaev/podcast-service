@@ -10,7 +10,9 @@ from common.exceptions import (
 from modules.auth.backend import BaseAuthJWTBackend, AdminRequiredAuthBackend
 from modules.auth.models import User, UserSession
 from modules.auth.utils import encode_jwt, TOKEN_TYPE_RESET_PASSWORD, TOKEN_TYPE_REFRESH
-from tests.helpers import await_, prepare_request
+from tests.helpers import prepare_request
+
+pytestmark = pytest.mark.asyncio
 
 
 class TestBackendAuth:
@@ -19,9 +21,9 @@ class TestBackendAuth:
         jwt, _ = encode_jwt({"user_id": user.id, "session_id": user_session.public_id})
         return prepare_request(dbs, headers={"authorization": f"Bearer {jwt}"})
 
-    def test_check_auth__ok(self, client, user, user_session, dbs):
+    async def test_check_auth__ok(self, user, user_session, dbs):
         request = self._prepare_request(dbs, user, user_session)
-        authenticated_user, _ = await_(BaseAuthJWTBackend(request).authenticate())
+        authenticated_user, _ = await BaseAuthJWTBackend(request).authenticate()
         assert authenticated_user.id == user.id
 
     @pytest.mark.parametrize(
@@ -49,29 +51,27 @@ class TestBackendAuth:
             ),
         ],
     )
-    def test_invalid_token__fail(self, client, user, auth_header, auth_exception, err_details, dbs):
+    async def test_invalid_token__fail(self, auth_header, auth_exception, err_details, dbs):
         request = Request(scope={"type": "http", "headers": [auth_header]})
         request.db_session = dbs
         with pytest.raises(auth_exception) as exc:
-            await_(BaseAuthJWTBackend(request).authenticate())
+            await BaseAuthJWTBackend(request).authenticate()
 
         assert exc.value.details == err_details
 
-    def test_check_auth__user_not_active__fail(self, client, user, user_session, dbs):
-        await_(user.update(dbs, is_active=False))
-        await_(dbs.commit())
+    async def test_check_auth__user_not_active__fail(self, user, user_session, dbs):
+        await user.update(dbs, is_active=False, db_commit=True)
         request = self._prepare_request(dbs, user, user_session)
         with pytest.raises(AuthenticationFailedError) as exc:
-            await_(BaseAuthJWTBackend(request).authenticate())
+            await BaseAuthJWTBackend(request).authenticate()
 
         assert exc.value.details == f"Couldn't found active user with id={user.id}."
 
-    def test_check_auth__session_not_active__fail(self, client, user, user_session, dbs):
-        await_(user_session.update(dbs, is_active=False))
-        await_(dbs.commit())
+    async def test_check_auth__session_not_active__fail(self, user, user_session, dbs):
+        await user_session.update(dbs, is_active=False, db_commit=True)
         request = self._prepare_request(dbs, user, user_session)
         with pytest.raises(AuthenticationFailedError) as exc:
-            await_(BaseAuthJWTBackend(request).authenticate())
+            await BaseAuthJWTBackend(request).authenticate()
 
         assert exc.value.details == (
             f"Couldn't found active session: user_id={user.id} | "
@@ -79,28 +79,25 @@ class TestBackendAuth:
         )
 
     @pytest.mark.parametrize("token_type", [TOKEN_TYPE_REFRESH, TOKEN_TYPE_RESET_PASSWORD])
-    def test_check_auth__token_t_mismatch__fail(self, client, user, user_session, token_type, dbs):
-        await_(user_session.update(dbs, is_active=False))
-        await_(dbs.commit())
+    async def test_check_auth__token_t_mismatch__fail(self, user, user_session, token_type, dbs):
+        await user_session.update(dbs, is_active=False, db_commit=True)
         token, _ = encode_jwt({"user_id": user.id}, token_type=token_type)
         request = self._prepare_request(dbs, user, user_session)
         with pytest.raises(AuthenticationFailedError) as exc:
-            await_(BaseAuthJWTBackend(request).authenticate_user(token, token_type="access"))
+            await BaseAuthJWTBackend(request).authenticate_user(token, token_type="access")
 
         assert exc.value.details == f"Token type 'access' expected, got '{token_type}' instead."
 
-    def test_check_auth__admin_required__ok(self, client, user, user_session, dbs):
-        await_(user.update(dbs, is_superuser=True))
-        await_(dbs.commit())
+    async def test_check_auth__admin_required__ok(self, user, user_session, dbs):
+        await user.update(dbs, is_superuser=True, db_commit=True)
         request = self._prepare_request(dbs, user, user_session)
-        authenticated_user, _ = await_(AdminRequiredAuthBackend(request).authenticate())
+        authenticated_user, _ = await (AdminRequiredAuthBackend(request).authenticate())
         assert authenticated_user.id == user.id
 
-    def test_check_auth__admin_required__not_superuser__fail(self, client, user, user_session, dbs):
-        await_(user.update(dbs, is_superuser=False))
-        await_(dbs.commit())
+    async def test_check_auth__admin_required__not_superuser__fail(self, user, user_session, dbs):
+        await user.update(dbs, is_superuser=False, db_commit=True)
         request = self._prepare_request(dbs, user, user_session)
         with pytest.raises(PermissionDeniedError) as exc:
-            await_(AdminRequiredAuthBackend(request).authenticate())
+            await AdminRequiredAuthBackend(request).authenticate()
 
         assert exc.value.details == "You don't have an admin privileges."
