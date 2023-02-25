@@ -63,7 +63,9 @@ def cap_log(caplog):
 
 @pytest.fixture(scope="session")
 def event_loop():
-    return asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop
 
 
 @pytest_asyncio.fixture(autouse=True, scope="session")
@@ -94,26 +96,30 @@ def db_prep():
     )
     engine = sqlalchemy.create_engine(postgres_db_dsn)
     conn = engine.connect()
+
+    def exec_sql(query: str):
+        conn.execute(sqlalchemy.text(query))
+
     try:
         conn = conn.execution_options(autocommit=False)
-        conn.execute("ROLLBACK")  # FIXME: it will be deprecated in SA 2.0
-        conn.execute(f"DROP DATABASE {settings.DB_NAME}")
+        exec_sql("ROLLBACK")
+        exec_sql(f"DROP DATABASE {settings.DB_NAME}")
     except ProgrammingError:
         print("Could not drop the database, probably does not exist.")
-        conn.execute("ROLLBACK")
+        exec_sql("ROLLBACK")
     except OperationalError:
         print("Could not drop database because it’s being accessed by other users")
-        conn.execute("ROLLBACK")
+        exec_sql("ROLLBACK")
 
     print(f"Test db dropped! about to create {settings.DB_NAME}")
-    conn.execute(f"CREATE DATABASE {settings.DB_NAME}")
+    exec_sql(f"CREATE DATABASE {settings.DB_NAME}")
     username, password = settings.DATABASE["username"], settings.DATABASE["password"]
 
     try:
-        conn.execute(f"CREATE USER {username} WITH ENCRYPTED PASSWORD '{password}'")
+        exec_sql(f"CREATE USER {username} WITH ENCRYPTED PASSWORD '{password}'")
     except Exception as e:
         print(f"User already exists. ({e})")
-        conn.execute(f"GRANT ALL PRIVILEGES ON DATABASE {settings.DB_NAME} TO {username}")
+        exec_sql(f"GRANT ALL PRIVILEGES ON DATABASE {settings.DB_NAME} TO {username}")
 
     conn.close()
 
