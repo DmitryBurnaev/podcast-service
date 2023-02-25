@@ -36,7 +36,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
     async def get(self, request: PRequest) -> Response:
         func_count = func.count(Episode.id).label("episodes_count")
         stmt = (
-            select([Podcast, func_count])
+            select(Podcast, func_count)
             .outerjoin(Episode, Episode.podcast_id == Podcast.id)
             .filter(Podcast.owner_id == request.user.id)
             .group_by(Podcast.id)
