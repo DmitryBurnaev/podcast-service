@@ -23,7 +23,7 @@ pytestmark = pytest.mark.asyncio
 class TestDownloadEpisodeTask(BaseTestCase):
     @staticmethod
     async def _source_file(dbs, episode: Episode) -> Path:
-        audio: File = await (File.async_get(dbs, id=episode.audio_id))
+        audio: File = await File.async_get(dbs, id=episode.audio_id)
         file_path = settings.TMP_AUDIO_PATH / audio.name
         with open(file_path, "wb") as f:
             f.write(b"EpisodeData")
@@ -76,7 +76,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         result = await DownloadEpisodeTask(db_session=dbs).run(episode.id)
         episode = await Episode.async_get(dbs, id=episode.id)
 
-        mocked_youtube.assert_called_with(cookiefile=await (cookie.as_file()))
+        mocked_youtube.assert_called_with(cookiefile=await cookie.as_file())
         mocked_ffmpeg.assert_called_with(src_path=file_path)
 
         assert result == FinishCode.OK
@@ -96,7 +96,9 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_source_info_yandex,
     ):
         file_path = await self._source_file(dbs, episode)
-        await episode.update(dbs, cookie_id=cookie.id, source_type=SourceType.YANDEX, db_commit=True)
+        await episode.update(
+            dbs, cookie_id=cookie.id, source_type=SourceType.YANDEX, db_commit=True
+        )
 
         result = await DownloadEpisodeTask(db_session=dbs).run(episode.id)
 
@@ -313,6 +315,6 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
         result = await DownloadEpisodeImageTask(db_session=dbs).run(episode.id)
         await dbs.refresh(episode)
         assert result == FinishCode.OK
-        image: File = await (File.async_get(dbs, id=episode.image_id))
+        image: File = await File.async_get(dbs, id=episode.image_id)
         assert image.path == remote_path
         assert mocked_download_content.assert_not_awaited

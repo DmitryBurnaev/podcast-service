@@ -97,14 +97,12 @@ class TestMediaFileAPIView(BaseTestAPIView):
 
     async def test_get_public_image_file__ok(self, dbs, user, mocked_s3):
         source_url = f"https://test.source.url/{uuid.uuid4().hex}.jpg"
-        image_file = await (
-            File.create(
-                dbs,
-                FileType.IMAGE,
-                owner_id=user.id,
-                source_url=source_url,
-                public=True,
-            )
+        image_file = await File.create(
+            dbs,
+            FileType.IMAGE,
+            owner_id=user.id,
+            source_url=source_url,
+            public=True,
         )
         await dbs.commit()
 
@@ -121,7 +119,9 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
-    async def test_get_media_file_user_ip_rss_registered__fail(self, client, image_file, rss_file, user):
+    async def test_get_media_file_user_ip_rss_registered__fail(
+        self, client, image_file, rss_file, user
+    ):
         url = self.url.format(token=image_file.access_token)
         await client.login(user)
         await UserIP.async_create(
@@ -129,7 +129,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
             user_id=user.id,
             ip_address=self.user_ip,
             registered_by=rss_file.access_token,
-            db_commit=True
+            db_commit=True,
         )
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
@@ -184,7 +184,7 @@ class TestRSSFileAPIView(BaseTestAPIView):
             user_id=user.id,
             ip_address=self.user_ip,
             registered_by=rss_file.access_token,
-            db_commit=True
+            db_commit=True,
         )
 
         url = self.url.format(token=rss_file.access_token)

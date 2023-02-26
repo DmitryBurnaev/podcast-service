@@ -36,7 +36,9 @@ class TestUploadedEpisodeTask(BaseTestCase):
         episode.audio = audio
         return episode
 
-    async def test_run_ok(self, dbs, podcast, user, mocked_s3, mocked_redis, mocked_generate_rss_task):
+    async def test_run_ok(
+        self, dbs, podcast, user, mocked_s3, mocked_redis, mocked_generate_rss_task
+    ):
         mocked_s3.get_file_size.return_value = 1024
         source_id = get_source_id(prefix="upl")
         episode = await self._episode(dbs, podcast, user, file_size=1024, source_id=source_id)
@@ -84,7 +86,9 @@ class TestUploadedEpisodeTask(BaseTestCase):
         mocked_s3.upload_file.assert_not_called()
         mocked_generate_rss_task.run.assert_not_called()
 
-    async def test_move_s3_failed__error(self, dbs, podcast, user, mocked_s3, mocked_generate_rss_task):
+    async def test_move_s3_failed__error(
+        self, dbs, podcast, user, mocked_s3, mocked_generate_rss_task
+    ):
         mocked_s3.get_file_size.return_value = 1024
         mocked_s3.copy_file.side_effect = RuntimeError("Oops")
         episode = await self._episode(dbs, podcast, user, file_size=1024)

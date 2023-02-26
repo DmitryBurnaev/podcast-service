@@ -91,7 +91,7 @@ class TestBackendAuth:
     async def test_check_auth__admin_required__ok(self, user, user_session, dbs):
         await user.update(dbs, is_superuser=True, db_commit=True)
         request = self._prepare_request(dbs, user, user_session)
-        authenticated_user, _ = await (AdminRequiredAuthBackend(request).authenticate())
+        authenticated_user, _ = await AdminRequiredAuthBackend(request).authenticate()
         assert authenticated_user.id == user.id
 
     async def test_check_auth__admin_required__not_superuser__fail(self, user, user_session, dbs):

@@ -61,7 +61,9 @@ class TestProgressAPIView(BaseTestWSAPI):
         response = self._ws_request(client, user_session)
         assert response == {"progressItems": []}
 
-    async def test_filter_by_status__ok(self, client, user_session, episode_data, mocked_redis, dbs):
+    async def test_filter_by_status__ok(
+        self, client, user_session, episode_data, mocked_redis, dbs
+    ):
         user_id = user_session.user_id
         podcast_1 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user_id))
         podcast_2 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user_id))
@@ -115,7 +117,7 @@ class TestProgressAPIView(BaseTestWSAPI):
         p1_ep_down = await create_episode(dbs, ep_data_1, podcast_1, STATUS.DOWNLOADING, MB_2)
         p2_ep_down = await create_episode(dbs, ep_data_2, podcast_2, STATUS.DOWNLOADING, MB_4)
 
-        await (dbs.commit())
+        await dbs.commit()
 
         mocked_redis.async_get_many.side_effect = lambda *_, **__: (
             {
@@ -196,9 +198,7 @@ class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
         mocked_redis.pubsub_channel.subscribe.assert_awaited_with(settings.REDIS_PROGRESS_PUBSUB_CH)
 
     @patch("modules.podcast.views.progress.ProgressWS._send_progress_for_episodes")
-    async def test_single_episode__pubsub_timeout(
-        self, _, client, user_session, mocked_redis, dbs
-    ):
+    async def test_single_episode__pubsub_timeout(self, _, client, user_session, mocked_redis, dbs):
         mocked_redis.pubsub_channel.get_message.side_effect = asyncio.TimeoutError()
 
         response_data = self._ws_request(client, user_session, data={"episodeID": 1})

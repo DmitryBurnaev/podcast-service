@@ -113,7 +113,7 @@ class TestEpisodeCreator(BaseTestAPIView):
             source_url=episode.watch_url,
             user_id=user.id,
         )
-        new_episode: Episode = await (episode_creator.create())
+        new_episode: Episode = await episode_creator.create()
         assert episode is not None
         assert new_episode.id != episode.id
         assert new_episode.source_id == episode.source_id
@@ -169,7 +169,7 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         )
 
         await self._assert_source(episode_creator, cookie_yandex.id)
-        mocked_youtube.assert_called_with(cookiefile=await (cookie_yandex.as_file()))
+        mocked_youtube.assert_called_with(cookiefile=await cookie_yandex.as_file())
 
     async def test_cookie_from_another_user(
         self, mocked_source_info_yandex, mocked_youtube, dbs, user, podcast
@@ -177,7 +177,7 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         cdata = self.cdata | {"owner_id": user.id}
         cookie_yandex = await Cookie.async_create(dbs, **cdata)
         cdata = self.cdata | {"owner_id": (await create_user(dbs)).id}
-        await (Cookie.async_create(dbs, **cdata))
+        await Cookie.async_create(dbs, **cdata)
 
         episode_creator = EpisodeCreator(
             dbs,
@@ -186,14 +186,14 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
             user_id=user.id,
         )
         await self._assert_source(episode_creator, cookie_yandex.id)
-        mocked_youtube.assert_called_with(cookiefile=await (cookie_yandex.as_file()))
+        mocked_youtube.assert_called_with(cookiefile=await cookie_yandex.as_file())
 
     async def test_use_last_cookie(
         self, mocked_source_info_yandex, mocked_youtube, dbs, user, podcast
     ):
         cdata = self.cdata | {"owner_id": user.id}
-        await (Cookie.async_create(dbs, **cdata))
-        c2 = await (Cookie.async_create(dbs, **cdata))
+        await Cookie.async_create(dbs, **cdata)
+        c2 = await Cookie.async_create(dbs, **cdata)
 
         episode_creator = EpisodeCreator(
             dbs,
@@ -202,4 +202,4 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
             user_id=user.id,
         )
         await self._assert_source(episode_creator, c2.id)
-        mocked_youtube.assert_called_with(cookiefile=await (c2.as_file()))
+        mocked_youtube.assert_called_with(cookiefile=await c2.as_file())
