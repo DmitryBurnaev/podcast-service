@@ -126,7 +126,7 @@ class TestS3Storage:
     async def test_delete_files_async__ok(self, mock_boto3_session_client):
         mock_client = MockedClient()
         mock_boto3_session_client.return_value = mock_client
-        await (StorageS3().delete_files_async(["test.mp3", "test2.mp3"], "remote-path"))
+        await StorageS3().delete_files_async(["test.mp3", "test2.mp3"], "remote-path")
 
         expected_calls = [
             {"Key": "remote-path/test.mp3", "Bucket": settings.S3_BUCKET_NAME},
@@ -142,7 +142,7 @@ class TestS3Storage:
 
         mock_boto3_session_client.return_value = mock_client
         mock_client.generate_presigned_url.return_value = presigned_url
-        url = await (StorageS3().get_presigned_url("remote-path/test.mp3"))
+        url = await StorageS3().get_presigned_url("remote-path/test.mp3")
         assert url == presigned_url
 
         mock_client.generate_presigned_url.assert_called_with(
@@ -155,14 +155,16 @@ class TestS3Storage:
         )
 
     @patch("boto3.session.Session.client")
-    async def test_get_presigned_url__cached_result__ok(self, mock_boto3_session_client, mocked_redis):
+    async def test_get_presigned_url__cached_result__ok(
+        self, mock_boto3_session_client, mocked_redis
+    ):
         mock_client = MockedClient()
         mock_boto3_session_client.return_value = mock_client
 
         presigned_url = "https://presigned.url"
         mocked_redis.async_get.return_value = presigned_url
 
-        url = await (StorageS3().get_presigned_url("remote-path/test.mp3"))
+        url = await StorageS3().get_presigned_url("remote-path/test.mp3")
         assert url == presigned_url
 
         mock_client.generate_presigned_url.assert_not_called()

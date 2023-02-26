@@ -209,7 +209,9 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         }
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_SIGN_IN_DATA)
-    async def test_sign_in__invalid_request__fail(self, client, invalid_data: dict, error_details: dict):
+    async def test_sign_in__invalid_request__fail(
+        self, client, invalid_data: dict, error_details: dict
+    ):
         self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
 
     async def test_sign_in__user_inactive__fail(self, client, dbs):
@@ -245,13 +247,15 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
         assert user is not None, f"User wasn't created with {request_data=}"
         assert_tokens(response_data, user)
 
-        await (dbs.refresh(user_invite))
+        await dbs.refresh(user_invite)
         assert user_invite.user_id == user.id
         assert user_invite.is_applied
-        assert await (Podcast.async_get(dbs, owner_id=user.id)) is not None
+        assert await Podcast.async_get(dbs, owner_id=user.id) is not None
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_SIGN_UP_DATA)
-    async def test_sign_up__invalid_request__fail(self, client, invalid_data: dict, error_details: dict):
+    async def test_sign_up__invalid_request__fail(
+        self, client, invalid_data: dict, error_details: dict
+    ):
         self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
 
     async def test_sign_up__user_already_exists__fail(self, client, user_invite, dbs):
@@ -291,7 +295,6 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
         response = client.post(self.url, json=request_data)
         response_data = self.assert_fail_response(response)
         assert response_data["error"] == "Email does not match with your invitation."
-
 
     # return await acreate_user(dbs)
 
@@ -368,7 +371,9 @@ class TestUserInviteApiView(BaseTestAPIView):
         )
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_INVITE_DATA)
-    async def test_invalid_request__fail(self, client, user, invalid_data: dict, error_details: dict):
+    async def test_invalid_request__fail(
+        self, client, user, invalid_data: dict, error_details: dict
+    ):
         await client.login(user)
         self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
 

@@ -33,7 +33,7 @@ class TestProfileAPIView(BaseTestAPIView):
             "is_superuser": user.is_superuser,
         }
 
-        await (dbs.refresh(user))
+        await dbs.refresh(user)
         assert user.email == "new-user@test.com"
 
 
@@ -67,8 +67,8 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert response_data == {}
 
-        await (dbs.refresh(user))
-        await (dbs.refresh(user_session))
+        await dbs.refresh(user)
+        await dbs.refresh(user_session)
         assert user.verify_password(self.new_password)
         assert not user_session.is_active
 

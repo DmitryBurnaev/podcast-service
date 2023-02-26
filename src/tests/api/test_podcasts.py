@@ -140,7 +140,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
             "download_automatically": True,
         }
         response = client.patch(url, json=patch_data)
-        await (dbs.refresh(podcast))
+        await dbs.refresh(podcast)
         response_data = self.assert_ok_response(response)
         assert response_data == _podcast(podcast)
         assert podcast.name == "New name"
@@ -181,8 +181,10 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
 
     async def test_delete__episodes_deleted_too__ok(self, client, podcast, user, mocked_s3, dbs):
         episode_1 = await create_episode(dbs, get_episode_data(podcast), status=EpisodeStatus.NEW)
-        episode_2 = await create_episode(dbs, get_episode_data(podcast), status=EpisodeStatus.PUBLISHED)
-        await (dbs.commit())
+        episode_2 = await create_episode(
+            dbs, get_episode_data(podcast), status=EpisodeStatus.PUBLISHED
+        )
+        await dbs.commit()
 
         await client.login(user)
         url = self.url.format(id=podcast.id)
@@ -206,7 +208,7 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
         mocked_s3.delete_files_async.assert_any_call([episode_2.image.name], remote_path=ri)
 
     async def test_delete__episodes_in_another_podcast__ok(self, client, user, mocked_s3, dbs):
-        podcast_1 = await (Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id)))
+        podcast_1 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id))
         episode_data = get_episode_data(podcast_1, creator=user)
 
         episode_data["podcast_id"] = podcast_1.id
@@ -222,9 +224,11 @@ class TestPodcastRUDAPIView(BaseTestAPIView):
 
         # creating episode with same `source_id` in another podcast
         # not-available files (with same source_id will NOT be deleted)
-        episode_2 = await create_episode(dbs, episode_data, source_id=source_id, status=EpisodeStatus.NEW)
+        episode_2 = await create_episode(
+            dbs, episode_data, source_id=source_id, status=EpisodeStatus.NEW
+        )
 
-        await (dbs.commit())
+        await dbs.commit()
         await client.login(user)
         url = self.url.format(id=podcast_1.id)
         response = client.delete(url)
@@ -281,7 +285,7 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
     @patch("common.storage.StorageS3.upload_file")
     async def test_upload__ok(self, mocked_upload_file, mocked_s3, client, user, dbs):
         podcast_data = get_podcast_data(owner_id=user.id)
-        podcast = await (Podcast.async_create(dbs, db_commit=True, **podcast_data))
+        podcast = await Podcast.async_create(dbs, db_commit=True, **podcast_data)
 
         await client.login(user)
         mocked_upload_file.return_value = self.remote_path
@@ -323,7 +327,9 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
         )
 
     @patch("common.storage.StorageS3.upload_file")
-    async def test_upload__upload_failed__fail(self, mocked_upload_file, client, podcast, user, dbs):
+    async def test_upload__upload_failed__fail(
+        self, mocked_upload_file, client, podcast, user, dbs
+    ):
         await client.login(user)
         mocked_upload_file.side_effect = RuntimeError("Oops")
         response = client.post(url=self.url.format(id=podcast.id), files={"image": self._file()})

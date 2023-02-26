@@ -285,18 +285,14 @@ async def image_file(user, dbs) -> File:
         owner_id=user.id,
         path="/remote/path/to/image_file.png",
         size=1,
-        db_commit=True
+        db_commit=True,
     )
 
 
 @pytest_asyncio.fixture
 async def rss_file(user, dbs) -> File:
     return await File.create(
-        dbs,
-        FileType.RSS,
-        owner_id=user.id,
-        path="/remote/path/to/rss_file.xml",
-        db_commit=True
+        dbs, FileType.RSS, owner_id=user.id, path="/remote/path/to/rss_file.xml", db_commit=True
     )
 
 

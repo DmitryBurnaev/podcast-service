@@ -49,7 +49,9 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
             ],
         }
 
-    async def test_retrieve__yandex__ok(self, client, user, mocked_source_info_yandex, mocked_youtube):
+    async def test_retrieve__yandex__ok(
+        self, client, user, mocked_source_info_yandex, mocked_youtube
+    ):
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
         await client.login(user)
         response = client.get(self.url, params={"url": "http://link.to.source/"})
@@ -70,12 +72,12 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
     ):
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
         cdata = self.cdata | {"owner_id": user.id}
-        cookie = await (Cookie.async_create(dbs, db_commit=True, **cdata))
+        cookie = await Cookie.async_create(dbs, db_commit=True, **cdata)
 
         await client.login(user)
         response = client.get(self.url, params={"url": "http://link.to.source/"})
         self.assert_ok_response(response)
-        mocked_youtube.assert_called_with(cookiefile=await (cookie.as_file()))
+        mocked_youtube.assert_called_with(cookiefile=await cookie.as_file())
 
     async def test_retrieve__cookies_from_another_user(
         self, dbs, client, user, mocked_source_info_yandex, mocked_youtube
@@ -91,7 +93,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         await client.login(user)
         response = client.get(self.url, params={"url": "http://link.to.source/"})
         self.assert_ok_response(response)
-        mocked_youtube.assert_called_with(cookiefile=await (cookie.as_file()))
+        mocked_youtube.assert_called_with(cookiefile=await cookie.as_file())
 
     async def test_retrieve__last_cookie(
         self, dbs, client, user, mocked_source_info_yandex, mocked_youtube
@@ -105,7 +107,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         await client.login(user)
         response = client.get(self.url, params={"url": "http://link.to.source/"})
         self.assert_ok_response(response)
-        mocked_youtube.assert_called_with(cookiefile=await (cookie.as_file()))
+        mocked_youtube.assert_called_with(cookiefile=await cookie.as_file())
 
     @patch("modules.providers.utils.extract_source_info")
     async def test_retrieve__invalid_playlist_link__fail(
@@ -122,7 +124,9 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         }
 
     @patch("modules.providers.utils.extract_source_info")
-    async def test_retrieve__unsupported_url__fail(self, mocked_src_info, client, user, mocked_youtube):
+    async def test_retrieve__unsupported_url__fail(
+        self, mocked_src_info, client, user, mocked_youtube
+    ):
         err_msg = "Unsupported URL: https://fake.url"
         mocked_youtube.extract_info.side_effect = yt_dlp.utils.DownloadError(err_msg)
         mocked_src_info.return_value = SourceInfo(id=uuid.uuid4().hex, type=SourceType.YOUTUBE)

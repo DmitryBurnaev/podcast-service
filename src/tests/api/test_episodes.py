@@ -81,9 +81,11 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         await client.login(user)
         episode_data |= {"owner_id": user.id}
         podcast_data = partial(get_podcast_data, owner_id=user.id)
-        podcast_1 = await (Podcast.async_create(dbs, **podcast_data()))
-        podcast_2 = await (Podcast.async_create(dbs, **podcast_data()))
-        ep = await create_episode(dbs, episode_data, podcast=podcast_1, status=EpisodeStatus.PUBLISHED)
+        podcast_1 = await Podcast.async_create(dbs, **podcast_data())
+        podcast_2 = await Podcast.async_create(dbs, **podcast_data())
+        ep = await create_episode(
+            dbs, episode_data, podcast=podcast_1, status=EpisodeStatus.PUBLISHED
+        )
         await create_episode(dbs, episode_data, podcast=podcast_2)
         url = self.url.format(id=podcast_1.id)
         response = client.get(url)
@@ -313,7 +315,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response, status_code=200)
 
         assert episode.id == response_data["id"]
-        episode = await (Episode.async_get(dbs, id=response_data["id"]))
+        episode = await Episode.async_get(dbs, id=response_data["id"])
         assert response_data == _episode_details(episode), response.json()
 
     async def test_get_exists_episode__fake_hash__fail(
@@ -455,7 +457,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
             "description": "New description",
         }
         response = client.patch(url, json=patch_data)
-        await (dbs.refresh(episode))
+        await dbs.refresh(episode)
 
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_details(episode)
@@ -552,7 +554,9 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
             (SourceType.UPLOAD, UploadedEpisodeTask),
         ),
     )
-    async def test_download__ok(self, dbs, client, episode, user, mocked_rq_queue, source_type, task):
+    async def test_download__ok(
+        self, dbs, client, episode, user, mocked_rq_queue, source_type, task
+    ):
         await episode.update(dbs, source_type=source_type, db_commit=True)
 
         await client.login(user)
