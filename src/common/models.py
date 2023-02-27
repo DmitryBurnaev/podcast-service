@@ -1,5 +1,5 @@
 import datetime
-from typing import TypeVar
+from typing import TypeVar, Self
 
 from sqlalchemy import and_, select, update, delete
 from sqlalchemy.engine import ScalarResult
@@ -115,6 +115,14 @@ class ModelMixin:
                 res[field] = getattr(self, field)
 
         return res
+
+    @classmethod
+    def from_dict(cls, data: dict) -> Self:
+        instance = cls()
+        for key, value in data.items():
+            setattr(instance, key, value)
+
+        return instance
 
     @classmethod
     def _filter_criteria(cls, filter_kwargs):

@@ -40,7 +40,10 @@ class CookieListCreateAPIView(BaseCookieAPIView):
             .order_by(Cookie.source_type, Cookie.created_at.desc())
             .distinct(Cookie.source_type)
         )
-        cookies = await self.db_session.execute(cookies_query)
+        cookies = (
+            Cookie.from_dict(cookie_data._asdict())  # pragma: no cover
+            for cookie_data in await self.db_session.execute(cookies_query)
+        )
         return self._response(cookies)
 
     async def post(self, request: PRequest) -> Response:
