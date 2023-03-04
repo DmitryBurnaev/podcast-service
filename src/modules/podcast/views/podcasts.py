@@ -34,7 +34,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
     schema_response = PodcastDetailsSchema
 
     async def get(self, request: PRequest) -> Response:
-        func_count = func.count(Episode.id).label("episodes_count")
+        func_count = func.count(Episode.id).label("episodes_count")  # pylint: disable=not-callable
         stmt = (
             select(Podcast, func_count)
             .outerjoin(Episode, Episode.podcast_id == Podcast.id)
