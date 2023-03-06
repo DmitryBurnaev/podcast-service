@@ -324,6 +324,7 @@ async def episode(podcast, user, dbs) -> Episode:
     await dbs.commit()
     episode.image = image
     episode.audio = audio
+    episode.podcast = podcast
     return episode
 
 

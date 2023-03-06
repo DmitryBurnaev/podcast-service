@@ -64,6 +64,11 @@ def _episode_details(episode: Episode):
         "source_type": str(episode.source_type),
         "created_at": episode.created_at.isoformat(),
         "published_at": episode.published_at.isoformat() if episode.published_at else None,
+        "podcast": {
+            "id": episode.podcast_id,
+            "image_url": episode.podcast.image_url,
+            "name": episode.podcast.name,
+        },
     }
 
 

@@ -100,6 +100,7 @@ class Episode(ModelBase, ModelMixin):
     created_at = Column(DateTime, default=datetime.utcnow)
     published_at = Column(DateTime)
 
+    podcast = relationship("Podcast", foreign_keys=[podcast_id], lazy="subquery")
     image = relationship("File", foreign_keys=[image_id], lazy="subquery")
     audio = relationship("File", foreign_keys=[audio_id], lazy="subquery")
 
