@@ -126,7 +126,7 @@ class DownloadEpisodeTask(RQTask):
                     "published_at": episode.created_at,
                 },
             )
-            await self._update_files(episode, {"size": stored_file_size})
+            await self._update_files(episode, {"size": stored_file_size, "available": True})
             await self._update_all_rss(episode.source_id)
             raise DownloadingInterrupted(code=FinishCode.SKIP)
 
