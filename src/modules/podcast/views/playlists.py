@@ -25,7 +25,6 @@ class PlayListAPIView(BaseHTTPEndpoint):
     async def get(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request, location="query")
         playlist_url = cleaned_data.get("url")
-        # loop = asyncio.get_running_loop()
         source_info = utils.extract_source_info(playlist_url, playlist=True)
 
         params = {"logger": logger, "noplaylist": False}

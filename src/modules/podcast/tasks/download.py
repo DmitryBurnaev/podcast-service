@@ -54,6 +54,10 @@ class DownloadEpisodeTask(RQTask):
         except DownloadingInterrupted as exc:
             message = "Episode downloading was interrupted: %r"
             logger.log(log_levels[exc.code], message, exc)
+            await RedisClient().async_publish(
+                channel=settings.REDIS_PROGRESS_PUBSUB_CH,
+                message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
+            )
             return exc.code.value
 
         except Exception as exc:

@@ -149,6 +149,13 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
             payload = self.schema_response(**schema_kwargs).dump(response_instance)
 
+        if status_code == status.HTTP_204_NO_CONTENT:
+            if not payload:
+                return Response(None, status_code=status_code)
+
+            status_code = status.HTTP_200_OK
+            logger.warning("Status code changed to 200 because result payload is not empty")
+
         return JSONResponse(
             {"status": response_status, "payload": payload}, status_code=status_code
         )

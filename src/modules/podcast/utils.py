@@ -125,7 +125,8 @@ def episode_process_hook(
     }
     redis_client.set(event_key, event_data, ttl=settings.DOWNLOAD_EVENT_REDIS_TTL)
     redis_client.publish(
-        channel=settings.REDIS_PROGRESS_PUBSUB_CH, message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL
+        channel=settings.REDIS_PROGRESS_PUBSUB_CH,
+        message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
     )
     if processed_bytes and total_bytes:
         progress = f"{processed_bytes / total_bytes:.2%}"

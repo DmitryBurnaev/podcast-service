@@ -154,6 +154,11 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode_2.status == Episode.Status.PUBLISHED
         assert episode_2.published_at == episode_2.created_at
 
+        mocked_redis.async_publish.assert_called_with(
+            channel=settings.REDIS_PROGRESS_PUBSUB_CH,
+            message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
+        )
+
     async def test_file_bad_size__ignore(
         self,
         episode_data,
@@ -313,8 +318,9 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
         )
         await episode.image.update(dbs, path=remote_path, available=True)
         result = await DownloadEpisodeImageTask(db_session=dbs).run(episode.id)
-        await dbs.refresh(episode)
         assert result == FinishCode.OK
+
+        await dbs.refresh(episode)
         image: File = await File.async_get(dbs, id=episode.image_id)
         assert image.path == remote_path
         assert mocked_download_content.assert_not_awaited
