@@ -199,8 +199,20 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.status == Episode.Status.PUBLISHED
         assert episode.published_at == episode.created_at
 
+        mocked_redis.async_publish.assert_called_with(
+            channel=settings.REDIS_PROGRESS_PUBSUB_CH,
+            message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
+        )
+
     async def test_downloading_failed__roll_back_changes__ok(
-        self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task, dbs
+        self,
+        episode,
+        mocked_youtube,
+        mocked_ffmpeg,
+        mocked_s3,
+        mocked_generate_rss_task,
+        mocked_redis,
+        dbs,
     ):
         await self._source_file(dbs, episode)
         mocked_youtube.download.side_effect = DownloadError("Video is not available")

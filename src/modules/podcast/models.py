@@ -41,7 +41,7 @@ class Podcast(ModelBase, ModelMixin):
     image_id = Column(ForeignKey("media_files.id", ondelete="SET NULL"))
     owner_id = Column(ForeignKey("auth_users.id"))
 
-    episodes = relationship("Episode")
+    # relations
     rss = relationship("File", foreign_keys=[rss_id], lazy="subquery")
     image = relationship("File", foreign_keys=[image_id], lazy="subquery")
 
@@ -100,7 +100,8 @@ class Episode(ModelBase, ModelMixin):
     created_at = Column(DateTime, default=datetime.utcnow)
     published_at = Column(DateTime)
 
-    podcast = relationship("Podcast", foreign_keys=[podcast_id], lazy="subquery")
+    # relations
+    podcast = relationship("Podcast", lazy="subquery", backref="episodes")
     image = relationship("File", foreign_keys=[image_id], lazy="subquery")
     audio = relationship("File", foreign_keys=[audio_id], lazy="subquery")
 

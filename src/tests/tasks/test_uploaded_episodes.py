@@ -70,6 +70,7 @@ class TestUploadedEpisodeTask(BaseTestCase):
         user,
         podcast,
         mocked_s3,
+        mocked_redis,
         mocked_generate_rss_task,
     ):
         mocked_s3.get_file_size.return_value = 32
@@ -85,6 +86,10 @@ class TestUploadedEpisodeTask(BaseTestCase):
 
         mocked_s3.upload_file.assert_not_called()
         mocked_generate_rss_task.run.assert_not_called()
+        mocked_redis.async_publish.assert_called_with(
+            channel=settings.REDIS_PROGRESS_PUBSUB_CH,
+            message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
+        )
 
     async def test_move_s3_failed__error(
         self, dbs, podcast, user, mocked_s3, mocked_generate_rss_task
