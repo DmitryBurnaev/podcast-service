@@ -51,14 +51,12 @@ class DownloadEpisodeTask(RQTask):
 
         try:
             code = await self.perform_run(int(episode_id))
+            code_value = code.value
+
         except DownloadingInterrupted as exc:
             message = "Episode downloading was interrupted: %r"
             logger.log(log_levels[exc.code], message, exc)
-            await RedisClient().async_publish(
-                channel=settings.REDIS_PROGRESS_PUBSUB_CH,
-                message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
-            )
-            return exc.code.value
+            code_value = exc.code.value
 
         except Exception as exc:
             logger.exception("Unable to prepare/publish episode: %r", exc)
@@ -67,9 +65,12 @@ class DownloadEpisodeTask(RQTask):
                 filter_kwargs={"id": episode_id},
                 update_data={"status": Episode.Status.ERROR},
             )
-            return FinishCode.ERROR
+            code_value = FinishCode.ERROR
 
-        return code.value
+        finally:
+            await self._publish_redis_signal()
+
+        return code_value
 
     async def perform_run(self, episode_id: int) -> FinishCode:
         """
@@ -105,10 +106,6 @@ class DownloadEpisodeTask(RQTask):
         podcast_utils.delete_file(tmp_audio_path)
 
         logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
-        await RedisClient().async_publish(
-            channel=settings.REDIS_PROGRESS_PUBSUB_CH,
-            message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
-        )
         return FinishCode.OK
 
     async def _check_is_needed(self, episode: Episode):
@@ -242,6 +239,13 @@ class DownloadEpisodeTask(RQTask):
         logger.debug("Files update: source_url: %s | data: %s", source_url, update_data)
         await File.async_update(
             self.db_session, filter_kwargs={"source_url": source_url}, update_data=update_data
+        )
+
+    @staticmethod
+    async def _publish_redis_signal():
+        await RedisClient().async_publish(
+            channel=settings.REDIS_PROGRESS_PUBSUB_CH,
+            message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
         )
 
 

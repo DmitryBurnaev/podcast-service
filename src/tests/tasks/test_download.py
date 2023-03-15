@@ -228,16 +228,27 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.status == Episode.Status.ERROR
         assert episode.published_at is None
 
-    async def test_unexpected_error__ok(self, episode, mocked_youtube, dbs):
+    async def test_unexpected_error__ok(self, episode, mocked_youtube, mocked_redis, dbs):
         mocked_youtube.download.side_effect = RuntimeError("Oops")
         result = await DownloadEpisodeTask(db_session=dbs).run(episode.id)
         episode = await Episode.async_get(dbs, id=episode.id)
         assert result == FinishCode.ERROR
         assert episode.status == Episode.Status.ERROR
         assert episode.published_at is None
+        mocked_redis.async_publish.assert_called_with(
+            channel=settings.REDIS_PROGRESS_PUBSUB_CH,
+            message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
+        )
 
     async def test_upload_to_s3_failed__fail(
-        self, episode, mocked_youtube, mocked_ffmpeg, mocked_s3, mocked_generate_rss_task, dbs
+        self,
+        episode,
+        mocked_youtube,
+        mocked_ffmpeg,
+        mocked_s3,
+        mocked_redis,
+        mocked_generate_rss_task,
+        dbs,
     ):
         await self._source_file(dbs, episode)
 
@@ -250,6 +261,10 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode = await Episode.async_get(dbs, id=episode.id)
         assert episode.status == Episode.Status.ERROR
         assert episode.published_at is None
+        mocked_redis.async_publish.assert_called_with(
+            channel=settings.REDIS_PROGRESS_PUBSUB_CH,
+            message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
+        )
 
     @patch("modules.providers.utils.episode_process_hook")
     async def test_download_process_hook__ok(self, mocked_process_hook):
