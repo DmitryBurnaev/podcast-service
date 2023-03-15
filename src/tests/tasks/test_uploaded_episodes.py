@@ -63,6 +63,9 @@ class TestUploadedEpisodeTask(BaseTestCase):
         mocked_redis.publish.assert_called_with(
             channel=settings.REDIS_PROGRESS_PUBSUB_CH, message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL
         )
+        mocked_redis.async_publish.assert_called_with(
+            channel=settings.REDIS_PROGRESS_PUBSUB_CH, message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL
+        )
 
     async def test_file_bad_size__error(
         self,
@@ -92,7 +95,7 @@ class TestUploadedEpisodeTask(BaseTestCase):
         )
 
     async def test_move_s3_failed__error(
-        self, dbs, podcast, user, mocked_s3, mocked_generate_rss_task
+        self, dbs, podcast, user, mocked_s3, mocked_redis, mocked_generate_rss_task
     ):
         mocked_s3.get_file_size.return_value = 1024
         mocked_s3.copy_file.side_effect = RuntimeError("Oops")
@@ -106,3 +109,7 @@ class TestUploadedEpisodeTask(BaseTestCase):
         assert episode.status == Episode.Status.ERROR
         assert episode.published_at is None
         assert not episode.audio.available
+        mocked_redis.async_publish.assert_called_with(
+            channel=settings.REDIS_PROGRESS_PUBSUB_CH,
+            message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
+        )
