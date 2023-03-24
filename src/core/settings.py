@@ -112,6 +112,15 @@ RETRY_UPLOAD_TIMEOUT = 1  # 1 second
 REQUEST_IP_HEADER = config("REQUEST_IP_HEADER", default="X-Real-IP", cast=str)
 FILENAME_SALT = config("FILENAME_SALT", default="HH78NyP4EXsGy99")
 
+# smtp config
+
+SMTP_HOST = config("SMTP_HOST", cast=int)
+SMTP_PORT = config("SMTP_PORT", cast=str)
+SMTP_STARTTLS = config("SMTP_STARTTLS", cast=bool)
+SMTP_USE_TLS = config("SMTP_USE_TLS", cast=bool)
+SMTP_FROM_EMAIL = config("SMTP_FROM_EMAIL", cast=str).strip("'\"")
+
+
 SENTRY_DSN = config("SENTRY_DSN", default=None)
 LOG_LEVEL = config("LOG_LEVEL", default="INFO")
 LOG_SQLALCHEMY_LEVEL = config("LOG_SQLALCHEMY_LEVEL", default="WARNING")
