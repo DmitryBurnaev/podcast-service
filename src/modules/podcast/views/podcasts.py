@@ -1,5 +1,6 @@
-import asyncio
 import uuid
+import asyncio
+import logging
 from pathlib import Path
 
 from sqlalchemy import select, func
@@ -9,7 +10,6 @@ from starlette.responses import Response
 
 from core import settings
 from common.enums import FileType
-from common.utils import get_logger
 from common.request import PRequest
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
@@ -24,7 +24,7 @@ from modules.podcast.schemas import (
 from modules.podcast.tasks.rss import GenerateRSSTask
 from modules.podcast.utils import get_file_size, save_uploaded_file
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class PodcastListCreateAPIView(BaseHTTPEndpoint):

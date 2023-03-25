@@ -1,6 +1,7 @@
-import dataclasses
 import os
 import uuid
+import logging
+import dataclasses
 from contextlib import suppress
 from hashlib import md5
 from pathlib import Path
@@ -20,7 +21,6 @@ from common.exceptions import (
 from common.request import PRequest
 from common.storage import StorageS3
 from common.views import BaseHTTPEndpoint
-from common.utils import get_logger
 from modules.media.models import File
 from modules.auth.models import UserIP
 from modules.auth.utils import extract_ip_address
@@ -29,7 +29,7 @@ from modules.podcast.utils import save_uploaded_file, get_file_size
 from modules.providers import utils as provider_utils
 from modules.providers.utils import AudioMetaData
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class BaseFileRedirectApiView(BaseHTTPEndpoint):

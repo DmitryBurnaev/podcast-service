@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os.path
+import logging
 from pathlib import Path
 
 from yt_dlp.utils import YoutubeDLError
@@ -9,7 +10,7 @@ from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
 from common.enums import EpisodeStatus
-from common.utils import get_logger, download_content
+from common.utils import download_content
 from common.exceptions import NotFoundError, MaxAttemptsReached
 from modules.media.models import File
 from modules.podcast.models import Episode, Cookie
@@ -22,7 +23,7 @@ from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
 
 __all__ = ["DownloadEpisodeTask", "UploadedEpisodeTask", "DownloadEpisodeImageTask"]
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 log_levels = {
     FinishCode.OK: logging.INFO,
     FinishCode.SKIP: logging.INFO,

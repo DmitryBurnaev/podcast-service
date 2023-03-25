@@ -1,3 +1,4 @@
+import logging
 from typing import Type
 
 from marshmallow import Schema
@@ -8,7 +9,7 @@ from starlette.responses import Response
 from common.enums import FileType, SourceType
 from common.request import PRequest
 from common.statuses import ResponseStatus
-from common.utils import get_logger, cut_string
+from common.utils import cut_string
 from common.views import BaseHTTPEndpoint
 from common.exceptions import MethodNotAllowedError, NotFoundError
 from modules.media.models import File
@@ -25,7 +26,7 @@ from modules.podcast.schemas import (
     EpisodeUploadedSchema,
 )
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class EpisodeListCreateAPIView(BaseHTTPEndpoint):

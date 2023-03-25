@@ -1,5 +1,6 @@
 import os
 import time
+import logging
 from pathlib import Path
 from typing import Iterable
 from functools import partial
@@ -8,13 +9,12 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
 from core import settings
-from common.utils import get_logger
 from common.redis import RedisClient
 from common.storage import StorageS3
 from common.enums import EpisodeStatus
 from modules.podcast.models import Episode
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def delete_file(filepath: str | Path):

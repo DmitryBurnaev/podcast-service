@@ -2,10 +2,13 @@ import uuid
 import asyncio
 import logging
 import logging.config
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Coroutine, Any
 
 import httpx
+import aiosmtplib
 from starlette import status
 from starlette.responses import JSONResponse
 from webargs_starlette import WebargsHTTPException
@@ -15,10 +18,7 @@ from common.typing import T
 from common.statuses import ResponseStatus
 from common.exceptions import SendRequestError, BaseApplicationError, NotFoundError
 
-
-def get_logger(name: str = None):
-    """Getting configured logger"""
-    return logging.getLogger(name or "app")
+logger = logging.getLogger(__name__)
 
 
 def status_is_success(code):
@@ -32,36 +32,34 @@ def status_is_server_error(code):
 async def send_email(recipient_email: str, subject: str, html_content: str):
     """Allows to send email via Sendgrid API"""
 
-    request_url = f"https://api.sendgrid.com/{settings.SENDGRID_API_VERSION}/mail/send"
-    request_data = {
-        "personalizations": [{"to": [{"email": recipient_email}], "subject": subject}],
-        "from": {"email": settings.EMAIL_FROM},
-        "content": [{"type": "text/html", "value": html_content}],
-    }
-    request_header = {"Authorization": f"Bearer {settings.SENDGRID_API_KEY}"}
-    request_logger = get_logger(__name__)
-    request_logger.info("Send request to %s. Data: %s", request_url, request_data)
+    logger.debug("Sending email to: %s | subject: '%s'", recipient_email, subject)
+    smtp_client = aiosmtplib.SMTP(
+        hostname=settings.SMTP_HOST,
+        port=settings.SMTP_PORT,
+        use_tls=settings.SMTP_USE_TLS,
+        start_tls=settings.SMTP_STARTTLS,
+        username=settings.SMTP_USERNAME,
+        password=settings.SMTP_PASSWORD,
+    )
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(request_url, json=request_data, headers=request_header)
-        status_code = response.status_code
-        if not status_is_success(status_code):
-            response_text = response.json()
-            raise SendRequestError(
-                message=f"Couldn't send email to {recipient_email}",
-                details=f"Got status code: {status_code}; response text: {response_text}",
-                request_url=request_url,
-            )
+    message = MIMEMultipart("alternative")
+    message["From"] = settings.SMTP_FROM_EMAIL
+    message["To"] = recipient_email
+    message["Subject"] = subject
+    message.attach(MIMEText(html_content))
 
-        request_logger.info("Email sent to %s. Status code: %s", recipient_email, status_code)
+    async with smtp_client:
+        result = await smtp_client.send_message(message)
+
+    # TODO: perform sending errors
+    logger.warning("Result smtp sending: %r", result)
+    logger.info("Email sent to %s. Status code: %s", recipient_email, 1)
 
 
 def log_message(exc, error_data, level=logging.ERROR):
     """
     Helps to log caught errors by exception handler
     """
-    logger = get_logger(__name__)
-
     error_details = {
         "error": error_data.get("error", "Unbound exception"),
         "details": error_data.get("details", str(exc)),
@@ -123,7 +121,6 @@ async def download_content(
 ) -> Path | None:
     """Allows fetching content from url"""
 
-    logger = get_logger(__name__)
     logger.debug("Send request to %s", url)
     result_content = None
     retries += 1
@@ -164,7 +161,7 @@ async def download_content(
 
 def create_task(
     coroutine: Coroutine[Any, Any, T],
-    logger: logging.Logger,
+    log_instance: logging.Logger,
     error_message: str = "",
     error_message_message_args: tuple[Any, ...] = (),
 ) -> asyncio.Task[T]:
@@ -179,9 +176,9 @@ def create_task(
             pass
         except Exception as exc:  # pylint: disable=broad-except
             if error_message:
-                logger.exception(error_message, *error_message_message_args)
+                log_instance.exception(error_message, *error_message_message_args)
             else:
-                logger.exception(f"Couldn't complete {coroutine.__name__}: %r", exc)
+                log_instance.exception(f"Couldn't complete {coroutine.__name__}: %r", exc)
 
     task = asyncio.create_task(coroutine)
     task.add_done_callback(handle_task_result)

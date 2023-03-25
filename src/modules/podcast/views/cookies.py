@@ -1,15 +1,16 @@
+import logging
+
 from sqlalchemy import exists, select
 from starlette import status
 from starlette.responses import Response
 
-from common.utils import get_logger
 from common.request import PRequest
 from common.views import BaseHTTPEndpoint
 from common.exceptions import PermissionDeniedError, InvalidRequestError
 from modules.podcast.models import Cookie, Episode
 from modules.podcast.schemas import CookieResponseSchema, CookieCreateUpdateSchema
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class BaseCookieAPIView(BaseHTTPEndpoint):

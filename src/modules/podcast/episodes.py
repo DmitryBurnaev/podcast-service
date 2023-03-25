@@ -1,17 +1,17 @@
 import re
+import logging
 from collections.abc import Iterable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.enums import FileType
-from common.utils import get_logger
 from modules.media.models import File
 from modules.podcast.models import Episode, Cookie
 from modules.providers.utils import SourceInfo, SourceMediaInfo
 from modules.providers import utils as provider_utils
 from modules.providers.exceptions import SourceFetchError
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class EpisodeCreator:

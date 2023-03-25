@@ -114,10 +114,12 @@ FILENAME_SALT = config("FILENAME_SALT", default="HH78NyP4EXsGy99")
 
 # smtp config
 
-SMTP_HOST = config("SMTP_HOST", cast=int)
-SMTP_PORT = config("SMTP_PORT", cast=str)
-SMTP_STARTTLS = config("SMTP_STARTTLS", cast=bool)
-SMTP_USE_TLS = config("SMTP_USE_TLS", cast=bool)
+SMTP_HOST = config("SMTP_HOST", cast=str)
+SMTP_PORT = config("SMTP_PORT", cast=int, default=465)
+SMTP_USERNAME = config("SMTP_USERNAME", cast=str, default=None)
+SMTP_PASSWORD = config("SMTP_PASSWORD", cast=Secret, default=None)
+SMTP_STARTTLS = config("SMTP_STARTTLS", cast=bool, default=None)
+SMTP_USE_TLS = config("SMTP_USE_TLS", cast=bool, default=True)
 SMTP_FROM_EMAIL = config("SMTP_FROM_EMAIL", cast=str).strip("'\"")
 
 

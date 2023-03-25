@@ -1,3 +1,4 @@
+import logging
 from functools import partial
 
 import yt_dlp
@@ -7,13 +8,13 @@ from starlette.concurrency import run_in_threadpool
 from common.enums import SourceType
 from common.request import PRequest
 from common.views import BaseHTTPEndpoint
-from common.utils import cut_string, get_logger
+from common.utils import cut_string
 from common.exceptions import InvalidRequestError
 from modules.providers import utils
 from modules.podcast.models import Cookie
 from modules.podcast.schemas import PlayListRequestSchema, PlayListResponseSchema
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class PlayListAPIView(BaseHTTPEndpoint):

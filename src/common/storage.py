@@ -10,9 +10,8 @@ from starlette.concurrency import run_in_threadpool
 
 from core import settings
 from common.redis import RedisClient
-from common.utils import get_logger
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class StorageS3:

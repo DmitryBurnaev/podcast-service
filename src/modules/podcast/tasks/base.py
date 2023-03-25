@@ -1,13 +1,13 @@
-import asyncio
 import enum
+import asyncio
+import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from common.utils import get_logger
 from common.db_utils import make_session_maker
 
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class FinishCode(int, enum.Enum):
