@@ -1,3 +1,4 @@
+import logging
 import os.path
 import urllib.parse
 from datetime import datetime
@@ -11,7 +12,6 @@ from core import settings
 from core.database import ModelBase
 from common.storage import StorageS3
 from common.enums import FileType
-from common.utils import get_logger
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
 from common.exceptions import NotSupportedError
@@ -20,7 +20,7 @@ from modules.auth.hasher import get_random_hash
 # pylint: disable=unused-import
 from modules.auth.models import User  # noqa (need for sqlalchemy's relationships)
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 REMOTE_PATH_MAP = {
     FileType.AUDIO: settings.S3_BUCKET_AUDIO_PATH,
     FileType.RSS: settings.S3_BUCKET_RSS_PATH,

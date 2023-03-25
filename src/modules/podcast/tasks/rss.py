@@ -1,17 +1,17 @@
 import os
+import logging
 
 from jinja2 import Template
 
 from core import settings
 from common.enums import FileType
-from common.utils import get_logger
 from common.storage import StorageS3
 from modules.media.models import File
 from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks.base import RQTask, FinishCode
 from modules.podcast.utils import get_file_size
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 __all__ = ["GenerateRSSTask"]
 
 

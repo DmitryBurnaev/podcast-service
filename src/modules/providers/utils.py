@@ -1,10 +1,11 @@
-import hashlib
 import os
 import re
+import uuid
+import hashlib
+import logging
+import tempfile
 import subprocess
 import dataclasses
-import tempfile
-import uuid
 from pathlib import Path
 from typing import NamedTuple
 from functools import partial
@@ -16,7 +17,6 @@ from starlette.concurrency import run_in_threadpool
 from yt_dlp.utils import YoutubeDLError
 
 from core import settings
-from common.utils import get_logger
 from common.enums import SourceType, EpisodeStatus
 from common.exceptions import InvalidRequestError
 from modules.podcast.models import Cookie
@@ -28,7 +28,7 @@ from modules.podcast.utils import (
     post_processing_process_hook,
 )
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class SourceMediaInfo(NamedTuple):
@@ -135,7 +135,7 @@ async def download_audio(source_url: str, filename: str, cookie: Cookie | None) 
     params = {
         "format": "bestaudio/best",
         "outtmpl": str(result_path),
-        "logger": get_logger("yt_dlp.YoutubeDL"),
+        "logger": logging.getLogger("yt_dlp.YoutubeDL"),
         "progress_hooks": [download_process_hook],
         "noprogress": True,
     }

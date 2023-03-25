@@ -1,5 +1,6 @@
 import json
 import asyncio
+import logging
 from json import JSONDecodeError
 from dataclasses import dataclass
 from typing import Type, Iterable, Any, ClassVar
@@ -25,14 +26,14 @@ from common.request import PRequest
 from common.schemas import WSRequestAuthSchema
 from common.statuses import ResponseStatus
 from common.models import DBModel
-from common.utils import get_logger, create_task
+from common.utils import create_task
 from modules.auth.models import User
 from modules.podcast.models import Podcast
 from modules.podcast.tasks.base import RQTask
 from modules.auth.utils import TokenCollection
 from modules.auth.backend import LoginRequiredAuthBackend, BaseAuthJWTBackend
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class BaseHTTPEndpoint(HTTPEndpoint):
@@ -253,7 +254,7 @@ class BaseWSEndpoint(WebSocketEndpoint):
         self.user = await self._auth()
         self.background_task = create_task(
             self._background_handler(websocket),
-            logger=logger,
+            log_instance=logger,
             error_message="Couldn't finish _background_handler for class %s",
             error_message_message_args=(self.__class__.__name__,),
         )

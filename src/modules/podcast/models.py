@@ -1,9 +1,10 @@
 import os
 import uuid
-from functools import cached_property
+import logging
 from hashlib import md5
-from datetime import datetime
 from pathlib import Path
+from datetime import datetime
+from functools import cached_property
 
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +13,6 @@ from starlette.concurrency import run_in_threadpool
 
 from core import settings
 from core.database import ModelBase
-from common.utils import get_logger
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
 from common.exceptions import UnexpectedError
@@ -21,7 +21,7 @@ from common.enums import SourceType, EpisodeStatus
 # pylint: disable=unused-import
 from modules.media.models import File  # noqa (need for sqlalchemy's relationships)
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Podcast(ModelBase, ModelMixin):

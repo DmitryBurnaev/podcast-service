@@ -1,3 +1,5 @@
+import logging
+
 from jwt import InvalidTokenError, ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,11 +9,10 @@ from common.exceptions import (
     PermissionDeniedError,
     SignatureExpiredError,
 )
-from common.utils import get_logger
 from modules.auth.models import User, UserSession
 from modules.auth.utils import decode_jwt, TOKEN_TYPE_ACCESS, TOKEN_TYPE_RESET_PASSWORD
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class BaseAuthJWTBackend:

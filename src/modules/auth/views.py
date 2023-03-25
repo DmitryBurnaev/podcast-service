@@ -1,6 +1,7 @@
 import json
 import uuid
 import base64
+import logging
 from uuid import UUID
 from datetime import datetime, timedelta
 
@@ -12,7 +13,7 @@ from core import settings
 from common.request import PRequest
 from common.views import BaseHTTPEndpoint
 from common.statuses import ResponseStatus
-from common.utils import send_email, get_logger
+from common.utils import send_email
 from common.exceptions import AuthenticationFailedError, InvalidRequestError
 from modules.auth.models import User, UserSession, UserInvite
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
@@ -39,7 +40,7 @@ from modules.auth.schemas import (
 )
 from modules.podcast.models import Podcast
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class JWTSessionMixin:
