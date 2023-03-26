@@ -1,9 +1,12 @@
 import logging
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from unittest.mock import patch
 
+import aiosmtplib
 import pytest
 
-from common.exceptions import SendRequestError
+from common.exceptions import EmailSendingError
 from common.utils import send_email
 from core import settings
 
@@ -11,39 +14,48 @@ pytestmark = pytest.mark.asyncio
 
 SENDGRID_URL = f"https://api.sendgrid.com/{settings.SENDGRID_API_VERSION}/mail/send"
 RECIPIENT_EMAIL = "test@test.com"
+SUBJECT = "Test Email"
+CONTENT = "<head>Test Content</head>"
 
 
-async def test_send_email__success(mocked_httpx_client):
-    mocked_httpx_client.post.return_value = mocked_httpx_client.Response(status_code=200, data={})
-    subject = "Test Email"
-    html_content = "<head>Test Content</head>"
+async def test_send_email__success(mocked_smtp_sender):
+    mocked_smtp_sender.send_message.return_value = ({}, "OK")
     with patch.object(logging.Logger, "info") as mock_logger:
-        await send_email(
-            recipient_email=RECIPIENT_EMAIL, subject=subject, html_content=html_content
-        )
+        await send_email(recipient_email=RECIPIENT_EMAIL, subject=SUBJECT, html_content=CONTENT)
 
-    mocked_httpx_client.post.assert_awaited_with(
-        SENDGRID_URL,
-        json={
-            "personalizations": [{"to": [{"email": RECIPIENT_EMAIL}], "subject": subject}],
-            "from": {"email": settings.EMAIL_FROM},
-            "content": [{"type": "text/html", "value": html_content}],
-        },
-        headers={"Authorization": f"Bearer {settings.SENDGRID_API_KEY}"},
+    test_message = MIMEMultipart("alternative")
+    test_message["From"] = settings.SMTP_FROM_EMAIL
+    test_message["To"] = RECIPIENT_EMAIL
+    test_message["Subject"] = SUBJECT
+    test_message.attach(MIMEText(CONTENT))
+
+    mocked_smtp_sender.send_message.assert_awaited_with(test_message)
+    mocked_smtp_sender.target_class.__init__.assert_called_with(
+        hostname=settings.SMTP_HOST,
+        port=settings.SMTP_PORT,
+        use_tls=settings.SMTP_USE_TLS,
+        start_tls=settings.SMTP_STARTTLS,
+        username=settings.SMTP_USERNAME,
+        password=settings.SMTP_PASSWORD,
     )
-    mock_logger.assert_called_with("Email sent to %s. Status code: %s", RECIPIENT_EMAIL, 200)
+    mock_logger.assert_called_with("Email sent to %s | subject: %s", RECIPIENT_EMAIL, SUBJECT)
 
 
-async def test_send_email__failed(mocked_httpx_client):
-    mocked_httpx_client.post.return_value = mocked_httpx_client.Response(
-        status_code=400, data={"error": "Oops"}
+async def test_send_email__sending_problem(mocked_smtp_sender):
+    mocked_smtp_sender.send_message.return_value = (
+        {RECIPIENT_EMAIL: (550, "User unknown")}, "Some problem detected"
     )
+    with pytest.raises(EmailSendingError) as exc:
+        await send_email(recipient_email=RECIPIENT_EMAIL, subject=SUBJECT, html_content=CONTENT)
 
-    with pytest.raises(SendRequestError) as err:
-        await send_email(recipient_email=RECIPIENT_EMAIL, subject="Test Email", html_content="")
+    smtp_details = {RECIPIENT_EMAIL: (550, "User unknown")}
+    assert f"{smtp_details=}" in exc.value.args
 
-    assert err.value.request_url == SENDGRID_URL
-    assert err.value.message == f"Couldn't send email to {RECIPIENT_EMAIL}"
-    assert err.value.details == "Got status code: 400; response text: {'error': 'Oops'}"
 
-    mocked_httpx_client.post.assert_awaited_once()
+async def test_send_email__smtp_failed(mocked_smtp_sender):
+    mocked_smtp_sender.send_message.side_effect = aiosmtplib.SMTPException("Some problem detected")
+    with pytest.raises(EmailSendingError) as exc:
+        await send_email(recipient_email=RECIPIENT_EMAIL, subject=SUBJECT, html_content=CONTENT)
+
+    assert exc.value.details == f"Couldn't send email: recipient: {RECIPIENT_EMAIL} | exc: {exc!r}"
+    mocked_smtp_sender.send_message.assert_awaited()
