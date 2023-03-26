@@ -3,10 +3,12 @@ import multiprocessing
 import os
 import shutil
 import tempfile
+from abc import ABC
 from argparse import ArgumentParser
 from pathlib import Path
 from unittest.mock import Mock, AsyncMock
 
+import aiosmtplib
 import rq
 import httpx
 from yt_dlp import YoutubeDL
@@ -46,6 +48,18 @@ class BaseMock:
 
     def mock_init(self, *args, **kwargs):
         ...
+
+
+class BaseMockWithContextManager(BaseMock, ABC):
+
+    def __init__(self):
+        self.__aenter__ = AsyncMock(return_value=self)
+        self.__aexit__ = AsyncMock(side_effect=self._process_exit)
+
+    @staticmethod
+    async def _process_exit(exc_type, exc_val, exc_tb):
+        if exc_val:
+            raise exc_val
 
 
 class MockYoutubeDL(BaseMock):
@@ -201,7 +215,7 @@ class MockAuthBackend(BaseMock):
         self.authenticate = AsyncMock(return_value=None)
 
 
-class MockHTTPXClient(BaseMock):
+class MockHTTPXClient(BaseMockWithContextManager):
     target_class = httpx.AsyncClient
 
     @dataclasses.dataclass
@@ -221,12 +235,14 @@ class MockHTTPXClient(BaseMock):
             return str(self.json())
 
     def __init__(self):
-        self.__aenter__ = AsyncMock(return_value=self)
-        self.__aexit__ = AsyncMock(side_effect=self._process_exit)
+        super().__init__()
         self.post = AsyncMock()
         self.get = AsyncMock()
 
-    @staticmethod
-    async def _process_exit(exc_type, exc_val, exc_tb):
-        if exc_val:
-            raise exc_val
+
+class MockSMTPSender(BaseMockWithContextManager):
+    target_class = aiosmtplib.SMTP
+
+    def __init__(self):
+        super().__init__()
+        self.send_message = AsyncMock(return_value=None)

@@ -9,6 +9,7 @@ from typing import Coroutine, Any
 
 import httpx
 import aiosmtplib
+from aiosmtplib import SMTPException
 from starlette import status
 from starlette.responses import JSONResponse
 from webargs_starlette import WebargsHTTPException
@@ -16,7 +17,7 @@ from webargs_starlette import WebargsHTTPException
 from core import settings
 from common.typing import T
 from common.statuses import ResponseStatus
-from common.exceptions import SendRequestError, BaseApplicationError, NotFoundError
+from common.exceptions import BaseApplicationError, NotFoundError, EmailSendingError
 
 logger = logging.getLogger(__name__)
 
@@ -49,11 +50,17 @@ async def send_email(recipient_email: str, subject: str, html_content: str):
     message.attach(MIMEText(html_content))
 
     async with smtp_client:
-        result = await smtp_client.send_message(message)
+        try:
+            smtp_details, smtp_status = await smtp_client.send_message(message)
+        except SMTPException as exc:
+            details = f"Couldn't send email: recipient: {recipient_email} | exc: {exc!r}"
+            raise EmailSendingError(details=details) from exc
 
-    # TODO: perform sending errors
-    logger.warning("Result smtp sending: %r", result)
-    logger.info("Email sent to %s. Status code: %s", recipient_email, 1)
+    if smtp_status != "OK":
+        details = f"Couldn't send email: {recipient_email=} | {smtp_details=}"
+        raise EmailSendingError(details=details)
+
+    logger.info("Email sent to %s | subject: %s", recipient_email, subject)
 
 
 def log_message(exc, error_data, level=logging.ERROR):

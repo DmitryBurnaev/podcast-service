@@ -97,7 +97,7 @@ class SendRequestError(BaseApplicationError):
     status_code = 503
     message = "Got unexpected error for sending request."
     request_url = ""
-    response_status = ResponseStatus.SERVICE_COMMUNICATION_ERROR
+    response_status = ResponseStatus.COMMUNICATION_ERROR
 
     def __init__(self, message: str, details: str, request_url: str):
         super().__init__(details, message)
@@ -107,3 +107,9 @@ class SendRequestError(BaseApplicationError):
 class MaxAttemptsReached(BaseApplicationError):
     status_code = 503
     message = "Reached max attempt to make action"
+
+
+class EmailSendingError(BaseApplicationError):
+    status_code = 503
+    message = "Couldn't send email to recipient"
+    response_status = ResponseStatus.COMMUNICATION_ERROR
