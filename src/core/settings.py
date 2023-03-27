@@ -114,7 +114,7 @@ FILENAME_SALT = config("FILENAME_SALT", default="HH78NyP4EXsGy99")
 
 # smtp config
 
-SMTP_HOST = config("SMTP_HOST", cast=str)
+SMTP_HOST = config("SMTP_HOST", cast=str, default=None)
 SMTP_PORT = config("SMTP_PORT", cast=int, default=465)
 SMTP_USERNAME = config("SMTP_USERNAME", cast=str, default=None)
 SMTP_PASSWORD = config("SMTP_PASSWORD", cast=Secret, default=None)
