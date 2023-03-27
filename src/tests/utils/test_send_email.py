@@ -59,3 +59,8 @@ async def test_send_email__smtp_failed(mocked_smtp_sender):
 
     assert exc.value.details == f"Couldn't send email: recipient: {RECIPIENT_EMAIL} | exc: {exc!r}"
     mocked_smtp_sender.send_message.assert_awaited()
+
+
+async def test_send_email__required_params_not_specified():
+    raise AssertionError
+
