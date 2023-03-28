@@ -2,7 +2,6 @@ import asyncio
 import logging
 from typing import cast, Iterable
 
-import async_timeout
 from redis import asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.websockets import WebSocket
@@ -47,7 +46,7 @@ class ProgressWS(BaseWSEndpoint):
             current_error_attempt = 1
             while True:
                 try:
-                    async with async_timeout.timeout(1):
+                    async with asyncio.timeout(1):
                         message = await channel.get_message(ignore_subscribe_messages=True)
                         if message is not None:
                             logger.debug("Redis channel's reader | Message Received: %s", message)
