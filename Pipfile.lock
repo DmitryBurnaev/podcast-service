@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "832ab2852d1e5fe787c901196ff92b79a7e126acdd6393452f60aa6dddaddc44"
+            "sha256": "05e55bb0003e9ec3d231f7d68f9745cdbb367dfbce449bac340c87e38d10b47d"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -16,6 +16,14 @@
         ]
     },
     "default": {
+        "aiosmtplib": {
+            "hashes": [
+                "sha256:2f619f900d1bfe25a8f453005958ba78870abbfeeffb2fdef11265be0df26913",
+                "sha256:a20aae28f67169dd761beef4c62e4bb3073d035f9ee20c2e4f18baa1a73e7c88"
+            ],
+            "index": "pypi",
+            "version": "==2.0.1"
+        },
         "alembic": {
             "hashes": [
                 "sha256:4d3bd32ecdbb7bbfb48a9fe9e6d6fd6a831a1b59d03e26e292210237373e7db5",
@@ -31,14 +39,6 @@
             ],
             "markers": "python_full_version >= '3.6.2'",
             "version": "==3.6.2"
-        },
-        "async-timeout": {
-            "hashes": [
-                "sha256:2163e1640ddb52b7a8c80d0a67a08587e5d245cc9c553a74a847056bc2976b15",
-                "sha256:8ca1e4fcf50d07413d66d1a5e416e42cfdf5851c981d679a09851a6853383b3c"
-            ],
-            "markers": "python_full_version <= '3.11.2'",
-            "version": "==4.0.2"
         },
         "asyncpg": {
             "hashes": [
@@ -92,11 +92,11 @@
         },
         "botocore": {
             "hashes": [
-                "sha256:30bd3fffc878cd5724c0e9a18629210da7f1efbcb6e668213a79153cc2dfd474",
-                "sha256:e020173473b254c913a03c16bef179751095a6331f113d5206ae7d47340abfc2"
+                "sha256:60c7a7bf8e2a288735e507007a6769be03dc24815f7dc5c7b59b12743f4a31cf",
+                "sha256:7bb60d9d4c49500df55dfb6005c16002703333ff5f69dada565167c8d493dfd5"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==1.29.103"
+            "version": "==1.29.101"
         },
         "brotli": {
             "hashes": [
@@ -554,11 +554,11 @@
         },
         "redis": {
             "hashes": [
-                "sha256:2c19e6767c474f2e85167909061d525ed65bea9301c0770bb151e041b7ac89a2",
-                "sha256:73ec35da4da267d6847e47f68730fdd5f62e2ca69e3ef5885c6a78a9374c3893"
+                "sha256:56732e156fe31801c4f43396bd3ca0c2a7f6f83d7936798531b9848d103381aa",
+                "sha256:7df17a0a2b72a4c8895b462dd07616c51b1dcb48fdd7ecb7b6f4bf39ecb2e94e"
             ],
             "index": "pypi",
-            "version": "==4.5.4"
+            "version": "==4.5.3"
         },
         "rfc3986": {
             "extras": [

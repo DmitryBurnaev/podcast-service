@@ -6,7 +6,7 @@ from unittest.mock import patch
 import aiosmtplib
 import pytest
 
-from common.exceptions import EmailSendingError
+from common.exceptions import EmailSendingError, ImproperlyConfiguredError
 from common.utils import send_email
 from core import settings
 
@@ -61,6 +61,11 @@ async def test_send_email__smtp_failed(mocked_smtp_sender):
     mocked_smtp_sender.send_message.assert_awaited()
 
 
+@patch("core.settings.SMTP_HOST", "")
+@patch("core.settings.SMTP_PORT", None)
 async def test_send_email__required_params_not_specified():
-    raise AssertionError
+    with pytest.raises(ImproperlyConfiguredError) as exc:
+        await send_email(recipient_email=RECIPIENT_EMAIL, subject=SUBJECT, html_content=CONTENT)
+
+    assert exc.value.args == ("At least SMTP_HOST and SMTP_PORT must be set for sending email",)
 

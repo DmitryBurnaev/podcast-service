@@ -20,6 +20,10 @@ class BaseApplicationError(Exception):
         self.response_status = response_status or self.response_status
 
 
+class ImproperlyConfiguredError(BaseApplicationError):
+    message = "Required settings are not provided for requested action"
+
+
 class DBError(BaseApplicationError):
     message = "Some error with DB communication"
 
