@@ -17,7 +17,8 @@ from webargs_starlette import WebargsHTTPException
 from core import settings
 from common.typing import T
 from common.statuses import ResponseStatus
-from common.exceptions import BaseApplicationError, NotFoundError, EmailSendingError
+from common.exceptions import BaseApplicationError, NotFoundError, EmailSendingError, \
+    ImproperlyConfiguredError
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,14 @@ async def send_email(recipient_email: str, subject: str, html_content: str):
     """Allows to send email via Sendgrid API"""
 
     logger.debug("Sending email to: %s | subject: '%s'", recipient_email, subject)
+    required_settings = (
+        "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "SMTP_FROM_EMAIL"
+    )
+    if not all(getattr(settings, settings_name) for settings_name in required_settings):
+        raise ImproperlyConfiguredError(
+            f"SMTP settings: {required_settings} must be set for sending email"
+        )
+
     smtp_client = aiosmtplib.SMTP(
         hostname=settings.SMTP_HOST,
         port=settings.SMTP_PORT,

@@ -120,7 +120,7 @@ SMTP_USERNAME = config("SMTP_USERNAME", cast=str, default=None)
 SMTP_PASSWORD = config("SMTP_PASSWORD", cast=Secret, default=None)
 SMTP_STARTTLS = config("SMTP_STARTTLS", cast=bool, default=None)
 SMTP_USE_TLS = config("SMTP_USE_TLS", cast=bool, default=True)
-SMTP_FROM_EMAIL = config("SMTP_FROM_EMAIL", cast=str).strip("'\"")
+SMTP_FROM_EMAIL = config("SMTP_FROM_EMAIL", cast=str, default="").strip("'\"")
 
 
 SENTRY_DSN = config("SENTRY_DSN", default=None)
