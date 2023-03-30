@@ -67,5 +67,9 @@ async def test_send_email__required_params_not_specified():
     with pytest.raises(ImproperlyConfiguredError) as exc:
         await send_email(recipient_email=RECIPIENT_EMAIL, subject=SUBJECT, html_content=CONTENT)
 
-    assert exc.value.args == ("At least SMTP_HOST and SMTP_PORT must be set for sending email",)
+    assert exc.value.args == (
+        "SMTP settings: "
+        "('SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_PASSWORD', 'SMTP_FROM_EMAIL') "
+        "must be set for sending email",
+    )
 
