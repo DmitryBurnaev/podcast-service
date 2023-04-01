@@ -38,7 +38,15 @@ async def test_send_email__success(mocked_smtp_sender, smtp_settings):
     test_message["Subject"] = SUBJECT
     test_message.attach(MIMEText(CONTENT))
 
-    mocked_smtp_sender.send_message.assert_awaited_with(test_message)
+    mocked_smtp_sender.send_message.assert_awaited()
+
+    (actual_sent_message, ) = mocked_smtp_sender.send_message.call_args_list[0].args
+    assert isinstance(actual_sent_message, MIMEMultipart)
+    assert actual_sent_message["From"] == settings.SMTP_FROM_EMAIL
+    assert actual_sent_message["To"] == RECIPIENT_EMAIL
+    assert actual_sent_message["Subject"] == SUBJECT
+    actual_payload = actual_sent_message.get_payload()[0].get_payload()
+    assert actual_payload == CONTENT
     mocked_smtp_sender.target_class.__init__.assert_called_with(
         hostname=settings.SMTP_HOST,
         port=settings.SMTP_PORT,
