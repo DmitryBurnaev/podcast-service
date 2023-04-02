@@ -1,14 +1,13 @@
 import logging
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from unittest.mock import patch
+from email.mime.multipart import MIMEMultipart
 
 import aiosmtplib
 import pytest
 
-from common.exceptions import EmailSendingError, ImproperlyConfiguredError
-from common.utils import send_email
 from core import settings
+from common.utils import send_email
+from common.exceptions import EmailSendingError, ImproperlyConfiguredError
 
 pytestmark = pytest.mark.asyncio
 
@@ -32,14 +31,7 @@ async def test_send_email__success(mocked_smtp_sender, smtp_settings):
     with patch.object(logging.Logger, "info") as mock_logger:
         await send_email(recipient_email=RECIPIENT_EMAIL, subject=SUBJECT, html_content=CONTENT)
 
-    test_message = MIMEMultipart("alternative")
-    test_message["From"] = settings.SMTP_FROM_EMAIL
-    test_message["To"] = RECIPIENT_EMAIL
-    test_message["Subject"] = SUBJECT
-    test_message.attach(MIMEText(CONTENT))
-
     mocked_smtp_sender.send_message.assert_awaited()
-
     (actual_sent_message, ) = mocked_smtp_sender.send_message.call_args_list[0].args
     assert isinstance(actual_sent_message, MIMEMultipart)
     assert actual_sent_message["From"] == settings.SMTP_FROM_EMAIL
@@ -48,6 +40,7 @@ async def test_send_email__success(mocked_smtp_sender, smtp_settings):
     actual_payload = actual_sent_message.get_payload()[0].get_payload()
     assert actual_payload == CONTENT
     mocked_smtp_sender.target_class.__init__.assert_called_with(
+        mocked_smtp_sender.target_obj,
         hostname=settings.SMTP_HOST,
         port=settings.SMTP_PORT,
         use_tls=settings.SMTP_USE_TLS,
@@ -66,7 +59,7 @@ async def test_send_email__sending_problem(mocked_smtp_sender, smtp_settings):
         await send_email(recipient_email=RECIPIENT_EMAIL, subject=SUBJECT, html_content=CONTENT)
 
     smtp_details = {RECIPIENT_EMAIL: (550, "User unknown")}
-    assert f"{smtp_details=}" in exc.value.args
+    assert f"{smtp_details=}" in exc.value.details
 
 
 async def test_send_email__smtp_failed(mocked_smtp_sender, smtp_settings):
@@ -74,7 +67,8 @@ async def test_send_email__smtp_failed(mocked_smtp_sender, smtp_settings):
     with pytest.raises(EmailSendingError) as exc:
         await send_email(recipient_email=RECIPIENT_EMAIL, subject=SUBJECT, html_content=CONTENT)
 
-    assert exc.value.details == f"Couldn't send email: recipient: {RECIPIENT_EMAIL} | exc: {exc!r}"
+    error = "SMTPException('Some problem detected')"
+    assert exc.value.details == f"Couldn't send email: recipient: {RECIPIENT_EMAIL} | exc: {error}"
     mocked_smtp_sender.send_message.assert_awaited()
 
 
