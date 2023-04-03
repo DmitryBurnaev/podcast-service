@@ -1,6 +1,6 @@
 import logging
+from email.message import EmailMessage
 from unittest.mock import patch
-from email.mime.multipart import MIMEMultipart
 
 import aiosmtplib
 import pytest
@@ -32,8 +32,8 @@ async def test_send_email__success(mocked_smtp_sender, smtp_settings):
         await send_email(recipient_email=RECIPIENT_EMAIL, subject=SUBJECT, html_content=CONTENT)
 
     mocked_smtp_sender.send_message.assert_awaited()
-    (actual_sent_message, ) = mocked_smtp_sender.send_message.call_args_list[0].args
-    assert isinstance(actual_sent_message, MIMEMultipart)
+    (actual_sent_message,) = mocked_smtp_sender.send_message.call_args_list[0].args
+    assert isinstance(actual_sent_message, EmailMessage)
     assert actual_sent_message["From"] == settings.SMTP_FROM_EMAIL
     assert actual_sent_message["To"] == RECIPIENT_EMAIL
     assert actual_sent_message["Subject"] == SUBJECT
@@ -53,7 +53,8 @@ async def test_send_email__success(mocked_smtp_sender, smtp_settings):
 
 async def test_send_email__sending_problem(mocked_smtp_sender, smtp_settings):
     mocked_smtp_sender.send_message.return_value = (
-        {RECIPIENT_EMAIL: (550, "User unknown")}, "Some problem detected"
+        {RECIPIENT_EMAIL: (550, "User unknown")},
+        "Some problem detected",
     )
     with pytest.raises(EmailSendingError) as exc:
         await send_email(recipient_email=RECIPIENT_EMAIL, subject=SUBJECT, html_content=CONTENT)
@@ -83,4 +84,3 @@ async def test_send_email__required_params_not_specified():
         "('SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_PASSWORD', 'SMTP_FROM_EMAIL') "
         "must be set for sending email",
     )
-

@@ -42,7 +42,8 @@ from tests.mocks import (
     MockArgumentParser,
     MockProcess,
     MockAuthBackend,
-    MockHTTPXClient, MockSMTPSender,
+    MockHTTPXClient,
+    MockSMTPSender,
 )
 
 
