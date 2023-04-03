@@ -51,7 +51,6 @@ class BaseMock:
 
 
 class BaseMockWithContextManager(BaseMock, ABC):
-
     def __init__(self):
         self.__aenter__ = AsyncMock(return_value=self)
         self.__aexit__ = AsyncMock(side_effect=self._process_exit)

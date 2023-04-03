@@ -2,23 +2,27 @@ import uuid
 import asyncio
 import logging
 import logging.config
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Coroutine, Any
+from email.mime.text import MIMEText
+from email.message import EmailMessage
 
 import httpx
 import aiosmtplib
-from aiosmtplib import SMTPException
 from starlette import status
 from starlette.responses import JSONResponse
+from aiosmtplib import SMTPException
 from webargs_starlette import WebargsHTTPException
 
 from core import settings
 from common.typing import T
 from common.statuses import ResponseStatus
-from common.exceptions import BaseApplicationError, NotFoundError, EmailSendingError, \
-    ImproperlyConfiguredError
+from common.exceptions import (
+    BaseApplicationError,
+    NotFoundError,
+    EmailSendingError,
+    ImproperlyConfiguredError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +40,11 @@ async def send_email(recipient_email: str, subject: str, html_content: str):
 
     logger.debug("Sending email to: %s | subject: '%s'", recipient_email, subject)
     required_settings = (
-        "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "SMTP_FROM_EMAIL"
+        "SMTP_HOST",
+        "SMTP_PORT",
+        "SMTP_USERNAME",
+        "SMTP_PASSWORD",
+        "SMTP_FROM_EMAIL",
     )
     if not all(getattr(settings, settings_name) for settings_name in required_settings):
         raise ImproperlyConfiguredError(
@@ -49,14 +57,14 @@ async def send_email(recipient_email: str, subject: str, html_content: str):
         use_tls=settings.SMTP_USE_TLS,
         start_tls=settings.SMTP_STARTTLS,
         username=settings.SMTP_USERNAME,
-        password=settings.SMTP_PASSWORD,
+        password=str(settings.SMTP_PASSWORD),
     )
 
-    message = MIMEMultipart("alternative")
+    message = EmailMessage()
     message["From"] = settings.SMTP_FROM_EMAIL
     message["To"] = recipient_email
     message["Subject"] = subject
-    message.attach(MIMEText(html_content))
+    message.set_content(MIMEText(html_content, "html"))
 
     async with smtp_client:
         try:
@@ -65,8 +73,8 @@ async def send_email(recipient_email: str, subject: str, html_content: str):
             details = f"Couldn't send email: recipient: {recipient_email} | exc: {exc!r}"
             raise EmailSendingError(details=details) from exc
 
-    if smtp_status != "OK":
-        details = f"Couldn't send email: {recipient_email=} | {smtp_details=}"
+    if "OK" not in str(smtp_status):
+        details = f"Couldn't send email: {recipient_email=} | {smtp_status=} | {smtp_details=}"
         raise EmailSendingError(details=details)
 
     logger.info("Email sent to %s | subject: %s", recipient_email, subject)
