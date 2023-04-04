@@ -2,10 +2,10 @@ import uuid
 import asyncio
 import logging
 import logging.config
+from email.mime.multipart import MIMEMultipart
 from pathlib import Path
 from typing import Coroutine, Any
 from email.mime.text import MIMEText
-from email.message import EmailMessage
 
 import httpx
 import aiosmtplib
@@ -60,11 +60,11 @@ async def send_email(recipient_email: str, subject: str, html_content: str):
         password=str(settings.SMTP_PASSWORD),
     )
 
-    message = EmailMessage()
+    message = MIMEMultipart("alternative")
     message["From"] = settings.SMTP_FROM_EMAIL
     message["To"] = recipient_email
     message["Subject"] = subject
-    message.set_content(MIMEText(html_content, "html"))
+    message.attach(MIMEText(html_content, "html"))
 
     async with smtp_client:
         try:
