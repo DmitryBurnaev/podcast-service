@@ -1,6 +1,6 @@
 import logging
-from email.message import EmailMessage
 from unittest.mock import patch
+from email.mime.multipart import MIMEMultipart
 
 import aiosmtplib
 import pytest
@@ -33,7 +33,7 @@ async def test_send_email__success(mocked_smtp_sender, smtp_settings):
 
     mocked_smtp_sender.send_message.assert_awaited()
     (actual_sent_message,) = mocked_smtp_sender.send_message.call_args_list[0].args
-    assert isinstance(actual_sent_message, EmailMessage)
+    assert isinstance(actual_sent_message, MIMEMultipart)
     assert actual_sent_message["From"] == settings.SMTP_FROM_EMAIL
     assert actual_sent_message["To"] == RECIPIENT_EMAIL
     assert actual_sent_message["Subject"] == SUBJECT
