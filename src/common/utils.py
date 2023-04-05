@@ -2,16 +2,15 @@ import uuid
 import asyncio
 import logging
 import logging.config
-from email.mime.multipart import MIMEMultipart
 from pathlib import Path
 from typing import Coroutine, Any
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 import httpx
 import aiosmtplib
 from starlette import status
 from starlette.responses import JSONResponse
-from aiosmtplib import SMTPException
 from webargs_starlette import WebargsHTTPException
 
 from core import settings
@@ -69,7 +68,7 @@ async def send_email(recipient_email: str, subject: str, html_content: str):
     async with smtp_client:
         try:
             smtp_details, smtp_status = await smtp_client.send_message(message)
-        except SMTPException as exc:
+        except aiosmtplib.SMTPException as exc:
             details = f"Couldn't send email: recipient: {recipient_email} | exc: {exc!r}"
             raise EmailSendingError(details=details) from exc
 
