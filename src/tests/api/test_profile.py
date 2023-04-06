@@ -1,6 +1,8 @@
 import pytest
+from sqlalchemy import exists
 
 from common.statuses import ResponseStatus
+from modules.auth.models import UserIP, User
 from modules.auth.utils import encode_jwt, TOKEN_TYPE_RESET_PASSWORD, TOKEN_TYPE_REFRESH
 from tests.api.test_auth import INVALID_CHANGE_PASSWORD_DATA
 from tests.api.test_base import BaseTestAPIView
@@ -104,3 +106,76 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         token, _ = encode_jwt({"user_id": user_id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
         response_data = self._assert_fail_response(client, token)
         self.assert_auth_invalid(response_data, f"Couldn't found active user with id={user_id}.")
+
+
+class TestUserIPsAPIView(BaseTestAPIView):
+    url = "/api/auth/ips/"
+    url_delete = "/api/auth/ips/delete/"
+
+    @staticmethod
+    async def _user_ip(dbs, user: User, address: str) -> UserIP:
+        ip_data = {
+            "ip_address": address,
+            "user_id": user.id,
+            "registered_by": f"Test Interaction: {address}",
+        }
+        return await UserIP.async_create(dbs, **ip_data)
+
+    @staticmethod
+    def _ip_in_list(ip: UserIP):
+        return {
+            "id": ip.id,
+            "ip_address": ip.ip_address,
+            "registered_by": ip.registered_by,
+            "created_at": ip.created_at.isoformat()
+        }
+
+    @staticmethod
+    async def _create_user(dbs, email: str) -> User:
+        return await User.async_create(
+            dbs,
+            db_commit=True,
+            email=email,
+            password="password",
+            is_active=True,
+        )
+
+    async def test_get_list_ips(self, client, dbs):
+        user_1 = await self._create_user(dbs, email="test-user-1@test.com")
+        user_2 = await self._create_user(dbs, email="test-user-2@test.com")
+        await dbs.refresh()
+
+        user_1_ip_1 = await self._user_ip(dbs, user_1, "127.0.0.1")
+        user_1_ip_2 = await self._user_ip(dbs, user_1, "192.168.1.10")
+        user_2_ip_1 = await self._user_ip(dbs, user_2, "192.168.1.10")
+        await dbs.commit()
+
+        await client.login(user_1)
+        response = client.get(self.url, json={"email": "new-user@test.com"})
+        response_data = self.assert_ok_response(response)
+
+        assert response_data["items"] == [
+            self._ip_in_list(user_1_ip_2),
+            self._ip_in_list(user_1_ip_1),
+        ]
+
+    async def test_delete_ips(self, client, user_data, dbs):
+        user_1 = await self._create_user(dbs, email="test-user-1@test.com")
+        user_2 = await self._create_user(dbs, email="test-user-2@test.com")
+        await dbs.refresh()
+
+        await self._user_ip(dbs, user_1, "127.0.0.1")
+        await self._user_ip(dbs, user_1, "192.168.1.10")
+        await self._user_ip(dbs, user_2, "192.168.1.10")
+        await dbs.commit()
+
+        response = client.post(self.url, json={"ips": ["127.0.0.1", "192.168.1.10"]})
+        self.assert_ok_response(response)
+
+        query_user_1 = UserIP.prepare_query(user_ud=user_1.id)
+        query_user_2 = UserIP.prepare_query(user_ud=user_2.id)
+
+        user_1_ips_exist = await dbs.execute(exists(query_user_1).select())
+        assert not user_1_ips_exist
+
+        assert ["192.168.1.10"] == [ip.ip_address for ip in await query_user_2.all()]
