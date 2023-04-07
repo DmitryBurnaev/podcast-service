@@ -1,5 +1,6 @@
+import uuid
+
 import pytest
-from sqlalchemy import exists
 
 from common.statuses import ResponseStatus
 from modules.auth.models import UserIP, User
@@ -141,17 +142,20 @@ class TestUserIPsAPIView(BaseTestAPIView):
         )
 
     async def test_get_list_ips(self, client, dbs):
-        user_1 = await self._create_user(dbs, email="test-user-1@test.com")
-        user_2 = await self._create_user(dbs, email="test-user-2@test.com")
-        await dbs.refresh()
+        user_1 = await self._create_user(dbs, email=f"test-user-1-{uuid.uuid4().hex[:10]}@test.com")
+        user_2 = await self._create_user(dbs, email=f"test-user-2-{uuid.uuid4().hex[:10]}@test.com")
+        await dbs.refresh(user_1)
+        await dbs.refresh(user_2)
 
+        # login user's IPs
         user_1_ip_1 = await self._user_ip(dbs, user_1, "127.0.0.1")
         user_1_ip_2 = await self._user_ip(dbs, user_1, "192.168.1.10")
-        user_2_ip_1 = await self._user_ip(dbs, user_2, "192.168.1.10")
+        # another user's IPs
+        await self._user_ip(dbs, user_2, "192.168.1.10")
         await dbs.commit()
 
         await client.login(user_1)
-        response = client.get(self.url, json={"email": "new-user@test.com"})
+        response = client.get(self.url)
         response_data = self.assert_ok_response(response)
 
         assert response_data["items"] == [
@@ -160,9 +164,10 @@ class TestUserIPsAPIView(BaseTestAPIView):
         ]
 
     async def test_delete_ips(self, client, user_data, dbs):
-        user_1 = await self._create_user(dbs, email="test-user-1@test.com")
-        user_2 = await self._create_user(dbs, email="test-user-2@test.com")
-        await dbs.refresh()
+        user_1 = await self._create_user(dbs, email=f"test-user-1-{uuid.uuid4().hex[:10]}@test.com")
+        user_2 = await self._create_user(dbs, email=f"test-user-2-{uuid.uuid4().hex[:10]}@test.com")
+        await dbs.refresh(user_1)
+        await dbs.refresh(user_2)
 
         await self._user_ip(dbs, user_1, "127.0.0.1")
         await self._user_ip(dbs, user_1, "192.168.1.10")
@@ -172,10 +177,8 @@ class TestUserIPsAPIView(BaseTestAPIView):
         response = client.post(self.url, json={"ips": ["127.0.0.1", "192.168.1.10"]})
         self.assert_ok_response(response)
 
-        query_user_1 = UserIP.prepare_query(user_ud=user_1.id)
-        query_user_2 = UserIP.prepare_query(user_ud=user_2.id)
-
-        user_1_ips_exist = await dbs.execute(exists(query_user_1).select())
-        assert not user_1_ips_exist
-
-        assert ["192.168.1.10"] == [ip.ip_address for ip in await query_user_2.all()]
+        expected_remaining_ips = [(user_2.email, "192.168.1.10")]
+        actual_remaining_ips = [
+            (ip.ip_address, ip.user.email) for ip in await UserIP.async_filter(client.db_session)
+        ]
+        assert expected_remaining_ips == actual_remaining_ips
