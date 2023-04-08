@@ -99,6 +99,7 @@ RESET_PASSWORD_LINK_EXPIRES_IN = 3 * 3600  # 3 hours
 SITE_URL = config("SITE_URL", default="") or "https://podcast.site.com"
 SERVICE_URL = config("SERVICE_URL", default="") or "https://podcast-service.site.com/"
 DEFAULT_REQUEST_USER_IP = config("DEFAULT_REQUEST_USER_IP", default="127.0.0.1")
+DEFAULT_PAGINATION_LIMIT = 20
 
 DOWNLOAD_EVENT_REDIS_TTL = 60 * 60  # 60 minutes
 RQ_DEFAULT_TIMEOUT = 24 * 3600  # 24 hours
