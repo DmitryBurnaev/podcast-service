@@ -176,9 +176,7 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         refresh_token = response_data.get("refresh_token")
 
-        user_sessions: list[UserSession] = (
-            await UserSession.async_filter(dbs, user_id=self.user.id)
-        ).all()
+        user_sessions = (await UserSession.async_filter(dbs, user_id=self.user.id)).all()
         assert len(user_sessions) == 2
         old_session, new_session = user_sessions
 
@@ -621,7 +619,7 @@ class TestUserIPRegistration(BaseTestAPIView):
 
         user_ips = await UserIP.async_filter(client.db_session, user_id=user.id)
         actual_ips = [user_ip.ip_address for user_ip in user_ips]
-        assert actual_ips == ["172.17.0.1", "172.17.0.2"]
+        assert actual_ips == ["172.17.0.2", "172.17.0.1"]
 
     async def test_register_missed_ip_header(self, dbs, user):
         request = prepare_request(dbs, headers={"WRONG-X-Real-IP": "172.17.0.1"})

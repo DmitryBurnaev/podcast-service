@@ -93,5 +93,8 @@ class UserIP(ModelBase, ModelMixin):
     registered_by = Column(String(length=128), index=True, nullable=False, server_default="")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    class Meta:
+        order_by = ("-id",)
+
     def __repr__(self):
         return f"<UserIP {self.ip_address} user: {self.user_id}>"

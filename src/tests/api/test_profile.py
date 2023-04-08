@@ -128,7 +128,7 @@ class TestUserIPsAPIView(BaseTestAPIView):
             "id": ip.id,
             "ip_address": ip.ip_address,
             "registered_by": ip.registered_by,
-            "created_at": ip.created_at.isoformat()
+            "created_at": ip.created_at.isoformat(),
         }
 
     @staticmethod
@@ -155,11 +155,26 @@ class TestUserIPsAPIView(BaseTestAPIView):
         await dbs.commit()
 
         await client.login(user_1)
+
+        # default limit is settings.DEFAULT_PAGINATION_LIMIT
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
-
         assert response_data["items"] == [
             self._ip_in_list(user_1_ip_2),
+            self._ip_in_list(user_1_ip_1),
+        ]
+
+        # limit query
+        response = client.get(self.url, params={"limit": 1})
+        response_data = self.assert_ok_response(response)
+        assert response_data["items"] == [
+            self._ip_in_list(user_1_ip_2),
+        ]
+
+        # limit and offset query
+        response = client.get(self.url, params={"limit": 1, "offset": 1})
+        response_data = self.assert_ok_response(response)
+        assert response_data["items"] == [
             self._ip_in_list(user_1_ip_1),
         ]
 
@@ -174,11 +189,15 @@ class TestUserIPsAPIView(BaseTestAPIView):
         await self._user_ip(dbs, user_2, "192.168.1.10")
         await dbs.commit()
 
-        response = client.post(self.url, json={"ips": ["127.0.0.1", "192.168.1.10"]})
+        await client.login(user_1)
+        response = client.post(self.url_delete, json={"ips": ["127.0.0.1", "192.168.1.10"]})
         self.assert_ok_response(response)
 
-        expected_remaining_ips = [(user_2.email, "192.168.1.10")]
+        expected_remaining_ips = [(user_2.id, "192.168.1.10")]
         actual_remaining_ips = [
-            (ip.ip_address, ip.user.email) for ip in await UserIP.async_filter(client.db_session)
+            (ip.user_id, ip.ip_address)
+            for ip in await UserIP.async_filter(
+                client.db_session, user_id__in=(user_1.id, user_2.id)
+            )
         ]
         assert expected_remaining_ips == actual_remaining_ips

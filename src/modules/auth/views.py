@@ -15,7 +15,7 @@ from common.views import BaseHTTPEndpoint
 from common.statuses import ResponseStatus
 from common.utils import send_email
 from common.exceptions import AuthenticationFailedError, InvalidRequestError
-from modules.auth.models import User, UserSession, UserInvite
+from modules.auth.models import User, UserSession, UserInvite, UserIP
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
 from modules.auth.utils import (
@@ -37,8 +37,11 @@ from modules.auth.schemas import (
     ResetPasswordRequestSchema,
     ResetPasswordResponseSchema,
     UserPatchRequestSchema,
+    UserIPsResponseSchema,
+    UserIPsDeleteRequestSchema,
 )
 from modules.podcast.models import Podcast
+from modules.podcast.schemas import BaseLimitOffsetSchema
 
 logger = logging.getLogger(__name__)
 
@@ -382,3 +385,25 @@ class ProfileApiView(BaseHTTPEndpoint):
             update_data["password"] = User.make_password(password)
 
         return update_data
+
+
+class UserIPsRetrieveAPIView(BaseHTTPEndpoint):
+    schema_request = BaseLimitOffsetSchema
+    schema_response = UserIPsResponseSchema
+
+    async def get(self, request: PRequest) -> Response:
+        cleaned_data = await self._validate(request, location="query")
+        limit, offset = cleaned_data["limit"], cleaned_data["offset"]
+        ips_query = UserIP.prepare_query(user_id=request.user.id)
+        return await self._paginated_response(ips_query, limit=limit, offset=offset)
+
+
+class UserIPsDeleteAPIView(BaseHTTPEndpoint):
+    schema_request = UserIPsDeleteRequestSchema
+
+    async def post(self, request: PRequest) -> Response:
+        cleaned_data = await self._validate(request)
+        await UserIP.async_delete(
+            self.db_session, user_id=request.user.id, ip_address__in=cleaned_data["ips"]
+        )
+        return self._response()

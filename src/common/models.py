@@ -77,7 +77,7 @@ class ModelMixin:
             await db_session.commit()
 
     @classmethod
-    async def async_delete(cls, db_session: AsyncSession, filter_kwargs: dict):
+    async def async_delete(cls, db_session: AsyncSession, **filter_kwargs):
         query = (
             delete(cls)
             .where(cls._filter_criteria(filter_kwargs))

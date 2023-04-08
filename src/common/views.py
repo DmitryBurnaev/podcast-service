@@ -5,14 +5,16 @@ from json import JSONDecodeError
 from dataclasses import dataclass
 from typing import Type, Iterable, Any, ClassVar
 
+from sqlalchemy import exists, Select
+from sqlalchemy.orm import Query
+from sqlalchemy.exc import SQLAlchemyError, DatabaseError
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from starlette.concurrency import run_in_threadpool
 from starlette.websockets import WebSocket
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse, Response
 from starlette.endpoints import HTTPEndpoint, WebSocketEndpoint
-from sqlalchemy.exc import SQLAlchemyError, DatabaseError
-from sqlalchemy.ext.asyncio import AsyncSession
 from marshmallow import Schema, ValidationError, fields
 from webargs_starlette import parser, WebargsHTTPException
 
@@ -27,6 +29,7 @@ from common.schemas import WSRequestAuthSchema
 from common.statuses import ResponseStatus
 from common.models import DBModel
 from common.utils import create_task
+from core import settings
 from modules.auth.models import User
 from modules.podcast.models import Podcast
 from modules.podcast.tasks.base import RQTask
@@ -159,6 +162,24 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         return JSONResponse(
             {"status": response_status, "payload": payload}, status_code=status_code
+        )
+
+    async def _paginated_response(
+        self, query: Query | Select, limit: int | None = None, offset: int = 0
+    ) -> JSONResponse:
+        limit = limit or settings.DEFAULT_PAGINATION_LIMIT
+        query_next_offset = query.offset(offset + limit).limit(limit)
+        (has_next,) = next(await self.db_session.execute(exists(query_next_offset).select()))
+
+        query_current_offset = query.offset(offset).limit(limit)
+        result_items = await self.db_session.execute(query_current_offset)
+        paginated_data = {
+            "items": self.schema_response(many=True).dump(result_items.scalars()),
+            "has_next": has_next,
+        }
+        return JSONResponse(
+            {"status": ResponseStatus.OK, "payload": paginated_data},
+            status_code=status.HTTP_200_OK,
         )
 
     async def _run_task(self, task_class: Type[RQTask], *args, **kwargs):
