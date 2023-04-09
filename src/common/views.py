@@ -3,7 +3,7 @@ import asyncio
 import logging
 from json import JSONDecodeError
 from dataclasses import dataclass
-from typing import Type, Iterable, Any, ClassVar
+from typing import Type, Iterable, Any, ClassVar, Callable, Optional
 
 from sqlalchemy import exists, Select
 from sqlalchemy.orm import Query
@@ -165,16 +165,23 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         )
 
     async def _paginated_response(
-        self, query: Query | Select, limit: int | None = None, offset: int = 0
+        self,
+        query: Query | Select,
+        limit: int | None = None,
+        offset: int = 0,
+        process_items: Optional[Callable] = None,
     ) -> JSONResponse:
         limit = limit or settings.DEFAULT_PAGINATION_LIMIT
         query_next_offset = query.offset(offset + limit).limit(limit)
         (has_next,) = next(await self.db_session.execute(exists(query_next_offset).select()))
 
         query_current_offset = query.offset(offset).limit(limit)
-        result_items = await self.db_session.execute(query_current_offset)
+        result_items = (await self.db_session.execute(query_current_offset)).scalars()
+        if process_items is not None:
+            result_items = process_items(result_items)
+
         paginated_data = {
-            "items": self.schema_response(many=True).dump(result_items.scalars()),
+            "items": self.schema_response(many=True).dump(result_items),
             "has_next": has_next,
         }
         return JSONResponse(
