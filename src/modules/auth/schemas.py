@@ -108,11 +108,16 @@ class UserPatchRequestSchema(TwoPasswordsMixin, Schema):
     email = fields.Email()
 
 
+class PodcastShortSchema(Schema):
+    id = fields.Int()
+    name = fields.String()
+
+
 class UserIPsResponseSchema(Schema):
     id = fields.Int()
     ip_address = fields.String()
     created_at = fields.DateTime()
-    registered_by = fields.String()
+    by_rss_podcast = fields.Nested(PodcastShortSchema)
 
 
 class UserIPsDeleteRequestSchema(Schema):

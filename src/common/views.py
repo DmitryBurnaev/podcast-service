@@ -176,7 +176,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         (has_next,) = next(await self.db_session.execute(exists(query_next_offset).select()))
 
         query_current_offset = query.offset(offset).limit(limit)
-        result_items = (await self.db_session.execute(query_current_offset)).scalars()
+        result_items = (await self.db_session.execute(query_current_offset)).all()
         if process_items is not None:
             result_items = process_items(result_items)
 
