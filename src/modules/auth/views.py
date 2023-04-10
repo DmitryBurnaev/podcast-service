@@ -411,7 +411,7 @@ class UserIPsRetrieveAPIView(BaseHTTPEndpoint):
             we need to combine it before response and after limit / offset operations
             """
             for user_ip, podcast in items:
-                user_ip.podcast = podcast
+                user_ip.by_rss_podcast = podcast
                 yield user_ip
 
         return await self._paginated_response(
