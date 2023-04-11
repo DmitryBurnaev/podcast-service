@@ -5,6 +5,7 @@ import pytest
 from common.statuses import ResponseStatus
 from modules.auth.models import UserIP, User
 from modules.auth.utils import encode_jwt, TOKEN_TYPE_RESET_PASSWORD, TOKEN_TYPE_REFRESH
+from modules.podcast.models import Podcast
 from tests.api.test_auth import INVALID_CHANGE_PASSWORD_DATA
 from tests.api.test_base import BaseTestAPIView
 
@@ -114,20 +115,21 @@ class TestUserIPsAPIView(BaseTestAPIView):
     url_delete = "/api/auth/ips/delete/"
 
     @staticmethod
-    async def _user_ip(dbs, user: User, address: str) -> UserIP:
+    async def _user_ip(dbs, user: User, address: str, registered_by: str = "") -> UserIP:
         ip_data = {
             "ip_address": address,
             "user_id": user.id,
-            "registered_by": f"Test Interaction: {address}",
+            "registered_by": registered_by,
         }
         return await UserIP.async_create(dbs, **ip_data)
 
     @staticmethod
-    def _ip_in_list(ip: UserIP):
+    def _ip_in_list(ip: UserIP, podcast: Podcast | None = None):
+        podcast_details = {"id": podcast.id, "name": podcast.name} if podcast else None
         return {
             "id": ip.id,
             "ip_address": ip.ip_address,
-            "registered_by": ip.registered_by,
+            "by_rss_podcast": podcast_details,
             "created_at": ip.created_at.isoformat(),
         }
 
@@ -141,15 +143,19 @@ class TestUserIPsAPIView(BaseTestAPIView):
             is_active=True,
         )
 
-    async def test_get_list_ips(self, client, dbs):
+    async def test_get_list_ips(self, client, dbs, podcast, rss_file):
         user_1 = await self._create_user(dbs, email=f"test-user-1-{uuid.uuid4().hex[:10]}@test.com")
         user_2 = await self._create_user(dbs, email=f"test-user-2-{uuid.uuid4().hex[:10]}@test.com")
+        await podcast.async_update(dbs, rss_id=rss_file.id)
         await dbs.refresh(user_1)
         await dbs.refresh(user_2)
 
         # login user's IPs
         user_1_ip_1 = await self._user_ip(dbs, user_1, "127.0.0.1")
         user_1_ip_2 = await self._user_ip(dbs, user_1, "192.168.1.10")
+        user_1_ip_3_with_podcast = await self._user_ip(
+            dbs, user_1, "192.168.1.10", registered_by=rss_file.aith_token
+        )
         # another user's IPs
         await self._user_ip(dbs, user_2, "192.168.1.10")
         await dbs.commit()
@@ -160,6 +166,7 @@ class TestUserIPsAPIView(BaseTestAPIView):
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
         assert response_data["items"] == [
+            self._ip_in_list(user_1_ip_3_with_podcast, podcast),
             self._ip_in_list(user_1_ip_2),
             self._ip_in_list(user_1_ip_1),
         ]
