@@ -146,7 +146,7 @@ class TestUserIPsAPIView(BaseTestAPIView):
     async def test_get_list_ips(self, client, dbs, podcast, rss_file):
         user_1 = await self._create_user(dbs, email=f"test-user-1-{uuid.uuid4().hex[:10]}@test.com")
         user_2 = await self._create_user(dbs, email=f"test-user-2-{uuid.uuid4().hex[:10]}@test.com")
-        await podcast.async_update(dbs, rss_id=rss_file.id)
+        await podcast.update(dbs, rss_id=rss_file.id)
         await dbs.refresh(user_1)
         await dbs.refresh(user_2)
 
@@ -154,7 +154,7 @@ class TestUserIPsAPIView(BaseTestAPIView):
         user_1_ip_1 = await self._user_ip(dbs, user_1, "127.0.0.1")
         user_1_ip_2 = await self._user_ip(dbs, user_1, "192.168.1.10")
         user_1_ip_3_with_podcast = await self._user_ip(
-            dbs, user_1, "192.168.1.10", registered_by=rss_file.aith_token
+            dbs, user_1, "192.168.1.10", registered_by=rss_file.access_token
         )
         # another user's IPs
         await self._user_ip(dbs, user_2, "192.168.1.10")
