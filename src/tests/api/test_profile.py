@@ -175,14 +175,14 @@ class TestUserIPsAPIView(BaseTestAPIView):
         response = client.get(self.url, params={"limit": 1})
         response_data = self.assert_ok_response(response)
         assert response_data["items"] == [
-            self._ip_in_list(user_1_ip_2),
+            self._ip_in_list(user_1_ip_3_with_podcast, podcast),
         ]
 
         # limit and offset query
         response = client.get(self.url, params={"limit": 1, "offset": 1})
         response_data = self.assert_ok_response(response)
         assert response_data["items"] == [
-            self._ip_in_list(user_1_ip_1),
+            self._ip_in_list(user_1_ip_2),
         ]
 
     async def test_delete_ips(self, client, user_data, dbs):
