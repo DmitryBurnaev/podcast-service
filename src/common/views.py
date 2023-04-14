@@ -170,13 +170,18 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         limit: int | None = None,
         offset: int = 0,
         process_items: Optional[Callable] = None,
+        return_scalar: bool = False
     ) -> JSONResponse:
         limit = limit or settings.DEFAULT_PAGINATION_LIMIT
         query_next_offset = query.offset(offset + limit).limit(limit)
         (has_next,) = next(await self.db_session.execute(exists(query_next_offset).select()))
 
         query_current_offset = query.offset(offset).limit(limit)
-        result_items = (await self.db_session.execute(query_current_offset)).all()
+        if return_scalar:
+            result_items = (await self.db_session.execute(query_current_offset)).scalars()
+        else:
+            result_items = (await self.db_session.execute(query_current_offset)).all()
+
         if process_items is not None:
             result_items = process_items(result_items)
 
