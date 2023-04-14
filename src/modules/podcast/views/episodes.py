@@ -49,7 +49,9 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
             filter_kwargs["status"] = episode_status
 
         episodes_query = Episode.prepare_query(**filter_kwargs)
-        return await self._paginated_response(episodes_query, limit=limit, offset=offset)
+        return await self._paginated_response(
+            episodes_query, limit=limit, offset=offset, return_scalar=True
+        )
 
     async def post(self, request: PRequest) -> Response:
         if not (podcast_id := request.path_params.get("podcast_id")):
