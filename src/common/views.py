@@ -27,7 +27,7 @@ from common.exceptions import (
 from common.request import PRequest
 from common.schemas import WSRequestAuthSchema
 from common.statuses import ResponseStatus
-from common.models import DBModel
+from common.models import DBModel, ModelMixin
 from common.utils import create_task
 from core import settings
 from modules.auth.models import User
@@ -46,7 +46,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
     app = None
     request: PRequest
-    db_model: ClassVar[DBModel]
+    db_model: ClassVar[ModelMixin]
     db_session: AsyncSession
     schema_request: ClassVar[Type[Schema]]
     schema_response: ClassVar[Type[Schema]]
@@ -164,13 +164,14 @@ class BaseHTTPEndpoint(HTTPEndpoint):
             {"status": response_status, "payload": payload}, status_code=status_code
         )
 
+    # pylint: disable=too-many-arguments
     async def _paginated_response(
         self,
         query: Query | Select,
         limit: int | None = None,
         offset: int = 0,
         process_items: Optional[Callable] = None,
-        return_scalar: bool = False
+        return_scalar: bool = False,
     ) -> JSONResponse:
         limit = limit or settings.DEFAULT_PAGINATION_LIMIT
         query_next_offset = query.offset(offset + limit).limit(limit)

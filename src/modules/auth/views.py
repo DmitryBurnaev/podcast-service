@@ -6,9 +6,9 @@ from typing import Generator, Iterable
 from uuid import UUID
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
 from starlette import status
 from starlette.responses import Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import settings
