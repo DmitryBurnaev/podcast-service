@@ -270,3 +270,7 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
         task_class = self.perform_tasks_map.get(episode.source_type)
         await self._run_task(task_class, episode_id=episode.id)
         return self._response(episode)
+
+
+class EpisodeCancelDownloading(BaseHTTPEndpoint):
+    ...
