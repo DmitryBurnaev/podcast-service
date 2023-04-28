@@ -58,6 +58,11 @@ REDIS = {
 }
 REDIS_PROGRESS_PUBSUB_CH = config("REDIS_PROGRESS_PUBSUB_CH", default="channel:episodes-progress")
 REDIS_PROGRESS_PUBSUB_SIGNAL = "EPISODES_UPDATED"
+REDIS_STOP_DOWNLOADING_PUBSUB_CH = config(
+    "REDIS_STOP_DOWNLOADING_PUBSUB_CH",
+    default="channel:episodes-stop-downloading",
+)
+REDIS_STOP_DOWNLOADING_PUBSUB_SIGNAL = "EPISODE_CANCEL_DOWNLOADING"
 RQ_QUEUE_NAME = config("RQ_QUEUE_NAME", default="podcast")
 
 TMP_PATH = Path(tempfile.mkdtemp(prefix="podcast__"))

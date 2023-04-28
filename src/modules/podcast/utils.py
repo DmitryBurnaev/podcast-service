@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import logging
@@ -204,3 +205,11 @@ async def save_uploaded_file(
         raise ValueError("result file-size is more than allowed")
 
     return result_file_path
+
+
+async def publish_redis_stop_downloading(episode_id: int) -> None:
+    message = {"episode_id": episode_id}
+    await RedisClient().async_publish(
+        channel=settings.REDIS_STOP_DOWNLOADING_PUBSUB_CH,
+        message=json.dumps(message),
+    )

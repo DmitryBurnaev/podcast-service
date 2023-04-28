@@ -7,11 +7,13 @@ from starlette import status
 from starlette.responses import Response
 
 from common.enums import FileType, SourceType
+from common.redis import RedisClient
 from common.request import PRequest
 from common.statuses import ResponseStatus
 from common.utils import cut_string
 from common.views import BaseHTTPEndpoint
 from common.exceptions import MethodNotAllowedError, NotFoundError
+from core import settings
 from modules.media.models import File
 from modules.podcast import tasks
 from modules.podcast.episodes import EpisodeCreator
@@ -25,6 +27,7 @@ from modules.podcast.schemas import (
     EpisodeListSchema,
     EpisodeUploadedSchema,
 )
+from modules.podcast import utils as podcast_utils
 
 logger = logging.getLogger(__name__)
 
@@ -245,6 +248,7 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
         episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
         await episode.delete(self.db_session)
+        await podcast_utils.publish_redis_stop_downloading(episode_id)
         return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -274,3 +278,8 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
 
 class EpisodeCancelDownloading(BaseHTTPEndpoint):
     ...
+
+    async def put(self, request: PRequest) -> Response:
+        episode_id = request.path_params["episode_id"]
+        await podcast_utils.publish_redis_stop_downloading(episode_id)
+        return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
