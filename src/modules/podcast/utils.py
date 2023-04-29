@@ -208,8 +208,7 @@ async def save_uploaded_file(
 
 
 async def publish_redis_stop_downloading(episode_id: int) -> None:
-    message = {"episode_id": episode_id}
     await RedisClient().async_publish(
         channel=settings.REDIS_STOP_DOWNLOADING_PUBSUB_CH,
-        message=json.dumps(message),
+        message=json.dumps({"episode_id": episode_id}),
     )

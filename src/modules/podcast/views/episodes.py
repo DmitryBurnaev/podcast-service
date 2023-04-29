@@ -6,14 +6,12 @@ from sqlalchemy import exists
 from starlette import status
 from starlette.responses import Response
 
-from common.enums import FileType, SourceType
-from common.redis import RedisClient
+from common.enums import FileType, SourceType, EpisodeStatus
 from common.request import PRequest
 from common.statuses import ResponseStatus
 from common.utils import cut_string
 from common.views import BaseHTTPEndpoint
-from common.exceptions import MethodNotAllowedError, NotFoundError
-from core import settings
+from common.exceptions import MethodNotAllowedError, NotFoundError, InvalidRequestError
 from modules.media.models import File
 from modules.podcast import tasks
 from modules.podcast.episodes import EpisodeCreator
@@ -277,9 +275,12 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
 
 
 class EpisodeCancelDownloading(BaseHTTPEndpoint):
-    ...
-
+    """  Allows to stop current downloaded episode """
     async def put(self, request: PRequest) -> Response:
         episode_id = request.path_params["episode_id"]
+        episode: Episode = await Episode.async_get(self.db_session, id=episode_id)
+        if episode.status != EpisodeStatus.DOWNLOADING:
+            raise InvalidRequestError(f"Episode #{episode_id} is not in progress now")
+
         await podcast_utils.publish_redis_stop_downloading(episode_id)
         return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
