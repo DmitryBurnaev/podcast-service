@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Iterable
 from functools import partial
 
+from redis.asyncio.client import Redis
+from rq.job import Job
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
@@ -212,3 +214,10 @@ async def publish_redis_stop_downloading(episode_id: int) -> None:
         channel=settings.REDIS_STOP_DOWNLOADING_PUBSUB_CH,
         message=json.dumps({"episode_id": episode_id}),
     )
+
+
+async def cancel_downloading_task(episode_id: int) -> None:
+    redis = Redis()
+    task_id = f"downloading_episode_{episode_id}"
+    job = Job.fetch(task_id, connection=redis)
+    job.cancel()
