@@ -3,7 +3,7 @@ import os
 import time
 import logging
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Type
 from functools import partial
 
 from redis.asyncio.client import Redis
@@ -16,6 +16,7 @@ from common.redis import RedisClient
 from common.storage import StorageS3
 from common.enums import EpisodeStatus
 from modules.podcast.models import Episode
+from modules.podcast.tasks import RQTask
 
 logger = logging.getLogger(__name__)
 
@@ -216,8 +217,7 @@ async def publish_redis_stop_downloading(episode_id: int) -> None:
     )
 
 
-async def cancel_downloading_task(episode_id: int) -> None:
-    redis = Redis()
-    task_id = f"downloading_episode_{episode_id}"
-    job = Job.fetch(task_id, connection=redis)
+async def cancel_downloading_task(task_class: Type[RQTask], episode_id: int) -> None:
+    task_id = task_class.get_task_id(episode_id=episode_id)
+    job = Job.fetch(task_id, connection=Redis())
     job.cancel()

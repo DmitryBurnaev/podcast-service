@@ -66,6 +66,6 @@ class RQTask:
             yield subclass
 
     @classmethod
-    def get_task_id(cls, task_kwargs: dict) -> str:
+    def get_task_id(cls, **task_kwargs) -> str:
         kw_pairs = [f"{key}={value}" for key, value in task_kwargs.items()]
         return f"{cls.__name__.lower()}_{'_'.join(kw_pairs)}"
