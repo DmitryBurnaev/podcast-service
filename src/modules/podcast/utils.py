@@ -217,7 +217,7 @@ async def publish_redis_stop_downloading(episode_id: int) -> None:
     )
 
 
-async def cancel_downloading_task(task_class: Type[RQTask], episode_id: int) -> None:
+async def cancel_rq_task(task_class: Type[RQTask], episode_id: int) -> None:
     task_id = task_class.get_task_id(episode_id=episode_id)
     job = Job.fetch(task_id, connection=Redis())
     job.cancel()

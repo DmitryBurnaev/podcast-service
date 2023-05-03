@@ -26,6 +26,7 @@ from modules.podcast.schemas import (
     EpisodeUploadedSchema,
 )
 from modules.podcast import utils as podcast_utils
+from modules.podcast.tasks import DownloadEpisodeTask
 
 logger = logging.getLogger(__name__)
 
@@ -246,8 +247,7 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
         episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
         await episode.delete(self.db_session)
-        # await podcast_utils.publish_redis_stop_downloading(episode_id)
-        await podcast_utils.cancel_downloading_task(episode_id)
+        await podcast_utils.cancel_rq_task(DownloadEpisodeTask, episode_id)
         return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -283,6 +283,6 @@ class EpisodeCancelDownloading(BaseHTTPEndpoint):
         if episode.status != EpisodeStatus.DOWNLOADING:
             raise InvalidRequestError(f"Episode #{episode_id} is not in progress now")
 
-        await podcast_utils.cancel_downloading_task(episode_id)
+        await podcast_utils.cancel_rq_task(DownloadEpisodeTask, episode_id)
         # await podcast_utils.publish_redis_stop_downloading(episode_id)
         return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
