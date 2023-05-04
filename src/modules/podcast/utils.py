@@ -219,5 +219,11 @@ async def publish_redis_stop_downloading(episode_id: int) -> None:
 
 async def cancel_rq_task(task_class: Type[RQTask], episode_id: int) -> None:
     task_id = task_class.get_task_id(episode_id=episode_id)
-    job = Job.fetch(task_id, connection=Redis())
-    job.cancel()
+    logger.debug("Trying to cancel task %s", task_id)
+    try:
+        job = Job.fetch(task_id, connection=Redis())
+        job.cancel()
+    except Exception as exc:
+        logger.exception("Couldn't cancel task %s: %r", task_id, exc)
+    else:
+        logger.info("Canceled task %s", task_id)
