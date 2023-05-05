@@ -2,6 +2,8 @@ import enum
 import asyncio
 import logging
 
+from redis.client import Redis
+from rq.job import Job
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.db_utils import make_session_maker
@@ -66,6 +68,18 @@ class RQTask:
             yield subclass
 
     @classmethod
-    def get_task_id(cls, **task_kwargs) -> str:
+    def get_job_id(cls, **task_kwargs) -> str:
         kw_pairs = [f"{key}={value}" for key, value in task_kwargs.items()]
         return f"{cls.__name__.lower()}_{'_'.join(kw_pairs)}"
+
+    @classmethod
+    def cancel_task(cls, **task_kwargs) -> None:
+        job_id = cls.get_job_id(**task_kwargs)
+        logger.debug("Trying to cancel task %s", job_id)
+        try:
+            job = Job.fetch(job_id, connection=Redis())
+            job.cancel()
+        except Exception as exc:
+            logger.exception("Couldn't cancel task %s: %r", job_id, exc)
+        else:
+            logger.info("Canceled task %s", job_id)

@@ -3,11 +3,9 @@ import os
 import time
 import logging
 from pathlib import Path
-from typing import Iterable, Type
+from typing import Iterable
 from functools import partial
 
-from redis.asyncio.client import Redis
-from rq.job import Job
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
@@ -16,7 +14,6 @@ from common.redis import RedisClient
 from common.storage import StorageS3
 from common.enums import EpisodeStatus
 from modules.podcast.models import Episode
-from modules.podcast.tasks import RQTask
 
 logger = logging.getLogger(__name__)
 
@@ -215,15 +212,3 @@ async def publish_redis_stop_downloading(episode_id: int) -> None:
         channel=settings.REDIS_STOP_DOWNLOADING_PUBSUB_CH,
         message=json.dumps({"episode_id": episode_id}),
     )
-
-
-async def cancel_rq_task(task_class: Type[RQTask], episode_id: int) -> None:
-    task_id = task_class.get_task_id(episode_id=episode_id)
-    logger.debug("Trying to cancel task %s", task_id)
-    try:
-        job = Job.fetch(task_id, connection=Redis())
-        job.cancel()
-    except Exception as exc:
-        logger.exception("Couldn't cancel task %s: %r", task_id, exc)
-    else:
-        logger.info("Canceled task %s", task_id)

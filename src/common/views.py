@@ -166,7 +166,8 @@ class BaseHTTPEndpoint(HTTPEndpoint):
 
         logger.info("RUN task %s", task_class)
         task = task_class()
-        kwargs["task_id"] = task_class.get_task_id(**kwargs)
+        kwargs["job_id"] = task_class.get_job_id(**kwargs)
+        print(kwargs)
         await run_in_threadpool(self.app.rq_queue.enqueue, task, *args, **kwargs)
 
 
