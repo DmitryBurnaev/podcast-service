@@ -7,7 +7,7 @@ from rq.job import Job
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.db_utils import make_session_maker
-
+from common.exceptions import BaseApplicationError
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,10 @@ class FinishCode(int, enum.Enum):
     OK = 0
     SKIP = 1
     ERROR = 2
+
+
+class TaskCancelledError(BaseApplicationError):
+    message = "Task was cancelled"
 
 
 class RQTask:
@@ -43,12 +47,18 @@ class RQTask:
     async def _perform_and_run(self, *args, **kwargs):
         """Allows calling `self.run` in transaction block with catching any exceptions"""
 
+        # TODO: run asyncio task for killing task (if some flag is placed in the job's metadata)
+
         session_maker = make_session_maker()
         try:
             async with session_maker() as db_session:
                 self.db_session = db_session
                 result = await self.run(*args, **kwargs)
                 await self.db_session.commit()
+
+        except TaskCancelledError as exc:
+            await self.teardown()
+            logger.warning("Task was canceled by err: %r", exc)
 
         except Exception as exc:
             await self.db_session.rollback()
@@ -83,3 +93,7 @@ class RQTask:
             logger.exception("Couldn't cancel task %s: %r", job_id, exc)
         else:
             logger.info("Canceled task %s", job_id)
+
+    async def teardown(self):
+        # TODO: perform some actions for graceful stopping task and run subprocess (by pid maybe?)
+        ...
