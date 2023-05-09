@@ -1,6 +1,8 @@
 import enum
 import asyncio
 import logging
+import multiprocessing
+import time
 
 from redis.client import Redis
 from rq.job import Job
@@ -34,9 +36,40 @@ class RQTask:
         """We need to override this method to implement main task logic"""
         raise NotImplementedError
 
+    def _run_and_return_result(self, queue, *args, **kwargs):
+        finish_code = asyncio.run(self._perform_and_run(*args, **kwargs))
+        queue.put(finish_code)
+
+    @staticmethod
+    def _get_finish_code_from_queue(queue):
+        try:
+            return queue.get(block=False)
+        except Exception as exc:
+            return None
+
     def __call__(self, *args, **kwargs) -> FinishCode:
         logger.info("==== STARTED task %s ====", self.name)
-        finish_code = asyncio.run(self._perform_and_run(*args, **kwargs))
+
+        result_queue = multiprocessing.Queue()
+        process = multiprocessing.Process(
+            target=self._run_and_return_result,
+            args=(result_queue, *args),
+            kwargs=kwargs,
+        )
+        process.start()
+
+        job = Job.fetch(self.get_job_id(**kwargs), connection=Redis())
+        print("while")
+
+        while not (finish_code := self._get_finish_code_from_queue(result_queue)):
+            status = job.get_status()
+            print("jobid: ", job.id, "status:", status)
+            if status == "canceled":
+                process.terminate()
+                print(f"Process {process} terminated!")
+                break
+            time.sleep(1)
+
         logger.info("==== FINISHED task %s | code %s ====", self.name, finish_code)
         return finish_code
 

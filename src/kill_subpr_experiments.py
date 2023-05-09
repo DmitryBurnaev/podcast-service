@@ -24,7 +24,6 @@ def put_result(queue, number):
 
 def run_and_terminate():
     result_queue = multiprocessing.Queue()
-
     process = multiprocessing.Process(target=put_result, args=(result_queue, 10))
     process.start()
 
