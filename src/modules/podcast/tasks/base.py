@@ -42,31 +42,10 @@ class RQTask:
         """Can be used for test's simplify"""
         return isinstance(other, self.__class__) and self.__class__ == other.__class__
 
-    async def _perform_and_run(self, *args, **kwargs):
-        """Allows calling `self.run` in transaction block with catching any exceptions"""
-
-        session_maker = make_session_maker()
-        try:
-            async with session_maker() as db_session:
-                self.db_session = db_session
-                result = await self.run(*args, **kwargs)
-                await self.db_session.commit()
-
-        except Exception as exc:
-            await self.db_session.rollback()
-            result = FinishCode.ERROR
-            logger.exception("Couldn't perform task %s | error %r", self.name, exc)
-
-        return result
-
-    def _run_and_return_result(self, queue, *args, **kwargs):
-        finish_code = asyncio.run(self._perform_and_run(*args, **kwargs))
-        queue.put(finish_code)
-
     def _run_with_subprocess(self, *task_args, **task_kwargs) -> FinishCode:
         """ Run logic in subprocess allows to terminate run task in the background"""
 
-        def _get_finish_code_from_queue(result_queue: multiprocessing.Queue):
+        def extract_result(result_queue: multiprocessing.Queue) -> FinishCode | None:
             try:
                 return result_queue.get(block=False)
             except queue.Empty:
@@ -74,14 +53,14 @@ class RQTask:
 
         result_queue = multiprocessing.Queue()
         process = multiprocessing.Process(
-            target=self._run_and_return_result,
+            target=self._perform_and_run,
             args=(result_queue, *task_args),
             kwargs=task_kwargs,
         )
         process.start()
 
         job = Job.fetch(self.get_job_id(**task_kwargs), connection=Redis())
-        while not (finish_code := _get_finish_code_from_queue(result_queue)):
+        while not (finish_code := extract_result(result_queue)):
             status = job.get_status()
             print("jobid: ", job.id, "status:", status)
             if status == "canceled":  # status can be changed by RQTask.cancel_task()
@@ -91,6 +70,31 @@ class RQTask:
             time.sleep(1)
 
         return finish_code
+
+    def _perform_and_run(self, queue, *args, **kwargs):
+        """
+        Runs async code, implemented in `self.run` and stores result to the queue
+        (for retrieving results above)
+        """
+        async def run_async(*args, **kwargs):
+            """Allows calling `self.run` in transaction block with catching any exceptions"""
+
+            session_maker = make_session_maker()
+            try:
+                async with session_maker() as db_session:
+                    self.db_session = db_session
+                    result = await self.run(*args, **kwargs)
+                    await self.db_session.commit()
+
+            except Exception as exc:
+                await self.db_session.rollback()
+                result = FinishCode.ERROR
+                logger.exception("Couldn't perform task %s | error %r", self.name, exc)
+
+            return result
+
+        finish_code = asyncio.run(run_async(*args, **kwargs))
+        queue.put(finish_code)
 
     @property
     def name(self):
