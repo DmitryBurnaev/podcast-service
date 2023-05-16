@@ -62,11 +62,12 @@ class RQTask:
         job = Job.fetch(self.get_job_id(**task_kwargs), connection=Redis())
         while not (finish_code := extract_result(result_queue)):
             status = job.get_status()
-            print("jobid: ", job.id, "status:", status)
+            logger.debug("jobid: %s | status: %s", job.id, status)
             if status == "canceled":  # status can be changed by RQTask.cancel_task()
                 process.terminate()
-                print(f"Process {process} terminated!")
+                logger.warning(f"Process '%s' terminated!", process)
                 break
+
             time.sleep(1)
 
         return finish_code

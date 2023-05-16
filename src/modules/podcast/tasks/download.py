@@ -147,9 +147,6 @@ class DownloadEpisodeTask(RQTask):
             if episode.cookie_id
             else None
         )
-        import time
-        print("Sleep for 120s...")
-        time.sleep(120)
 
         try:
             result_path = await provider_utils.download_audio(
