@@ -77,10 +77,13 @@ class RQTask:
         Runs async code, implemented in `self.run` and stores result to the queue
         (for retrieving results above)
         """
+        print("_perform_and_run")
+
         async def run_async(*args, **kwargs):
             """Allows calling `self.run` in transaction block with catching any exceptions"""
 
             session_maker = make_session_maker()
+            print("Run async")
             try:
                 async with session_maker() as db_session:
                     self.db_session = db_session
@@ -95,6 +98,7 @@ class RQTask:
             return result
 
         finish_code = asyncio.run(run_async(*args, **kwargs))
+        print("queue.put", queue, finish_code)
         queue.put(finish_code)
 
     @property

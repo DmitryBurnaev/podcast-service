@@ -28,13 +28,17 @@ class GenerateRSSTask(RQTask):
         podcasts = await Podcast.async_filter(self.db_session, **filter_kwargs)
         results = {}
         for podcast in podcasts:
+            import time
+            time.sleep(5)
             results.update(await self._generate(podcast))
 
+        print("done")
         logger.info("Regeneration results: \n%s", results)
 
         if FinishCode.ERROR in results.values():
             return FinishCode.ERROR
 
+        print(FinishCode.OK)
         return FinishCode.OK
 
     async def _generate(self, podcast: Podcast) -> dict:
