@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 import logging
 
@@ -11,7 +12,10 @@ from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks.base import RQTask, FinishCode
 from modules.podcast.utils import get_file_size
 
-logger = logging.getLogger(__name__)
+# multiprocessing.log_to_stderr(level=logging.INFO)
+logger = multiprocessing.get_logger()
+# logger = logging.getLogger(__name__)
+# logger = multiprocessing.log_to_stderr(level=logging.INFO)
 __all__ = ["GenerateRSSTask"]
 
 
@@ -28,8 +32,8 @@ class GenerateRSSTask(RQTask):
         podcasts = await Podcast.async_filter(self.db_session, **filter_kwargs)
         results = {}
         for podcast in podcasts:
-            import time
-            time.sleep(5)
+            # import time
+            # time.sleep(5)
             results.update(await self._generate(podcast))
 
         print("done")

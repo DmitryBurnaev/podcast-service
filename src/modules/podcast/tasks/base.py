@@ -10,8 +10,11 @@ from rq.job import Job
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.db_utils import make_session_maker
+from core import settings
 
 logger = logging.getLogger(__name__)
+# multiprocessing.
+multiprocessing.log_to_stderr(level=logging.INFO)
 
 
 class FinishCode(int, enum.Enum):
@@ -27,6 +30,7 @@ class RQTask:
 
     def __init__(self, db_session: AsyncSession = None):
         self.db_session = db_session
+        self.logger = multiprocessing.log_to_stderr(level=settings.LOG_LEVEL)
 
     async def run(self, *args, **kwargs):
         """We need to override this method to implement main task logic"""

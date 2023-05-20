@@ -1,4 +1,5 @@
 import asyncio
+import multiprocessing
 import os.path
 import logging
 from pathlib import Path
@@ -22,7 +23,8 @@ from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
 
 __all__ = ["DownloadEpisodeTask", "UploadedEpisodeTask", "DownloadEpisodeImageTask"]
 
-logger = logging.getLogger(__name__)
+logger = multiprocessing.get_logger()
+# logger = logging.getLogger(__name__)
 log_levels = {
     FinishCode.OK: logging.INFO,
     FinishCode.SKIP: logging.INFO,
