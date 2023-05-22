@@ -42,10 +42,11 @@ def run_and_terminate():
 
     # run_subprocess(result_queue)
     print("waiting...")
-    time.sleep(random.randint(2, 3))
+    time.sleep(random.randint(1, 2))
     if process.is_alive():
-        os.system('ps aux | grep "sleep 125" | grep -v grep | awk \'{print $2}\' | xargs kill')
-        # subprocess.run('ps aux | grep "sleep 125" | grep -v grep | awk "{print $2}"'.split())
+        grep = "sleep 125"
+        print(f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill")
+        os.system(f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill")
         process.terminate()
         print("terminated")
         return

@@ -47,9 +47,12 @@ class DownloadEpisodeTask(RQTask):
     """
 
     storage: StorageS3
+    tmp_audio_path: Path
+    ffmpeg_preparation_in_progress: bool
 
     async def run(self, episode_id: int) -> int:  # pylint: disable=arguments-differ
         self.storage = StorageS3()
+        self.ffmpeg_preparation_in_progress = False
 
         try:
             code = await self.perform_run(int(episode_id))
@@ -91,10 +94,10 @@ class DownloadEpisodeTask(RQTask):
         await self._check_is_needed(episode)
         await self._remove_unfinished(episode)
         await self._update_episodes(episode, update_data={"status": Episode.Status.DOWNLOADING})
-        tmp_audio_path = await self._download_episode(episode)
+        self.tmp_audio_path = await self._download_episode(episode)
 
-        await self._process_file(episode, tmp_audio_path)
-        remote_file_size = await self._upload_file(episode, tmp_audio_path)
+        await self._process_file(episode, self.tmp_audio_path)
+        remote_file_size = await self._upload_file(episode, self.tmp_audio_path)
         await self._update_episodes(
             episode,
             update_data={
@@ -105,10 +108,17 @@ class DownloadEpisodeTask(RQTask):
         await self._update_files(episode, {"size": remote_file_size, "available": True})
         await self._update_all_rss(episode.source_id)
 
-        podcast_utils.delete_file(tmp_audio_path)
+        podcast_utils.delete_file(self.tmp_audio_path)
 
         logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
         return FinishCode.OK
+
+    def teardown(self):
+        if self.ffmpeg_preparation_in_progress:
+            logger.debug("Teardown task 'DownloadEpisodeTask': killing ffmpeg called process")
+            podcast_utils.kill_process(grep=f"ffmpeg -y -i {self.tmp_audio_path}")
+        else:
+            logger.debug("Teardown task 'DownloadEpisodeTask': no run ffmpeg process (skip)")
 
     async def _check_is_needed(self, episode: Episode):
         """Finding already downloaded file for episode's audio file path"""
@@ -184,13 +194,14 @@ class DownloadEpisodeTask(RQTask):
             )
             self.storage.delete_file(audio_path)
 
-    @staticmethod
-    async def _process_file(episode: Episode, tmp_audio_path: Path):
+    async def _process_file(self, episode: Episode, tmp_audio_path: Path):
         """Postprocessing for downloaded audio file"""
         source_config = SOURCE_CFG_MAP[episode.source_type]
         if source_config.need_postprocessing:
             logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
+            self.ffmpeg_preparation_in_progress = True
             provider_utils.ffmpeg_preparation(src_path=tmp_audio_path)
+            self.ffmpeg_preparation_in_progress = False
             logger.info("=== [%s] POST PROCESSING was done === ", episode.source_id)
         else:
             logger.info("=== [%s] POST PROCESSING SKIP === ", episode.source_id)

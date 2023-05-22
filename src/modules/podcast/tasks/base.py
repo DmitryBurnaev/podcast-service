@@ -70,6 +70,7 @@ class RQTask:
             status = job.get_status()
             logger.debug("jobid: %s | status: %s", job.id, status)
             if status == "canceled":  # status can be changed by RQTask.cancel_task()
+                self.teardown()
                 process.terminate()
                 logger.warning(f"Process '%s' terminated!", process)
                 break
@@ -133,3 +134,6 @@ class RQTask:
             logger.exception("Couldn't cancel task %s: %r", job_id, exc)
         else:
             logger.info("Canceled task %s", job_id)
+
+    def teardown(self):
+        pass

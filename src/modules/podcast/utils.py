@@ -212,3 +212,17 @@ async def publish_redis_stop_downloading(episode_id: int) -> None:
         channel=settings.REDIS_STOP_DOWNLOADING_PUBSUB_CH,
         message=json.dumps({"episode_id": episode_id}),
     )
+
+
+def kill_process(grep: str) -> None:
+    """Finds (with grep) process and tries to kill it"""
+
+    command = f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill"
+    try:
+        logger.debug("Trying to kill subprocess by command: '%s'", command)
+        os.system(command)
+    except Exception as exc:
+        # TODO: recheck retcode
+        logger.error("Couldn't kill subprocess by grep: %s | err: %r", grep, exc)
+    else:
+        logger.info("Killed process by grep: %s", grep)
