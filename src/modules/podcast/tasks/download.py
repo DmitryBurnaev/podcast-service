@@ -48,7 +48,7 @@ class DownloadEpisodeTask(RQTask):
 
     storage: StorageS3
     tmp_audio_path: Path
-    ffmpeg_preparation_in_progress: bool
+    # ffmpeg_preparation_in_progress: bool
 
     async def run(self, episode_id: int) -> int:  # pylint: disable=arguments-differ
         self.storage = StorageS3()
@@ -114,6 +114,7 @@ class DownloadEpisodeTask(RQTask):
         return FinishCode.OK
 
     def teardown(self):
+        # FIXME: AttributeError: 'DownloadEpisodeTask' object has no attribute 'ffmpeg_preparation_in_progress'
         if self.ffmpeg_preparation_in_progress:
             logger.debug("Teardown task 'DownloadEpisodeTask': killing ffmpeg called process")
             podcast_utils.kill_process(grep=f"ffmpeg -y -i {self.tmp_audio_path}")
