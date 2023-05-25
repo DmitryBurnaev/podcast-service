@@ -4,6 +4,7 @@ import logging
 import multiprocessing
 import queue
 import time
+from typing import Any, NamedTuple
 
 from redis.client import Redis
 from rq.job import Job
@@ -21,6 +22,12 @@ class FinishCode(int, enum.Enum):
     OK = 0
     SKIP = 1
     ERROR = 2
+    IN_PROGRESS = 3
+
+
+class MultiprocessResult(NamedTuple):
+    finish_code: FinishCode | None = None
+    extra_data: dict | None = None
 
 
 class RQTask:
@@ -49,12 +56,6 @@ class RQTask:
     def _run_with_subprocess(self, *task_args, **task_kwargs) -> FinishCode:
         """ Run logic in subprocess allows to terminate run task in the background"""
 
-        def extract_result(result_queue: multiprocessing.Queue) -> FinishCode | None:
-            try:
-                return result_queue.get(block=False)
-            except queue.Empty:
-                return None
-
         result_queue = multiprocessing.Queue()
         process = multiprocessing.Process(
             target=self._perform_and_run,
@@ -66,7 +67,11 @@ class RQTask:
         job = Job.fetch(self.get_job_id(**task_kwargs), connection=Redis())
         finish_code = None
         while finish_code is None:
-            finish_code = extract_result(result_queue)
+            if result := self.extract_result(result_queue):
+                finish_code = result.finish_code
+            else:
+                finish_code = None
+
             status = job.get_status()
             logger.debug("jobid: %s | status: %s", job.id, status)
             if status == "canceled":  # status can be changed by RQTask.cancel_task()
@@ -85,6 +90,7 @@ class RQTask:
         (for retrieving results above)
         """
         print("_perform_and_run")
+        self.queue = queue
 
         async def run_async(*args, **kwargs):
             """Allows calling `self.run` in transaction block with catching any exceptions"""
@@ -105,8 +111,8 @@ class RQTask:
             return result
 
         finish_code = asyncio.run(run_async(*args, **kwargs))
-        print("queue.put", queue, finish_code)
-        queue.put(finish_code)
+        print("queue.put", self.queue, finish_code)
+        self.queue.put(finish_code)
 
     @property
     def name(self):
@@ -137,3 +143,10 @@ class RQTask:
 
     def teardown(self):
         pass
+
+    @staticmethod
+    def extract_result(result_queue: multiprocessing.Queue, block: bool = False) -> MultiprocessResult | None:
+        try:
+            return result_queue.get(block=block)
+        except queue.Empty:
+            return None

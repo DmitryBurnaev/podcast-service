@@ -14,7 +14,7 @@ from common.utils import download_content
 from common.exceptions import NotFoundError, MaxAttemptsReached
 from modules.media.models import File
 from modules.podcast.models import Episode, Cookie
-from modules.podcast.tasks.base import RQTask, FinishCode
+from modules.podcast.tasks.base import RQTask, FinishCode, MultiprocessResult
 from modules.podcast.tasks.rss import GenerateRSSTask
 from modules.podcast.utils import get_file_size
 from modules.providers import utils as provider_utils
@@ -23,7 +23,7 @@ from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
 
 __all__ = ["DownloadEpisodeTask", "UploadedEpisodeTask", "DownloadEpisodeImageTask"]
 
-logger = multiprocessing.get_logger()
+logger = multiprocessing.get_logger()  # TODO: use logger's multiprocessing manager
 # logger = logging.getLogger(__name__)
 log_levels = {
     FinishCode.OK: logging.INFO,
@@ -48,6 +48,7 @@ class DownloadEpisodeTask(RQTask):
 
     storage: StorageS3
     tmp_audio_path: Path
+    queue: multiprocessing.Queue
 
     async def run(self, episode_id: int) -> int:  # pylint: disable=arguments-differ
         self.storage = StorageS3()
@@ -111,10 +112,16 @@ class DownloadEpisodeTask(RQTask):
         logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
         return FinishCode.OK
 
-    def teardown(self):
+    def teardown(self, **kwargs):
         # FIXME: AttributeError: 'DownloadEpisodeTask' object has no attribute 'ffmpeg_preparation_in_progress'
         #       we can provide tmp_path in the redis storage
-        if self.ffmpeg_preparation_in_progress:
+
+        file_in_postprocessing = None
+        if in_progress_data := self.extract_result(self.queue):
+            if in_progress_data.finish_code == FinishCode.IN_PROGRESS:
+                file_in_postprocessing = (in_progress_data.extra_data or {}).get("tmp_audio_path")
+
+        if file_in_postprocessing:
             logger.debug("Teardown task 'DownloadEpisodeTask': killing ffmpeg called process")
             podcast_utils.kill_process(grep=f"ffmpeg -y -i {self.tmp_audio_path}")
         else:
@@ -199,11 +206,13 @@ class DownloadEpisodeTask(RQTask):
         source_config = SOURCE_CFG_MAP[episode.source_type]
         if source_config.need_postprocessing:
             logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
-            # TODO: provide task_id with calling task in subprocess
-            await RedisClient().async_set(f"tmp-audio-path-{task_id}", self.tmp_audio_path)
-            self.ffmpeg_preparation_in_progress = True
+            self.queue.put(
+                MultiprocessResult(
+                    finish_code=FinishCode.IN_PROGRESS,
+                    extra_data={"tmp_audio_path": self.tmp_audio_path}
+                )
+            )
             provider_utils.ffmpeg_preparation(src_path=tmp_audio_path)
-            self.ffmpeg_preparation_in_progress = False
             logger.info("=== [%s] POST PROCESSING was done === ", episode.source_id)
         else:
             logger.info("=== [%s] POST PROCESSING SKIP === ", episode.source_id)
