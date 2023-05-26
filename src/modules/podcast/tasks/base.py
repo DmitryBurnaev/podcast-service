@@ -16,6 +16,9 @@ from core import settings
 logger = logging.getLogger(__name__)
 # multiprocessing.
 multiprocessing.log_to_stderr(level=logging.INFO)
+# logger = multiprocessing.Manager
+# TODO: implement logging for multiprocessing mode.
+
 
 
 class FinishCode(int, enum.Enum):
@@ -59,6 +62,7 @@ class RQTask:
         result_queue = multiprocessing.Queue()
         process = multiprocessing.Process(
             target=self._perform_and_run,
+            # TODO: use separated queue instead
             args=(result_queue, *task_args),
             kwargs=task_kwargs,
         )
