@@ -1,3 +1,4 @@
+import dataclasses
 import enum
 import asyncio
 import logging
@@ -20,17 +21,21 @@ multiprocessing.log_to_stderr(level=logging.INFO)
 # TODO: implement logging for multiprocessing mode.
 
 
+class CurrentState(enum.StrEnum):
+    OK = "OK"
+    SKIP = "SKIP"
+    ERROR = "ERROR"
+    IN_PROGRESS = "IN_PROGRESS"
 
-class FinishCode(int, enum.Enum):
-    OK = 0
-    SKIP = 1
-    ERROR = 2
-    IN_PROGRESS = 3
+
+@dataclasses.dataclass
+class StateData:
+    tmp_filename: str = None
 
 
 class MultiprocessResult(NamedTuple):
-    finish_code: FinishCode | None = None
-    extra_data: dict | None = None
+    current_state: CurrentState | None = None
+    state_data: StateData | None = None
 
 
 class RQTask:
@@ -46,7 +51,7 @@ class RQTask:
         """We need to override this method to implement main task logic"""
         raise NotImplementedError
 
-    def __call__(self, *args, **kwargs) -> FinishCode:
+    def __call__(self, *args, **kwargs) -> CurrentState:
         logger.info("==== STARTED task %s ====", self.name)
         finish_code = self._run_with_subprocess(*args, **kwargs)
         logger.info("==== FINISHED task %s | code %s ====", self.name, finish_code)
@@ -56,13 +61,12 @@ class RQTask:
         """Can be used for test's simplify"""
         return isinstance(other, self.__class__) and self.__class__ == other.__class__
 
-    def _run_with_subprocess(self, *task_args, **task_kwargs) -> FinishCode:
+    def _run_with_subprocess(self, *task_args, **task_kwargs) -> CurrentState:
         """ Run logic in subprocess allows to terminate run task in the background"""
 
         result_queue = multiprocessing.Queue()
         process = multiprocessing.Process(
             target=self._perform_and_run,
-            # TODO: use separated queue instead
             args=(result_queue, *task_args),
             kwargs=task_kwargs,
         )
@@ -72,7 +76,7 @@ class RQTask:
         finish_code = None
         while finish_code is None:
             if result := self.extract_result(result_queue):
-                finish_code = result.finish_code
+                finish_code = result.current_state
             else:
                 finish_code = None
 
@@ -109,7 +113,7 @@ class RQTask:
 
             except Exception as exc:
                 await self.db_session.rollback()
-                result = FinishCode.ERROR
+                result = CurrentState.ERROR
                 logger.exception("Couldn't perform task %s | error %r", self.name, exc)
 
             return result

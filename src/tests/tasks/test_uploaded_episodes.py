@@ -6,7 +6,7 @@ from modules.media.models import File
 from modules.podcast.models import Episode, Podcast
 from common.enums import EpisodeStatus, SourceType, FileType
 from modules.podcast.tasks import UploadedEpisodeTask
-from modules.podcast.tasks.base import FinishCode
+from modules.podcast.tasks.base import CurrentState
 from tests.api.test_base import BaseTestCase
 from tests.helpers import get_episode_data, get_source_id
 
@@ -48,7 +48,7 @@ class TestUploadedEpisodeTask(BaseTestCase):
         mocked_s3.copy_file.return_value = new_remote
 
         result = await UploadedEpisodeTask(db_session=dbs).run(episode.id)
-        assert result == FinishCode.OK
+        assert result == CurrentState.OK
 
         await dbs.refresh(episode)
         await dbs.refresh(episode.audio)
@@ -82,7 +82,7 @@ class TestUploadedEpisodeTask(BaseTestCase):
         result = await UploadedEpisodeTask(db_session=dbs).run(episode.id)
         await dbs.refresh(episode)
 
-        assert result == FinishCode.ERROR
+        assert result == CurrentState.ERROR
         assert episode.status == Episode.Status.NEW
         assert episode.published_at is None
         assert not episode.audio.available
@@ -102,7 +102,7 @@ class TestUploadedEpisodeTask(BaseTestCase):
         episode = await self._episode(dbs, podcast, user, file_size=1024)
 
         result = await UploadedEpisodeTask(db_session=dbs).run(episode.id)
-        assert result == FinishCode.ERROR
+        assert result == CurrentState.ERROR
 
         mocked_generate_rss_task.run.assert_not_called()
         episode = await Episode.async_get(dbs, id=episode.id)
