@@ -14,7 +14,8 @@ from common.utils import download_content
 from common.exceptions import NotFoundError, MaxAttemptsReached
 from modules.media.models import File
 from modules.podcast.models import Episode, Cookie
-from modules.podcast.tasks.base import RQTask, CurrentState, MultiprocessResult, StateData
+from modules.podcast.tasks.base import RQTask, TaskState, TaskStateInfo, StateData, \
+    TaskInProgressAction
 from modules.podcast.tasks.rss import GenerateRSSTask
 from modules.podcast.utils import get_file_size
 from modules.providers import utils as provider_utils
@@ -26,14 +27,14 @@ __all__ = ["DownloadEpisodeTask", "UploadedEpisodeTask", "DownloadEpisodeImageTa
 logger = multiprocessing.get_logger()  # TODO: use logger's multiprocessing manager
 # logger = logging.getLogger(__name__)
 log_levels = {
-    CurrentState.OK: logging.INFO,
-    CurrentState.SKIP: logging.INFO,
-    CurrentState.ERROR: logging.ERROR,
+    TaskState.FINISHED: logging.INFO,
+    TaskState.SKIP: logging.INFO,
+    TaskState.ERROR: logging.ERROR,
 }
 
 
 class DownloadingInterrupted(Exception):
-    def __init__(self, code: CurrentState, message: str = ""):
+    def __init__(self, code: TaskState, message: str = ""):
         self.code = code
         self.message = message
 
@@ -50,7 +51,7 @@ class DownloadEpisodeTask(RQTask):
     tmp_audio_path: Path
     queue: multiprocessing.Queue
 
-    async def run(self, episode_id: int) -> int:  # pylint: disable=arguments-differ
+    async def run(self, episode_id: int) -> TaskState:  # pylint: disable=arguments-differ
         self.storage = StorageS3()
 
         try:
@@ -69,14 +70,14 @@ class DownloadEpisodeTask(RQTask):
                 filter_kwargs={"id": episode_id},
                 update_data={"status": Episode.Status.ERROR},
             )
-            code_value = CurrentState.ERROR
+            code_value = TaskState.ERROR
 
         finally:
             await self._publish_redis_signal()
 
         return code_value
 
-    async def perform_run(self, episode_id: int) -> CurrentState:
+    async def perform_run(self, episode_id: int) -> TaskState:
         """
         Main operation for downloading, performing and uploading audio to the storage.
 
@@ -110,24 +111,46 @@ class DownloadEpisodeTask(RQTask):
         podcast_utils.delete_file(self.tmp_audio_path)
 
         logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
-        return CurrentState.OK
+        return TaskState.FINISHED
 
-    def teardown(self, **kwargs):
-        # FIXME: AttributeError: 'DownloadEpisodeTask' object has no attribute 'ffmpeg_preparation_in_progress'
-        #       we can provide tmp_path in the redis storage
+    def teardown(self, state_data: StateData | None = None):
+        super().teardown(state_data)
+        if not state_data:
+            logger.debug("Teardown task 'DownloadEpisodeTask': no state_data detected")
+            return
 
-        file_in_postprocessing = None
-        if task_run_state := self.extract_result(self.queue):
-            print(task_run_state)
-            if task_run_state.current_state == CurrentState.IN_PROGRESS:
-                # with suppress(AttributeError):
-                file_in_postprocessing = task_run_state.state_data.tmp_filename
-
-        if file_in_postprocessing:
+        if state_data.local_filename:
             logger.debug("Teardown task 'DownloadEpisodeTask': killing ffmpeg called process")
-            podcast_utils.kill_process(grep=f"ffmpeg -y -i {self.tmp_audio_path}")
+            podcast_utils.kill_process(grep=f"ffmpeg -y -i {state_data.local_filename}")
         else:
-            logger.debug("Teardown task 'DownloadEpisodeTask': no run ffmpeg process (skip)")
+            logger.debug(
+                "Teardown task 'DownloadEpisodeTask': no localfile detected: %s", state_data
+            )
+
+        #
+        # # FIXME: AttributeError: 'DownloadEpisodeTask' object has no attribute 'ffmpeg_preparation_in_progress'
+        # #       we can provide tmp_path in the redis storage
+        #
+        # file_in_postprocessing = None
+        # if task_run_state := self.extract_result(self.queue):
+        #     print(task_run_state)
+        #     if task_run_state.state == TaskState.IN_PROGRESS:
+        #         # with suppress(AttributeError):
+        #         file_in_postprocessing = task_run_state.state_data.tmp_filename
+        #
+        # if file_in_postprocessing:
+        #     logger.debug("Teardown task 'DownloadEpisodeTask': killing ffmpeg called process")
+        #     podcast_utils.kill_process(grep=f"ffmpeg -y -i {self.tmp_audio_path}")
+        # else:
+        #     logger.debug("Teardown task 'DownloadEpisodeTask': no run ffmpeg process (skip)")
+
+    def _set_queue_action(self, action: TaskInProgressAction, filename: Path | None = None):
+        self.queue.put(
+            TaskStateInfo(
+                state=TaskState.IN_PROGRESS,
+                state_data=StateData(action=action, local_filename=filename)
+            )
+        )
 
     async def _check_is_needed(self, episode: Episode):
         """Finding already downloaded file for episode's audio file path"""
@@ -135,6 +158,7 @@ class DownloadEpisodeTask(RQTask):
         if not (audio_path := episode.audio.path):
             return
 
+        self._set_queue_action(TaskInProgressAction.CHECKING)
         stored_file_size = self.storage.get_file_size(dst_path=audio_path)
         if stored_file_size and stored_file_size == episode.audio.size:
             logger.info(
@@ -150,16 +174,19 @@ class DownloadEpisodeTask(RQTask):
             )
             await self._update_files(episode, {"size": stored_file_size, "available": True})
             await self._update_all_rss(episode.source_id)
-            raise DownloadingInterrupted(code=CurrentState.SKIP)
+            raise DownloadingInterrupted(code=TaskState.SKIP)
 
     async def _download_episode(self, episode: Episode) -> Path:
         """Fetching info from external resource and extract audio from target source"""
+
+        self._set_queue_action(TaskInProgressAction.DOWNLOADING)
+
         if not SOURCE_CFG_MAP[episode.source_type].need_downloading:
             if result_path := episode.audio.path:
                 return Path(result_path)
 
             raise DownloadingInterrupted(
-                code=CurrentState.ERROR,
+                code=TaskState.ERROR,
                 message="Episode [source: UPLOAD] does not contain audio with predefined path",
             )
 
@@ -182,7 +209,7 @@ class DownloadEpisodeTask(RQTask):
             )
             await self._update_episodes(episode, {"status": Episode.Status.ERROR})
             await self._update_files(episode, {"available": False})
-            raise DownloadingInterrupted(code=CurrentState.ERROR) from exc
+            raise DownloadingInterrupted(code=TaskState.ERROR) from exc
 
         logger.info("=== [%s] DOWNLOADING was done ===", episode.source_id)
         return result_path
@@ -208,12 +235,7 @@ class DownloadEpisodeTask(RQTask):
         source_config = SOURCE_CFG_MAP[episode.source_type]
         if source_config.need_postprocessing:
             logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
-            self.queue.put(
-                MultiprocessResult(
-                    current_state=CurrentState.IN_PROGRESS,
-                    state_data=StateData(tmp_filename=tmp_audio_path)
-                )
-            )
+            self._set_queue_action(TaskInProgressAction.POST_PROCESSING, filename=tmp_audio_path)
             provider_utils.ffmpeg_preparation(src_path=tmp_audio_path)
             logger.info("=== [%s] POST PROCESSING was done === ", episode.source_id)
         else:
@@ -223,11 +245,13 @@ class DownloadEpisodeTask(RQTask):
         """Uploading file to the storage (S3)"""
 
         logger.info("=== [%s] UPLOADING === ", episode.source_id)
+        self._set_queue_action(TaskInProgressAction.UPLOADING, filename=tmp_audio_path)
+
         remote_path = podcast_utils.upload_episode(tmp_audio_path)
         if not remote_path:
             logger.warning("=== [%s] UPLOADING was broken === ")
             await self._update_episodes(episode, {"status": Episode.Status.ERROR})
-            raise DownloadingInterrupted(code=CurrentState.ERROR)
+            raise DownloadingInterrupted(code=TaskState.ERROR)
 
         await self._update_files(episode, {"path": remote_path})
         result_file_size = self.storage.get_file_size(tmp_audio_path.name)
@@ -280,7 +304,7 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
     Allows preparations for already uploaded episodes (such as manually uploaded episodes)
     """
 
-    async def perform_run(self, episode_id: int) -> CurrentState:
+    async def perform_run(self, episode_id: int) -> TaskState:
         """
         Main operation for downloading, performing and uploading audio to the storage.
 
@@ -296,12 +320,12 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
         remote_size = self.storage.get_file_size(dst_path=episode.audio.path)
         if episode.status == EpisodeStatus.PUBLISHED and remote_size == episode.audio.size:
             raise DownloadingInterrupted(
-                code=CurrentState.SKIP, message=f"Episode #{episode_id} already published."
+                code=TaskState.SKIP, message=f"Episode #{episode_id} already published."
             )
 
         if remote_size != episode.audio.size:
             raise DownloadingInterrupted(
-                code=CurrentState.ERROR,
+                code=TaskState.ERROR,
                 message=(
                     f"Performing uploaded file failed: incorrect remote file size: {remote_size}"
                 ),
@@ -325,7 +349,7 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
         await self.db_session.flush()
         # self._delete_tmp_file(old_path)
         logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
-        return CurrentState.OK
+        return TaskState.FINISHED
 
     async def _copy_file(self, episode: Episode) -> str:
         """Uploading file to the storage (S3)"""
@@ -338,7 +362,7 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
         if not remote_path:
             logger.warning("=== [%s] REMOTE COPYING was broken === ")
             await episode.update(self.db_session, status=Episode.Status.ERROR)
-            raise DownloadingInterrupted(code=CurrentState.ERROR)
+            raise DownloadingInterrupted(code=TaskState.ERROR)
 
         logger.info(
             "=== [%s] REMOTE COPYING was done (%s -> %s):  === ",
@@ -369,11 +393,11 @@ class DownloadEpisodeImageTask(RQTask):
             logger.exception(
                 "Unable to upload episode's image: episode %s | error: %r", episode_id, exc
             )
-            return CurrentState.ERROR
+            return TaskState.ERROR
 
         return code.value
 
-    async def perform_run(self, episode_id: int | None) -> CurrentState:
+    async def perform_run(self, episode_id: int | None) -> TaskState:
         filter_kwargs = {}
         if episode_id:
             filter_kwargs["id"] = int(episode_id)
@@ -403,7 +427,7 @@ class DownloadEpisodeImageTask(RQTask):
                 public=False,
                 size=size,
             )
-        return CurrentState.OK
+        return TaskState.FINISHED
 
     @staticmethod
     async def _download_and_crop_image(episode: Episode) -> Path | None:

@@ -9,7 +9,7 @@ from common.enums import FileType
 from common.storage import StorageS3
 from modules.media.models import File
 from modules.podcast.models import Podcast, Episode
-from modules.podcast.tasks.base import RQTask, CurrentState
+from modules.podcast.tasks.base import RQTask, TaskState
 from modules.podcast.utils import get_file_size
 
 # multiprocessing.log_to_stderr(level=logging.INFO)
@@ -24,7 +24,7 @@ class GenerateRSSTask(RQTask):
 
     storage: StorageS3
 
-    async def run(self, *podcast_ids: int, **_) -> CurrentState:
+    async def run(self, *podcast_ids: int, **_) -> TaskState:
         """Run process for generation and upload RSS to the cloud (S3)"""
 
         self.storage = StorageS3()
@@ -39,11 +39,11 @@ class GenerateRSSTask(RQTask):
         print("done")
         logger.info("Regeneration results: \n%s", results)
 
-        if CurrentState.ERROR in results.values():
-            return CurrentState.ERROR
+        if TaskState.ERROR in results.values():
+            return TaskState.ERROR
 
-        print(CurrentState.OK)
-        return CurrentState.OK
+        print(TaskState.FINISHED)
+        return TaskState.FINISHED
 
     async def _generate(self, podcast: Podcast) -> dict:
         """Render RSS and upload it"""
@@ -53,7 +53,7 @@ class GenerateRSSTask(RQTask):
         remote_path = self.storage.upload_file(local_path, dst_path=settings.S3_BUCKET_RSS_PATH)
         if not remote_path:
             logger.error("Couldn't upload RSS file to storage. SKIP")
-            return {podcast.id: CurrentState.ERROR}
+            return {podcast.id: TaskState.ERROR}
 
         rss_data = {
             "path": remote_path,
@@ -73,7 +73,7 @@ class GenerateRSSTask(RQTask):
 
         logger.info("Podcast #%i: RSS file uploaded, podcast record updated", podcast.id)
         logger.info("FINISH generation for %s | PATH: %s", podcast, remote_path)
-        return {podcast.id: CurrentState.OK}
+        return {podcast.id: TaskState.FINISHED}
 
     async def _render_rss_to_file(self, podcast: Podcast) -> str:
         """Generate rss for Podcast and Episodes marked as "published" """

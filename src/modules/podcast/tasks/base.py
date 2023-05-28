@@ -5,6 +5,8 @@ import logging
 import multiprocessing
 import queue
 import time
+from contextlib import suppress
+from pathlib import Path
 from typing import Any, NamedTuple
 
 from redis.client import Redis
@@ -21,20 +23,31 @@ multiprocessing.log_to_stderr(level=logging.INFO)
 # TODO: implement logging for multiprocessing mode.
 
 
-class CurrentState(enum.StrEnum):
-    OK = "OK"
+class TaskState(enum.StrEnum):
+    PENDING = "PENDING"
+    FINISHED = "FINISHED"
     SKIP = "SKIP"
     ERROR = "ERROR"
     IN_PROGRESS = "IN_PROGRESS"
 
 
+class TaskInProgressAction(enum.StrEnum):
+    CHECKING = "CHECKING"
+    DOWNLOADING = "DOWNLOADING"
+    POST_PROCESSING = "POST_PROCESSING"
+    UPLOADING = "UPLOADING"
+
+
 @dataclasses.dataclass
 class StateData:
-    tmp_filename: str = None
+    action: TaskInProgressAction
+    # TODO: may be we have to use dict here?
+    local_filename: str | Path = None
+    error_details: str | None = None
 
 
-class MultiprocessResult(NamedTuple):
-    current_state: CurrentState | None = None
+class TaskStateInfo(NamedTuple):
+    state: TaskState | None = None
     state_data: StateData | None = None
 
 
@@ -51,7 +64,7 @@ class RQTask:
         """We need to override this method to implement main task logic"""
         raise NotImplementedError
 
-    def __call__(self, *args, **kwargs) -> CurrentState:
+    def __call__(self, *args, **kwargs) -> TaskState:
         logger.info("==== STARTED task %s ====", self.name)
         finish_code = self._run_with_subprocess(*args, **kwargs)
         logger.info("==== FINISHED task %s | code %s ====", self.name, finish_code)
@@ -61,36 +74,56 @@ class RQTask:
         """Can be used for test's simplify"""
         return isinstance(other, self.__class__) and self.__class__ == other.__class__
 
-    def _run_with_subprocess(self, *task_args, **task_kwargs) -> CurrentState:
+    def _run_with_subprocess(self, *task_args, **task_kwargs) -> TaskState:
         """ Run logic in subprocess allows to terminate run task in the background"""
 
-        result_queue = multiprocessing.Queue()
+        def extract_state_info(queue: multiprocessing.Queue) -> TaskStateInfo | None:
+            with suppress(AttributeError):
+                return queue.get(block=False)
+
+        task_state_queue = multiprocessing.Queue()
         process = multiprocessing.Process(
             target=self._perform_and_run,
-            args=(result_queue, *task_args),
+            args=(task_state_queue, *task_args),
             kwargs=task_kwargs,
         )
         process.start()
 
         job = Job.fetch(self.get_job_id(**task_kwargs), connection=Redis())
-        finish_code = None
-        while finish_code is None:
-            if result := self.extract_result(result_queue):
-                finish_code = result.current_state
-            else:
-                finish_code = None
+        state_info = extract_state_info(task_state_queue) or TaskStateInfo(state=TaskState.PENDING)
+        while state_info.state not in (TaskState.FINISHED, TaskState.ERROR):
+            job_status = job.get_status()
+            logger.debug("jobid: %s | job_status: %s", job.id, job_status)
+            if job_status == "canceled":  # status can be changed by RQTask.cancel_task()
+                if state_info.state == TaskState.IN_PROGRESS:
+                    self.teardown(state_info.state_data)
 
-            status = job.get_status()
-            logger.debug("jobid: %s | status: %s", job.id, status)
-            if status == "canceled":  # status can be changed by RQTask.cancel_task()
-                self.teardown()
                 process.terminate()
                 logger.warning(f"Process '%s' terminated!", process)
                 break
 
+            state_info = extract_state_info(task_state_queue)
             time.sleep(1)
 
-        return finish_code
+        return state_info.state
+
+        #
+        # finish_code = None
+        # while finish_code is None:
+        #     if result := self.extract_result(task_state_queue):
+        #         finish_code = result.state
+        #     else:
+        #         finish_code = None
+        #
+        #     status = job.get_status()
+        #     logger.debug("jobid: %s | status: %s", job.id, status)
+        #     if status == "canceled":  # status can be changed by RQTask.cancel_task()
+        #         self.teardown()
+        #         process.terminate()
+        #         logger.warning(f"Process '%s' terminated!", process)
+        #         break
+        #
+        #     time.sleep(1)
 
     def _perform_and_run(self, queue, *args, **kwargs):
         """
@@ -113,7 +146,7 @@ class RQTask:
 
             except Exception as exc:
                 await self.db_session.rollback()
-                result = CurrentState.ERROR
+                result = TaskState.ERROR
                 logger.exception("Couldn't perform task %s | error %r", self.name, exc)
 
             return result
@@ -149,11 +182,11 @@ class RQTask:
         else:
             logger.info("Canceled task %s", job_id)
 
-    def teardown(self):
-        pass
+    def teardown(self, state_data: StateData):
+        logger.debug("Teardown for %s | state_data: %s", self.__class__.__name__, state_data)
 
     @staticmethod
-    def extract_result(result_queue: multiprocessing.Queue, block: bool = False) -> MultiprocessResult | None:
+    def extract_result(result_queue: multiprocessing.Queue, block: bool = False) -> TaskStateInfo | None:
         try:
             return result_queue.get(block=block)
         except queue.Empty:
