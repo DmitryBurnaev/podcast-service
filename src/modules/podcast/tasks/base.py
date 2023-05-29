@@ -77,9 +77,9 @@ class RQTask:
     def _run_with_subprocess(self, *task_args, **task_kwargs) -> TaskState:
         """ Run logic in subprocess allows to terminate run task in the background"""
 
-        def extract_state_info(queue: multiprocessing.Queue) -> TaskStateInfo | None:
-            with suppress(AttributeError):
-                return queue.get(block=False)
+        def extract_state_info(source_queue: multiprocessing.Queue) -> TaskStateInfo | None:
+            with suppress(queue.Empty):
+                return source_queue.get(block=False)
 
         task_state_queue = multiprocessing.Queue()
         process = multiprocessing.Process(
@@ -90,7 +90,10 @@ class RQTask:
         process.start()
 
         job = Job.fetch(self.get_job_id(**task_kwargs), connection=Redis())
-        state_info = extract_state_info(task_state_queue) or TaskStateInfo(state=TaskState.PENDING)
+
+        if not (state_info := extract_state_info(task_state_queue)):
+            state_info = TaskStateInfo(state=TaskState.PENDING)
+
         while state_info.state not in (TaskState.FINISHED, TaskState.ERROR):
             job_status = job.get_status()
             logger.debug("jobid: %s | job_status: %s", job.id, job_status)
@@ -125,13 +128,13 @@ class RQTask:
         #
         #     time.sleep(1)
 
-    def _perform_and_run(self, queue, *args, **kwargs):
+    def _perform_and_run(self, task_state_queue, *args, **kwargs):
         """
         Runs async code, implemented in `self.run` and stores result to the queue
         (for retrieving results above)
         """
         print("_perform_and_run")
-        self.queue = queue
+        self.task_state_queue = task_state_queue
 
         async def run_async(*args, **kwargs):
             """Allows calling `self.run` in transaction block with catching any exceptions"""
@@ -152,8 +155,8 @@ class RQTask:
             return result
 
         finish_code = asyncio.run(run_async(*args, **kwargs))
-        print("queue.put", self.queue, finish_code)
-        self.queue.put(finish_code)
+        print("queue.put", self.task_state_queue, finish_code)
+        self.task_state_queue.put(finish_code)
 
     @property
     def name(self):

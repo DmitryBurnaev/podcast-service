@@ -1,6 +1,7 @@
 import multiprocessing
 import os
 import logging
+import time
 
 from jinja2 import Template
 
@@ -9,7 +10,8 @@ from common.enums import FileType
 from common.storage import StorageS3
 from modules.media.models import File
 from modules.podcast.models import Podcast, Episode
-from modules.podcast.tasks.base import RQTask, TaskState
+from modules.podcast.tasks.base import RQTask, TaskState, TaskInProgressAction, TaskStateInfo, \
+    StateData
 from modules.podcast.utils import get_file_size
 
 # multiprocessing.log_to_stderr(level=logging.INFO)
@@ -29,6 +31,8 @@ class GenerateRSSTask(RQTask):
 
         self.storage = StorageS3()
         filter_kwargs = {"id__in": map(int, podcast_ids)} if podcast_ids else {}
+        self._set_queue_action(action=TaskInProgressAction.CHECKING)
+        time.sleep(5)
         podcasts = await Podcast.async_filter(self.db_session, **filter_kwargs)
         results = {}
         for podcast in podcasts:
@@ -49,6 +53,9 @@ class GenerateRSSTask(RQTask):
         """Render RSS and upload it"""
 
         logger.info("START rss generation for %s", podcast)
+        self._set_queue_action(action=TaskInProgressAction.POST_PROCESSING)
+        time.sleep(5)
+
         local_path = await self._render_rss_to_file(podcast)
         remote_path = self.storage.upload_file(local_path, dst_path=settings.S3_BUCKET_RSS_PATH)
         if not remote_path:
@@ -98,3 +105,8 @@ class GenerateRSSTask(RQTask):
 
         logger.info("Podcast #%i: RSS file %s generated.", podcast.id, rss_filename)
         return rss_filename
+
+    def _set_queue_action(self, action: TaskInProgressAction):
+        self.task_state_queue.put(
+            TaskStateInfo(state=TaskState.IN_PROGRESS, state_data=StateData(action=action))
+        )
