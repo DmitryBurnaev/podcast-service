@@ -7,7 +7,7 @@ import queue
 import time
 from contextlib import suppress
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import NamedTuple
 
 from redis.client import Redis
 from rq.job import Job
@@ -81,6 +81,12 @@ class RQTask:
             with suppress(queue.Empty):
                 return source_queue.get(block=False)
 
+        def task_in_progress(state_info: TaskStateInfo | None):
+            if not state_info:
+                return True
+
+            return state_info.state not in (TaskState.FINISHED, TaskState.ERROR)
+
         task_state_queue = multiprocessing.Queue()
         process = multiprocessing.Process(
             target=self._perform_and_run,
@@ -94,7 +100,7 @@ class RQTask:
         if not (state_info := extract_state_info(task_state_queue)):
             state_info = TaskStateInfo(state=TaskState.PENDING)
 
-        while state_info.state not in (TaskState.FINISHED, TaskState.ERROR):
+        while task_in_progress(state_info):
             job_status = job.get_status()
             logger.debug("jobid: %s | job_status: %s", job.id, job_status)
             if job_status == "canceled":  # status can be changed by RQTask.cancel_task()
@@ -156,7 +162,8 @@ class RQTask:
 
         finish_code = asyncio.run(run_async(*args, **kwargs))
         print("queue.put", self.task_state_queue, finish_code)
-        self.task_state_queue.put(finish_code)
+
+        self.task_state_queue.put(TaskStateInfo(state=TaskState.FINISHED, state_data=finish_code))
 
     @property
     def name(self):
