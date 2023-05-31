@@ -49,7 +49,6 @@ class DownloadEpisodeTask(RQTask):
 
     storage: StorageS3
     tmp_audio_path: Path
-    queue: multiprocessing.Queue
 
     async def run(self, episode_id: int) -> TaskState:  # pylint: disable=arguments-differ
         self.storage = StorageS3()
@@ -145,7 +144,7 @@ class DownloadEpisodeTask(RQTask):
         #     logger.debug("Teardown task 'DownloadEpisodeTask': no run ffmpeg process (skip)")
 
     def _set_queue_action(self, action: TaskInProgressAction, filename: Path | None = None):
-        self.queue.put(
+        self.task_state_queue.put(
             TaskStateInfo(
                 state=TaskState.IN_PROGRESS,
                 state_data=StateData(action=action, local_filename=filename)
@@ -384,7 +383,7 @@ class DownloadEpisodeImageTask(RQTask):
     storage: StorageS3 = None
     MAX_UPLOAD_ATTEMPT = 5
 
-    async def run(self, episode_id: int | None = None) -> int:  # pylint: disable=arguments-differ
+    async def run(self, episode_id: int | None = None) -> TaskState:  # pylint: disable=arguments-differ
         self.storage = StorageS3()
 
         try:
@@ -395,7 +394,7 @@ class DownloadEpisodeImageTask(RQTask):
             )
             return TaskState.ERROR
 
-        return code.value
+        return code
 
     async def perform_run(self, episode_id: int | None) -> TaskState:
         filter_kwargs = {}
@@ -427,6 +426,7 @@ class DownloadEpisodeImageTask(RQTask):
                 public=False,
                 size=size,
             )
+
         return TaskState.FINISHED
 
     @staticmethod

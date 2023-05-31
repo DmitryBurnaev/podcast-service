@@ -55,6 +55,7 @@ class RQTask:
     """Base class for RQ tasks implementation."""
 
     db_session: AsyncSession
+    task_state_queue: multiprocessing.Queue
 
     def __init__(self, db_session: AsyncSession = None):
         self.db_session = db_session
