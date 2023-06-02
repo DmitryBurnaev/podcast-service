@@ -54,8 +54,14 @@ def run_and_terminate():
     print("result: ", result_queue.get())
 
 
+def run_too_long_process(sleep_time: int):
+    print("Start sleeping process")
+    time.sleep(sleep_time)
+    print("Finish sleeping process")
+
+
 if __name__ == '__main__':
     # run_bash_script()
-    run_and_terminate()
-
+    # run_and_terminate()
+    run_too_long_process(120)
 

@@ -126,23 +126,6 @@ class DownloadEpisodeTask(RQTask):
                 "Teardown task 'DownloadEpisodeTask': no localfile detected: %s", state_data
             )
 
-        #
-        # # FIXME: AttributeError: 'DownloadEpisodeTask' object has no attribute 'ffmpeg_preparation_in_progress'
-        # #       we can provide tmp_path in the redis storage
-        #
-        # file_in_postprocessing = None
-        # if task_run_state := self.extract_result(self.queue):
-        #     print(task_run_state)
-        #     if task_run_state.state == TaskState.IN_PROGRESS:
-        #         # with suppress(AttributeError):
-        #         file_in_postprocessing = task_run_state.state_data.tmp_filename
-        #
-        # if file_in_postprocessing:
-        #     logger.debug("Teardown task 'DownloadEpisodeTask': killing ffmpeg called process")
-        #     podcast_utils.kill_process(grep=f"ffmpeg -y -i {self.tmp_audio_path}")
-        # else:
-        #     logger.debug("Teardown task 'DownloadEpisodeTask': no run ffmpeg process (skip)")
-
     def _set_queue_action(self, action: TaskInProgressAction, filename: Path | None = None):
         self.task_state_queue.put(
             TaskStateInfo(

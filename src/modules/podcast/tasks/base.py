@@ -195,10 +195,3 @@ class RQTask:
 
     def teardown(self, state_data: StateData):
         logger.debug("Teardown for %s | state_data: %s", self.__class__.__name__, state_data)
-
-    @staticmethod
-    def extract_result(result_queue: multiprocessing.Queue, block: bool = False) -> TaskStateInfo | None:
-        try:
-            return result_queue.get(block=block)
-        except queue.Empty:
-            return None

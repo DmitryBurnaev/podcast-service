@@ -33,6 +33,8 @@ class GenerateRSSTask(RQTask):
         filter_kwargs = {"id__in": map(int, podcast_ids)} if podcast_ids else {}
         self._set_queue_action(action=TaskInProgressAction.CHECKING)
         time.sleep(5)
+        # TODO: run in popen "run_too_long_process"
+
         podcasts = await Podcast.async_filter(self.db_session, **filter_kwargs)
         results = {}
         for podcast in podcasts:
