@@ -1,7 +1,9 @@
 import multiprocessing
 import os
 import logging
+import subprocess
 import time
+from multiprocessing import Process
 
 from jinja2 import Template
 
@@ -13,6 +15,7 @@ from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks.base import RQTask, TaskState, TaskInProgressAction, TaskStateInfo, \
     StateData
 from modules.podcast.utils import get_file_size
+from modules.podcast import utils as podcast_utils
 
 # multiprocessing.log_to_stderr(level=logging.INFO)
 logger = multiprocessing.get_logger()
@@ -32,7 +35,8 @@ class GenerateRSSTask(RQTask):
         self.storage = StorageS3()
         filter_kwargs = {"id__in": map(int, podcast_ids)} if podcast_ids else {}
         self._set_queue_action(action=TaskInProgressAction.CHECKING)
-        time.sleep(5)
+        self._run_fake_process()
+        # time.sleep(5)
         # TODO: run in popen "run_too_long_process"
 
         podcasts = await Podcast.async_filter(self.db_session, **filter_kwargs)
@@ -112,3 +116,53 @@ class GenerateRSSTask(RQTask):
         self.task_state_queue.put(
             TaskStateInfo(state=TaskState.IN_PROGRESS, state_data=StateData(action=action))
         )
+
+    def _run_fake_process(self):
+        # process = Process(
+        #     target=post_processing_process_hook,
+        #     kwargs={"filename": filename, "target_path": tmp_path, "total_bytes": total_bytes},
+        # )
+        # process.start()
+        # subprocess.run(
+        #     ["PYTHONPATH=./src", "python", "-m", "src/kill_subpr_experiments.py"],
+        #     stdout=subprocess.PIPE,
+        #     stderr=subprocess.STDOUT,
+        #     check=True,
+        #     timeout=settings.FFMPEG_TIMEOUT,
+        # )
+        try:
+            # ffmpeg_params = ffmpeg_params or ["-vn", "-acodec", "libmp3lame", "-q:a", "5"]
+            subprocess.run(
+                ["python", "-m", "kill_subpr_experiments"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=True,
+                timeout=settings.FFMPEG_TIMEOUT,
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+            # episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
+            # with suppress(IOError):
+            #     os.remove(tmp_path)
+
+            err_details = f"FFMPEG failed with errors: {exc}"
+            if stdout := getattr(exc, "stdout", ""):
+                err_details += f"\n{str(stdout, encoding='utf-8')}"
+            raise RuntimeError(err_details)
+
+            # process.terminate()
+            # raise FFMPegPreparationError(err_details) from exc
+
+    def teardown(self, state_data: StateData | None = None):
+        super().teardown(state_data)
+        podcast_utils.kill_process(grep="python -m kill_subpr_experiments")
+        # if not state_data:
+        #     logger.debug("Teardown task 'DownloadEpisodeTask': no state_data detected")
+        #     return
+        #
+        # if state_data.local_filename:
+        #     logger.debug("Teardown task '': killing kill_subpr_experiments called process")
+        #     podcast_utils.kill_process(grep="python -m kill_subpr_experiments")
+        # else:
+        #     logger.debug(
+        #         "Teardown task 'DownloadEpisodeTask': no localfile detected: %s", state_data
+        #     )

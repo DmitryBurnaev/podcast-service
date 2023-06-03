@@ -196,6 +196,7 @@ def ffmpeg_preparation(
         )
     tmp_path = os.path.join(settings.TMP_AUDIO_PATH, f"tmp_{filename}")
 
+    # TODO: think about stopping this process (post_processing_process_hook) too
     logger.info("Start SUBPROCESS (filesize watching) for %s === ", filename)
     process = Process(
         target=post_processing_process_hook,

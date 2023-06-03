@@ -96,7 +96,7 @@ class RQTask:
         )
         process.start()
 
-        job = Job.fetch(self.get_job_id(**task_kwargs), connection=Redis())
+        job = Job.fetch(self.get_job_id(*task_args, **task_kwargs), connection=Redis())
 
         if not (state_info := extract_state_info(task_state_queue)):
             state_info = TaskStateInfo(state=TaskState.PENDING)
@@ -115,7 +115,7 @@ class RQTask:
 
             time.sleep(1)
 
-        return state_info.state
+        return state_info.state if state_info else None
 
         #
         # finish_code = None
@@ -177,13 +177,13 @@ class RQTask:
             yield subclass
 
     @classmethod
-    def get_job_id(cls, **task_kwargs) -> str:
+    def get_job_id(cls, *task_args, **task_kwargs) -> str:
         kw_pairs = [f"{key}={value}" for key, value in task_kwargs.items()]
-        return f"{cls.__name__.lower()}_{'_'.join(kw_pairs)}"
+        return f"{cls.__name__.lower()}_{'_'.join(map(str, task_args))}_{'_'.join(kw_pairs)}_"
 
     @classmethod
-    def cancel_task(cls, **task_kwargs) -> None:
-        job_id = cls.get_job_id(**task_kwargs)
+    def cancel_task(cls, *task_args, **task_kwargs) -> None:
+        job_id = cls.get_job_id(*task_args, **task_kwargs)
         logger.debug("Trying to cancel task %s", job_id)
         try:
             job = Job.fetch(job_id, connection=Redis())
