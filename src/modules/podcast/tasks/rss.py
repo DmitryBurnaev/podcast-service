@@ -130,6 +130,7 @@ class GenerateRSSTask(RQTask):
         #     check=True,
         #     timeout=settings.FFMPEG_TIMEOUT,
         # )
+        self._set_queue_action(TaskInProgressAction.POST_PROCESSING)
         try:
             # ffmpeg_params = ffmpeg_params or ["-vn", "-acodec", "libmp3lame", "-q:a", "5"]
             subprocess.run(
@@ -144,7 +145,7 @@ class GenerateRSSTask(RQTask):
             # with suppress(IOError):
             #     os.remove(tmp_path)
 
-            err_details = f"FFMPEG failed with errors: {exc}"
+            err_details = f"kill_subpr_experiments failed with errors: {exc}"
             if stdout := getattr(exc, "stdout", ""):
                 err_details += f"\n{str(stdout, encoding='utf-8')}"
             raise RuntimeError(err_details)
@@ -154,6 +155,7 @@ class GenerateRSSTask(RQTask):
 
     def teardown(self, state_data: StateData | None = None):
         super().teardown(state_data)
+        # TODO: provide filename for the test
         podcast_utils.kill_process(grep="python -m kill_subpr_experiments")
         # if not state_data:
         #     logger.debug("Teardown task 'DownloadEpisodeTask': no state_data detected")

@@ -102,9 +102,11 @@ class RQTask:
             state_info = TaskStateInfo(state=TaskState.PENDING)
 
         while task_in_progress(state_info):
-            state_info = extract_state_info(task_state_queue)
+            if new_state_info := extract_state_info(task_state_queue):
+                state_info = new_state_info
+
             job_status = job.get_status()
-            logger.debug("jobid: %s | job_status: %s", job.id, job_status)
+            logger.debug("jobid: %s | job_status: %s | state_info: %s", job.id, job_status, state_info)
             if job_status == "canceled":  # status can be changed by RQTask.cancel_task()
                 if state_info and state_info.state == TaskState.IN_PROGRESS:
                     self.teardown(state_info.state_data)
