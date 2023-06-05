@@ -112,27 +112,22 @@ class GenerateRSSTask(RQTask):
         logger.info("Podcast #%i: RSS file %s generated.", podcast.id, rss_filename)
         return rss_filename
 
-    def _set_queue_action(self, action: TaskInProgressAction):
+    def _set_queue_action(self, action: TaskInProgressAction, state_data: dict[str, str] | None = None ):
+        state_data = state_data or {}
         self.task_state_queue.put(
-            TaskStateInfo(state=TaskState.IN_PROGRESS, state_data=StateData(action=action))
+            TaskStateInfo(
+                state=TaskState.IN_PROGRESS,
+                state_data=StateData(action=action, **state_data)
+            )
         )
 
     def _run_fake_process(self):
-        # process = Process(
-        #     target=post_processing_process_hook,
-        #     kwargs={"filename": filename, "target_path": tmp_path, "total_bytes": total_bytes},
-        # )
-        # process.start()
-        # subprocess.run(
-        #     ["PYTHONPATH=./src", "python", "-m", "src/kill_subpr_experiments.py"],
-        #     stdout=subprocess.PIPE,
-        #     stderr=subprocess.STDOUT,
-        #     check=True,
-        #     timeout=settings.FFMPEG_TIMEOUT,
-        # )
         self._set_queue_action(TaskInProgressAction.POST_PROCESSING)
         try:
-            # ffmpeg_params = ffmpeg_params or ["-vn", "-acodec", "libmp3lame", "-q:a", "5"]
+            self._set_queue_action(
+                TaskInProgressAction.POST_PROCESSING,
+                state_data={"local_filename": "kill_subpr_experiments"}
+            )
             subprocess.run(
                 ["python", "-m", "kill_subpr_experiments"],
                 stdout=subprocess.PIPE,
@@ -140,6 +135,7 @@ class GenerateRSSTask(RQTask):
                 check=True,
                 timeout=settings.FFMPEG_TIMEOUT,
             )
+
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
             # episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
             # with suppress(IOError):
@@ -155,16 +151,14 @@ class GenerateRSSTask(RQTask):
 
     def teardown(self, state_data: StateData | None = None):
         super().teardown(state_data)
-        # TODO: provide filename for the test
-        podcast_utils.kill_process(grep="python -m kill_subpr_experiments")
-        # if not state_data:
-        #     logger.debug("Teardown task 'DownloadEpisodeTask': no state_data detected")
-        #     return
-        #
-        # if state_data.local_filename:
-        #     logger.debug("Teardown task '': killing kill_subpr_experiments called process")
-        #     podcast_utils.kill_process(grep="python -m kill_subpr_experiments")
-        # else:
-        #     logger.debug(
-        #         "Teardown task 'DownloadEpisodeTask': no localfile detected: %s", state_data
-        #     )
+        if not state_data:
+            logger.debug("Teardown task 'DownloadEpisodeTask': no state_data detected")
+            return
+
+        if state_data.local_filename:
+            logger.debug(f"Teardown task: killing {state_data} called process")
+            podcast_utils.kill_process(grep=f"python -m {state_data.local_filename}")
+        else:
+            logger.debug(
+                "Teardown task 'DownloadEpisodeTask': no localfile detected: %s", state_data
+            )
