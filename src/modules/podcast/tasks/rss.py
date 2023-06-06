@@ -117,7 +117,7 @@ class GenerateRSSTask(RQTask):
         self.task_state_queue.put(
             TaskStateInfo(
                 state=TaskState.IN_PROGRESS,
-                state_data=StateData(action=action, **state_data)
+                state_data=StateData(action=action, data=state_data)
             )
         )
 
@@ -137,17 +137,11 @@ class GenerateRSSTask(RQTask):
             )
 
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-            # episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
-            # with suppress(IOError):
-            #     os.remove(tmp_path)
-
             err_details = f"kill_subpr_experiments failed with errors: {exc}"
             if stdout := getattr(exc, "stdout", ""):
                 err_details += f"\n{str(stdout, encoding='utf-8')}"
-            raise RuntimeError(err_details)
 
-            # process.terminate()
-            # raise FFMPegPreparationError(err_details) from exc
+            raise RuntimeError(err_details)
 
     def teardown(self, state_data: StateData | None = None):
         super().teardown(state_data)

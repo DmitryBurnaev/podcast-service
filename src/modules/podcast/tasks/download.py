@@ -130,7 +130,7 @@ class DownloadEpisodeTask(RQTask):
         self.task_state_queue.put(
             TaskStateInfo(
                 state=TaskState.IN_PROGRESS,
-                state_data=StateData(action=action, local_filename=filename)
+                state_data=StateData(action=action, data={"local_filename": filename})
             )
         )
 

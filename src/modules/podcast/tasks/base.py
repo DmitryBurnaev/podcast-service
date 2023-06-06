@@ -44,6 +44,7 @@ class StateData:
     # TODO: may be we have to use dict here?
     local_filename: str | Path = None
     error_details: str | None = None
+    data: dict | None = None
 
 
 class TaskStateInfo(NamedTuple):
