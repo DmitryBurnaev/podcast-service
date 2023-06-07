@@ -35,24 +35,19 @@ class GenerateRSSTask(RQTask):
         self.storage = StorageS3()
         filter_kwargs = {"id__in": map(int, podcast_ids)} if podcast_ids else {}
         self._set_queue_action(action=TaskInProgressAction.CHECKING)
-        self._run_fake_process()
-        # time.sleep(5)
-        # TODO: run in popen "run_too_long_process"
 
         podcasts = await Podcast.async_filter(self.db_session, **filter_kwargs)
         results = {}
         for podcast in podcasts:
-            # import time
-            # time.sleep(5)
             results.update(await self._generate(podcast))
 
-        print("done")
         logger.info("Regeneration results: \n%s", results)
+
+        self._run_fake_process()
 
         if TaskState.ERROR in results.values():
             return TaskState.ERROR
 
-        print(TaskState.FINISHED)
         return TaskState.FINISHED
 
     async def _generate(self, podcast: Podcast) -> dict:
@@ -149,10 +144,8 @@ class GenerateRSSTask(RQTask):
             logger.debug("Teardown task 'DownloadEpisodeTask': no state_data detected")
             return
 
-        if state_data.local_filename:
+        if local_filename := (state_data.data or {}).get("local_filename"):
             logger.debug(f"Teardown task: killing {state_data} called process")
-            podcast_utils.kill_process(grep=f"python -m {state_data.local_filename}")
+            podcast_utils.kill_process(grep=f"python -m {local_filename}")
         else:
-            logger.debug(
-                "Teardown task 'DownloadEpisodeTask': no localfile detected: %s", state_data
-            )
+            logger.debug("Teardown task 'DownloadEpisodeTask': no localfile detected: %s", state_data)

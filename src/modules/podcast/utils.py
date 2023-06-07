@@ -219,10 +219,9 @@ def kill_process(grep: str) -> None:
 
     command = f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill"
     try:
-        print("Trying to kill subprocess by command: '%s'", command)
+        logger.debug("Trying to kill subprocess by command: '%s'", command)
         os.system(command)
     except Exception as exc:
-        # TODO: recheck retcode
-        print("Couldn't kill subprocess by grep: %s | err: %r", grep, exc)
+        logger.error("Couldn't kill subprocess by grep: %s | err: %r", grep, exc)
     else:
-        logger.info("Killed process by grep: %s", grep)
+        logger.info("Killed process by grep: '%s'", grep)
