@@ -126,11 +126,12 @@ class DownloadEpisodeTask(RQTask):
                 "Teardown task 'DownloadEpisodeTask': no localfile detected: %s", state_data
             )
 
-    def _set_queue_action(self, action: TaskInProgressAction, filename: Path | None = None):
+    def _set_queue_action(self, action: TaskInProgressAction, state_data: dict[str, str | Path] | None = None):
+        state_data = state_data or {}
         self.task_state_queue.put(
             TaskStateInfo(
                 state=TaskState.IN_PROGRESS,
-                state_data=StateData(action=action, data={"local_filename": filename})
+                state_data=StateData(action=action, data=state_data)
             )
         )
 
@@ -217,7 +218,9 @@ class DownloadEpisodeTask(RQTask):
         source_config = SOURCE_CFG_MAP[episode.source_type]
         if source_config.need_postprocessing:
             logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
-            self._set_queue_action(TaskInProgressAction.POST_PROCESSING, filename=tmp_audio_path)
+            self._set_queue_action(
+                TaskInProgressAction.POST_PROCESSING, state_data={"local_filename": tmp_audio_path}
+            )
             provider_utils.ffmpeg_preparation(src_path=tmp_audio_path)
             logger.info("=== [%s] POST PROCESSING was done === ", episode.source_id)
         else:
@@ -227,7 +230,9 @@ class DownloadEpisodeTask(RQTask):
         """Uploading file to the storage (S3)"""
 
         logger.info("=== [%s] UPLOADING === ", episode.source_id)
-        self._set_queue_action(TaskInProgressAction.UPLOADING, filename=tmp_audio_path)
+        self._set_queue_action(
+            TaskInProgressAction.UPLOADING, state_data={"local_filename": tmp_audio_path}
+        )
 
         remote_path = podcast_utils.upload_episode(tmp_audio_path)
         if not remote_path:
