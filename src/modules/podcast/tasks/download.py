@@ -118,9 +118,10 @@ class DownloadEpisodeTask(RQTask):
             logger.debug("Teardown task 'DownloadEpisodeTask': no state_data detected")
             return
 
-        if state_data.local_filename:
+        local_filename = state_data.data["local_filename"]
+        if local_filename:
             logger.debug("Teardown task 'DownloadEpisodeTask': killing ffmpeg called process")
-            podcast_utils.kill_process(grep=f"ffmpeg -y -i {state_data.local_filename}")
+            podcast_utils.kill_process(grep=f"ffmpeg -y -i {local_filename}")
         else:
             logger.debug(
                 "Teardown task 'DownloadEpisodeTask': no localfile detected: %s", state_data
@@ -254,6 +255,7 @@ class DownloadEpisodeTask(RQTask):
         affected_episodes = await Episode.async_filter(self.db_session, source_id=source_id)
         podcast_ids = sorted([episode.podcast_id for episode in affected_episodes])
         logger.info("Found podcasts for rss updates: %s", podcast_ids)
+        # TODO: fix (provide task_state_queue)
         await GenerateRSSTask(db_session=self.db_session).run(*podcast_ids)
 
     async def _update_episodes(self, episode: Episode, update_data: dict):
