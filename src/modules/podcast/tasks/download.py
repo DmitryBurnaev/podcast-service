@@ -127,14 +127,14 @@ class DownloadEpisodeTask(RQTask):
                 "Teardown task 'DownloadEpisodeTask': no localfile detected: %s", state_data
             )
 
-    def _set_queue_action(self, action: TaskInProgressAction, state_data: dict[str, str | Path] | None = None):
-        state_data = state_data or {}
-        self.task_state_queue.put(
-            TaskStateInfo(
-                state=TaskState.IN_PROGRESS,
-                state_data=StateData(action=action, data=state_data)
-            )
-        )
+    # def _set_queue_action(self, action: TaskInProgressAction, state_data: dict[str, str | Path] | None = None):
+    #     state_data = state_data or {}
+    #     self.task_state_queue.put(
+    #         TaskStateInfo(
+    #             state=TaskState.IN_PROGRESS,
+    #             state_data=StateData(action=action, data=state_data)
+    #         )
+    #     )
 
     async def _check_is_needed(self, episode: Episode):
         """Finding already downloaded file for episode's audio file path"""

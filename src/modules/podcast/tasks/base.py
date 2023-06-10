@@ -169,6 +169,23 @@ class RQTask:
 
         self.task_state_queue.put(TaskStateInfo(state=TaskState.FINISHED, state_data=finish_code))
 
+    def _set_queue_action(
+        self,
+        action: TaskInProgressAction,
+        state: TaskState = TaskState.IN_PROGRESS,
+        state_data: dict[str, str | Path] | None = None
+    ):
+        state_data = state_data or {}
+        if hasattr(self, "task_state_queue"):
+            self.task_state_queue.put(
+                TaskStateInfo(
+                    state=state,
+                    state_data=StateData(action=action, data=state_data)
+                )
+            )
+        else:
+            logger.debug("No 'task_state_queue' attribute exist for %s", self.__class__.__name__)
+
     @property
     def name(self):
         return self.__class__.__name__
@@ -198,3 +215,4 @@ class RQTask:
 
     def teardown(self, state_data: StateData):
         logger.debug("Teardown for %s | state_data: %s", self.__class__.__name__, state_data)
+

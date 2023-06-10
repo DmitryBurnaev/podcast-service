@@ -107,14 +107,14 @@ class GenerateRSSTask(RQTask):
         logger.info("Podcast #%i: RSS file %s generated.", podcast.id, rss_filename)
         return rss_filename
 
-    def _set_queue_action(self, action: TaskInProgressAction, state_data: dict[str, str] | None = None ):
-        state_data = state_data or {}
-        self.task_state_queue.put(
-            TaskStateInfo(
-                state=TaskState.IN_PROGRESS,
-                state_data=StateData(action=action, data=state_data)
-            )
-        )
+    # def _set_queue_action(self, action: TaskInProgressAction, state_data: dict[str, str] | None = None ):
+    #     state_data = state_data or {}
+    #     self.task_state_queue.put(
+    #         TaskStateInfo(
+    #             state=TaskState.IN_PROGRESS,
+    #             state_data=StateData(action=action, data=state_data)
+    #         )
+    #     )
 
     def _run_fake_process(self):
         self._set_queue_action(TaskInProgressAction.POST_PROCESSING)
