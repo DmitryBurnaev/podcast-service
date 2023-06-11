@@ -1,9 +1,5 @@
 import multiprocessing
 import os
-import logging
-import subprocess
-import time
-from multiprocessing import Process
 
 from jinja2 import Template
 
@@ -12,10 +8,8 @@ from common.enums import FileType
 from common.storage import StorageS3
 from modules.media.models import File
 from modules.podcast.models import Podcast, Episode
-from modules.podcast.tasks.base import RQTask, TaskState, TaskInProgressAction, TaskStateInfo, \
-    StateData
+from modules.podcast.tasks.base import RQTask, TaskState
 from modules.podcast.utils import get_file_size
-from modules.podcast import utils as podcast_utils
 
 # multiprocessing.log_to_stderr(level=logging.INFO)
 logger = multiprocessing.get_logger()
@@ -34,16 +28,12 @@ class GenerateRSSTask(RQTask):
 
         self.storage = StorageS3()
         filter_kwargs = {"id__in": map(int, podcast_ids)} if podcast_ids else {}
-        self._set_queue_action(action=TaskInProgressAction.CHECKING)
-
         podcasts = await Podcast.async_filter(self.db_session, **filter_kwargs)
         results = {}
         for podcast in podcasts:
             results.update(await self._generate(podcast))
 
         logger.info("Regeneration results: \n%s", results)
-
-        self._run_fake_process()
 
         if TaskState.ERROR in results.values():
             return TaskState.ERROR
@@ -54,9 +44,6 @@ class GenerateRSSTask(RQTask):
         """Render RSS and upload it"""
 
         logger.info("START rss generation for %s", podcast)
-        self._set_queue_action(action=TaskInProgressAction.POST_PROCESSING)
-        time.sleep(5)
-
         local_path = await self._render_rss_to_file(podcast)
         remote_path = self.storage.upload_file(local_path, dst_path=settings.S3_BUCKET_RSS_PATH)
         if not remote_path:
@@ -106,46 +93,3 @@ class GenerateRSSTask(RQTask):
 
         logger.info("Podcast #%i: RSS file %s generated.", podcast.id, rss_filename)
         return rss_filename
-
-    # def _set_queue_action(self, action: TaskInProgressAction, state_data: dict[str, str] | None = None ):
-    #     state_data = state_data or {}
-    #     self.task_state_queue.put(
-    #         TaskStateInfo(
-    #             state=TaskState.IN_PROGRESS,
-    #             state_data=StateData(action=action, data=state_data)
-    #         )
-    #     )
-
-    def _run_fake_process(self):
-        self._set_queue_action(TaskInProgressAction.POST_PROCESSING)
-        try:
-            self._set_queue_action(
-                TaskInProgressAction.POST_PROCESSING,
-                state_data={"local_filename": "kill_subpr_experiments"}
-            )
-            subprocess.run(
-                ["python", "-m", "kill_subpr_experiments"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                check=True,
-                timeout=settings.FFMPEG_TIMEOUT,
-            )
-
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-            err_details = f"kill_subpr_experiments failed with errors: {exc}"
-            if stdout := getattr(exc, "stdout", ""):
-                err_details += f"\n{str(stdout, encoding='utf-8')}"
-
-            raise RuntimeError(err_details)
-
-    def teardown(self, state_data: StateData | None = None):
-        super().teardown(state_data)
-        if not state_data:
-            logger.debug("Teardown task 'DownloadEpisodeTask': no state_data detected")
-            return
-
-        if local_filename := (state_data.data or {}).get("local_filename"):
-            logger.debug(f"Teardown task: killing {state_data} called process")
-            podcast_utils.kill_process(grep=f"python -m {local_filename}")
-        else:
-            logger.debug("Teardown task 'DownloadEpisodeTask': no localfile detected: %s", state_data)

@@ -41,8 +41,6 @@ class TaskInProgressAction(enum.StrEnum):
 @dataclasses.dataclass
 class StateData:
     action: TaskInProgressAction
-    # TODO: may be we have to use dict here?
-    local_filename: str | Path = None
     error_details: str | None = None
     data: dict | None = None
 
@@ -119,24 +117,6 @@ class RQTask:
             time.sleep(1)
 
         return state_info.state if state_info else None
-
-        #
-        # finish_code = None
-        # while finish_code is None:
-        #     if result := self.extract_result(task_state_queue):
-        #         finish_code = result.state
-        #     else:
-        #         finish_code = None
-        #
-        #     status = job.get_status()
-        #     logger.debug("jobid: %s | status: %s", job.id, status)
-        #     if status == "canceled":  # status can be changed by RQTask.cancel_task()
-        #         self.teardown()
-        #         process.terminate()
-        #         logger.warning(f"Process '%s' terminated!", process)
-        #         break
-        #
-        #     time.sleep(1)
 
     def _perform_and_run(self, task_state_queue, *args, **kwargs):
         """
