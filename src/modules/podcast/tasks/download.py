@@ -14,8 +14,7 @@ from common.utils import download_content
 from common.exceptions import NotFoundError, MaxAttemptsReached
 from modules.media.models import File
 from modules.podcast.models import Episode, Cookie
-from modules.podcast.tasks.base import RQTask, TaskState, TaskStateInfo, StateData, \
-    TaskInProgressAction
+from modules.podcast.tasks.base import RQTask, TaskState, StateData, TaskInProgressAction
 from modules.podcast.tasks.rss import GenerateRSSTask
 from modules.podcast.utils import get_file_size
 from modules.providers import utils as provider_utils
@@ -119,22 +118,15 @@ class DownloadEpisodeTask(RQTask):
             return
 
         local_filename = state_data.data["local_filename"]
-        if local_filename:
-            logger.debug("Teardown task 'DownloadEpisodeTask': killing ffmpeg called process")
-            podcast_utils.kill_process(grep=f"ffmpeg -y -i {local_filename}")
-        else:
+        if not local_filename:
             logger.debug(
-                "Teardown task 'DownloadEpisodeTask': no localfile detected: %s", state_data
+                "Teardown task 'DownloadEpisodeTask': no local_file detected: %s", state_data
             )
 
-    # def _set_queue_action(self, action: TaskInProgressAction, state_data: dict[str, str | Path] | None = None):
-    #     state_data = state_data or {}
-    #     self.task_state_queue.put(
-    #         TaskStateInfo(
-    #             state=TaskState.IN_PROGRESS,
-    #             state_data=StateData(action=action, data=state_data)
-    #         )
-    #     )
+        logger.debug("Teardown task 'DownloadEpisodeTask': killing ffmpeg called process")
+        podcast_utils.kill_process(grep=f"ffmpeg -y -i {local_filename}")
+        logger.debug("Teardown task 'DownloadEpisodeTask': removing file: %s", local_filename)
+        podcast_utils.delete_file(local_filename)
 
     async def _check_is_needed(self, episode: Episode):
         """Finding already downloaded file for episode's audio file path"""
