@@ -546,6 +546,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         mocked_s3.delete_files_async.assert_any_call(
             [episode_2.image.name], remote_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
         )
+        raise AssertionError("cancel downloading task")
 
 
 class TestEpisodeDownloadAPIView(BaseTestAPIView):
@@ -576,6 +577,30 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
         await client.login(await create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.put(url), episode)
+
+
+class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
+    url = "/api/episodes/{id}/cancel-downloading/"
+
+    async def test_cancel_downloading__ok(
+        self, dbs, client, episode, user, mocked_rq_queue, source_type, task
+    ):
+
+        await episode.update(dbs, status=EpisodeStatus.DOWNLOADING, db_commit=True)
+        #
+        raise AssertionError("check canceling waw run")
+        # await client.login(user)
+        # url = self.url.format(id=episode.id)
+        # response = client.put(url)
+        # await dbs.refresh(episode)
+        # response_data = self.assert_ok_response(response)
+        # assert response_data == _episode_details(episode)
+        # mocked_rq_queue.enqueue.assert_called_with(task(), episode_id=episode.id)
+    #
+    # async def test_download__episode_from_another_user__fail(self, client, episode, dbs):
+    #     await client.login(await create_user(dbs))
+    #     url = self.url.format(id=episode.id)
+    #     self.assert_not_found(client.put(url), episode)
 
 
 class TestEpisodeFlatListAPIView(BaseTestAPIView):
