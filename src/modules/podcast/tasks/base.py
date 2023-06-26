@@ -6,6 +6,7 @@ import multiprocessing
 import queue
 import time
 from contextlib import suppress
+from multiprocessing.util import DEFAULT_LOGGING_FORMAT
 from pathlib import Path
 from typing import NamedTuple
 
@@ -18,8 +19,8 @@ from core import settings
 
 logger = logging.getLogger(__name__)
 # multiprocessing.
-multiprocessing.log_to_stderr(level=logging.INFO)
-# logger = multiprocessing.Manager
+# multiprocessing.log_to_stderr(level=logging.INFO)
+# logger = multiprocessing.log
 # TODO: implement logging for multiprocessing mode.
 
 
@@ -50,6 +51,25 @@ class TaskStateInfo(NamedTuple):
     state_data: StateData | None = None
 
 
+def log_to_stderr(level=None):
+    '''
+    Turn on logging and add a handler which prints to stderr
+    '''
+    global _log_to_stderr
+    import logging
+
+    logger = multiprocessing.get_logger()
+    formatter = logging.Formatter(DEFAULT_LOGGING_FORMAT)
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    if level:
+        logger.setLevel(level)
+    _log_to_stderr = True
+    return _logger
+
+
 class RQTask:
     """Base class for RQ tasks implementation."""
 
@@ -58,7 +78,7 @@ class RQTask:
 
     def __init__(self, db_session: AsyncSession = None):
         self.db_session = db_session
-        self.logger = multiprocessing.log_to_stderr(level=settings.LOG_LEVEL)
+        # self.logger = multiprocessing.log_to_stderr(level=settings.LOG_LEVEL)
 
     async def run(self, *args, **kwargs):
         """We need to override this method to implement main task logic"""
@@ -125,6 +145,7 @@ class RQTask:
         """
         print("_perform_and_run")
         self.task_state_queue = task_state_queue
+        self.logger = multiprocessing.log_to_stderr(level=settings.LOG_LEVEL)
 
         async def run_async(*args, **kwargs):
             """Allows calling `self.run` in transaction block with catching any exceptions"""

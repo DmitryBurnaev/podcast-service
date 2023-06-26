@@ -23,7 +23,7 @@ from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
 
 __all__ = ["DownloadEpisodeTask", "UploadedEpisodeTask", "DownloadEpisodeImageTask"]
 
-logger = multiprocessing.get_logger()  # TODO: use logger's multiprocessing manager
+# logger = multiprocessing.get_logger()  # TODO: use logger's multiprocessing manager
 # logger = logging.getLogger(__name__)
 log_levels = {
     TaskState.FINISHED: logging.INFO,
