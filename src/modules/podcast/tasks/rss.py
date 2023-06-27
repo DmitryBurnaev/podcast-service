@@ -1,4 +1,3 @@
-import multiprocessing
 import os
 
 from jinja2 import Template
@@ -11,10 +10,6 @@ from modules.podcast.models import Podcast, Episode
 from modules.podcast.tasks.base import RQTask, TaskState
 from modules.podcast.utils import get_file_size
 
-# multiprocessing.log_to_stderr(level=logging.INFO)
-logger = multiprocessing.get_logger()
-# logger = logging.getLogger(__name__)
-# logger = multiprocessing.log_to_stderr(level=logging.INFO)
 __all__ = ["GenerateRSSTask"]
 
 
@@ -32,8 +27,6 @@ class GenerateRSSTask(RQTask):
         results = {}
         for podcast in podcasts:
             results.update(await self._generate(podcast))
-
-        self.logger.info("Regeneration results: \n%s", results)
 
         if TaskState.ERROR in results.values():
             return TaskState.ERROR

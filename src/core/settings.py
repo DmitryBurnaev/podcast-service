@@ -136,7 +136,7 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "standard": {
-            "format": "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+            "format": "[%(asctime)s] %(levelname)s [%(filename)s:%(lineno)s] %(message)s",
             "datefmt": "%d.%m.%Y %H:%M:%S",
         },
     },

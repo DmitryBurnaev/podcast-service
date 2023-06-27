@@ -1,27 +1,22 @@
 import dataclasses
 import enum
+import time
+import queue
 import asyncio
 import logging
 import multiprocessing
-import queue
-import time
-from contextlib import suppress
-from multiprocessing.util import DEFAULT_LOGGING_FORMAT
 from pathlib import Path
 from typing import NamedTuple
+from contextlib import suppress
 
-from redis.client import Redis
 from rq.job import Job
+from redis.client import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.db_utils import make_session_maker
 from core import settings
 
 logger = logging.getLogger(__name__)
-# multiprocessing.
-# multiprocessing.log_to_stderr(level=logging.INFO)
-# logger = multiprocessing.log
-# TODO: implement logging for multiprocessing mode.
 
 
 class TaskState(enum.StrEnum):
@@ -51,23 +46,22 @@ class TaskStateInfo(NamedTuple):
     state_data: StateData | None = None
 
 
-def log_to_stderr(level=None):
-    '''
+def log_to_stderr():
+    """
     Turn on logging and add a handler which prints to stderr
-    '''
-    global _log_to_stderr
-    import logging
+    """
+    # import logging
 
     logger = multiprocessing.get_logger()
-    formatter = logging.Formatter(DEFAULT_LOGGING_FORMAT)
+    formatter = logging.Formatter(
+        fmt=settings.LOGGING["formatters"]["standard"]["format"],
+        datefmt=settings.LOGGING["formatters"]["standard"]["datefmt"],
+    )
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-
-    if level:
-        logger.setLevel(level)
-    _log_to_stderr = True
-    return _logger
+    logger.setLevel(settings.LOG_LEVEL)
+    return logger
 
 
 class RQTask:
@@ -143,15 +137,13 @@ class RQTask:
         Runs async code, implemented in `self.run` and stores result to the queue
         (for retrieving results above)
         """
-        print("_perform_and_run")
         self.task_state_queue = task_state_queue
-        self.logger = multiprocessing.log_to_stderr(level=settings.LOG_LEVEL)
+        self.logger = log_to_stderr()
 
         async def run_async(*args, **kwargs):
             """Allows calling `self.run` in transaction block with catching any exceptions"""
 
             session_maker = make_session_maker()
-            print("Run async")
             try:
                 async with session_maker() as db_session:
                     self.db_session = db_session
