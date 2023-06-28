@@ -72,6 +72,7 @@ class RQTask:
 
     def __init__(self, db_session: AsyncSession = None):
         self.db_session = db_session
+        self.logger = logger
         # self.logger = multiprocessing.log_to_stderr(level=settings.LOG_LEVEL)
 
     async def run(self, *args, **kwargs):

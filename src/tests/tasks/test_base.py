@@ -1,3 +1,5 @@
+import multiprocessing
+
 import pytest
 
 from modules.podcast.tasks import RQTask
@@ -9,7 +11,8 @@ pytestmark = pytest.mark.asyncio
 class TaskForTest(RQTask):
     async def __call__(self, *args, **kwargs) -> TaskState:
         """Base __call__ closes event loop (tests needed for running one)"""
-        finish_code = await self._perform_and_run(*args, **kwargs)
+        task_state_queue = multiprocessing.Queue()
+        finish_code = await self._perform_and_run(task_state_queue, *args, **kwargs)
         return finish_code
 
     async def run(self, raise_error=False):
