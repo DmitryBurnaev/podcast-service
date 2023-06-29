@@ -159,8 +159,6 @@ class RQTask:
             return result
 
         finish_code = asyncio.run(run_async(*args, **kwargs))
-        print("queue.put", self.task_state_queue, finish_code)
-
         self.task_state_queue.put(TaskStateInfo(state=TaskState.FINISHED, state_data=finish_code))
 
     def _set_queue_action(

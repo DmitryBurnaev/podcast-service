@@ -9,7 +9,7 @@ from core import settings
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
-from modules.podcast.tasks import DownloadEpisodeTask, UploadedEpisodeTask
+from modules.podcast.tasks import DownloadEpisodeTask, UploadedEpisodeTask, DownloadEpisodeImageTask
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import (
     get_source_id,
@@ -129,7 +129,6 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         user,
         mocked_episode_creator,
         mocked_rq_queue,
-        dbs,
     ):
         mocked_episode_creator.create.return_value = episode
         await client.login(user)
@@ -146,7 +145,9 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         )
         mocked_episode_creator.create.assert_called_once()
         mocked_rq_queue.enqueue.assert_called_with(
-            tasks.DownloadEpisodeImageTask(), episode_id=episode.id
+            tasks.DownloadEpisodeImageTask(),
+            episode_id=episode.id,
+            job_id=DownloadEpisodeImageTask.get_job_id(episode_id=episode.id),
         )
 
     async def test_create__start_downloading__ok(
@@ -158,9 +159,17 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         response = client.post(url, json={"source_url": episode_data["watch_url"]})
         self.assert_ok_response(response, status_code=201)
 
+        job_download_id = DownloadEpisodeTask.get_job_id(episode_id=episode.id)
+        job_download_image_id = DownloadEpisodeImageTask.get_job_id(episode_id=episode.id)
         expected_calls = [
-            {"args": (tasks.DownloadEpisodeTask(),), "kwargs": {"episode_id": episode.id}},
-            {"args": (tasks.DownloadEpisodeImageTask(),), "kwargs": {"episode_id": episode.id}},
+            {
+                "args": (tasks.DownloadEpisodeTask(),),
+                "kwargs": {"episode_id": episode.id, "job_id": job_download_id}
+            },
+            {
+                "args": (tasks.DownloadEpisodeImageTask(),),
+                "kwargs": {"episode_id": episode.id, "job_id": job_download_image_id}
+            },
         ]
         actual_calls = [
             {"args": call.args, "kwargs": call.kwargs}
