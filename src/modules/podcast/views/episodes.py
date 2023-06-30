@@ -278,9 +278,6 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
 class EpisodeCancelDownloading(BaseHTTPEndpoint):
     """  Allows to stop current downloaded episode """
     async def put(self, request: PRequest) -> Response:
-        # GenerateRSSTask.cancel_task(4)
-        #
-        #
         episode_id = request.path_params["episode_id"]
         episode: Episode = await Episode.async_get(self.db_session, id=episode_id)
         if not episode or episode.status != EpisodeStatus.DOWNLOADING:

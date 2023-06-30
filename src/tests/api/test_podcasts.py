@@ -278,10 +278,6 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
     remote_path = "/remote/path-to-file.png"
     default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
 
-    @staticmethod
-    def _file() -> io.BytesIO:
-        return io.BytesIO(b"Binary image data: \x00\x01")
-
     @patch("common.storage.StorageS3.upload_file")
     async def test_upload__ok(self, mocked_upload_file, mocked_s3, client, user, dbs):
         podcast_data = get_podcast_data(owner_id=user.id)
@@ -295,6 +291,10 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
         assert response_data == {"id": podcast.id, "image_url": podcast.image_url}
         assert podcast.image.path == self.remote_path
         mocked_s3.delete_files_async.assert_not_called()
+
+    @staticmethod
+    def _file() -> io.BytesIO:
+        return io.BytesIO(b"Binary image data: \x00\x01")
 
     @patch("common.storage.StorageS3.upload_file")
     async def test_upload__replace_image__ok(

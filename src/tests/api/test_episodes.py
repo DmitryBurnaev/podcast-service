@@ -1,5 +1,6 @@
 import uuid
 from functools import partial
+from unittest.mock import patch
 
 import pytest
 
@@ -591,25 +592,28 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
 class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
     url = "/api/episodes/{id}/cancel-downloading/"
 
+    @patch("modules.podcast.tasks.base.RQTask.cancel_task")
     async def test_cancel_downloading__ok(
-        self, dbs, client, episode, user, mocked_rq_queue, source_type, task
+        self, mocked_cancel_task, dbs, client, episode, user
     ):
-
         await episode.update(dbs, status=EpisodeStatus.DOWNLOADING, db_commit=True)
-        #
-        raise AssertionError("check canceling waw run")
-        # await client.login(user)
-        # url = self.url.format(id=episode.id)
-        # response = client.put(url)
-        # await dbs.refresh(episode)
-        # response_data = self.assert_ok_response(response)
-        # assert response_data == _episode_details(episode)
-        # mocked_rq_queue.enqueue.assert_called_with(task(), episode_id=episode.id)
-    #
-    # async def test_download__episode_from_another_user__fail(self, client, episode, dbs):
-    #     await client.login(await create_user(dbs))
-    #     url = self.url.format(id=episode.id)
-    #     self.assert_not_found(client.put(url), episode)
+        await client.login(user)
+        url = self.url.format(id=episode.id)
+        self.assert_ok_response(client.put(url))
+
+        mocked_cancel_task.assert_called_with()
+
+    @patch("modules.podcast.tasks.base.RQTask.cancel_task")
+    async def test_cancel_downloading__episode_not_in_progress__fail(
+        self, mocked_cancel_task, dbs, client, episode, user
+    ):
+        await episode.update(dbs, status=EpisodeStatus.NEW, db_commit=True)
+        await client.login(user)
+        url = self.url.format(id=episode.id)
+        response_data = self.assert_fail_response(client.put(url), status_code=400)
+        assert response_data == {}
+
+        mocked_cancel_task.assert_not_called()
 
 
 class TestEpisodeFlatListAPIView(BaseTestAPIView):

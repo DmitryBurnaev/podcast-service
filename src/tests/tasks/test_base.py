@@ -43,3 +43,11 @@ class TestRunTask:
     async def test_subclass__ok(self):
         task_classes = list(RQTask.get_subclasses())
         assert TaskForTest in task_classes
+
+
+def test_cancel_task():
+    assert False
+
+
+def test_get_job_id():
+    assert False
