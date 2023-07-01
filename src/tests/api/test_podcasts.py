@@ -265,7 +265,11 @@ class TestPodcastGenerateRSSAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         response = client.put(url)
         assert response.status_code == 202
-        mocked_rq_queue.enqueue.assert_called_with(GenerateRSSTask(), podcast.id)
+        mocked_rq_queue.enqueue.assert_called_with(
+            GenerateRSSTask(),
+            podcast.id,
+            job_id=GenerateRSSTask.get_job_id(podcast.id)
+        )
 
     async def test_run_generation__podcast_from_another_user__fail(self, client, podcast, dbs):
         await client.login(await create_user(dbs))

@@ -268,7 +268,9 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
 
         if auto_start_task:
             mocked_rq_queue.enqueue.assert_called_with(
-                tasks.UploadedEpisodeTask(), episode_id=episode.id
+                tasks.UploadedEpisodeTask(),
+                episode_id=episode.id,
+                job_id=tasks.UploadedEpisodeTask.get_job_id(episode_id=episode.id)
             )
         else:
             mocked_rq_queue.enqueue.assert_not_called()
@@ -309,7 +311,9 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         assert response_data == _episode_details(episode), response.json()
         assert episode.source_type == SourceType.UPLOAD
         mocked_rq_queue.enqueue.assert_called_with(
-            tasks.UploadedEpisodeTask(), episode_id=episode.id
+            tasks.UploadedEpisodeTask(),
+            episode_id=episode.id,
+            job_id=tasks.UploadedEpisodeTask.get_job_id(episode_id=episode.id),
         )
 
     async def test_get_exists_episode__ok(
@@ -534,10 +538,12 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         podcast_1 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user_1.id))
         podcast_2 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user_2.id))
 
+        # episode-1 (from another podcast)
         episode_data["source_id"] = source_id
         episode_data["owner_id"] = user_1.id
         await create_episode(dbs, episode_data, podcast_1, status=same_episode_status)
 
+        # episode-2 (will be removed)
         episode_data["owner_id"] = user_2.id
         episode_2 = await create_episode(
             dbs, episode_data, podcast_2, status=Episode.Status.PUBLISHED
@@ -547,7 +553,9 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         await client.login(user_2)
         response = client.delete(url)
         assert response.status_code == 204, f"Delete API is not available: {response.text}"
+
         assert await Episode.async_get(dbs, id=episode_2.id) is None
+
         if delete_called:
             mocked_s3.delete_files_async.assert_any_call(
                 [episode_2.audio.name], remote_path=settings.S3_BUCKET_AUDIO_PATH
@@ -556,7 +564,42 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         mocked_s3.delete_files_async.assert_any_call(
             [episode_2.image.name], remote_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
         )
-        raise AssertionError("cancel downloading task")
+
+    @pytest.mark.parametrize(
+        "episode_status, cancel_task_must_be_called",
+        [
+            (Episode.Status.NEW, False),
+            (Episode.Status.PUBLISHED, False),
+            (Episode.Status.DOWNLOADING, True),
+        ],
+    )
+    @patch("modules.podcast.tasks.base.RQTask.cancel_task")
+    async def test_delete_episode__cancel_task(
+        self,
+        mock_cancel_task,
+        dbs,
+        user,
+        client,
+        episode,
+        mocked_s3,
+        episode_status,
+        cancel_task_must_be_called,
+    ):
+        await episode.update(dbs, status=episode_status, db_commit=True)
+        await client.login(user)
+
+        url = self.url.format(id=episode.id)
+        response = client.delete(url)
+        assert response.status_code == 204
+        assert await Episode.async_get(dbs, id=episode.id) is None
+
+        if cancel_task_must_be_called:
+            mock_cancel_task.assert_called_with(episode_id=episode.id)
+        else:
+            mock_cancel_task.assert_not_called()
+
+        mocked_s3.delete_files_async.assert_called()
+        mocked_s3.delete_files_async.assert_called()
 
 
 class TestEpisodeDownloadAPIView(BaseTestAPIView):
@@ -581,7 +624,11 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
         await dbs.refresh(episode)
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_details(episode)
-        mocked_rq_queue.enqueue.assert_called_with(task(), episode_id=episode.id)
+        mocked_rq_queue.enqueue.assert_called_with(
+            task(),
+            episode_id=episode.id,
+            job_id=task.get_job_id(episode_id=episode.id)
+        )
 
     async def test_download__episode_from_another_user__fail(self, client, episode, dbs):
         await client.login(await create_user(dbs))
@@ -591,6 +638,7 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
 
 class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
     url = "/api/episodes/{id}/cancel-downloading/"
+    default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
 
     @patch("modules.podcast.tasks.base.RQTask.cancel_task")
     async def test_cancel_downloading__ok(
@@ -599,9 +647,9 @@ class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
         await episode.update(dbs, status=EpisodeStatus.DOWNLOADING, db_commit=True)
         await client.login(user)
         url = self.url.format(id=episode.id)
-        self.assert_ok_response(client.put(url))
+        self.assert_ok_response(client.put(url), status_code=204)
 
-        mocked_cancel_task.assert_called_with()
+        mocked_cancel_task.assert_called_with(episode_id=episode.id)
 
     @patch("modules.podcast.tasks.base.RQTask.cancel_task")
     async def test_cancel_downloading__episode_not_in_progress__fail(
@@ -611,8 +659,9 @@ class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
         await client.login(user)
         url = self.url.format(id=episode.id)
         response_data = self.assert_fail_response(client.put(url), status_code=400)
-        assert response_data == {}
-
+        assert response_data["details"] == (
+            f"Episode #{episode.id} not found or is not in progress now"
+        )
         mocked_cancel_task.assert_not_called()
 
 
