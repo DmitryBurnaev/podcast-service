@@ -11,7 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from core import settings
 from common.redis import RedisClient
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 class StorageS3:
@@ -29,26 +29,27 @@ class StorageS3:
 
         return cls.__instance
 
-    def __init__(self):
-        logger.debug("Creating s3 client's session (boto3)...")
+    def __init__(self, logger: logging.Logger = module_logger):
+        self.logger = logger
+        self.logger.debug("Creating s3 client's session (boto3)...")
         session = boto3.session.Session(
             aws_access_key_id=settings.S3_ACCESS_KEY_ID,
             aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
             region_name=settings.S3_REGION_NAME,
         )
-        logger.debug("Boto3 (s3) Session <%s> created", session)
+        self.logger.debug("Boto3 (s3) Session <%s> created", session)
         self.s3 = session.client(service_name="s3", endpoint_url=settings.S3_STORAGE_URL)
-        logger.debug("S3 client %s created", self.s3)
+        self.logger.debug("S3 client %s created", self.s3)
 
     def __call(
         self, handler: Callable, error_log_level: int = logging.ERROR, **handler_kwargs
     ) -> tuple[int, dict | None]:
         try:
-            logger.info("Executing request (%s) to S3 kwargs: %s", handler.__name__, handler_kwargs)
+            self.logger.info("Executing request (%s) to S3 kwargs: %s", handler.__name__, handler_kwargs)
             response = handler(**handler_kwargs)
 
         except botocore.exceptions.ClientError as exc:
-            logger.log(
+            self.logger.log(
                 error_log_level,
                 "Couldn't execute request (%s) to S3: ClientError %r",
                 handler.__name__,
@@ -57,7 +58,7 @@ class StorageS3:
             return self.CODE_CLIENT_ERROR, None
 
         except Exception as exc:
-            logger.exception("Shit! We couldn't execute %s to S3: %r", handler.__name__, exc)
+            self.logger.exception("Shit! We couldn't execute %s to S3: %r", handler.__name__, exc)
             return self.CODE_COMMON_ERROR, None
 
         return self.CODE_OK, response
@@ -90,7 +91,7 @@ class StorageS3:
         if code != self.CODE_OK:
             return None
 
-        logger.info("File %s successful uploaded. Remote path: %s", filename, dst_path)
+        self.logger.info("File %s successful uploaded. Remote path: %s", filename, dst_path)
         return dst_path
 
     def copy_file(self, src_path: str, dst_path: str) -> str | None:
@@ -105,7 +106,7 @@ class StorageS3:
         if code != self.CODE_OK:
             return None
 
-        logger.info("File successful copied: %s -> %s", src_path, dst_path)
+        self.logger.info("File successful copied: %s -> %s", src_path, dst_path)
         return dst_path
 
     async def upload_file_async(
@@ -161,7 +162,7 @@ class StorageS3:
             if file_info:
                 return int(file_info["ResponseMetadata"]["HTTPHeaders"]["content-length"])
 
-        logger.info("File %s was not found on s3 storage", filename)
+        self.logger.info("File %s was not found on s3 storage", filename)
         return 0
 
     async def get_file_size_async(

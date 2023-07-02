@@ -15,10 +15,10 @@ from common.storage import StorageS3
 from common.enums import EpisodeStatus
 from modules.podcast.models import Episode
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
-def delete_file(filepath: str | Path):
+def delete_file(filepath: str | Path, logger: logging.Logger = module_logger) -> None:
     """Delete local file"""
 
     try:
@@ -29,7 +29,7 @@ def delete_file(filepath: str | Path):
         logger.info("File %s deleted", filepath)
 
 
-def get_file_size(file_path: str | Path):
+def get_file_size(file_path: str | Path, logger: logging.Logger = module_logger) -> int:
     try:
         return os.path.getsize(file_path)
     except FileNotFoundError:
@@ -83,21 +83,29 @@ def upload_process_hook(filename: str, chunk: int):
     Allows handling uploading to S3 storage and update redis state (for user's progress).
     It is called by `s3.upload_file` (`podcast.utils.upload_episode`)
     """
-    episode_process_hook(filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk)
+    episode_process_hook(
+        filename=filename,
+        status=EpisodeStatus.DL_EPISODE_UPLOADING,
+        chunk=chunk,
+        logger=module_logger,
+    )
 
 
-def post_processing_process_hook(filename: str, target_path: str, total_bytes: int):
+def post_processing_process_hook(
+    filename: str, target_path: str, total_bytes: int, logger: logging.Logger = module_logger,
+):
     """
     Allows handling progress for ffmpeg file's preparations
     """
     processed_bytes = 0
     while processed_bytes < total_bytes:
-        processed_bytes = get_file_size(target_path)
+        processed_bytes = get_file_size(target_path, logger=logger)
         episode_process_hook(
             filename=filename,
             status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
             total_bytes=total_bytes,
             processed_bytes=processed_bytes,
+            logger=logger,
         )
         time.sleep(1)
 
@@ -108,6 +116,7 @@ def episode_process_hook(
     total_bytes: int = 0,
     processed_bytes: int = None,
     chunk: int = 0,
+    logger: logging.Logger = module_logger
 ):
     """Allows handling processes of performing episode's file."""
     redis_client = RedisClient()
@@ -137,7 +146,7 @@ def episode_process_hook(
     logger.debug("[%s] for %s: %s", status, filename, progress)
 
 
-def upload_episode(src_path: str | Path) -> str | None:
+def upload_episode(src_path: str | Path, logger: logging.Logger = module_logger) -> str | None:
     """Allows uploading src_path to S3 storage"""
 
     filename = os.path.basename(src_path)
@@ -145,17 +154,18 @@ def upload_episode(src_path: str | Path) -> str | None:
         filename=filename,
         status=EpisodeStatus.DL_EPISODE_UPLOADING,
         processed_bytes=0,
-        total_bytes=get_file_size(src_path),
+        total_bytes=get_file_size(src_path, logger=logger),
+        logger=logger,
     )
     logger.info("Upload for %s started.", filename)
-    remote_path = StorageS3().upload_file(
+    remote_path = StorageS3(logger=logger).upload_file(
         src_path=str(src_path),
         dst_path=settings.S3_BUCKET_AUDIO_PATH,
         callback=partial(upload_process_hook, filename),
     )
     if not remote_path:
         logger.warning("Couldn't upload file to S3 storage. SKIP")
-        episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0)
+        episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0, logger=logger)
         return None
 
     logger.info("Great! uploading for %s was done!", filename)
@@ -167,6 +177,7 @@ def remote_copy_episode(
     src_path: str,
     dst_path: str,
     src_file_size: int = 0,
+    logger: logging.Logger = module_logger
 ) -> str | None:
     """Allows uploading src_path to S3 storage"""
 
@@ -176,12 +187,13 @@ def remote_copy_episode(
         status=EpisodeStatus.DL_EPISODE_UPLOADING,
         processed_bytes=0,
         total_bytes=src_file_size,
+        logger=logger,
     )
     logger.debug("Remotely copying for %s started.", filename)
-    remote_path = StorageS3().copy_file(src_path=str(src_path), dst_path=dst_path)
+    remote_path = StorageS3(logger=logger).copy_file(src_path=str(src_path), dst_path=dst_path)
     if not remote_path:
         logger.warning("Couldn't move file in S3 storage remotely. SKIP")
-        episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0)
+        episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0, logger=logger)
         return None
 
     logger.debug("Finished moving s3 for file %s. \n Remote path is %s", filename, remote_path)
@@ -214,7 +226,7 @@ async def publish_redis_stop_downloading(episode_id: int) -> None:
     )
 
 
-def kill_process(grep: str) -> None:
+def kill_process(grep: str, logger: logging.Logger = module_logger) -> None:
     """Finds (with grep) process and tries to kill it"""
 
     command = f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill"

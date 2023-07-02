@@ -45,7 +45,7 @@ class GenerateRSSTask(RQTask):
 
         rss_data = {
             "path": remote_path,
-            "size": get_file_size(local_path),
+            "size": get_file_size(local_path, logger=self.logger),
             "available": True,
         }
         if podcast.rss_id:

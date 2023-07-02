@@ -50,8 +50,6 @@ def log_to_stderr():
     """
     Turn on logging and add a handler which prints to stderr
     """
-    # import logging
-
     logger = multiprocessing.get_logger()
     formatter = logging.Formatter(
         fmt=settings.LOGGING["formatters"]["standard"]["format"],
@@ -73,7 +71,6 @@ class RQTask:
     def __init__(self, db_session: AsyncSession = None):
         self.db_session = db_session
         self.logger = logger
-        # self.logger = multiprocessing.log_to_stderr(level=settings.LOG_LEVEL)
 
     async def run(self, *args, **kwargs):
         """We need to override this method to implement main task logic"""

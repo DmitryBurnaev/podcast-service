@@ -46,7 +46,7 @@ class DownloadEpisodeTask(RQTask):
     tmp_audio_path: Path
 
     async def run(self, episode_id: int) -> TaskState:  # pylint: disable=arguments-differ
-        self.storage = StorageS3()
+        self.storage = StorageS3(logger=self.logger)
 
         try:
             code = await self.perform_run(int(episode_id))
@@ -102,7 +102,7 @@ class DownloadEpisodeTask(RQTask):
         await self._update_files(episode, {"size": remote_file_size, "available": True})
         await self._update_all_rss(episode.source_id)
 
-        podcast_utils.delete_file(self.tmp_audio_path)
+        podcast_utils.delete_file(self.tmp_audio_path, logger=self.logger)
 
         self.logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
         return TaskState.FINISHED
@@ -120,9 +120,9 @@ class DownloadEpisodeTask(RQTask):
             )
 
         self.logger.debug("Teardown task 'DownloadEpisodeTask': killing ffmpeg called process")
-        podcast_utils.kill_process(grep=f"ffmpeg -y -i {local_filename}")
+        podcast_utils.kill_process(grep=f"ffmpeg -y -i {local_filename}", logger=self.logger)
         self.logger.debug("Teardown task 'DownloadEpisodeTask': removing file: %s", local_filename)
-        podcast_utils.delete_file(local_filename)
+        podcast_utils.delete_file(local_filename, logger=self.logger)
 
     async def _check_is_needed(self, episode: Episode):
         """Finding already downloaded file for episode's audio file path"""
@@ -170,7 +170,10 @@ class DownloadEpisodeTask(RQTask):
 
         try:
             result_path = await provider_utils.download_audio(
-                episode.watch_url, filename=episode.audio_filename, cookie=cookie
+                episode.watch_url,
+                filename=episode.audio_filename,
+                cookie=cookie,
+                logger=self.logger,
             )
         except YoutubeDLError as exc:
             self.logger.exception(
@@ -210,7 +213,7 @@ class DownloadEpisodeTask(RQTask):
             self._set_queue_action(
                 TaskInProgressAction.POST_PROCESSING, state_data={"local_filename": tmp_audio_path}
             )
-            provider_utils.ffmpeg_preparation(src_path=tmp_audio_path)
+            provider_utils.ffmpeg_preparation(src_path=tmp_audio_path, logger=self.logger)
             self.logger.info("=== [%s] POST PROCESSING was done === ", episode.source_id)
         else:
             self.logger.info("=== [%s] POST PROCESSING SKIP === ", episode.source_id)
@@ -333,7 +336,10 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
         self.logger.info("=== [%s] REMOTE COPYING === ", episode.source_id)
         dst_path = os.path.join(settings.S3_BUCKET_AUDIO_PATH, episode.audio_filename)
         remote_path = podcast_utils.remote_copy_episode(
-            src_path=episode.audio.path, dst_path=dst_path, src_file_size=episode.audio.size
+            src_path=episode.audio.path,
+            dst_path=dst_path,
+            src_file_size=episode.audio.size,
+            logger=self.logger,
         )
         if not remote_path:
             self.logger.warning("=== [%s] REMOTE COPYING was broken === ")
@@ -391,7 +397,7 @@ class DownloadEpisodeImageTask(RQTask):
             if tmp_path := await self._download_and_crop_image(episode):
                 remote_path = await self._upload_cover(episode, tmp_path)
                 available = True
-                size = get_file_size(tmp_path)
+                size = get_file_size(tmp_path, logger=self.logger)
             else:
                 remote_path, available, size = "", False, None
 
