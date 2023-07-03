@@ -28,7 +28,7 @@ from modules.podcast.utils import (
     post_processing_process_hook,
 )
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 class SourceMediaInfo(NamedTuple):
@@ -99,7 +99,7 @@ def extract_source_info(source_url: str | None = None, playlist: bool = False) -
             if source_id := match.groupdict().get("source_id"):
                 return SourceInfo(id=source_id, url=source_url, type=source_cfg.type)
 
-            logger.error(
+            module_logger.error(
                 "Couldn't extract source ID: Source link is not correct: %s | source_info: %s",
                 source_url,
                 source_cfg,
@@ -108,7 +108,7 @@ def extract_source_info(source_url: str | None = None, playlist: bool = False) -
     raise InvalidRequestError(f"Requested domain is not supported now {source_url}")
 
 
-def download_process_hook(event: dict, logger: logging.Logger = logger):
+def download_process_hook(event: dict, logger: logging.Logger = module_logger):
     """
     Allows handling processes of downloading episode's file.
     It is called by `yt_dlp.YoutubeDL`
@@ -158,8 +158,8 @@ async def download_audio(
 async def get_source_media_info(source_info: SourceInfo) -> tuple[str, SourceMediaInfo | None]:
     """Allows extract info about providers video from Source (powered by yt_dlp)"""
 
-    logger.info("Started fetching data for %s", source_info.url)
-    params = {"logger": logger, "noplaylist": True}
+    module_logger.info("Started fetching data for %s", source_info.url)
+    params = {"logger": module_logger, "noplaylist": True}
     if source_info.cookie:
         params["cookiefile"] = await source_info.cookie.as_file()
 
@@ -169,7 +169,7 @@ async def get_source_media_info(source_info: SourceInfo) -> tuple[str, SourceMed
             source_details = await run_in_threadpool(extract_info)
 
     except YoutubeDLError as exc:
-        logger.exception("ydl.extract_info failed: %s | Error: %r", source_info.url, exc)
+        module_logger.exception("ydl.extract_info failed: %s | Error: %r", source_info.url, exc)
         return str(exc), None
 
     youtube_info = SourceMediaInfo(
@@ -188,7 +188,7 @@ def ffmpeg_preparation(
     src_path: str | Path,
     ffmpeg_params: list[str] = None,
     call_process_hook: bool = True,
-    logger: logging.Logger = logger
+    logger: logging.Logger = module_logger
 ) -> None:
     """
     FFmpeg allows fixing problem with length of audio track
@@ -276,7 +276,7 @@ class CoverMetaData(NamedTuple):
     size: int
 
 
-def execute_ffmpeg(command: list[str], logger: logging.Logger = logger) -> str:
+def execute_ffmpeg(command: list[str], logger: logging.Logger = module_logger) -> str:
     try:
         logger.debug("Executing FFMPEG: '%s'", " ".join(map(str, command)))
         completed_proc = subprocess.run(
@@ -313,7 +313,7 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
     duration = _human_time_to_sec(find_results.get("duration", "").replace("Duration:", ""))
     metadata = _raw_meta_to_dict((find_results.get("meta") or "").replace("Metadata:\n", ""))
 
-    logger.debug(
+    module_logger.debug(
         "FFMPEG success done extracting duration from the file %s:\nmeta: %s\nduration: %s",
         file_path,
         metadata,
@@ -337,7 +337,7 @@ def audio_cover(audio_file_path: Path) -> CoverMetaData | None:
             ["ffmpeg", "-y", "-i", audio_file_path, "-an", "-an", "-c:v", "copy", cover_path]
         )
     except FFMPegPreparationError as exc:
-        logger.warning("Couldn't extract cover from audio file: %r", exc)
+        module_logger.warning("Couldn't extract cover from audio file: %r", exc)
         return None
 
     cover_file_content = cover_path.read_bytes()

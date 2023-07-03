@@ -1,5 +1,6 @@
 import os
 import subprocess
+from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import patch
 
@@ -7,9 +8,9 @@ import pytest
 
 from core import settings
 from common.enums import EpisodeStatus
-from modules.podcast.utils import post_processing_process_hook
+from modules.podcast.utils import post_processing_process_hook, module_logger as podcast_logger
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
-from modules.providers.utils import ffmpeg_preparation, audio_metadata, AudioMetaData
+from modules.providers.utils import ffmpeg_preparation, audio_metadata, AudioMetaData, module_logger as providers_logger
 from tests.api.test_base import BaseTestCase
 
 
@@ -33,6 +34,7 @@ class TestFFMPEG(BaseTestCase):
                 filename=self.filename,
                 total_bytes=len(b"data"),
                 processed_bytes=0,
+                logger=providers_logger
             ),
             finish_call,
         ]
@@ -44,6 +46,7 @@ class TestFFMPEG(BaseTestCase):
     def test_episode_prepare__ok(self, mocked_process_hook, mocked_run, mocked_process):
         mocked_run.return_value = CompletedProcess([], returncode=0, stdout=b"Success")
         ffmpeg_preparation(self.src_path)
+        tmp_file = Path(self.tmp_filename)
         self.assert_called_with(
             mocked_run,
             [
@@ -56,7 +59,7 @@ class TestFFMPEG(BaseTestCase):
                 "libmp3lame",
                 "-q:a",
                 "5",
-                self.tmp_filename,
+                tmp_file,
             ],
             check=True,
             timeout=settings.FFMPEG_TIMEOUT,
@@ -64,7 +67,7 @@ class TestFFMPEG(BaseTestCase):
         mocked_process.target_class.__init__.assert_called_with(
             mocked_process.target_obj,
             target=post_processing_process_hook,
-            kwargs={"filename": self.filename, "target_path": self.tmp_filename, "total_bytes": 4},
+            kwargs={"filename": self.filename, "target_path": tmp_file, "total_bytes": 4},
         )
 
         assert not os.path.exists(self.tmp_filename), f"File wasn't removed: {self.tmp_filename}"
@@ -75,6 +78,7 @@ class TestFFMPEG(BaseTestCase):
                 filename=self.filename,
                 total_bytes=len(b"data"),
                 processed_bytes=len(b"data"),
+                logger=providers_logger,
             ),
         )
 
@@ -91,7 +95,9 @@ class TestFFMPEG(BaseTestCase):
         )
         self.assert_hooks_calls(
             mocked_process_hook,
-            finish_call=dict(status=EpisodeStatus.ERROR, filename=self.filename),
+            finish_call=dict(
+                status=EpisodeStatus.ERROR, filename=self.filename, logger=providers_logger,
+            ),
         )
 
     @patch("subprocess.run")
@@ -108,7 +114,11 @@ class TestFFMPEG(BaseTestCase):
         )
         self.assert_hooks_calls(
             mocked_process_hook,
-            finish_call=dict(status=EpisodeStatus.ERROR, filename=self.filename),
+            finish_call=dict(
+                status=EpisodeStatus.ERROR,
+                filename=self.filename,
+                logger=providers_logger,
+            ),
         )
 
     @patch("time.sleep", lambda x: None)
@@ -126,6 +136,7 @@ class TestFFMPEG(BaseTestCase):
                     filename=self.filename,
                     total_bytes=100,
                     processed_bytes=100,
+                    logger=podcast_logger,
                 )
             ],
         )

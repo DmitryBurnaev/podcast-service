@@ -44,7 +44,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode = await Episode.async_get(dbs, id=episode.id)
 
         mocked_youtube.download.assert_called_with([episode.watch_url])
-        mocked_ffmpeg.assert_called_with(src_path=file_path)
+        self.assert_called_with(mocked_ffmpeg, src_path=file_path)
         self.assert_called_with(
             mocked_s3.upload_file,
             src_path=str(file_path),
@@ -77,7 +77,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode = await Episode.async_get(dbs, id=episode.id)
 
         mocked_youtube.assert_called_with(cookiefile=await cookie.as_file())
-        mocked_ffmpeg.assert_called_with(src_path=file_path)
+        self.assert_called_with(mocked_ffmpeg, src_path=file_path)
 
         assert result == TaskState.FINISHED
         assert episode.status == Episode.Status.PUBLISHED
@@ -187,7 +187,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
         await dbs.refresh(episode)
         mocked_youtube.download.assert_called_with([episode.watch_url])
-        mocked_ffmpeg.assert_called_with(src_path=file_path)
+        self.assert_called_with(mocked_ffmpeg, src_path=file_path)
         self.assert_called_with(
             mocked_s3.upload_file,
             src_path=str(file_path),
@@ -274,7 +274,8 @@ class TestDownloadEpisodeTask(BaseTestCase):
             "downloaded_bytes": 24,
         }
         download_process_hook(event)
-        mocked_process_hook.assert_called_with(
+        self.assert_called_with(
+            mocked_process_hook,
             status=EpisodeStatus.DL_EPISODE_DOWNLOADING,
             filename="test-episode.mp3",
             total_bytes=1024,
