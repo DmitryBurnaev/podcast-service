@@ -1,4 +1,5 @@
 import multiprocessing
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -45,8 +46,21 @@ class TestRunTask:
         assert TaskForTest in task_classes
 
 
-def test_cancel_task():
-    assert False
+class MockJob:
+    def __int__(self, *_, **__):
+        self.cancel = MagicMock()
+
+
+@patch("rq.job.Job.cancel")
+@patch("rq.job.Job.fetch")
+def test_cancel_task(mocked_job_fetch, mocked_job_cancel):
+    mocked_job_fetch.return_value = MockJob()
+
+    TaskForTest.cancel_task(1, 2, kwarg=123)
+    job_id = TaskForTest.get_job_id(1, 2, kwarg=123)
+
+    mocked_job_fetch.assert_called_with(job_id)
+    mocked_job_cancel.asseert_called_once()
 
 
 def test_get_job_id():

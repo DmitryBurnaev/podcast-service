@@ -195,7 +195,8 @@ class RQTask:
         job_id = cls.get_job_id(*task_args, **task_kwargs)
         logger.debug("Trying to cancel task %s", job_id)
         try:
-            job = Job.fetch(job_id, connection=Redis())
+            job = Job.fetch(job_id)
+            # job = Job.fetch(job_id, connection=Redis())
             job.cancel()
         except Exception as exc:
             logger.exception("Couldn't cancel task %s: %r", job_id, exc)
@@ -204,4 +205,3 @@ class RQTask:
 
     def teardown(self, state_data: StateData):
         logger.debug("Teardown for %s | state_data: %s", self.__class__.__name__, state_data)
-
