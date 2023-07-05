@@ -10,10 +10,10 @@ pytestmark = pytest.mark.asyncio
 
 
 class TaskForTest(RQTask):
-    async def __call__(self, *args, **kwargs) -> TaskState:
+    def __call__(self, *args, **kwargs) -> TaskState:
         """Base __call__ closes event loop (tests needed for running one)"""
         task_state_queue = multiprocessing.Queue()
-        finish_code = await self._perform_and_run(task_state_queue, *args, **kwargs)
+        finish_code = self._perform_and_run(task_state_queue, *args, **kwargs)
         return finish_code
 
     async def run(self, raise_error=False):
@@ -24,13 +24,14 @@ class TaskForTest(RQTask):
 
 
 class TestRunTask:
-    async def test_run__ok(self):
+    def test_run__ok(self):
+        # FIXME: ValueError: I/O operation on closed file.
         task = TaskForTest()
-        assert await task() == TaskState.FINISHED
+        assert task() == TaskState.FINISHED
 
-    async def test_run__fail(self):
+    def test_run__fail(self):
         task = TaskForTest()
-        assert await task(raise_error=True) == TaskState.ERROR
+        assert task(raise_error=True) == TaskState.ERROR
 
     async def test_tasks__eq__ok(self):
         task_1 = TaskForTest()
@@ -55,13 +56,14 @@ class MockJob:
 @patch("rq.job.Job.fetch")
 def test_cancel_task(mocked_job_fetch, mocked_job_cancel):
     mocked_job_fetch.return_value = MockJob()
+    job_id = TaskForTest.get_job_id(1, 2, kwarg=123)
 
     TaskForTest.cancel_task(1, 2, kwarg=123)
-    job_id = TaskForTest.get_job_id(1, 2, kwarg=123)
 
     mocked_job_fetch.assert_called_with(job_id)
     mocked_job_cancel.asseert_called_once()
 
 
 def test_get_job_id():
-    assert False
+    job_id = TaskForTest.get_job_id(1, 2, kwarg=123)
+    assert job_id == "taskfortest_1_2_kwarg=123_"
