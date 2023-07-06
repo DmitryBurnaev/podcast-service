@@ -1,3 +1,4 @@
+import logging
 import multiprocessing
 from unittest.mock import patch, MagicMock
 
@@ -7,6 +8,7 @@ from modules.podcast.tasks import RQTask
 from modules.podcast.tasks.base import TaskState
 
 pytestmark = pytest.mark.asyncio
+test_logger = logging.getLogger(__name__)
 
 
 class TaskForTest(RQTask):
@@ -24,12 +26,16 @@ class TaskForTest(RQTask):
 
 
 class TestRunTask:
-    def test_run__ok(self):
-        # FIXME: ValueError: I/O operation on closed file.
+
+    @patch("multiprocessing.get_logger")
+    def test_run__ok(self, mocked_logger):
+        mocked_logger.return_value = test_logger
         task = TaskForTest()
         assert task() == TaskState.FINISHED
 
-    def test_run__fail(self):
+    @patch("multiprocessing.get_logger")
+    def test_run__fail(self, mocked_logger):
+        mocked_logger.return_value = test_logger
         task = TaskForTest()
         assert task(raise_error=True) == TaskState.ERROR
 

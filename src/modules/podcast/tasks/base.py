@@ -151,7 +151,7 @@ class RQTask:
             except Exception as exc:
                 await self.db_session.rollback()
                 result = TaskState.ERROR
-                logger.exception("Couldn't perform task %s | error %r", self.name, exc)
+                self.logger.exception("Couldn't perform task %s | error %r", self.name, exc)
 
             return result
 
