@@ -92,7 +92,10 @@ def upload_process_hook(filename: str, chunk: int):
 
 
 def post_processing_process_hook(
-    filename: str, target_path: str, total_bytes: int, logger: logging.Logger = module_logger,
+    filename: str,
+    target_path: str,
+    total_bytes: int,
+    logger: logging.Logger = module_logger,
 ):
     """
     Allows handling progress for ffmpeg file's preparations
@@ -116,7 +119,7 @@ def episode_process_hook(
     total_bytes: int = 0,
     processed_bytes: int = None,
     chunk: int = 0,
-    logger: logging.Logger = module_logger
+    logger: logging.Logger = module_logger,
 ):
     """Allows handling processes of performing episode's file."""
     redis_client = RedisClient()
@@ -165,7 +168,9 @@ def upload_episode(src_path: str | Path, logger: logging.Logger = module_logger)
     )
     if not remote_path:
         logger.warning("Couldn't upload file to S3 storage. SKIP")
-        episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0, logger=logger)
+        episode_process_hook(
+            filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0, logger=logger
+        )
         return None
 
     logger.info("Great! uploading for %s was done!", filename)
@@ -174,10 +179,7 @@ def upload_episode(src_path: str | Path, logger: logging.Logger = module_logger)
 
 
 def remote_copy_episode(
-    src_path: str,
-    dst_path: str,
-    src_file_size: int = 0,
-    logger: logging.Logger = module_logger
+    src_path: str, dst_path: str, src_file_size: int = 0, logger: logging.Logger = module_logger
 ) -> str | None:
     """Allows uploading src_path to S3 storage"""
 
@@ -193,7 +195,9 @@ def remote_copy_episode(
     remote_path = StorageS3(logger=logger).copy_file(src_path=str(src_path), dst_path=dst_path)
     if not remote_path:
         logger.warning("Couldn't move file in S3 storage remotely. SKIP")
-        episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0, logger=logger)
+        episode_process_hook(
+            filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0, logger=logger
+        )
         return None
 
     logger.debug("Finished moving s3 for file %s. \n Remote path is %s", filename, remote_path)

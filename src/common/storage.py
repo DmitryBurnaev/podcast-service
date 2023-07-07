@@ -29,27 +29,30 @@ class StorageS3:
 
         return cls.__instance
 
-    def __init__(self, logger: logging.Logger = module_logger):
-        self.logger = logger
-        self.logger.debug("Creating s3 client's session (boto3)...")
+    def __init__(self):
+        module_logger.debug("Creating s3 client's session (boto3)...")
         session = boto3.session.Session(
             aws_access_key_id=settings.S3_ACCESS_KEY_ID,
             aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
             region_name=settings.S3_REGION_NAME,
         )
-        self.logger.debug("Boto3 (s3) Session <%s> created", session)
+        module_logger.debug("Boto3 (s3) Session <%s> created", session)
         self.s3 = session.client(service_name="s3", endpoint_url=settings.S3_STORAGE_URL)
-        self.logger.debug("S3 client %s created", self.s3)
+        module_logger.debug("S3 client %s created", self.s3)
 
     def __call(
-        self, handler: Callable, error_log_level: int = logging.ERROR, **handler_kwargs
+        self,
+        handler: Callable,
+        error_log_level: int = logging.ERROR,
+        logger: logging.Logger = module_logger,
+        **handler_kwargs,
     ) -> tuple[int, dict | None]:
         try:
-            self.logger.info("Executing request (%s) to S3 kwargs: %s", handler.__name__, handler_kwargs)
+            logger.info("Executing request (%s) to S3 kwargs: %s", handler.__name__, handler_kwargs)
             response = handler(**handler_kwargs)
 
         except botocore.exceptions.ClientError as exc:
-            self.logger.log(
+            logger.log(
                 error_log_level,
                 "Couldn't execute request (%s) to S3: ClientError %r",
                 handler.__name__,
@@ -58,13 +61,17 @@ class StorageS3:
             return self.CODE_CLIENT_ERROR, None
 
         except Exception as exc:
-            self.logger.exception("Shit! We couldn't execute %s to S3: %r", handler.__name__, exc)
+            logger.exception("Shit! We couldn't execute %s to S3: %r", handler.__name__, exc)
             return self.CODE_COMMON_ERROR, None
 
         return self.CODE_OK, response
 
     async def __async_call(
-        self, handler: Callable, error_log_level: int = logging.ERROR, **handler_kwargs
+        self,
+        handler: Callable,
+        error_log_level: int = logging.ERROR,
+        logger: logging.Logger = module_logger,
+        **handler_kwargs,
     ) -> tuple[int, dict | None]:
         return await run_in_threadpool(self.__call, handler, error_log_level, **handler_kwargs)
 
@@ -74,9 +81,9 @@ class StorageS3:
         dst_path: str,
         filename: str | None = None,
         callback: Callable | None = None,
+        logger: logging.Logger = module_logger,
     ) -> str | None:
         """Upload file to S3 storage"""
-
         mimetype, _ = mimetypes.guess_type(src_path)
         filename = filename or os.path.basename(src_path)
         dst_path = os.path.join(dst_path, filename)
@@ -91,12 +98,13 @@ class StorageS3:
         if code != self.CODE_OK:
             return None
 
-        self.logger.info("File %s successful uploaded. Remote path: %s", filename, dst_path)
+        logger.info("File %s successful uploaded. Remote path: %s", filename, dst_path)
         return dst_path
 
-    def copy_file(self, src_path: str, dst_path: str) -> str | None:
+    def copy_file(
+        self, src_path: str, dst_path: str, logger: logging.Logger = module_logger
+    ) -> str | None:
         """Upload file to S3 storage"""
-
         code, _ = self.__call(
             self.s3.copy_object,
             Bucket=settings.S3_BUCKET_NAME,
@@ -106,7 +114,7 @@ class StorageS3:
         if code != self.CODE_OK:
             return None
 
-        self.logger.info("File successful copied: %s -> %s", src_path, dst_path)
+        logger.info("File successful copied: %s -> %s", src_path, dst_path)
         return dst_path
 
     async def upload_file_async(
@@ -115,9 +123,11 @@ class StorageS3:
         dst_path: str,
         filename: str | None = None,
         callback: Callable | None = None,
+        logger: logging.Logger = module_logger,
     ):
         return await run_in_threadpool(
             self.upload_file,
+            logger=logger,
             src_path=src_path,
             dst_path=dst_path,
             filename=filename,
@@ -129,6 +139,7 @@ class StorageS3:
         filename: str,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         error_log_level: int = logging.ERROR,
+        logger: logging.Logger = module_logger,
         dst_path: str | None = None,
     ) -> dict | None:
         """
@@ -139,6 +150,7 @@ class StorageS3:
         _, result = self.__call(
             self.s3.head_object,
             error_log_level=error_log_level,
+            logger=logger,
             Key=dst_path,
             Bucket=self.BUCKET_NAME,
         )
@@ -149,6 +161,7 @@ class StorageS3:
         filename: str | None = None,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         dst_path: str | None = None,
+        logger: logging.Logger = module_logger,
     ) -> int:
         """
         Allows finding file on remote storage (S3) and calculate size
@@ -157,12 +170,16 @@ class StorageS3:
 
         if filename or dst_path:
             file_info = self.get_file_info(
-                filename, remote_path, dst_path=dst_path, error_log_level=logging.WARNING
+                filename,
+                remote_path,
+                dst_path=dst_path,
+                error_log_level=logging.WARNING,
+                logger=logger,
             )
             if file_info:
                 return int(file_info["ResponseMetadata"]["HTTPHeaders"]["content-length"])
 
-        self.logger.info("File %s was not found on s3 storage", filename)
+        logger.info("File %s was not found on s3 storage", filename)
         return 0
 
     async def get_file_size_async(
@@ -170,9 +187,11 @@ class StorageS3:
         filename: str | None = None,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         dst_path: str | None = None,
+        logger: logging.Logger = module_logger,
     ):
         return await run_in_threadpool(
             self.get_file_size,
+            logger=logger,
             filename=filename,
             remote_path=remote_path,
             dst_path=dst_path,
@@ -183,24 +202,37 @@ class StorageS3:
         filename: str | None = None,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         dst_path: str | None = None,
+        logger: logging.Logger = module_logger,
     ):
         if not dst_path and not filename:
             raise ValueError("At least one argument must be set: dst_path | filename")
 
         dst_path = dst_path or os.path.join(remote_path, filename)
-        _, result = self.__call(self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME)
+        _, result = self.__call(
+            self.s3.delete_object, logger=logger, Key=dst_path, Bucket=self.BUCKET_NAME
+        )
         return result
 
-    async def delete_files_async(self, filenames: list[str], remote_path: str):
+    async def delete_files_async(
+        self,
+        filenames: list[str],
+        remote_path: str,
+        logger: logging.Logger = module_logger,
+    ):
         for filename in filenames:
             dst_path = os.path.join(remote_path, filename)
-            await self.__async_call(self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME)
+            await self.__async_call(
+                self.s3.delete_object, logger=logger, Key=dst_path, Bucket=self.BUCKET_NAME
+            )
 
-    async def get_presigned_url(self, remote_path: str) -> str:
+    async def get_presigned_url(
+        self, remote_path: str, logger: logging.Logger = module_logger
+    ) -> str:
         redis = RedisClient()
         if not (url := await redis.async_get(remote_path)):
             _, url = await self.__async_call(
                 self.s3.generate_presigned_url,
+                logger=logger,
                 ClientMethod="get_object",
                 Params={"Bucket": settings.S3_BUCKET_NAME, "Key": remote_path},
                 ExpiresIn=settings.S3_LINK_EXPIRES_IN,

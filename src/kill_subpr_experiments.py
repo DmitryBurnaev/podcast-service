@@ -11,7 +11,7 @@ def func(number):
     for i in range(1, 10):
         time.sleep(0.3)
         a += random.randint(1, 100)
-        print('Processing ' + str(number) + f': prints | {a=} | ' + str(number * i))
+        print("Processing " + str(number) + f": prints | {a=} | " + str(number * i))
 
     return a
 
@@ -60,8 +60,7 @@ def run_too_long_process(sleep_time: int):
     print("Finish sleeping process")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # run_bash_script()
     # run_and_terminate()
     run_too_long_process(120)
-

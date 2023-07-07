@@ -366,7 +366,9 @@ class DownloadEpisodeImageTask(RQTask):
     storage: StorageS3 = None
     MAX_UPLOAD_ATTEMPT = 5
 
-    async def run(self, episode_id: int | None = None) -> TaskState:  # pylint: disable=arguments-differ
+    async def run(
+        self, episode_id: int | None = None
+    ) -> TaskState:  # pylint: disable=arguments-differ
         self.storage = StorageS3()
 
         try:
@@ -401,7 +403,9 @@ class DownloadEpisodeImageTask(RQTask):
             else:
                 remote_path, available, size = "", False, None
 
-            self.logger.info("Saving new image URL: episode %s | remote %s", episode.id, remote_path)
+            self.logger.info(
+                "Saving new image URL: episode %s | remote %s", episode.id, remote_path
+            )
             await image.update(
                 self.db_session,
                 path=remote_path,

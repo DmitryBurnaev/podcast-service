@@ -165,11 +165,11 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         expected_calls = [
             {
                 "args": (tasks.DownloadEpisodeTask(),),
-                "kwargs": {"episode_id": episode.id, "job_id": job_download_id}
+                "kwargs": {"episode_id": episode.id, "job_id": job_download_id},
             },
             {
                 "args": (tasks.DownloadEpisodeImageTask(),),
-                "kwargs": {"episode_id": episode.id, "job_id": job_download_image_id}
+                "kwargs": {"episode_id": episode.id, "job_id": job_download_image_id},
             },
         ]
         actual_calls = [
@@ -270,7 +270,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
             mocked_rq_queue.enqueue.assert_called_with(
                 tasks.UploadedEpisodeTask(),
                 episode_id=episode.id,
-                job_id=tasks.UploadedEpisodeTask.get_job_id(episode_id=episode.id)
+                job_id=tasks.UploadedEpisodeTask.get_job_id(episode_id=episode.id),
             )
         else:
             mocked_rq_queue.enqueue.assert_not_called()
@@ -625,9 +625,7 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_details(episode)
         mocked_rq_queue.enqueue.assert_called_with(
-            task(),
-            episode_id=episode.id,
-            job_id=task.get_job_id(episode_id=episode.id)
+            task(), episode_id=episode.id, job_id=task.get_job_id(episode_id=episode.id)
         )
 
     async def test_download__episode_from_another_user__fail(self, client, episode, dbs):
@@ -641,9 +639,7 @@ class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
     default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
 
     @patch("modules.podcast.tasks.base.RQTask.cancel_task")
-    async def test_cancel_downloading__ok(
-        self, mocked_cancel_task, dbs, client, episode, user
-    ):
+    async def test_cancel_downloading__ok(self, mocked_cancel_task, dbs, client, episode, user):
         await episode.update(dbs, status=EpisodeStatus.DOWNLOADING, db_commit=True)
         await client.login(user)
         url = self.url.format(id=episode.id)

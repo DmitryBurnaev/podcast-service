@@ -26,7 +26,6 @@ class TaskForTest(RQTask):
 
 
 class TestRunTask:
-
     @patch("multiprocessing.get_logger")
     def test_run__ok(self, mocked_logger):
         mocked_logger.return_value = test_logger

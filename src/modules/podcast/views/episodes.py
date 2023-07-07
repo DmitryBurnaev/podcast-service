@@ -278,7 +278,8 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
 
 
 class EpisodeCancelDownloading(BaseHTTPEndpoint):
-    """  Allows to stop current downloaded episode """
+    """Allows to stop current downloaded episode"""
+
     async def put(self, request: PRequest) -> Response:
         episode_id = request.path_params["episode_id"]
         episode: Episode = await Episode.async_get(self.db_session, id=episode_id)

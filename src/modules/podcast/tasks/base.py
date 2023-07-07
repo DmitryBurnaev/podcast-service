@@ -87,7 +87,7 @@ class RQTask:
         return isinstance(other, self.__class__) and self.__class__ == other.__class__
 
     def _run_with_subprocess(self, *task_args, **task_kwargs) -> TaskState:
-        """ Run logic in subprocess allows to terminate run task in the background"""
+        """Run logic in subprocess allows to terminate run task in the background"""
 
         def extract_state_info(source_queue: multiprocessing.Queue) -> TaskStateInfo | None:
             with suppress(queue.Empty):
@@ -117,7 +117,9 @@ class RQTask:
                 state_info = new_state_info
 
             job_status = job.get_status()
-            logger.debug("jobid: %s | job_status: %s | state_info: %s", job.id, job_status, state_info)
+            logger.debug(
+                "jobid: %s | job_status: %s | state_info: %s", job.id, job_status, state_info
+            )
             if job_status == "canceled":  # status can be changed by RQTask.cancel_task()
                 if state_info and state_info.state == TaskState.IN_PROGRESS:
                     self.teardown(state_info.state_data)
@@ -163,15 +165,12 @@ class RQTask:
         self,
         action: TaskInProgressAction,
         state: TaskState = TaskState.IN_PROGRESS,
-        state_data: dict[str, str | Path] | None = None
+        state_data: dict[str, str | Path] | None = None,
     ):
         state_data = state_data or {}
         if hasattr(self, "task_state_queue"):
             self.task_state_queue.put(
-                TaskStateInfo(
-                    state=state,
-                    state_data=StateData(action=action, data=state_data)
-                )
+                TaskStateInfo(state=state, state_data=StateData(action=action, data=state_data))
             )
         else:
             logger.debug("No 'task_state_queue' attribute exist for %s", self.__class__.__name__)

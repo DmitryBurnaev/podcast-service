@@ -124,10 +124,7 @@ def download_process_hook(event: dict, logger: logging.Logger = module_logger):
 
 
 async def download_audio(
-    source_url: str,
-    filename: str,
-    cookie: Cookie | None,
-    logger: logging.Logger | None = None
+    source_url: str, filename: str, cookie: Cookie | None, logger: logging.Logger | None = None
 ) -> Path:
     """
     Download providers video and perform to audio (.mp3) file
@@ -188,7 +185,7 @@ def ffmpeg_preparation(
     src_path: str | Path,
     ffmpeg_params: list[str] = None,
     call_process_hook: bool = True,
-    logger: logging.Logger = module_logger
+    logger: logging.Logger = module_logger,
 ) -> None:
     """
     FFmpeg allows fixing problem with length of audio track

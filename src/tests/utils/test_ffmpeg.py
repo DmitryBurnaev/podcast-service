@@ -10,7 +10,12 @@ from core import settings
 from common.enums import EpisodeStatus
 from modules.podcast.utils import post_processing_process_hook, module_logger as podcast_logger
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
-from modules.providers.utils import ffmpeg_preparation, audio_metadata, AudioMetaData, module_logger as providers_logger
+from modules.providers.utils import (
+    ffmpeg_preparation,
+    audio_metadata,
+    AudioMetaData,
+    module_logger as providers_logger,
+)
 from tests.api.test_base import BaseTestCase
 
 
@@ -34,7 +39,7 @@ class TestFFMPEG(BaseTestCase):
                 filename=self.filename,
                 total_bytes=len(b"data"),
                 processed_bytes=0,
-                logger=providers_logger
+                logger=providers_logger,
             ),
             finish_call,
         ]
@@ -96,7 +101,9 @@ class TestFFMPEG(BaseTestCase):
         self.assert_hooks_calls(
             mocked_process_hook,
             finish_call=dict(
-                status=EpisodeStatus.ERROR, filename=self.filename, logger=providers_logger,
+                status=EpisodeStatus.ERROR,
+                filename=self.filename,
+                logger=providers_logger,
             ),
         )
 
