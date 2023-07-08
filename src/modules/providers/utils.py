@@ -140,7 +140,7 @@ async def download_audio(
         "format": "bestaudio/best",
         "outtmpl": str(result_path),
         "logger": logger or logging.getLogger("yt_dlp.YoutubeDL"),
-        "progress_hooks": [download_process_hook],
+        "progress_hooks": [partial(download_process_hook, logger=(logger or module_logger))],
         "noprogress": True,
     }
     if cookie:

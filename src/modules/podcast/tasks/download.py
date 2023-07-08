@@ -46,7 +46,7 @@ class DownloadEpisodeTask(RQTask):
     tmp_audio_path: Path
 
     async def run(self, episode_id: int) -> TaskState:  # pylint: disable=arguments-differ
-        self.storage = StorageS3(logger=self.logger)
+        self.storage = StorageS3()
 
         try:
             code = await self.perform_run(int(episode_id))
@@ -95,10 +95,13 @@ class DownloadEpisodeTask(RQTask):
         await self._update_episodes(
             episode,
             update_data={
-                "status": Episode.Status.PUBLISHED,
+                # TODO: rollback "status": Episode.Status.PUBLISHED,
+                "status": Episode.Status.NEW,
                 "published_at": episode.created_at,
             },
         )
+        # TODO: remove debug data
+        remote_file_size = 0
         await self._update_files(episode, {"size": remote_file_size, "available": True})
         await self._update_all_rss(episode.source_id)
 
@@ -131,7 +134,7 @@ class DownloadEpisodeTask(RQTask):
             return
 
         self._set_queue_action(TaskInProgressAction.CHECKING)
-        stored_file_size = self.storage.get_file_size(dst_path=audio_path)
+        stored_file_size = self.storage.get_file_size(dst_path=audio_path, logger=self.logger)
         if stored_file_size and stored_file_size == episode.audio.size:
             self.logger.info(
                 "[%s] Episode already downloaded and file correct. Downloading will be ignored.",
@@ -203,7 +206,7 @@ class DownloadEpisodeTask(RQTask):
                 episode.status,
                 audio_path,
             )
-            self.storage.delete_file(audio_path)
+            self.storage.delete_file(audio_path, logger=self.logger)
 
     async def _process_file(self, episode: Episode, tmp_audio_path: Path):
         """Postprocessing for downloaded audio file"""
@@ -233,7 +236,7 @@ class DownloadEpisodeTask(RQTask):
             raise DownloadingInterrupted(code=TaskState.ERROR)
 
         await self._update_files(episode, {"path": remote_path})
-        result_file_size = self.storage.get_file_size(tmp_audio_path.name)
+        result_file_size = self.storage.get_file_size(tmp_audio_path.name, logger=self.logger)
         self.logger.info(
             "=== [%s] UPLOADING was done (%i bytes) === ", episode.source_id, result_file_size
         )
@@ -242,10 +245,10 @@ class DownloadEpisodeTask(RQTask):
     async def _update_all_rss(self, source_id: str):
         """Regenerating rss for all podcast with requested episode (by source_id)"""
 
-        self.logger.info("Episodes with source #%s: updating rss for all podcast", source_id)
+        self.logger.info("=== [%s] Updating rss for all podcast === ", source_id)
         affected_episodes = await Episode.async_filter(self.db_session, source_id=source_id)
         podcast_ids = sorted([episode.podcast_id for episode in affected_episodes])
-        self.logger.info("Found podcasts for rss updates: %s", podcast_ids)
+        self.logger.info("[%s] Found podcasts for rss updates: %s", source_id, podcast_ids)
         await GenerateRSSTask(db_session=self.db_session).run(*podcast_ids)
 
     async def _update_episodes(self, episode: Episode, update_data: dict):
@@ -296,7 +299,7 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
             episode.source_id,
             episode.audio.path,
         )
-        remote_size = self.storage.get_file_size(dst_path=episode.audio.path)
+        remote_size = self.storage.get_file_size(dst_path=episode.audio.path, logger=self.logger)
         if episode.status == EpisodeStatus.PUBLISHED and remote_size == episode.audio.size:
             raise DownloadingInterrupted(
                 code=TaskState.SKIP, message=f"Episode #{episode_id} already published."
@@ -311,7 +314,7 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
             )
 
         remote_path = await self._copy_file(episode)
-        remote_size = self.storage.get_file_size(os.path.basename(remote_path))
+        remote_size = self.storage.get_file_size(os.path.basename(remote_path), logger=self.logger)
 
         await episode.update(
             self.db_session,
@@ -356,7 +359,7 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
 
     def _delete_tmp_file(self, old_file_path: str):
         self.logger.debug("Removing old file %s...", old_file_path)
-        self.storage.delete_file(dst_path=old_file_path)
+        self.storage.delete_file(dst_path=old_file_path, logger=self.logger)
         self.logger.debug("Removing done for old file %s.", old_file_path)
 
 
