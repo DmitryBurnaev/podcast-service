@@ -249,7 +249,9 @@ class DownloadEpisodeTask(RQTask):
         affected_episodes = await Episode.async_filter(self.db_session, source_id=source_id)
         podcast_ids = sorted([episode.podcast_id for episode in affected_episodes])
         self.logger.info("[%s] Found podcasts for rss updates: %s", source_id, podcast_ids)
-        await GenerateRSSTask(db_session=self.db_session).run(*podcast_ids)
+        generate_rss_task = GenerateRSSTask(db_session=self.db_session)
+        generate_rss_task.logger = self.logger
+        await generate_rss_task.run(*podcast_ids)
 
     async def _update_episodes(self, episode: Episode, update_data: dict):
         """Updating data for episodes (filtered by source_id and source_type)"""
