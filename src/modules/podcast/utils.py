@@ -165,7 +165,7 @@ def upload_episode(src_path: str | Path, logger: logging.Logger = module_logger)
         src_path=str(src_path),
         dst_path=settings.S3_BUCKET_AUDIO_PATH,
         callback=partial(upload_process_hook, filename),
-        logger=logger
+        logger=logger,
     )
     if not remote_path:
         logger.warning("Couldn't upload file to S3 storage. SKIP")

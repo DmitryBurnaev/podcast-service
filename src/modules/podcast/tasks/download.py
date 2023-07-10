@@ -95,13 +95,10 @@ class DownloadEpisodeTask(RQTask):
         await self._update_episodes(
             episode,
             update_data={
-                # TODO: rollback "status": Episode.Status.PUBLISHED,
-                "status": Episode.Status.NEW,
+                "status": Episode.Status.PUBLISHED,
                 "published_at": episode.created_at,
             },
         )
-        # TODO: remove debug data
-        remote_file_size = 0
         await self._update_files(episode, {"size": remote_file_size, "available": True})
         await self._update_all_rss(episode.source_id)
 

@@ -39,6 +39,8 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_generate_rss_task,
         dbs,
     ):
+        mocked_s3.get_file_size.return_value = 123
+
         file_path = await self._source_file(dbs, episode)
         result = await DownloadEpisodeTask(db_session=dbs).run(episode.id)
         episode = await Episode.async_get(dbs, id=episode.id)
@@ -58,6 +60,13 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert result == TaskState.FINISHED
         assert episode.status == Episode.Status.PUBLISHED
         assert episode.published_at == episode.created_at
+
+        created_audio = await File.async_get(dbs, id=episode.audio_id)
+        assert created_audio is not None
+        assert created_audio.available
+        assert created_audio.path == mocked_s3.get_mocked_remote_path(file_path)
+        assert created_audio.owner_id == episode.owner_id
+        assert created_audio.size == 123
 
     async def test_downloading__using_cookies__ok(
         self,
