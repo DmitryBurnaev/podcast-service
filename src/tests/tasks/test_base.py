@@ -1,5 +1,6 @@
 import logging
 import multiprocessing
+import uuid
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -25,16 +26,31 @@ class TaskForTest(RQTask):
         return TaskState.FINISHED
 
 
+class TaskForSubprocessCallTesting(RQTask):
+
+    async def run(self, raise_error=False):
+        if raise_error:
+            raise RuntimeError("Oops")
+
+        return TaskState.FINISHED
+
+
+class MockJob:
+    def __init__(self, *_, **__):
+        self.cancel = MagicMock()
+        self.id = uuid.uuid4().hex
+        self.key = TaskForSubprocessCallTesting.get_job_id()
+        self.get_status = MagicMock()
+
+
 class TestRunTask:
-    @patch("multiprocessing.get_logger")
-    def test_run__ok(self, mocked_logger):
-        mocked_logger.return_value = test_logger
+    @patch("multiprocessing.get_logger", lambda: test_logger)
+    def test_run__ok(self):
         task = TaskForTest()
         assert task() == TaskState.FINISHED
 
-    @patch("multiprocessing.get_logger")
-    def test_run__fail(self, mocked_logger):
-        mocked_logger.return_value = test_logger
+    @patch("multiprocessing.get_logger", lambda: test_logger)
+    def test_run__fail(self):
         task = TaskForTest()
         assert task(raise_error=True) == TaskState.ERROR
 
@@ -51,10 +67,17 @@ class TestRunTask:
         task_classes = list(RQTask.get_subclasses())
         assert TaskForTest in task_classes
 
+    @patch("multiprocessing.get_logger", lambda: test_logger)
+    @patch("rq.job.Job.fetch")
+    async def test_run_with_subprocess__ok(self, mocked_job_fetch):
+        mocked_job_fetch.return_value = MockJob()
+        task = TaskForSubprocessCallTesting()
+        assert task() == TaskState.FINISHED
 
-class MockJob:
-    def __int__(self, *_, **__):
-        self.cancel = MagicMock()
+    @patch("multiprocessing.get_logger", lambda: test_logger)
+    @patch("rq.job.Job.fetch")
+    async def test_run_with_subprocess__fail(self, mocked_job_fetch):
+        assert False
 
 
 @patch("rq.job.Job.cancel")
