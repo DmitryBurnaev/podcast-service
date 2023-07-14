@@ -77,7 +77,9 @@ class TestRunTask:
     @patch("multiprocessing.get_logger", lambda: test_logger)
     @patch("rq.job.Job.fetch")
     async def test_run_with_subprocess__fail(self, mocked_job_fetch):
-        assert False
+        mocked_job_fetch.return_value = MockJob()
+        task = TaskForSubprocessCallTesting()
+        assert task(raise_error=True) == TaskState.ERROR
 
 
 @patch("rq.job.Job.cancel")
