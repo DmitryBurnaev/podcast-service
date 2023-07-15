@@ -93,7 +93,7 @@ class RQTask:
             with suppress(queue.Empty):
                 return source_queue.get(block=False)
 
-        def task_in_progress(state_info: TaskStateInfo | None):
+        def task_in_progress(state_info: TaskStateInfo | None) -> bool:
             if not state_info:
                 return True
 
