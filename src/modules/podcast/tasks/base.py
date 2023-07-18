@@ -132,7 +132,7 @@ class RQTask:
 
         return state_info.state if state_info else None
 
-    def _perform_and_run(self, task_state_queue, *args, **kwargs):
+    def _perform_and_run(self, task_state_queue, *args, **kwargs) -> TaskState:
         """
         Runs async code, implemented in `self.run` and stores result to the queue
         (for retrieving results above)
@@ -157,9 +157,9 @@ class RQTask:
 
             return result
 
-        finish_code = asyncio.run(run_async(*args, **kwargs))
-        self.task_state_queue.put(TaskStateInfo(state=TaskState.FINISHED, state_data=finish_code))
-        return finish_code
+        result_state = asyncio.run(run_async(*args, **kwargs))
+        self.task_state_queue.put(TaskStateInfo(state=result_state))
+        return result_state
 
     def _set_queue_action(
         self,
