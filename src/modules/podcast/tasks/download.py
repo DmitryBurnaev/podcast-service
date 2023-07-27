@@ -124,6 +124,11 @@ class DownloadEpisodeTask(RQTask):
         self.logger.debug("Teardown task 'DownloadEpisodeTask': removing file: %s", local_filename)
         podcast_utils.delete_file(local_filename, logger=self.logger)
 
+        # TODO: clear redis data
+        redis_client = RedisClient()
+        event_key = redis_client.get_key_by_filename(local_filename)
+        redis_client.set(event_key, {})
+
     async def _check_is_needed(self, episode: Episode):
         """Finding already downloaded file for episode's audio file path"""
 
