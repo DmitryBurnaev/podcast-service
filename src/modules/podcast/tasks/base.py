@@ -202,5 +202,9 @@ class RQTask:
         else:
             logger.info("Canceled task %s", job_id)
 
-    def teardown(self, state_data: StateData):
+    def teardown(self, state_data: StateData) -> None:
+        """
+        Preparing some extra actions for cancelling current task
+        (ex.: killing subprocess, remove tmp files, etc.)
+        """
         logger.debug("Teardown for %s | state_data: %s", self.__class__.__name__, state_data)

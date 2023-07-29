@@ -81,7 +81,7 @@ class Episode(ModelBase, ModelMixin):
 
     Status = EpisodeStatus
     Sources = SourceType
-    PROGRESS_STATUSES = (Status.DOWNLOADING,)
+    PROGRESS_STATUSES = (EpisodeStatus.DOWNLOADING,)
 
     id = Column(Integer, primary_key=True)
     title = Column(String(length=256), nullable=False)
@@ -96,7 +96,7 @@ class Episode(ModelBase, ModelMixin):
     length = Column(Integer, default=0)
     description = Column(String)
     author = Column(String(length=256))
-    status = EnumTypeColumn(Status, default=Status.NEW)
+    status = EnumTypeColumn(EpisodeStatus, default=EpisodeStatus.NEW)
     created_at = Column(DateTime, default=datetime.utcnow)
     published_at = Column(DateTime)
 

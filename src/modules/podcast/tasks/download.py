@@ -107,7 +107,13 @@ class DownloadEpisodeTask(RQTask):
         self.logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
         return TaskState.FINISHED
 
-    def teardown(self, state_data: StateData | None = None):
+    def teardown(self, state_data: StateData | None = None) -> None:
+        """
+        Make some preparations for cancelling current task:
+        - kill ffmpeg subprocess (if exists)
+        - delete tmp file
+        - remove progress data from redis (by key)
+        """
         super().teardown(state_data)
         if not state_data:
             self.logger.debug("Teardown task 'DownloadEpisodeTask': no state_data detected")
@@ -116,18 +122,23 @@ class DownloadEpisodeTask(RQTask):
         local_filename = state_data.data["local_filename"]
         if not local_filename:
             self.logger.debug(
-                "Teardown task 'DownloadEpisodeTask': no local_file detected: %s", state_data
+                "Teardown task 'DownloadEpisodeTask': no local_file detected "
+                "(skip ffmpeg killing): %s",
+                state_data,
             )
+            return
 
+        # killing ffmpeg subprocess (only if local file already created)
         self.logger.debug("Teardown task 'DownloadEpisodeTask': killing ffmpeg called process")
         podcast_utils.kill_process(grep=f"ffmpeg -y -i {local_filename}", logger=self.logger)
         self.logger.debug("Teardown task 'DownloadEpisodeTask': removing file: %s", local_filename)
         podcast_utils.delete_file(local_filename, logger=self.logger)
 
-        # TODO: clear redis data
+        # remove progress data from redis (provides for dynamic progress showing on the client)
         redis_client = RedisClient()
         event_key = redis_client.get_key_by_filename(local_filename)
-        redis_client.set(event_key, {})
+        self.logger.debug("Clearing redis progress data. Key: %s", event_key)
+        redis_client.set(event_key, None)
 
     async def _check_is_needed(self, episode: Episode):
         """Finding already downloaded file for episode's audio file path"""

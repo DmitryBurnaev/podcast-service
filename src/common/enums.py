@@ -25,6 +25,8 @@ class EpisodeStatus(StringEnumMixin, enum.StrEnum):
 
     NEW = "NEW"
     DOWNLOADING = "DOWNLOADING"
+    # TODO: add migration for new type
+    CANCELING = "CANCELING"
     PUBLISHED = "PUBLISHED"
     ARCHIVED = "ARCHIVED"
     ERROR = "ERROR"
