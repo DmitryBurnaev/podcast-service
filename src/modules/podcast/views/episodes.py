@@ -249,6 +249,8 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
         if episode.status == EpisodeStatus.DOWNLOADING:
             DownloadEpisodeTask.cancel_task(episode_id=episode_id)
             DownloadEpisodeImageTask.cancel_task(episode_id=episode_id)
+        elif episode.status == EpisodeStatus.CANCELING:
+            raise InvalidRequestError("Can't remove episode in 'CANCELING' status")
 
         return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
 

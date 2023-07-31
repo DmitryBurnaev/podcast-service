@@ -513,6 +513,16 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.delete(url), episode)
 
+    async def test_delete__episode_in_canceling_state__fail(self, client, episode, user, dbs):
+        await client.login(user)
+        await episode.update(dbs, status=Episode.Status.CANCELING, db_commit=True)
+
+        url = self.url.format(id=episode.id)
+        response = client.delete(url)
+        response_data = response.json()
+        assert response_data["payload"]["details"] == "Can't remove episode in 'CANCELING' status"
+        assert await Episode.async_get(dbs, id=episode.id) is not None
+
     @pytest.mark.parametrize(
         "same_episode_status, delete_called",
         [
