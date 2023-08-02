@@ -655,6 +655,8 @@ class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
         url = self.url.format(id=episode.id)
         self.assert_ok_response(client.put(url), status_code=204)
 
+        dbs.refresh(episode)
+        assert episode.status == EpisodeStatus.CANCELING
         mocked_cancel_task.assert_called_with(episode_id=episode.id)
 
     @patch("modules.podcast.tasks.base.RQTask.cancel_task")
@@ -668,6 +670,8 @@ class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
         assert response_data["details"] == (
             f"Episode #{episode.id} not found or is not in progress now"
         )
+        dbs.refresh(episode)
+        assert episode.status == EpisodeStatus.NEW
         mocked_cancel_task.assert_not_called()
 
 
