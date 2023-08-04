@@ -140,6 +140,10 @@ class DownloadEpisodeTask(RQTask):
         self.logger.debug("Clearing redis progress data. Key: %s", event_key)
         redis_client.set(event_key, None)
 
+        if episode_id := state_data.data.get("episode_id"):
+            # TODO: update episode's status to the NEW state
+            ...
+
     async def _check_is_needed(self, episode: Episode):
         """Finding already downloaded file for episode's audio file path"""
 
