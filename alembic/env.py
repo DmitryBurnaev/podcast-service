@@ -23,8 +23,6 @@ fileConfig(config.config_file_name)
 target_metadata = ModelBase.metadata
 logger = logging.getLogger("alembic.env")
 
-raise RuntimeError("Test env.py using")
-
 
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
