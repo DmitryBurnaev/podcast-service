@@ -1,7 +1,7 @@
 from typing import Type
 
 import sqlalchemy as sa
-from sqlalchemy import Column
+from sqlalchemy import Column, create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
@@ -53,3 +53,16 @@ def make_session_maker() -> sessionmaker:
         connect_args={"server_settings": {"jit": "off"}},
     )
     return sessionmaker(db_engine, expire_on_commit=False, class_=AsyncSession)
+
+
+def make_sync_session():
+    # TODO: use sync session for some part of background tasks
+    db_engine = create_engine(settings.DATABASE_DSN,)
+    return sessionmaker(db_engine)
+
+#
+# # create session and add objects
+# with Session(engine) as session:
+#     session.add(some_object)
+#     session.add(some_other_object)
+#     session.commit()
