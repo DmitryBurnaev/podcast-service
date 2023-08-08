@@ -3,8 +3,10 @@ import os.path
 import logging
 from pathlib import Path
 
+from sqlalchemy import update
 from yt_dlp.utils import YoutubeDLError
 
+from common.db_utils import make_sync_session_maker
 from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
@@ -141,8 +143,14 @@ class DownloadEpisodeTask(RQTask):
         redis_client.set(event_key, None)
 
         if episode_id := state_data.data.get("episode_id"):
-            # TODO: update episode's status to the NEW state
-            ...
+            session = make_sync_session_maker()
+            with session.begin() as session:
+                stmt = (
+                    update(Episode)
+                    .where(Episode.id == episode_id)
+                    .values(status=Episode.Status.ERROR)
+                )
+                session.execute(stmt)
 
     async def _check_is_needed(self, episode: Episode):
         """Finding already downloaded file for episode's audio file path"""

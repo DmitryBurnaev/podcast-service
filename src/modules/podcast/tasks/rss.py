@@ -1,13 +1,15 @@
 import os
 
 from jinja2 import Template
+from sqlalchemy import update
 
+from common.db_utils import make_sync_session_maker
 from core import settings
 from common.enums import FileType
 from common.storage import StorageS3
 from modules.media.models import File
 from modules.podcast.models import Podcast, Episode
-from modules.podcast.tasks.base import RQTask, TaskState
+from modules.podcast.tasks.base import RQTask, TaskState, StateData
 from modules.podcast.utils import get_file_size
 
 __all__ = ["GenerateRSSTask"]
@@ -86,3 +88,16 @@ class GenerateRSSTask(RQTask):
 
         self.logger.info("Podcast #%i: RSS file %s generated.", podcast.id, rss_filename)
         return rss_filename
+
+    def teardown(self, state_data: StateData) -> None:
+        # todo: remove this test scenario
+        episode_id = 344
+        # if episode_id := state_data.data.get("episode_id"):
+        session = make_sync_session_maker()
+        with session.begin() as session:
+            stmt = (
+                update(Episode)
+                .where(Episode.id == episode_id)
+                .values(status=Episode.Status.ERROR)
+            )
+            session.execute(stmt)

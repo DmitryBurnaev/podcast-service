@@ -1,7 +1,7 @@
-from typing import Type
+from typing import Type, cast
 
 import sqlalchemy as sa
-from sqlalchemy import Column, create_engine
+from sqlalchemy import Column, create_engine, Engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
@@ -46,23 +46,16 @@ def make_session_maker() -> sessionmaker:
     Using disabled JIT ("jit": "off") fixes asyncpg improvements problem with native enums
     see for details https://docs.sqlalchemy.org/en/14/dialects/postgresql.html#disabling-the-postgresql-jit-to-improve-enum-datatype-handling
     """
-
-    db_engine = create_async_engine(
+    async_engine = create_async_engine(
         settings.DATABASE_DSN,
         echo=settings.DB_ECHO,
         connect_args={"server_settings": {"jit": "off"}},
     )
+    db_engine = cast(Engine, async_engine) # only for correct typing
     return sessionmaker(db_engine, expire_on_commit=False, class_=AsyncSession)
 
 
-def make_sync_session():
-    # TODO: use sync session for some part of background tasks
+def make_sync_session_maker() -> sessionmaker:
+    """ Provides sync session (can be used for background tasks (non-async sections) logic)"""
     db_engine = create_engine(settings.DATABASE_DSN,)
     return sessionmaker(db_engine)
-
-#
-# # create session and add objects
-# with Session(engine) as session:
-#     session.add(some_object)
-#     session.add(some_other_object)
-#     session.commit()
