@@ -18,7 +18,6 @@ depends_on = None
 OLD_STATUSES = (
     "NEW",
     "DOWNLOADING",
-    "CANCELING",
     "PUBLISHED",
     "ARCHIVED",
     "ERROR",
@@ -66,7 +65,7 @@ def downgrade():
 
 def _remove_enum_value(type_name: str):
     connection = op.get_bind()
-    connection.execute(text("UPDATE podcast_episodes SET status='NEW' WHERE status='CANCELING'"))
+    connection.execute(text("UPDATE podcast_episodes SET status='ERROR' WHERE status='CANCELING'"))
     connection.execute(text(f"ALTER TYPE episode_status RENAME TO {type_name}_old;"))
 
     enum_psql_type = postgresql.ENUM(*OLD_STATUSES, name=type_name)

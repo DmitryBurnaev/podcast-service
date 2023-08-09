@@ -27,6 +27,12 @@ class GenerateRSSTask(RQTask):
         filter_kwargs = {"id__in": map(int, podcast_ids)} if podcast_ids else {}
         podcasts = await Podcast.async_filter(self.db_session, **filter_kwargs)
         results = {}
+
+        # TODO: remove after teardown logic testing
+        print("sleep")
+        import time
+        time.sleep(10)
+
         for podcast in podcasts:
             results.update(await self._generate(podcast))
 
