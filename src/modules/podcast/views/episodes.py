@@ -285,12 +285,14 @@ class EpisodeCancelDownloading(BaseHTTPEndpoint):
     async def put(self, request: PRequest) -> Response:
         episode_id = request.path_params["episode_id"]
         episode: Episode = await Episode.async_get(self.db_session, id=episode_id)
-        if not episode or episode.status != EpisodeStatus.DOWNLOADING:
-            raise InvalidRequestError(f"Episode #{episode_id} not found or is not in progress now")
+        GenerateRSSTask.cancel_task(4)
 
-        episode.status = Episode.Status.CANCELING
-        await episode.update(self.db_session, status=episode.status)
-
-        DownloadEpisodeTask.cancel_task(episode_id=episode_id)
-        DownloadEpisodeImageTask.cancel_task(episode_id=episode_id)
+        # if not episode or episode.status != EpisodeStatus.DOWNLOADING:
+        #     raise InvalidRequestError(f"Episode #{episode_id} not found or is not in progress now")
+        #
+        # episode.status = Episode.Status.CANCELING
+        # await episode.update(self.db_session, status=episode.status)
+        #
+        # DownloadEpisodeTask.cancel_task(episode_id=episode_id)
+        # DownloadEpisodeImageTask.cancel_task(episode_id=episode_id)
         return self._response(None, status_code=status.HTTP_204_NO_CONTENT)

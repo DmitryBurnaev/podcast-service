@@ -193,7 +193,7 @@ class RQTask:
     @classmethod
     def cancel_task(cls, *task_args, **task_kwargs) -> None:
         job_id = cls.get_job_id(*task_args, **task_kwargs)
-        logger.debug("Trying to cancel task %s", job_id)
+        logger.warning("Trying to cancel task %s", job_id)
         try:
             job = Job.fetch(job_id, connection=Redis())
             job.cancel()
