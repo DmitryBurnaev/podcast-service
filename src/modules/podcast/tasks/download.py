@@ -109,14 +109,14 @@ class DownloadEpisodeTask(RQTask):
         self.logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
         return TaskState.FINISHED
 
-    def teardown(self, state_data: StateData | None = None) -> None:
+    def teardown(self, state_data: StateData | None, logger: logging.Logger) -> None:
         """
         Make some preparations for cancelling current task:
         - kill ffmpeg subprocess (if exists)
         - delete tmp file
         - remove progress data from redis (by key)
         """
-        super().teardown(state_data)
+        super().teardown(state_data, logger)
         if not state_data:
             self.logger.debug("Teardown task 'DownloadEpisodeTask': no state_data detected")
             return

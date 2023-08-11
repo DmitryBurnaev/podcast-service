@@ -47,7 +47,7 @@ class TaskForSubprocessCallTesting(RQTask):
 
         return TaskState.FINISHED
 
-    def teardown(self, state_data: StateData):
+    def teardown(self, state_data: StateData, logger: logging.Logger):
         self.started = False
 
 

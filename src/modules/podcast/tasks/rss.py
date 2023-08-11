@@ -1,15 +1,16 @@
+import logging
 import os
+import asyncio
 
 from jinja2 import Template
-from sqlalchemy import update
 
-from common.db_utils import make_sync_session_maker
+from common.db_utils import make_session_maker
 from core import settings
 from common.enums import FileType
 from common.storage import StorageS3
 from modules.media.models import File
 from modules.podcast.models import Podcast, Episode
-from modules.podcast.tasks.base import RQTask, TaskState, StateData
+from modules.podcast.tasks.base import RQTask, TaskState, StateData, TaskInProgressAction
 from modules.podcast.utils import get_file_size
 
 __all__ = ["GenerateRSSTask"]
@@ -29,6 +30,7 @@ class GenerateRSSTask(RQTask):
         results = {}
 
         # TODO: remove after teardown logic testing
+        self._set_queue_action(TaskInProgressAction.DOWNLOADING, state_data={"episode_id": 344})
         print("sleep")
         import time
         time.sleep(10)
@@ -95,15 +97,23 @@ class GenerateRSSTask(RQTask):
         self.logger.info("Podcast #%i: RSS file %s generated.", podcast.id, rss_filename)
         return rss_filename
 
-    def teardown(self, state_data: StateData) -> None:
+    def teardown(self, state_data: StateData, logger: logging.Logger) -> None:
+        super().teardown(state_data, logger)
         # todo: remove this test scenario
-        episode_id = 344
-        # if episode_id := state_data.data.get("episode_id"):
-        session = make_sync_session_maker()
-        with session.begin() as session:
-            stmt = (
-                update(Episode)
-                .where(Episode.id == episode_id)
-                .values(status=Episode.Status.ERROR)
-            )
-            session.execute(stmt)
+
+        async def async_update(episode_id: int, status: Episode.Status):
+            session_maker = make_session_maker()
+            async with session_maker() as db_session:
+                await Episode.async_update(
+                    db_session,
+                    filter_kwargs={"id": episode_id},
+                    update_data={"status": new_status},
+                )
+                await db_session.commit()
+
+        if episode_id := state_data.data.get("episode_id"):
+            new_status = Episode.Status.ERROR
+            asyncio.run(async_update(episode_id, new_status))
+            # logger.warning("Updated episode state..")
+            # TODO: fix logger (works only with WARNING level)
+            logger.warning("Updated episode with id %i to %s state..", episode_id, new_status)
