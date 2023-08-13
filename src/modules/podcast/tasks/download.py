@@ -3,10 +3,9 @@ import os.path
 import logging
 from pathlib import Path
 
-from sqlalchemy import update
 from yt_dlp.utils import YoutubeDLError
 
-from common.db_utils import make_sync_session_maker
+from common.db_utils import make_session_maker
 from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
@@ -28,6 +27,17 @@ log_levels = {
     TaskState.SKIP: logging.INFO,
     TaskState.ERROR: logging.ERROR,
 }
+
+
+async def _async_episode_update(episode_id: int, new_status: Episode.Status):
+    session_maker = make_session_maker()
+    async with session_maker() as db_session:
+        await Episode.async_update(
+            db_session,
+            filter_kwargs={"id": episode_id},
+            update_data={"status": new_status},
+        )
+        await db_session.commit()
 
 
 class DownloadingInterrupted(Exception):
@@ -109,14 +119,14 @@ class DownloadEpisodeTask(RQTask):
         self.logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
         return TaskState.FINISHED
 
-    def teardown(self, state_data: StateData | None, logger: logging.Logger) -> None:
+    def teardown(self, state_data: StateData | None) -> None:
         """
         Make some preparations for cancelling current task:
         - kill ffmpeg subprocess (if exists)
         - delete tmp file
         - remove progress data from redis (by key)
         """
-        super().teardown(state_data, logger)
+        super().teardown(state_data)
         if not state_data:
             self.logger.debug("Teardown task 'DownloadEpisodeTask': no state_data detected")
             return
@@ -143,14 +153,13 @@ class DownloadEpisodeTask(RQTask):
         redis_client.set(event_key, None)
 
         if episode_id := state_data.data.get("episode_id"):
-            session = make_sync_session_maker()
-            with session.begin() as session:
-                stmt = (
-                    update(Episode)
-                    .where(Episode.id == episode_id)
-                    .values(status=Episode.Status.ERROR)
-                )
-                session.execute(stmt)
+            new_status = Episode.Status.NEW
+            self.logger.debug(
+                "Teardown task 'DownloadEpisodeTask': updating episode with id %i to %s state..",
+                episode_id,
+                new_status
+            )
+            asyncio.run(_async_episode_update(episode_id, new_status))
 
     async def _check_is_needed(self, episode: Episode):
         """Finding already downloaded file for episode's audio file path"""

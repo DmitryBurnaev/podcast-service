@@ -12,7 +12,7 @@ from modules.media.models import File
 from modules.podcast.models import Episode, Podcast
 from common.enums import EpisodeStatus, SourceType
 from modules.podcast.tasks import DownloadEpisodeTask, DownloadEpisodeImageTask
-from modules.podcast.tasks.base import TaskState
+from modules.podcast.tasks.base import TaskState, StateData, TaskInProgressAction
 from modules.providers.utils import download_process_hook
 from tests.api.test_base import BaseTestCase
 from tests.helpers import get_podcast_data, create_episode
@@ -290,6 +290,28 @@ class TestDownloadEpisodeTask(BaseTestCase):
             total_bytes=1024,
             processed_bytes=24,
         )
+
+    async def test_download__cancel__check_teardown_logic(
+        self,
+        episode,
+        mocked_youtube,
+        mocked_ffmpeg,
+        mocked_redis,
+        mocked_s3,
+        mocked_generate_rss_task,
+        dbs,
+    ):
+        await episode.update(dbs, status=Episode.Status.CANCELING)
+
+        state_data = StateData(
+            action=TaskInProgressAction.DOWNLOADING,
+            data={"episode_id": episode.id}
+        )
+        DownloadEpisodeTask(db_session=dbs).teardown(state_data=state_data)
+
+        episode = dbs.refresh(episode)
+        assert episode.status == Episode.Status.NEW
+        # TODO: extend test logic with checking that ffmpeg canceling called
 
 
 class TestDownloadEpisodeImageTask(BaseTestCase):

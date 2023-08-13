@@ -33,7 +33,7 @@ clean-pyc:
 
 lint:
 	pipenv run black . --exclude migrations --line-length 100
-	#PYTHONPATH=./src pipenv run pylint src/
+	PYTHONPATH=./src pipenv run pylint src/
 	make clean-pyc
 
 test:

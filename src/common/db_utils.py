@@ -1,7 +1,7 @@
 from typing import Type, cast
 
 import sqlalchemy as sa
-from sqlalchemy import Column, create_engine, Engine
+from sqlalchemy import Column, Engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
@@ -51,11 +51,5 @@ def make_session_maker() -> sessionmaker:
         echo=settings.DB_ECHO,
         connect_args={"server_settings": {"jit": "off"}},
     )
-    db_engine = cast(Engine, async_engine) # only for correct typing
+    db_engine = cast(Engine, async_engine)  # just for correct typing
     return sessionmaker(db_engine, expire_on_commit=False, class_=AsyncSession)
-
-
-def make_sync_session_maker() -> sessionmaker:
-    """ Provides sync session (can be used for background tasks (non-async sections) logic)"""
-    db_engine = create_engine(settings.DATABASE_DSN,)
-    return sessionmaker(db_engine)

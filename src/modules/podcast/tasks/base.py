@@ -122,7 +122,7 @@ class RQTask:
             )
             if job_status == "canceled":  # status can be changed by RQTask.cancel_task()
                 if state_info and state_info.state == TaskState.IN_PROGRESS:
-                    self.teardown(state_info.state_data, logger)
+                    self.teardown(state_info.state_data)
 
                 process.terminate()
                 logger.warning(f"Process '%s' terminated!", process)
@@ -202,7 +202,7 @@ class RQTask:
         else:
             logger.info("Canceled task %s", job_id)
 
-    def teardown(self, state_data: StateData, logger: logging.Logger) -> None:
+    def teardown(self, state_data: StateData) -> None:
         """
         Preparing some extra actions for cancelling current task
         (ex.: killing subprocess, remove tmp files, etc.)
