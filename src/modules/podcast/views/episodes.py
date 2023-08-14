@@ -245,13 +245,10 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
     async def delete(self, request: PRequest) -> Response:
         episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
-        await episode.delete(self.db_session)
-        if episode.status == EpisodeStatus.DOWNLOADING:
-            DownloadEpisodeTask.cancel_task(episode_id=episode_id)
-            DownloadEpisodeImageTask.cancel_task(episode_id=episode_id)
-        elif episode.status == EpisodeStatus.CANCELING:
-            raise InvalidRequestError("Can't remove episode in 'CANCELING' status")
+        if episode.status in Episode.PROGRESS_STATUSES:
+            raise InvalidRequestError(f"Can't remove episode in '{episode.status}' status")
 
+        await episode.delete(self.db_session)
         return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
 
 

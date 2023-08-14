@@ -81,7 +81,7 @@ class Episode(ModelBase, ModelMixin):
 
     Status = EpisodeStatus
     Sources = SourceType
-    PROGRESS_STATUSES = (EpisodeStatus.DOWNLOADING,)
+    PROGRESS_STATUSES = (EpisodeStatus.DOWNLOADING, EpisodeStatus.CANCELING)
 
     id = Column(Integer, primary_key=True)
     title = Column(String(length=256), nullable=False)
