@@ -577,15 +577,15 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         )
 
     @pytest.mark.parametrize(
-        "episode_status, cancel_task_must_be_called",
-        [
-            (Episode.Status.NEW, False),
-            (Episode.Status.PUBLISHED, False),
-            (Episode.Status.DOWNLOADING, True),
-        ],
+        "episode_status",
+        (
+            Episode.Status.NEW,
+            Episode.Status.PUBLISHED,
+            Episode.Status.ERROR,
+        ),
     )
     @patch("modules.podcast.tasks.base.RQTask.cancel_task")
-    async def test_delete_episode__cancel_task(
+    async def test_delete__no_cancel_task(
         self,
         mock_cancel_task,
         dbs,
@@ -594,7 +594,6 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         episode,
         mocked_s3,
         episode_status,
-        cancel_task_must_be_called,
     ):
         await episode.update(dbs, status=episode_status, db_commit=True)
         await client.login(user)
@@ -604,11 +603,7 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         assert response.status_code == 204
         assert await Episode.async_get(dbs, id=episode.id) is None
 
-        if cancel_task_must_be_called:
-            mock_cancel_task.assert_called_with(episode_id=episode.id)
-        else:
-            mock_cancel_task.assert_not_called()
-
+        mock_cancel_task.assert_not_called()
         mocked_s3.delete_files_async.assert_called()
         mocked_s3.delete_files_async.assert_called()
 
