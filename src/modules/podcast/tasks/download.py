@@ -131,26 +131,27 @@ class DownloadEpisodeTask(RQTask):
             self.logger.debug("Teardown task 'DownloadEpisodeTask': no state_data detected")
             return
 
-        local_filename = state_data.data["local_filename"]
-        if not local_filename:
+        if local_filename := state_data.data.get("local_filename"):
+            # killing ffmpeg subprocess (only if local file already created)
+            self.logger.debug("Teardown task 'DownloadEpisodeTask': killing ffmpeg called process")
+            podcast_utils.kill_process(grep=f"ffmpeg -y -i {local_filename}", logger=self.logger)
+            self.logger.debug(
+                "Teardown task 'DownloadEpisodeTask': removing file: '%s' ...",
+                local_filename,
+            )
+            podcast_utils.delete_file(local_filename, logger=self.logger)
+
+            # remove progress data from redis (provides for dynamic progress showing on the client)
+            redis_client = RedisClient()
+            event_key = redis_client.get_key_by_filename(local_filename)
+            self.logger.debug("Clearing redis progress data. Key: %s", event_key)
+            redis_client.set(event_key, None)
+        else:
             self.logger.debug(
                 "Teardown task 'DownloadEpisodeTask': no local_file detected "
                 "(skip ffmpeg killing): %s",
                 state_data,
             )
-            return
-
-        # killing ffmpeg subprocess (only if local file already created)
-        self.logger.debug("Teardown task 'DownloadEpisodeTask': killing ffmpeg called process")
-        podcast_utils.kill_process(grep=f"ffmpeg -y -i {local_filename}", logger=self.logger)
-        self.logger.debug("Teardown task 'DownloadEpisodeTask': removing file: %s", local_filename)
-        podcast_utils.delete_file(local_filename, logger=self.logger)
-
-        # remove progress data from redis (provides for dynamic progress showing on the client)
-        redis_client = RedisClient()
-        event_key = redis_client.get_key_by_filename(local_filename)
-        self.logger.debug("Clearing redis progress data. Key: %s", event_key)
-        redis_client.set(event_key, None)
 
         if episode_id := state_data.data.get("episode_id"):
             new_status = Episode.Status.NEW
@@ -159,6 +160,7 @@ class DownloadEpisodeTask(RQTask):
                 episode_id,
                 new_status
             )
+            # TODO: may be we can do it in sync session?
             asyncio.run(_async_episode_update(episode_id, new_status))
 
     async def _check_is_needed(self, episode: Episode):

@@ -309,7 +309,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         )
         DownloadEpisodeTask(db_session=dbs).teardown(state_data=state_data)
 
-        episode = dbs.refresh(episode)
+        await dbs.refresh(episode)
         assert episode.status == Episode.Status.NEW
         # TODO: extend test logic with checking that ffmpeg canceling called
 
