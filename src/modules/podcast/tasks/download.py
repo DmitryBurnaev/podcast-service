@@ -158,7 +158,7 @@ class DownloadEpisodeTask(RQTask):
             self.logger.debug(
                 "Teardown task 'DownloadEpisodeTask': updating episode with id %i to %s state..",
                 episode_id,
-                new_status
+                new_status,
             )
             # TODO: may be we can do it in sync session?
             asyncio.run(_async_episode_update(episode_id, new_status))

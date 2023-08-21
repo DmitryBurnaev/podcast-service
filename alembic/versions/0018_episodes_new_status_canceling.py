@@ -22,9 +22,7 @@ OLD_STATUSES = (
     "ARCHIVED",
     "ERROR",
 )
-NEW_STATUSES = (
-    "CANCELING",
-)
+NEW_STATUSES = ("CANCELING",)
 
 
 def upgrade():
@@ -70,5 +68,9 @@ def _remove_enum_value(type_name: str):
 
     enum_psql_type = postgresql.ENUM(*OLD_STATUSES, name=type_name)
     enum_psql_type.create(connection, checkfirst=True)
-    connection.execute(text(f"ALTER TABLE podcast_episodes ALTER COLUMN status TYPE {type_name} USING status::text::{type_name};"))
+    connection.execute(
+        text(
+            f"ALTER TABLE podcast_episodes ALTER COLUMN status TYPE {type_name} USING status::text::{type_name};"
+        )
+    )
     connection.execute(text(f"DROP TYPE IF EXISTS {type_name}_old;"))

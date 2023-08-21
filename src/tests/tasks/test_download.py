@@ -304,8 +304,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         await episode.update(dbs, status=Episode.Status.CANCELING)
 
         state_data = StateData(
-            action=TaskInProgressAction.DOWNLOADING,
-            data={"episode_id": episode.id}
+            action=TaskInProgressAction.DOWNLOADING, data={"episode_id": episode.id}
         )
         DownloadEpisodeTask(db_session=dbs).teardown(state_data=state_data)
 

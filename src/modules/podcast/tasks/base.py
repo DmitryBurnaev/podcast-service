@@ -195,6 +195,7 @@ class RQTask:
         job_id = cls.get_job_id(*task_args, **task_kwargs)
         logger.warning("Trying to cancel task %s", job_id)
         try:
+            # TODO: provide RedisClient.redis instead
             job = Job.fetch(job_id, connection=Redis())
             job.cancel()
         except Exception as exc:

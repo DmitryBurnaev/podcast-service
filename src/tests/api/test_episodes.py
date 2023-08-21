@@ -50,12 +50,13 @@ def _episode_in_list(episode: Episode):
     }
 
 
-def _episode_details(episode: Episode):
+def _episode_details(episode: Episode, status: EpisodeStatus | None = None):
+    status = status or episode.status
     return {
         "id": episode.id,
         "title": episode.title,
         "author": episode.author,
-        "status": str(episode.status),
+        "status": str(status),
         "length": episode.length,
         "audio_url": episode.audio.url,
         "audio_size": episode.audio.size,
@@ -514,7 +515,9 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         self.assert_not_found(client.delete(url), episode)
 
     @pytest.mark.parametrize("status", (EpisodeStatus.DOWNLOADING, EpisodeStatus.CANCELING))
-    async def test_delete__episode_in_progress_state__fail(self, client, episode, user, dbs, status):
+    async def test_delete__episode_in_progress_state__fail(
+        self, client, episode, user, dbs, status
+    ):
         await client.login(user)
         await episode.update(dbs, status=status, db_commit=True)
 
@@ -623,13 +626,15 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
         self, dbs, client, episode, user, mocked_rq_queue, source_type, task
     ):
         await episode.update(dbs, source_type=source_type, db_commit=True)
+        assert episode.status == EpisodeStatus.NEW
 
         await client.login(user)
         url = self.url.format(id=episode.id)
         response = client.put(url)
-        await dbs.refresh(episode)
         response_data = self.assert_ok_response(response)
-        assert response_data == _episode_details(episode)
+        await dbs.refresh(episode)
+        assert episode.status == EpisodeStatus.DOWNLOADING
+        assert response_data == _episode_details(episode, status=EpisodeStatus.DOWNLOADING)
         mocked_rq_queue.enqueue.assert_called_with(
             task(), episode_id=episode.id, job_id=task.get_job_id(episode_id=episode.id)
         )
@@ -644,20 +649,38 @@ class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
     url = "/api/episodes/{id}/cancel-downloading/"
     default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
 
-    @patch("modules.podcast.tasks.base.RQTask.cancel_task")
-    async def test_cancel_downloading__ok(self, mocked_cancel_task, dbs, client, episode, user):
+    @patch("modules.podcast.tasks.download.DownloadEpisodeTask.cancel_task")
+    @patch("modules.podcast.tasks.download.DownloadEpisodeImageTask.cancel_task")
+    async def test_cancel_downloading__ok(
+        self,
+        mocked_cancel_download_episode_task,
+        mocked_cancel_download_image_task,
+        dbs,
+        client,
+        episode,
+        user,
+    ):
         await episode.update(dbs, status=EpisodeStatus.DOWNLOADING, db_commit=True)
         await client.login(user)
         url = self.url.format(id=episode.id)
-        self.assert_ok_response(client.put(url), status_code=204)
-
-        dbs.refresh(episode)
+        response_data = self.assert_ok_response(client.put(url))
+        await dbs.refresh(episode)
         assert episode.status == EpisodeStatus.CANCELING
-        mocked_cancel_task.assert_called_with(episode_id=episode.id)
+        assert response_data == _episode_details(episode, status=EpisodeStatus.CANCELING)
 
-    @patch("modules.podcast.tasks.base.RQTask.cancel_task")
+        mocked_cancel_download_episode_task.assert_called_with(episode_id=episode.id)
+        mocked_cancel_download_image_task.assert_called_with(episode_id=episode.id)
+
+    @patch("modules.podcast.tasks.download.DownloadEpisodeTask.cancel_task")
+    @patch("modules.podcast.tasks.download.DownloadEpisodeImageTask.cancel_task")
     async def test_cancel_downloading__episode_not_in_progress__fail(
-        self, mocked_cancel_task, dbs, client, episode, user
+        self,
+        mocked_cancel_download_episode_task,
+        mocked_cancel_download_image_task,
+        dbs,
+        client,
+        episode,
+        user,
     ):
         await episode.update(dbs, status=EpisodeStatus.NEW, db_commit=True)
         await client.login(user)
@@ -668,7 +691,8 @@ class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
         )
         dbs.refresh(episode)
         assert episode.status == EpisodeStatus.NEW
-        mocked_cancel_task.assert_not_called()
+        mocked_cancel_download_episode_task.assert_not_called()
+        mocked_cancel_download_image_task.assert_not_called()
 
 
 class TestEpisodeFlatListAPIView(BaseTestAPIView):

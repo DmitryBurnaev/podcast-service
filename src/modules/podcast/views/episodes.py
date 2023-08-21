@@ -278,6 +278,7 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
 
 class EpisodeCancelDownloading(BaseHTTPEndpoint):
     """Allows to stop current downloaded episode"""
+    schema_response = EpisodeDetailsSchema
 
     async def put(self, request: PRequest) -> Response:
         episode_id = request.path_params["episode_id"]
@@ -290,4 +291,4 @@ class EpisodeCancelDownloading(BaseHTTPEndpoint):
 
         DownloadEpisodeTask.cancel_task(episode_id=episode_id)
         DownloadEpisodeImageTask.cancel_task(episode_id=episode_id)
-        return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
+        return self._response(episode)
