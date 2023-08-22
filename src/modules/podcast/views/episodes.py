@@ -278,6 +278,7 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
 
 class EpisodeCancelDownloading(BaseHTTPEndpoint):
     """Allows to stop current downloaded episode"""
+
     schema_response = EpisodeDetailsSchema
 
     async def put(self, request: PRequest) -> Response:

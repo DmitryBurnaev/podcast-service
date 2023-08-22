@@ -125,7 +125,7 @@ class RQTask:
                     self.teardown(state_info.state_data)
 
                 process.terminate()
-                logger.warning(f"Process '%s' terminated!", process)
+                logger.warning("Process '%s' terminated!", process)
                 break
 
             time.sleep(1)
