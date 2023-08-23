@@ -14,6 +14,7 @@ from redis.client import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.db_utils import make_session_maker
+from common.redis import RedisClient
 from core import settings
 
 logger = logging.getLogger(__name__)
@@ -195,8 +196,7 @@ class RQTask:
         job_id = cls.get_job_id(*task_args, **task_kwargs)
         logger.warning("Trying to cancel task %s", job_id)
         try:
-            # TODO: provide RedisClient.redis instead
-            job = Job.fetch(job_id, connection=Redis())
+            job = Job.fetch(job_id, connection=RedisClient().sync_redis)
             job.cancel()
         except Exception as exc:
             logger.exception("Couldn't cancel task %s: %r", job_id, exc)

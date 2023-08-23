@@ -7,6 +7,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 from redis.client import Redis
 
+from common.redis import RedisClient
 from modules.podcast.tasks import RQTask
 from modules.podcast.tasks.base import TaskState, StateData, TaskInProgressAction
 
@@ -113,7 +114,7 @@ def test_cancel_task(mocked_job_fetch, mocked_job_cancel):
 
     TaskForTest.cancel_task(1, 2, kwarg=123)
 
-    mocked_job_fetch.assert_called_with(job_id, connection=Redis())
+    mocked_job_fetch.assert_called_with(job_id, connection=RedisClient().sync_redis)
     mocked_job_cancel.asseert_called_once()
 
 

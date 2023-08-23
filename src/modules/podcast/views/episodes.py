@@ -25,7 +25,6 @@ from modules.podcast.schemas import (
     EpisodeListSchema,
     EpisodeUploadedSchema,
 )
-from modules.podcast.tasks import DownloadEpisodeTask, DownloadEpisodeImageTask, GenerateRSSTask
 
 logger = logging.getLogger(__name__)
 
@@ -290,6 +289,6 @@ class EpisodeCancelDownloading(BaseHTTPEndpoint):
         episode.status = Episode.Status.CANCELING
         await episode.update(self.db_session, status=episode.status)
 
-        DownloadEpisodeTask.cancel_task(episode_id=episode_id)
-        DownloadEpisodeImageTask.cancel_task(episode_id=episode_id)
+        tasks.DownloadEpisodeTask.cancel_task(episode_id=episode_id)
+        tasks.DownloadEpisodeImageTask.cancel_task(episode_id=episode_id)
         return self._response(episode)
