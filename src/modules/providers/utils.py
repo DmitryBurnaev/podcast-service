@@ -208,7 +208,12 @@ def ffmpeg_preparation(
     logger.info("Start SUBPROCESS (filesize watching) for %s === ", filename)
     process = Process(
         target=post_processing_process_hook,
-        kwargs={"filename": filename, "target_path": tmp_path, "total_bytes": total_bytes},
+        kwargs={
+            "filename": filename,
+            "target_path": tmp_path,
+            "total_bytes": total_bytes,
+            "logger": logger,
+        },
     )
     process.start()
     try:
