@@ -19,13 +19,14 @@ from modules.podcast.tasks.rss import GenerateRSSTask
 from modules.podcast.utils import get_file_size
 from modules.providers import utils as provider_utils
 from modules.podcast import utils as podcast_utils
-from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
+from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP, CancelingError
 
 __all__ = ["DownloadEpisodeTask", "UploadedEpisodeTask", "DownloadEpisodeImageTask"]
 log_levels = {
     TaskState.FINISHED: logging.INFO,
     TaskState.SKIP: logging.INFO,
     TaskState.ERROR: logging.ERROR,
+    TaskState.CANCEL: logging.WARNING,
 }
 
 
@@ -224,6 +225,12 @@ class DownloadEpisodeTask(RQTask):
             await self._update_episodes(episode, {"status": Episode.Status.ERROR})
             await self._update_files(episode, {"available": False})
             raise DownloadingInterrupted(code=TaskState.ERROR) from exc
+
+        except CancelingError as exc:
+            self.logger.exception(f"CANCEL!!!! {exc!r}")
+            await self._update_episodes(episode, {"status": Episode.Status.ERROR})
+            await self._update_files(episode, {"available": False})
+            raise DownloadingInterrupted(code=TaskState.CANCEL) from exc
 
         self.logger.info("=== [%s] DOWNLOADING was done ===", episode.source_id)
         return result_path

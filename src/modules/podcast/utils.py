@@ -9,6 +9,7 @@ from functools import partial
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
+from common.exceptions import CancelingError
 from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
@@ -96,6 +97,7 @@ def post_processing_process_hook(
     target_path: str,
     total_bytes: int,
     logger: logging.Logger = module_logger,
+    tmp_file_path: str = "",
 ):
     """
     Allows handling progress for ffmpeg file's preparations
@@ -109,6 +111,7 @@ def post_processing_process_hook(
             total_bytes=total_bytes,
             processed_bytes=processed_bytes,
             logger=logger,
+            processing_filepath=tmp_file_path,
         )
         time.sleep(1)
 
@@ -120,6 +123,7 @@ def episode_process_hook(
     processed_bytes: int = None,
     chunk: int = 0,
     logger: logging.Logger = module_logger,
+    processing_filepath: str | None = None,
 ):
     """Allows handling processes of performing episode's file."""
     redis_client = RedisClient()
@@ -136,15 +140,23 @@ def episode_process_hook(
         "processed_bytes": processed_bytes,
         "total_bytes": total_bytes,
     }
+    print(f"1 post_processing_process_hook: {processing_filepath}")
     redis_client.set(event_key, event_data, ttl=settings.DOWNLOAD_EVENT_REDIS_TTL)
     redis_client.publish(
         channel=settings.REDIS_PROGRESS_PUBSUB_CH,
         message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
     )
+    print(f"2 post_processing_process_hook: {processing_filepath} | {processed_bytes} | {status}")
+    if processed_bytes > 10 and status == EpisodeStatus.DL_EPISODE_POSTPROCESSING:
+        print(f"Teardown task 'DownloadEpisodeTask': killing ffmpeg called process | {processing_filepath}")
+        kill_process(grep=f"ffmpeg -y -i {processing_filepath}", logger=logger)
+        raise CancelingError("Need to cancel this!!")
+
     if processed_bytes and total_bytes:
         progress = f"{processed_bytes / total_bytes:.2%}"
     else:
         progress = f"processed = {processed_bytes} | total = {total_bytes}"
+
 
     logger.debug("[%s] for %s: %s", status, filename, progress)
 
@@ -236,9 +248,9 @@ def kill_process(grep: str, logger: logging.Logger = module_logger) -> None:
 
     command = f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill"
     try:
-        logger.debug("Trying to kill subprocess by command: '%s'", command)
+        print("Trying to kill subprocess by command: '%s'", command)
         os.system(command)
     except Exception as exc:
-        logger.error("Couldn't kill subprocess by grep: %s | err: %r", grep, exc)
+        print("Couldn't kill subprocess by grep: %s | err: %r", grep, exc)
     else:
-        logger.info("Killed process by grep: '%s'", grep)
+        print("Killed process by grep: '%s'", grep)

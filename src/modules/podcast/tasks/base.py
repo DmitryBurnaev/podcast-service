@@ -25,6 +25,7 @@ class TaskState(enum.StrEnum):
     FINISHED = "FINISHED"
     SKIP = "SKIP"
     ERROR = "ERROR"
+    CANCEL = "CANCEL"
     IN_PROGRESS = "IN_PROGRESS"
 
 

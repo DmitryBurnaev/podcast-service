@@ -18,7 +18,7 @@ from yt_dlp.utils import YoutubeDLError
 
 from core import settings
 from common.enums import SourceType, EpisodeStatus
-from common.exceptions import InvalidRequestError
+from common.exceptions import InvalidRequestError, CancelingError
 from modules.podcast.models import Cookie
 from modules.auth.hasher import get_random_hash
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
@@ -206,6 +206,8 @@ def ffmpeg_preparation(
     tmp_path = settings.TMP_AUDIO_PATH / f"tmp_{filename}"
 
     logger.info("Start SUBPROCESS (filesize watching) for %s === ", filename)
+    # REAL:  ffmpeg -y -i /var/folders/qk/mhr05ghx61d_6jty9v2lm7640000gn/T/podcast_audio__o12obx_l/RRhc-ZjsoQo_8131ed3a8d03beea1b41d71c62ef4a61.mp3
+    # TRY to kill: ffmpeg -y -i /var/folders/qk/mhr05ghx61d_6jty9v2lm7640000gn/T/podcast_audio__o12obx_l/tmp_RRhc-ZjsoQo_8131ed3a8d03beea1b41d71c62ef4a61.mp3
     process = Process(
         target=post_processing_process_hook,
         kwargs={
@@ -213,6 +215,7 @@ def ffmpeg_preparation(
             "target_path": tmp_path,
             "total_bytes": total_bytes,
             "logger": logger,
+            "tmp_file_path": tmp_path,
         },
     )
     process.start()
@@ -225,7 +228,7 @@ def ffmpeg_preparation(
             check=True,
             timeout=settings.FFMPEG_TIMEOUT,
         )
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+    except Exception as exc:
         episode_process_hook(status=EpisodeStatus.ERROR, filename=filename, logger=logger)
         with suppress(IOError):
             os.remove(tmp_path)
