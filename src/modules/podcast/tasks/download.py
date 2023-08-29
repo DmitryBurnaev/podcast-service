@@ -235,7 +235,7 @@ class DownloadEpisodeTask(RQTask):
         self.logger.info("=== [%s] DOWNLOADING was done ===", episode.source_id)
         return result_path
 
-    async def _remove_unfinished(self, episode: Episode):
+    async def _remove_unfinished(self, episode: Episode) -> None:
         """Finding unfinished downloading and remove file from the storage (S3)"""
 
         if not (audio_path := episode.audio.path):
@@ -251,7 +251,7 @@ class DownloadEpisodeTask(RQTask):
             )
             self.storage.delete_file(audio_path, logger=self.logger)
 
-    async def _process_file(self, episode: Episode, tmp_audio_path: Path):
+    async def _process_file(self, episode: Episode, tmp_audio_path: Path) -> None:
         """Postprocessing for downloaded audio file"""
         source_config = SOURCE_CFG_MAP[episode.source_type]
         if source_config.need_postprocessing:
@@ -264,7 +264,7 @@ class DownloadEpisodeTask(RQTask):
         else:
             self.logger.info("=== [%s] POST PROCESSING SKIP === ", episode.source_id)
 
-    async def _upload_file(self, episode: Episode, tmp_audio_path: Path):
+    async def _upload_file(self, episode: Episode, tmp_audio_path: Path) -> int:
         """Uploading file to the storage (S3)"""
 
         self.logger.info("=== [%s] UPLOADING === ", episode.source_id)
@@ -285,7 +285,7 @@ class DownloadEpisodeTask(RQTask):
         )
         return result_file_size
 
-    async def _update_all_rss(self, source_id: str):
+    async def _update_all_rss(self, source_id: str) -> None:
         """Regenerating rss for all podcast with requested episode (by source_id)"""
 
         self.logger.info("=== [%s] Updating rss for all podcast === ", source_id)
@@ -296,7 +296,7 @@ class DownloadEpisodeTask(RQTask):
         generate_rss_task.logger = self.logger
         await generate_rss_task.run(*podcast_ids)
 
-    async def _update_episodes(self, episode: Episode, update_data: dict):
+    async def _update_episodes(self, episode: Episode, update_data: dict) -> None:
         """Updating data for episodes (filtered by source_id and source_type)"""
 
         filter_kwargs = {
@@ -309,7 +309,7 @@ class DownloadEpisodeTask(RQTask):
             self.db_session, filter_kwargs=filter_kwargs, update_data=update_data
         )
 
-    async def _update_files(self, episode: Episode, update_data: dict):
+    async def _update_files(self, episode: Episode, update_data: dict) -> None:
         """Updating data for stored files"""
 
         source_url = episode.audio.source_url
@@ -319,7 +319,7 @@ class DownloadEpisodeTask(RQTask):
         )
 
     @staticmethod
-    async def _publish_redis_signal():
+    async def _publish_redis_signal() -> None:
         await RedisClient().async_publish(
             channel=settings.REDIS_PROGRESS_PUBSUB_CH,
             message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,

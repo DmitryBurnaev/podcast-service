@@ -147,6 +147,7 @@ def episode_process_hook(
         message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
     )
     print(f"2 post_processing_process_hook: {processing_filepath} | {processed_bytes} | {status}")
+    # TODO: fix problems with processed_bytes == 0
     if processed_bytes > 10 and status == EpisodeStatus.DL_EPISODE_POSTPROCESSING:
         print(f"Teardown task 'DownloadEpisodeTask': killing ffmpeg called process | {processing_filepath}")
         kill_process(grep=f"ffmpeg -y -i {processing_filepath}", logger=logger)
@@ -156,7 +157,6 @@ def episode_process_hook(
         progress = f"{processed_bytes / total_bytes:.2%}"
     else:
         progress = f"processed = {processed_bytes} | total = {total_bytes}"
-
 
     logger.debug("[%s] for %s: %s", status, filename, progress)
 

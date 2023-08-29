@@ -45,7 +45,7 @@ def run_and_terminate():
     time.sleep(random.randint(1, 2))
     if process.is_alive():
         grep = "sleep 125"
-        print(f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill")
+        print(f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill ")
         os.system(f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill")
         process.terminate()
         print("terminated")
@@ -62,5 +62,5 @@ def run_too_long_process(sleep_time: int):
 
 if __name__ == "__main__":
     # run_bash_script()
-    # run_and_terminate()
-    run_too_long_process(120)
+    run_and_terminate()
+    # run_too_long_process(120)
