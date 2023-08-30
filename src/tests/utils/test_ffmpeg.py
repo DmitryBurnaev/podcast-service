@@ -8,13 +8,12 @@ import pytest
 
 from core import settings
 from common.enums import EpisodeStatus
-from modules.podcast.utils import post_processing_process_hook, module_logger as podcast_logger
+from modules.podcast.utils import post_processing_process_hook
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
 from modules.providers.utils import (
     ffmpeg_preparation,
     audio_metadata,
-    AudioMetaData,
-    module_logger as providers_logger,
+    AudioMetaData
 )
 from tests.api.test_base import BaseTestCase
 
@@ -39,7 +38,6 @@ class TestFFMPEG(BaseTestCase):
                 filename=self.filename,
                 total_bytes=len(b"data"),
                 processed_bytes=0,
-                logger=providers_logger,
             ),
             finish_call,
         ]
@@ -83,7 +81,6 @@ class TestFFMPEG(BaseTestCase):
                 filename=self.filename,
                 total_bytes=len(b"data"),
                 processed_bytes=len(b"data"),
-                logger=providers_logger,
             ),
         )
 
@@ -103,7 +100,6 @@ class TestFFMPEG(BaseTestCase):
             finish_call=dict(
                 status=EpisodeStatus.ERROR,
                 filename=self.filename,
-                logger=providers_logger,
             ),
         )
 
@@ -124,7 +120,6 @@ class TestFFMPEG(BaseTestCase):
             finish_call=dict(
                 status=EpisodeStatus.ERROR,
                 filename=self.filename,
-                logger=providers_logger,
             ),
         )
 
@@ -143,7 +138,6 @@ class TestFFMPEG(BaseTestCase):
                     filename=self.filename,
                     total_bytes=100,
                     processed_bytes=100,
-                    logger=podcast_logger,
                 )
             ],
         )

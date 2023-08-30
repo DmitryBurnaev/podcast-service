@@ -39,9 +39,9 @@ class TaskForSubprocessCallTesting(RQTask):
             raise RuntimeError("Oops")
 
         self.started = True
-        self._set_queue_action(
-            TaskInProgressAction.CHECKING, state_data={"local_filename": "test-file.mp3"}
-        )
+        # self._set_queue_action(
+        #     TaskInProgressAction.CHECKING, state_data={"local_filename": "test-file.mp3"}
+        # )
 
         if wait_for_cancel:
             while self.started:

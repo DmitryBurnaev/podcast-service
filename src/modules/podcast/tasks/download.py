@@ -170,7 +170,7 @@ class DownloadEpisodeTask(RQTask):
         if not (audio_path := episode.audio.path):
             return
 
-        self._set_queue_action(TaskInProgressAction.CHECKING)
+        # self._set_queue_action(TaskInProgressAction.CHECKING)
         stored_file_size = self.storage.get_file_size(dst_path=audio_path, logger=self.logger)
         if stored_file_size and stored_file_size == episode.audio.size:
             self.logger.info(
@@ -191,7 +191,7 @@ class DownloadEpisodeTask(RQTask):
     async def _download_episode(self, episode: Episode) -> Path:
         """Fetching info from external resource and extract audio from target source"""
 
-        self._set_queue_action(TaskInProgressAction.DOWNLOADING)
+        # self._set_queue_action(TaskInProgressAction.DOWNLOADING)
 
         if not SOURCE_CFG_MAP[episode.source_type].need_downloading:
             if result_path := episode.audio.path:
@@ -256,9 +256,9 @@ class DownloadEpisodeTask(RQTask):
         source_config = SOURCE_CFG_MAP[episode.source_type]
         if source_config.need_postprocessing:
             self.logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
-            self._set_queue_action(
-                TaskInProgressAction.POST_PROCESSING, state_data={"local_filename": tmp_audio_path}
-            )
+            # self._set_queue_action(
+            #     TaskInProgressAction.POST_PROCESSING, state_data={"local_filename": tmp_audio_path}
+            # )
             provider_utils.ffmpeg_preparation(src_path=tmp_audio_path, logger=self.logger)
             self.logger.info("=== [%s] POST PROCESSING was done === ", episode.source_id)
         else:
@@ -268,9 +268,9 @@ class DownloadEpisodeTask(RQTask):
         """Uploading file to the storage (S3)"""
 
         self.logger.info("=== [%s] UPLOADING === ", episode.source_id)
-        self._set_queue_action(
-            TaskInProgressAction.UPLOADING, state_data={"local_filename": tmp_audio_path}
-        )
+        # self._set_queue_action(
+        #     TaskInProgressAction.UPLOADING, state_data={"local_filename": tmp_audio_path}
+        # )
 
         remote_path = podcast_utils.upload_episode(tmp_audio_path)
         if not remote_path:

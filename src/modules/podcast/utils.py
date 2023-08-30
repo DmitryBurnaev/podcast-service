@@ -16,10 +16,10 @@ from common.storage import StorageS3
 from common.enums import EpisodeStatus
 from modules.podcast.models import Episode
 
-module_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
-def delete_file(filepath: str | Path, logger: logging.Logger = module_logger) -> None:
+def delete_file(filepath: str | Path, logger: logging.Logger = logger) -> None:
     """Delete local file"""
 
     try:
@@ -30,7 +30,7 @@ def delete_file(filepath: str | Path, logger: logging.Logger = module_logger) ->
         logger.info("File %s deleted", filepath)
 
 
-def get_file_size(file_path: str | Path, logger: logging.Logger = module_logger) -> int:
+def get_file_size(file_path: str | Path, logger: logging.Logger = logger) -> int:
     try:
         return os.path.getsize(file_path)
     except FileNotFoundError:
@@ -88,7 +88,7 @@ def upload_process_hook(filename: str, chunk: int):
         filename=filename,
         status=EpisodeStatus.DL_EPISODE_UPLOADING,
         chunk=chunk,
-        logger=module_logger,
+        logger=logger,
     )
 
 
@@ -96,7 +96,7 @@ def post_processing_process_hook(
     filename: str,
     target_path: str,
     total_bytes: int,
-    logger: logging.Logger = module_logger,
+    logger: logging.Logger = logger,
     tmp_file_path: str = "",
 ):
     """
@@ -122,7 +122,7 @@ def episode_process_hook(
     total_bytes: int = 0,
     processed_bytes: int = None,
     chunk: int = 0,
-    logger: logging.Logger = module_logger,
+    logger: logging.Logger = logger,
     processing_filepath: str | None = None,
 ):
     """Allows handling processes of performing episode's file."""
@@ -161,7 +161,7 @@ def episode_process_hook(
     logger.debug("[%s] for %s: %s", status, filename, progress)
 
 
-def upload_episode(src_path: str | Path, logger: logging.Logger = module_logger) -> str | None:
+def upload_episode(src_path: str | Path, logger: logging.Logger = logger) -> str | None:
     """Allows uploading src_path to S3 storage"""
 
     filename = os.path.basename(src_path)
@@ -192,7 +192,7 @@ def upload_episode(src_path: str | Path, logger: logging.Logger = module_logger)
 
 
 def remote_copy_episode(
-    src_path: str, dst_path: str, src_file_size: int = 0, logger: logging.Logger = module_logger
+    src_path: str, dst_path: str, src_file_size: int = 0, logger: logging.Logger = logger
 ) -> str | None:
     """Allows uploading src_path to S3 storage"""
 
@@ -243,7 +243,7 @@ async def publish_redis_stop_downloading(episode_id: int) -> None:
     )
 
 
-def kill_process(grep: str, logger: logging.Logger = module_logger) -> None:
+def kill_process(grep: str, logger: logging.Logger = logger) -> None:
     """Finds (with grep) process and tries to kill it"""
 
     command = f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill"

@@ -11,7 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from core import settings
 from common.redis import RedisClient
 
-module_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class StorageS3:
@@ -30,21 +30,21 @@ class StorageS3:
         return cls.__instance
 
     def __init__(self):
-        module_logger.debug("Creating s3 client's session (boto3)...")
+        logger.debug("Creating s3 client's session (boto3)...")
         session = boto3.session.Session(
             aws_access_key_id=settings.S3_ACCESS_KEY_ID,
             aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
             region_name=settings.S3_REGION_NAME,
         )
-        module_logger.debug("Boto3 (s3) Session <%s> created", session)
+        logger.debug("Boto3 (s3) Session <%s> created", session)
         self.s3 = session.client(service_name="s3", endpoint_url=settings.S3_STORAGE_URL)
-        module_logger.debug("S3 client %s created", self.s3)
+        logger.debug("S3 client %s created", self.s3)
 
     def __call(
         self,
         handler: Callable,
         error_log_level: int = logging.ERROR,
-        logger: logging.Logger = module_logger,
+        logger: logging.Logger = logger,
         **handler_kwargs,
     ) -> tuple[int, dict | None]:
         try:
@@ -70,7 +70,7 @@ class StorageS3:
         self,
         handler: Callable,
         error_log_level: int = logging.ERROR,
-        logger: logging.Logger = module_logger,
+        logger: logging.Logger = logger,
         **handler_kwargs,
     ) -> tuple[int, dict | None]:
         return await run_in_threadpool(
@@ -83,7 +83,7 @@ class StorageS3:
         dst_path: str,
         filename: str | None = None,
         callback: Callable | None = None,
-        logger: logging.Logger = module_logger,
+        logger: logging.Logger = logger,
     ) -> str | None:
         """Upload file to S3 storage"""
         mimetype, _ = mimetypes.guess_type(src_path)
@@ -104,7 +104,7 @@ class StorageS3:
         return dst_path
 
     def copy_file(
-        self, src_path: str, dst_path: str, logger: logging.Logger = module_logger
+        self, src_path: str, dst_path: str, logger: logging.Logger = logger
     ) -> str | None:
         """Upload file to S3 storage"""
         code, _ = self.__call(
@@ -125,7 +125,7 @@ class StorageS3:
         dst_path: str,
         filename: str | None = None,
         callback: Callable | None = None,
-        logger: logging.Logger = module_logger,
+        logger: logging.Logger = logger,
     ):
         return await run_in_threadpool(
             self.upload_file,
@@ -141,7 +141,7 @@ class StorageS3:
         filename: str,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         error_log_level: int = logging.ERROR,
-        logger: logging.Logger = module_logger,
+        logger: logging.Logger = logger,
         dst_path: str | None = None,
     ) -> dict | None:
         """
@@ -163,7 +163,7 @@ class StorageS3:
         filename: str | None = None,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         dst_path: str | None = None,
-        logger: logging.Logger = module_logger,
+        logger: logging.Logger = logger,
     ) -> int:
         """
         Allows finding file on remote storage (S3) and calculate size
@@ -189,7 +189,7 @@ class StorageS3:
         filename: str | None = None,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         dst_path: str | None = None,
-        logger: logging.Logger = module_logger,
+        logger: logging.Logger = logger,
     ):
         return await run_in_threadpool(
             self.get_file_size,
@@ -204,7 +204,7 @@ class StorageS3:
         filename: str | None = None,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         dst_path: str | None = None,
-        logger: logging.Logger = module_logger,
+        logger: logging.Logger = logger,
     ):
         if not dst_path and not filename:
             raise ValueError("At least one argument must be set: dst_path | filename")
@@ -219,7 +219,7 @@ class StorageS3:
         self,
         filenames: list[str],
         remote_path: str,
-        logger: logging.Logger = module_logger,
+        logger: logging.Logger = logger,
     ):
         for filename in filenames:
             dst_path = os.path.join(remote_path, filename)
@@ -228,7 +228,7 @@ class StorageS3:
             )
 
     async def get_presigned_url(
-        self, remote_path: str, logger: logging.Logger = module_logger
+        self, remote_path: str, logger: logging.Logger = logger
     ) -> str:
         redis = RedisClient()
         if not (url := await redis.async_get(remote_path)):

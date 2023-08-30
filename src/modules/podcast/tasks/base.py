@@ -43,22 +43,6 @@ class TaskStateInfo(NamedTuple):
     state_data: StateData | None = None
 
 
-# def log_to_stderr():
-#     """
-#     Turn on logging and add a handler which prints to stderr
-#     """
-#     logger = multiprocessing.get_logger()
-#     formatter = logging.Formatter(
-#         fmt=settings.LOGGING["formatters"]["standard"]["format"],
-#         datefmt=settings.LOGGING["formatters"]["standard"]["datefmt"],
-#     )
-#     handler = logging.StreamHandler()
-#     handler.setFormatter(formatter)
-#     logger.addHandler(handler)
-#     logger.setLevel(settings.LOG_LEVEL)
-#     return logger
-#
-
 class RQTask:
     """Base class for RQ tasks implementation."""
 
@@ -75,7 +59,7 @@ class RQTask:
 
     def __call__(self, *args, **kwargs) -> TaskState:
         logger.info("==== STARTED task %s ====", self.name)
-        finish_code = self._perform_and_run(*args, **kwargs)
+        finish_code = asyncio.run(self._perform_and_run(*args, **kwargs))
         logger.info("==== FINISHED task %s | code %s ====", self.name, finish_code)
         return finish_code
 
@@ -129,48 +113,65 @@ class RQTask:
     #
     #     return state_info.state if state_info else None
 
-    def _perform_and_run(self, *args, **kwargs) -> TaskState:
-        """
-        Runs async code, implemented in `self.run` and stores result to the queue
-        (for retrieving results above)
-        """
-        # self.task_state_queue = task_state_queue
-        # self.logger = log_to_stderr()
+    async def _perform_and_run(self, *args, **kwargs) -> TaskState:
+        """Allows calling `self.run` in transaction block with catching any exceptions"""
 
-        async def run_async(*args, **kwargs):
-            """Allows calling `self.run` in transaction block with catching any exceptions"""
+        session_maker = make_session_maker()
+        try:
+            async with session_maker() as db_session:
+                self.db_session = db_session
+                result = await self.run(*args, **kwargs)
+                await self.db_session.commit()
 
-            session_maker = make_session_maker()
-            try:
-                async with session_maker() as db_session:
-                    self.db_session = db_session
-                    result = await self.run(*args, **kwargs)
-                    await self.db_session.commit()
+        except Exception as exc:
+            await self.db_session.rollback()
+            result = TaskState.ERROR
+            logger.exception("Couldn't perform task %s | error %r", self.name, exc)
 
-            except Exception as exc:
-                await self.db_session.rollback()
-                result = TaskState.ERROR
-                self.logger.exception("Couldn't perform task %s | error %r", self.name, exc)
+        return result
 
-            return result
-
-        return asyncio.run(run_async(*args, **kwargs))
+    # def _perform_and_run(self, *args, **kwargs) -> TaskState:
+    #     """
+    #     Runs async code, implemented in `self.run` and stores result to the queue
+    #     (for retrieving results above)
+    #     """
+    #     # self.task_state_queue = task_state_queue
+    #     # self.logger = log_to_stderr()
+    #
+    #     async def run_async(*args, **kwargs):
+    #         """Allows calling `self.run` in transaction block with catching any exceptions"""
+    #
+    #         session_maker = make_session_maker()
+    #         try:
+    #             async with session_maker() as db_session:
+    #                 self.db_session = db_session
+    #                 result = await self.run(*args, **kwargs)
+    #                 await self.db_session.commit()
+    #
+    #         except Exception as exc:
+    #             await self.db_session.rollback()
+    #             result = TaskState.ERROR
+    #             self.logger.exception("Couldn't perform task %s | error %r", self.name, exc)
+    #
+    #         return result
+    #
+    #     return asyncio.run(run_async(*args, **kwargs))
         # result_state = asyncio.run(run_async(*args, **kwargs))
         # self.task_state_queue.put(TaskStateInfo(state=result_state))
 
-    def _set_queue_action(
-        self,
-        action: TaskInProgressAction,
-        state: TaskState = TaskState.IN_PROGRESS,
-        state_data: dict[str, str | Path | int] | None = None,
-    ):
-        state_data = state_data or {}
-        if hasattr(self, "task_state_queue"):
-            self.task_state_queue.put(
-                TaskStateInfo(state=state, state_data=StateData(action=action, data=state_data))
-            )
-        else:
-            logger.debug("No 'task_state_queue' attribute exist for %s", self.__class__.__name__)
+    # def _set_queue_action(
+    #     self,
+    #     action: TaskInProgressAction,
+    #     state: TaskState = TaskState.IN_PROGRESS,
+    #     state_data: dict[str, str | Path | int] | None = None,
+    # ):
+    #     state_data = state_data or {}
+    #     if hasattr(self, "task_state_queue"):
+    #         self.task_state_queue.put(
+    #             TaskStateInfo(state=state, state_data=StateData(action=action, data=state_data))
+    #         )
+    #     else:
+    #         logger.debug("No 'task_state_queue' attribute exist for %s", self.__class__.__name__)
 
     @property
     def name(self):
