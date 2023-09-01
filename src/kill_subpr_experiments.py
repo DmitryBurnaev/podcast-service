@@ -62,40 +62,27 @@ def kill_with_sigint():
 
 
 def run_with_sigkill():
-
-    # result_queue = multiprocessing.Queue()
-    # process = multiprocessing.Process(target=kill_with_sigint)
-    # process.start()
-    # process = multiprocessing.Process(target=put_result, args=(result_queue, 10))
-
-    # run_subprocess(result_queue)
-    # print("waiting...")
-    # time.sleep(random.randint(1, 2))
-    # if process.is_alive():
-    #     grep = "sleep 125"
-    #     print(f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill ")
-    #     os.system(f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill")
-    #     process.terminate()
-    #     print("terminated")
-    #     return
-    #
-    # print("result: ", result_queue.get())
     completed_proc = None
     try:
-        ffmpeg_params = ["-vn", "-acodec", "libmp3lame", "-q:a", "5"]
+        ffmpeg_params = [
+            "ffmpeg", "-y", "-i", "../.misc/audio/prolog.mp3", "-vn",
+            "-acodec", "libmp3lame", "-q:a", "5", "../.misc/audio/tmp_prolog.mp3"
+        ]
+        print(" ".join(ffmpeg_params))
         completed_proc = subprocess.run(
-            ["ffmpeg", "-y", "-i", "../.misc/audio/prolog.mp3", *ffmpeg_params, "../.misc/audio/tmp_prolog.mp3"],
+            ffmpeg_params,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             check=True,
             timeout=120,
         )
     except subprocess.CalledProcessError as err:
-        err_details = f"FFMPEG cancelled??: {err.returncode}"
+        # TODO: return code 255. check it and task state too
+        err_details = f"FFMPEG cancelled??: {err.returncode} \n {err.stdout}"
         raise RuntimeError(err_details) from err
 
     except Exception as exc:
-        err_details = f"FFMPEG failed with exit status: {completed_proc.returncode}"
+        err_details = f"FFMPEG failed with exit status: {completed_proc.returncode if completed_proc else 'null'}, err: {exc!r}"
         raise RuntimeError(err_details) from exc
 
     else:
