@@ -3,7 +3,6 @@ import enum
 import asyncio
 import logging
 import multiprocessing
-from pathlib import Path
 from typing import NamedTuple
 
 from rq.job import Job
@@ -43,11 +42,24 @@ class TaskStateInfo(NamedTuple):
     state_data: StateData | None = None
 
 
+@dataclasses.dataclass
+class TaskContext:
+    job_id: str
+    canceled: bool = False
+
+    def task_canceled(self) -> bool:
+        job = Job.fetch(self.job_id, connection=RedisClient().sync_redis)
+        job_status = job.get_status()
+        logger.debug("Check for canceling: jobid: %s | job_status: %s", job.id, job_status)
+        return job_status == "canceled"
+
+
 class RQTask:
     """Base class for RQ tasks implementation."""
 
     db_session: AsyncSession
-    task_state_queue: multiprocessing.Queue
+    # task_state_queue: multiprocessing.Queue
+    task_context: TaskContext
 
     def __init__(self, db_session: AsyncSession = None):
         self.db_session = db_session
@@ -117,6 +129,8 @@ class RQTask:
         """Allows calling `self.run` in transaction block with catching any exceptions"""
 
         session_maker = make_session_maker()
+        self.task_context = TaskContext(job_id=self.get_job_id(*args, **kwargs))
+
         try:
             async with session_maker() as db_session:
                 self.db_session = db_session
@@ -200,9 +214,16 @@ class RQTask:
         else:
             logger.info("Canceled task %s", job_id)
 
-    def teardown(self, state_data: StateData) -> None:
-        """
-        Preparing some extra actions for cancelling current task
-        (ex.: killing subprocess, remove tmp files, etc.)
-        """
-        logger.warning("Teardown for %s | state_data: %s", self.__class__.__name__, state_data)
+    @classmethod
+    def task_canceled(cls, job_id: str) -> bool:
+        job = Job.fetch(job_id, connection=RedisClient().sync_redis)
+        job_status = job.get_status()
+        logger.debug("Check for canceling: jobid: %s | job_status: %s", job.id, job_status)
+        return job_status == "canceled"
+
+    # def teardown(self, state_data: StateData) -> None:
+    #     """
+    #     Preparing some extra actions for cancelling current task
+    #     (ex.: killing subprocess, remove tmp files, etc.)
+    #     """
+    #     logger.warning("Teardown for %s | state_data: %s", self.__class__.__name__, state_data)

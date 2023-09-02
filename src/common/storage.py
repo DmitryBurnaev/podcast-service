@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 
 from core import settings
 from common.redis import RedisClient
+from modules.podcast.tasks.base import TaskContext
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +84,6 @@ class StorageS3:
         dst_path: str,
         filename: str | None = None,
         callback: Callable | None = None,
-        logger: logging.Logger = logger,
     ) -> str | None:
         """Upload file to S3 storage"""
         mimetype, _ = mimetypes.guess_type(src_path)
