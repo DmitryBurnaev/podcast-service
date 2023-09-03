@@ -117,7 +117,3 @@ class EmailSendingError(BaseApplicationError):
     status_code = 503
     message = "Couldn't send email to recipient"
     response_status = ResponseStatus.COMMUNICATION_ERROR
-
-
-class CancelingError(Exception):
-    pass

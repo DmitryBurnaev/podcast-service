@@ -9,7 +9,7 @@ from functools import partial
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
-from common.exceptions import CancelingError
+from modules.podcast.tasks.download import CancelDownloading
 from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
@@ -120,11 +120,11 @@ def post_processing_process_hook(
 def episode_process_hook(
     status: EpisodeStatus,
     filename: str,
-    task_context: TaskContext,
     total_bytes: int = 0,
     processed_bytes: int = None,
     chunk: int = 0,
     processing_filepath: str | None = None,
+    task_context: TaskContext | None = None,
 ):
     """Allows handling processes of performing episode's file."""
     redis_client = RedisClient()
@@ -150,16 +150,11 @@ def episode_process_hook(
     print(f"2 post_processing_process_hook: {processing_filepath} | {processed_bytes} | {status}")
     # TODO: fix problems with processed_bytes == 0
 
-    if task_context.task_canceled():
+    if task_context and task_context.task_canceled():
         if status == EpisodeStatus.DL_EPISODE_POSTPROCESSING:
             kill_process(grep=f"ffmpeg -y -i {processing_filepath}")
 
-        raise CancelingError(f"Task with jobID {task_context.job_id} marked as 'canceled'")
-
-    # if processed_bytes > 10 and status == EpisodeStatus.DL_EPISODE_POSTPROCESSING:
-    #     print(f"Teardown task 'DownloadEpisodeTask': killing ffmpeg called process | {processing_filepath}")
-    #     kill_process(grep=f"ffmpeg -y -i {processing_filepath}", logger=logger)
-    #     raise CancelingError("Need to cancel this!!")
+        raise CancelDownloading(f"Task with jobID {task_context.job_id} marked as 'canceled'")
 
     if processed_bytes and total_bytes:
         progress = f"{processed_bytes / total_bytes:.2%}"

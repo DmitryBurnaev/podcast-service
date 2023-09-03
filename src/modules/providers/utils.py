@@ -18,7 +18,8 @@ from yt_dlp.utils import YoutubeDLError
 
 from core import settings
 from common.enums import SourceType, EpisodeStatus
-from common.exceptions import InvalidRequestError, CancelingError
+from common.exceptions import InvalidRequestError
+from modules.podcast.tasks.download import CancelDownloading
 from modules.podcast.models import Cookie
 from modules.auth.hasher import get_random_hash
 from modules.podcast.tasks.base import TaskContext
@@ -186,7 +187,7 @@ def ffmpeg_preparation(
     src_path: str | Path,
     ffmpeg_params: list[str] = None,
     call_process_hook: bool = True,
-    logger: logging.Logger = logger,
+    task_context: TaskContext | None = None
 ) -> None:
     """
     FFmpeg allows fixing problem with length of audio track
@@ -201,7 +202,7 @@ def ffmpeg_preparation(
             filename=filename,
             total_bytes=total_bytes,
             processed_bytes=0,
-            logger=logger,
+            task_context=task_context,
         )
 
     tmp_path = settings.TMP_AUDIO_PATH / f"tmp_{filename}"
