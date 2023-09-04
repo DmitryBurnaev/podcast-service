@@ -1,4 +1,10 @@
+from typing import TYPE_CHECKING
+
+from common.enums import EpisodeStatus
 from common.statuses import ResponseStatus
+
+if TYPE_CHECKING:
+    from modules.podcast.tasks.base import TaskResultCode
 
 
 class BaseApplicationError(Exception):
@@ -117,3 +123,22 @@ class EmailSendingError(BaseApplicationError):
     status_code = 503
     message = "Couldn't send email to recipient"
     response_status = ResponseStatus.COMMUNICATION_ERROR
+
+
+class DownloadingInterrupted(Exception):
+    episode_status: EpisodeStatus | None
+
+    def __init__(self, code: "TaskResultCode", message: str = ""):
+        self.code = code
+        self.message = message
+        self.episode_status = None
+
+    def __repr__(self):
+        return f'DownloadingInterrupted({self.code.name}, "{self.message}")'
+
+
+class CancelDownloading(DownloadingInterrupted):
+
+    def __int__(self, code: "TaskResultCode", message: str = ""):
+        super().__init__(code, message)
+        self.episode_status = EpisodeStatus.NEW

@@ -9,13 +9,14 @@ from functools import partial
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
-from modules.podcast.tasks.download import CancelDownloading
+from common.exceptions import CancelDownloading
 from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
 from common.enums import EpisodeStatus
 from modules.podcast.models import Episode
-from modules.podcast.tasks.base import TaskContext
+from modules.podcast.tasks.base import TaskResultCode
+from modules.podcast.tasks.utils import TaskContext
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +155,10 @@ def episode_process_hook(
         if status == EpisodeStatus.DL_EPISODE_POSTPROCESSING:
             kill_process(grep=f"ffmpeg -y -i {processing_filepath}")
 
-        raise CancelDownloading(f"Task with jobID {task_context.job_id} marked as 'canceled'")
+        raise CancelDownloading(
+            TaskResultCode.CANCEL,
+            f"Task with jobID {task_context.job_id} marked as 'canceled'"
+        )
 
     if processed_bytes and total_bytes:
         progress = f"{processed_bytes / total_bytes:.2%}"

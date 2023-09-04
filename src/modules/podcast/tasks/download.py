@@ -11,10 +11,10 @@ from common.storage import StorageS3
 from common.enums import EpisodeStatus
 from common.utils import download_content
 from common.db_utils import make_session_maker
-from common.exceptions import NotFoundError, MaxAttemptsReached
+from common.exceptions import NotFoundError, MaxAttemptsReached, DownloadingInterrupted
 from modules.media.models import File
 from modules.podcast.models import Episode, Cookie
-from modules.podcast.tasks.base import RQTask, TaskState
+from modules.podcast.tasks.base import RQTask, TaskResultCode
 from modules.podcast.tasks.rss import GenerateRSSTask
 from modules.podcast.utils import get_file_size
 from modules.providers import utils as provider_utils
@@ -23,10 +23,10 @@ from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
 
 __all__ = ["DownloadEpisodeTask", "UploadedEpisodeTask", "DownloadEpisodeImageTask"]
 log_levels = {
-    TaskState.FINISHED: logging.INFO,
-    TaskState.SKIP: logging.INFO,
-    TaskState.ERROR: logging.ERROR,
-    TaskState.CANCEL: logging.WARNING,
+    TaskResultCode.SUCCESS: logging.INFO,
+    TaskResultCode.SKIP: logging.INFO,
+    TaskResultCode.ERROR: logging.ERROR,
+    TaskResultCode.CANCEL: logging.WARNING,
 }
 logger = logging.getLogger(__name__)
 
@@ -42,25 +42,6 @@ async def _async_episode_update(episode_id: int, new_status: Episode.Status):
         await db_session.commit()
 
 
-class DownloadingInterrupted(Exception):
-    episode_status: EpisodeStatus | None
-
-    def __init__(self, code: TaskState, message: str = ""):
-        self.code = code
-        self.message = message
-        self.episode_status = None
-
-    def __repr__(self):
-        return f'DownloadingInterrupted({self.code.name}, "{self.message}")'
-
-
-class CancelDownloading(DownloadingInterrupted):
-
-    def __int__(self, code: TaskState = TaskState.CANCEL, message: str = ""):
-        super().__init__(code, message)
-        self.episode_status = EpisodeStatus.NEW
-
-
 class DownloadEpisodeTask(RQTask):
     """
     Allows downloading media from the source and recreate podcast's rss (by requested episode_id)
@@ -69,7 +50,7 @@ class DownloadEpisodeTask(RQTask):
     storage: StorageS3
     tmp_audio_path: Path
 
-    async def run(self, episode_id: int) -> TaskState:  # pylint: disable=arguments-differ
+    async def run(self, episode_id: int) -> TaskResultCode:  # pylint: disable=arguments-differ
         self.storage = StorageS3()
 
         try:
@@ -94,14 +75,14 @@ class DownloadEpisodeTask(RQTask):
                 filter_kwargs={"id": episode_id},
                 update_data={"status": Episode.Status.ERROR},
             )
-            code_value = TaskState.ERROR
+            code_value = TaskResultCode.ERROR
 
         finally:
             await self._publish_redis_signal()
 
         return code_value
 
-    async def perform_run(self, episode_id: int) -> TaskState:
+    async def perform_run(self, episode_id: int) -> TaskResultCode:
         """
         Main operation for downloading, performing and uploading audio to the storage.
 
@@ -135,7 +116,7 @@ class DownloadEpisodeTask(RQTask):
         podcast_utils.delete_file(self.tmp_audio_path, logger=logger)
 
         logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
-        return TaskState.FINISHED
+        return TaskResultCode.SUCCESS
     #
     # def on_cancel(self) -> None:
     #     """
@@ -203,7 +184,7 @@ class DownloadEpisodeTask(RQTask):
             )
             await self._update_files(episode, {"size": stored_file_size, "available": True})
             await self._update_all_rss(episode.source_id)
-            raise DownloadingInterrupted(code=TaskState.SKIP)
+            raise DownloadingInterrupted(code=TaskResultCode.SKIP)
 
     async def _download_episode(self, episode: Episode) -> Path:
         """Fetching info from external resource and extract audio from target source"""
@@ -213,7 +194,7 @@ class DownloadEpisodeTask(RQTask):
                 return Path(result_path)
 
             raise DownloadingInterrupted(
-                code=TaskState.ERROR,
+                code=TaskResultCode.ERROR,
                 message="Episode [source: UPLOAD] does not contain audio with predefined path",
             )
 
@@ -239,11 +220,11 @@ class DownloadEpisodeTask(RQTask):
             )
             await self._update_episodes(episode, {"status": Episode.Status.ERROR})
             await self._update_files(episode, {"available": False})
-            raise DownloadingInterrupted(code=TaskState.ERROR) from exc
+            raise DownloadingInterrupted(code=TaskResultCode.ERROR) from exc
         #
         # except CancelDownloading as exc:
         #     await self._update_files(episode, {"available": False})
-        #     raise DownloadingInterrupted(code=TaskState.CANCEL) from exc
+        #     raise DownloadingInterrupted(code=TaskResultCode.CANCEL) from exc
 
         logger.info("=== [%s] DOWNLOADING was done ===", episode.source_id)
         return result_path
@@ -281,12 +262,11 @@ class DownloadEpisodeTask(RQTask):
         """Uploading file to the storage (S3)"""
 
         logger.info("=== [%s] UPLOADING === ", episode.source_id)
-
         remote_path = podcast_utils.upload_episode(tmp_audio_path, task_context=self.task_context)
         if not remote_path:
             logger.warning("=== [%s] UPLOADING was broken === ")
             await self._update_episodes(episode, {"status": Episode.Status.ERROR})
-            raise DownloadingInterrupted(code=TaskState.ERROR)
+            raise DownloadingInterrupted(code=TaskResultCode.ERROR)
 
         await self._update_files(episode, {"path": remote_path})
         result_file_size = self.storage.get_file_size(tmp_audio_path.name, logger=logger)
@@ -342,7 +322,7 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
     Allows preparations for already uploaded episodes (such as manually uploaded episodes)
     """
 
-    async def perform_run(self, episode_id: int) -> TaskState:
+    async def perform_run(self, episode_id: int) -> TaskResultCode:
         """
         Main operation for downloading, performing and uploading audio to the storage.
 
@@ -358,12 +338,12 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
         remote_size = self.storage.get_file_size(dst_path=episode.audio.path, logger=logger)
         if episode.status == EpisodeStatus.PUBLISHED and remote_size == episode.audio.size:
             raise DownloadingInterrupted(
-                code=TaskState.SKIP, message=f"Episode #{episode_id} already published."
+                code=TaskResultCode.SKIP, message=f"Episode #{episode_id} already published."
             )
 
         if remote_size != episode.audio.size:
             raise DownloadingInterrupted(
-                code=TaskState.ERROR,
+                code=TaskResultCode.ERROR,
                 message=(
                     f"Performing uploaded file failed: incorrect remote file size: {remote_size}"
                 ),
@@ -387,7 +367,7 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
         await self.db_session.flush()
         # self._delete_tmp_file(old_path)
         logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
-        return TaskState.FINISHED
+        return TaskResultCode.SUCCESS
 
     async def _copy_file(self, episode: Episode) -> str:
         """Uploading file to the storage (S3)"""
@@ -403,7 +383,7 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
         if not remote_path:
             logger.warning("=== [%s] REMOTE COPYING was broken === ")
             await episode.update(self.db_session, status=Episode.Status.ERROR)
-            raise DownloadingInterrupted(code=TaskState.ERROR)
+            raise DownloadingInterrupted(code=TaskResultCode.ERROR)
 
         logger.info(
             "=== [%s] REMOTE COPYING was done (%s -> %s):  === ",
@@ -427,7 +407,7 @@ class DownloadEpisodeImageTask(RQTask):
 
     async def run(
         self, episode_id: int | None = None
-    ) -> TaskState:  # pylint: disable=arguments-differ
+    ) -> TaskResultCode:  # pylint: disable=arguments-differ
         self.storage = StorageS3()
 
         try:
@@ -436,11 +416,11 @@ class DownloadEpisodeImageTask(RQTask):
             logger.exception(
                 "Unable to upload episode's image: episode %s | error: %r", episode_id, exc
             )
-            return TaskState.ERROR
+            return TaskResultCode.ERROR
 
         return code
 
-    async def perform_run(self, episode_id: int | None) -> TaskState:
+    async def perform_run(self, episode_id: int | None) -> TaskResultCode:
         filter_kwargs = {}
         if episode_id:
             filter_kwargs["id"] = int(episode_id)
@@ -473,7 +453,7 @@ class DownloadEpisodeImageTask(RQTask):
                 size=size,
             )
 
-        return TaskState.FINISHED
+        return TaskResultCode.SUCCESS
 
     @staticmethod
     async def _download_and_crop_image(episode: Episode) -> Path | None:
@@ -499,4 +479,3 @@ class DownloadEpisodeImageTask(RQTask):
             await asyncio.sleep(attempt)
 
         raise MaxAttemptsReached("Couldn't upload cover for episode")
-

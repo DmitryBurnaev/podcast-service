@@ -5,18 +5,17 @@ import uuid
 from unittest.mock import patch, MagicMock
 
 import pytest
-from redis.client import Redis
 
 from common.redis import RedisClient
 from modules.podcast.tasks import RQTask
-from modules.podcast.tasks.base import TaskState, StateData, TaskInProgressAction
+from modules.podcast.tasks.base import TaskResultCode
 
 pytestmark = pytest.mark.asyncio
 test_logger = logging.getLogger(__name__)
 
 
 class TaskForTest(RQTask):
-    def __call__(self, *args, **kwargs) -> TaskState:
+    def __call__(self, *args, **kwargs) -> TaskResultCode:
         """Base __call__ closes event loop (tests needed for running one)"""
         task_state_queue = multiprocessing.Queue()
         finish_code = self._perform_and_run(task_state_queue, *args, **kwargs)
@@ -26,7 +25,7 @@ class TaskForTest(RQTask):
         if raise_error:
             raise RuntimeError("Oops")
 
-        return TaskState.FINISHED
+        return TaskResultCode.SUCCESS
 
 
 class TaskForSubprocessCallTesting(RQTask):
@@ -39,18 +38,12 @@ class TaskForSubprocessCallTesting(RQTask):
             raise RuntimeError("Oops")
 
         self.started = True
-        # self._set_queue_action(
-        #     TaskInProgressAction.CHECKING, state_data={"local_filename": "test-file.mp3"}
-        # )
 
         if wait_for_cancel:
             while self.started:
                 time.sleep(1)
 
-        return TaskState.FINISHED
-
-    def teardown(self, state_data: StateData):
-        self.started = False
+        return TaskResultCode.SUCCESS
 
 
 class MockJob:
@@ -65,11 +58,11 @@ class MockJob:
 class TestRunTask:
     def test_run__ok(self):
         task = TaskForTest()
-        assert task() == TaskState.FINISHED
+        assert task() == TaskResultCode.SUCCESS
 
     def test_run__fail(self):
         task = TaskForTest()
-        assert task(raise_error=True) == TaskState.ERROR
+        assert task(raise_error=True) == TaskResultCode.ERROR
 
     async def test_tasks__eq__ok(self):
         task_1 = TaskForTest()
@@ -88,13 +81,13 @@ class TestRunTask:
     async def test_run_with_subprocess__ok(self, mocked_job_fetch):
         mocked_job_fetch.return_value = MockJob()
         task = TaskForSubprocessCallTesting()
-        assert task() == TaskState.FINISHED
+        assert task() == TaskResultCode.SUCCESS
 
     @patch("rq.job.Job.fetch")
     async def test_run_with_subprocess__fail(self, mocked_job_fetch):
         mocked_job_fetch.return_value = MockJob()
         task = TaskForSubprocessCallTesting()
-        assert task(raise_error=True) == TaskState.ERROR
+        assert task(raise_error=True) == TaskResultCode.ERROR
 
     @patch("rq.job.Job.fetch")
     async def test_run_with_subprocess__cancel(self, mocked_job_fetch):
@@ -103,7 +96,7 @@ class TestRunTask:
         # mocked_job_fetch.return_value = MockJob()
         # task = TaskForSubprocessCallTesting()
         # task(wait_for_cancel=True)
-        # assert task(raise_error=True) == TaskState.ERROR
+        # assert task(raise_error=True) == TaskResultCode.ERROR
 
 
 @patch("rq.job.Job.cancel")

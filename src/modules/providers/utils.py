@@ -18,11 +18,10 @@ from yt_dlp.utils import YoutubeDLError
 
 from core import settings
 from common.enums import SourceType, EpisodeStatus
-from common.exceptions import InvalidRequestError
-from modules.podcast.tasks.download import CancelDownloading
+from common.exceptions import InvalidRequestError, CancelDownloading
 from modules.podcast.models import Cookie
 from modules.auth.hasher import get_random_hash
-from modules.podcast.tasks.base import TaskContext
+from modules.podcast.tasks.utils import TaskContext
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
 from modules.podcast.utils import (
     get_file_size,

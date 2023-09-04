@@ -1,26 +1,22 @@
-import dataclasses
 import enum
 import asyncio
 import logging
-import multiprocessing
-from typing import NamedTuple
 
 from rq.job import Job
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.db_utils import make_session_maker
 from common.redis import RedisClient
+from modules.podcast.tasks.utils import TaskContext
 
 logger = logging.getLogger(__name__)
 
 
-class TaskState(enum.StrEnum):
-    PENDING = "PENDING"
-    FINISHED = "FINISHED"
+class TaskResultCode(enum.StrEnum):
+    SUCCESS = "SUCCESS"
     SKIP = "SKIP"
     ERROR = "ERROR"
     CANCEL = "CANCEL"
-    IN_PROGRESS = "IN_PROGRESS"
 
 
 class TaskInProgressAction(enum.StrEnum):
@@ -28,30 +24,6 @@ class TaskInProgressAction(enum.StrEnum):
     DOWNLOADING = "DOWNLOADING"
     POST_PROCESSING = "POST_PROCESSING"
     UPLOADING = "UPLOADING"
-
-
-@dataclasses.dataclass
-class StateData:
-    action: TaskInProgressAction
-    error_details: str | None = None
-    data: dict | None = None
-
-
-class TaskStateInfo(NamedTuple):
-    state: TaskState | None = None
-    state_data: StateData | None = None
-
-
-@dataclasses.dataclass
-class TaskContext:
-    job_id: str
-    canceled: bool = False
-
-    def task_canceled(self) -> bool:
-        job = Job.fetch(self.job_id, connection=RedisClient().sync_redis)
-        job_status = job.get_status()
-        logger.debug("Check for canceling: jobid: %s | job_status: %s", job.id, job_status)
-        return job_status == "canceled"
 
 
 class RQTask:
@@ -69,17 +41,17 @@ class RQTask:
         """We need to override this method to implement main task logic"""
         raise NotImplementedError
 
-    def __call__(self, *args, **kwargs) -> TaskState:
+    def __call__(self, *args, **kwargs) -> TaskResultCode:
         logger.info("==== STARTED task %s ====", self.name)
         finish_code = asyncio.run(self._perform_and_run(*args, **kwargs))
-        logger.info("==== FINISHED task %s | code %s ====", self.name, finish_code)
+        logger.info("==== SUCCESS task %s | code %s ====", self.name, finish_code)
         return finish_code
 
     def __eq__(self, other):
         """Can be used for test's simplify"""
         return isinstance(other, self.__class__) and self.__class__ == other.__class__
 
-    # def _run_with_subprocess(self, *task_args, **task_kwargs) -> TaskState:
+    # def _run_with_subprocess(self, *task_args, **task_kwargs) -> TaskResultCode:
     #     """Run logic in subprocess allows to terminate run task in the background"""
     #
     #     def extract_state_info(source_queue: multiprocessing.Queue) -> TaskStateInfo | None:
@@ -90,7 +62,7 @@ class RQTask:
     #         if not state_info:
     #             return True
     #
-    #         return state_info.state not in (TaskState.FINISHED, TaskState.ERROR)
+    #         return state_info.state not in (TaskResultCode.SUCCESS, TaskResultCode.ERROR)
     #
     #     task_state_queue = multiprocessing.Queue()
     #     process = multiprocessing.Process(
@@ -103,7 +75,7 @@ class RQTask:
     #     job = Job.fetch(self.get_job_id(*task_args, **task_kwargs), connection=Redis())
     #
     #     if not (state_info := extract_state_info(task_state_queue)):
-    #         state_info = TaskStateInfo(state=TaskState.PENDING)
+    #         state_info = TaskStateInfo(state=TaskResultCode.PENDING)
     #
     #     while task_in_progress(state_info):
     #         if new_state_info := extract_state_info(task_state_queue):
@@ -114,7 +86,7 @@ class RQTask:
     #             "jobid: %s | job_status: %s | state_info: %s", job.id, job_status, state_info
     #         )
     #         if job_status == "canceled":  # status can be changed by RQTask.cancel_task()
-    #             if state_info and state_info.state == TaskState.IN_PROGRESS:
+    #             if state_info and state_info.state == TaskResultCode.IN_PROGRESS:
     #                 self.teardown(state_info.state_data)
     #
     #             process.terminate()
@@ -125,7 +97,7 @@ class RQTask:
     #
     #     return state_info.state if state_info else None
 
-    async def _perform_and_run(self, *args, **kwargs) -> TaskState:
+    async def _perform_and_run(self, *args, **kwargs) -> TaskResultCode:
         """Allows calling `self.run` in transaction block with catching any exceptions"""
 
         session_maker = make_session_maker()
@@ -139,12 +111,12 @@ class RQTask:
 
         except Exception as exc:
             await self.db_session.rollback()
-            result = TaskState.ERROR
+            result = TaskResultCode.ERROR
             logger.exception("Couldn't perform task %s | error %r", self.name, exc)
 
         return result
 
-    # def _perform_and_run(self, *args, **kwargs) -> TaskState:
+    # def _perform_and_run(self, *args, **kwargs) -> TaskResultCode:
     #     """
     #     Runs async code, implemented in `self.run` and stores result to the queue
     #     (for retrieving results above)
@@ -164,7 +136,7 @@ class RQTask:
     #
     #         except Exception as exc:
     #             await self.db_session.rollback()
-    #             result = TaskState.ERROR
+    #             result = TaskResultCode.ERROR
     #             self.logger.exception("Couldn't perform task %s | error %r", self.name, exc)
     #
     #         return result
@@ -176,7 +148,7 @@ class RQTask:
     # def _set_queue_action(
     #     self,
     #     action: TaskInProgressAction,
-    #     state: TaskState = TaskState.IN_PROGRESS,
+    #     state: TaskResultCode = TaskResultCode.IN_PROGRESS,
     #     state_data: dict[str, str | Path | int] | None = None,
     # ):
     #     state_data = state_data or {}
