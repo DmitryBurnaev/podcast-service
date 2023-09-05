@@ -263,7 +263,6 @@ def ffmpeg_preparation(
             filename=filename,
             total_bytes=total_file_size,
             processed_bytes=total_file_size,
-            logger=logger,
         )
     logger.info("FFMPEG Preparation for %s was done", filename)
 

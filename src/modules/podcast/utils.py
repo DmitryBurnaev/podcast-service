@@ -4,7 +4,7 @@ import time
 import logging
 from pathlib import Path
 from typing import Iterable
-from functools import partial
+from functools import partial, lru_cache
 
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
@@ -118,6 +118,14 @@ def post_processing_process_hook(
         time.sleep(1)
 
 
+@lru_cache
+def get_task_context(filename: str) -> TaskContext | None:
+    if job_id := RedisClient().get(f"job_for_file__{filename}"):
+        return TaskContext(job_id=job_id)
+
+    return None
+
+
 def episode_process_hook(
     status: EpisodeStatus,
     filename: str,
@@ -125,7 +133,7 @@ def episode_process_hook(
     processed_bytes: int = None,
     chunk: int = 0,
     processing_filepath: str | None = None,
-    task_context: TaskContext | None = None,
+    # task_context: TaskContext | None = None,
 ):
     """Allows handling processes of performing episode's file."""
     redis_client = RedisClient()
@@ -151,6 +159,7 @@ def episode_process_hook(
     print(f"2 post_processing_process_hook: {processing_filepath} | {processed_bytes} | {status}")
     # TODO: fix problems with processed_bytes == 0
 
+    task_context = get_task_context(filename)
     if task_context and task_context.task_canceled():
         if status == EpisodeStatus.DL_EPISODE_POSTPROCESSING:
             kill_process(grep=f"ffmpeg -y -i {processing_filepath}")
