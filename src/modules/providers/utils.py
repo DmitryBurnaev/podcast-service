@@ -84,10 +84,14 @@ SOURCE_CFG_MAP = {
     ),
 }
 
-AUDIO_META_REGEXP = re.compile(r"(?P<meta>Metadata.+)?(?P<duration>Duration:\s?[\d:]+)", re.DOTALL)
+AUDIO_META_REGEXP = re.compile(
+    r"(?P<meta>Metadata.+)?(?P<duration>Duration:\s?[\d:]+)", re.DOTALL
+)
 
 
-def extract_source_info(source_url: str | None = None, playlist: bool = False) -> SourceInfo:
+def extract_source_info(
+    source_url: str | None = None, playlist: bool = False
+) -> SourceInfo:
     """Extracts providers (source) info and finds source ID"""
 
     if not source_url:
@@ -120,12 +124,15 @@ def download_process_hook(event: dict, task_context: TaskContext):
         filename=event["filename"],
         total_bytes=total_bytes,
         processed_bytes=event.get("downloaded_bytes", total_bytes),
-        task_context=task_context,
+        # task_context=task_context,
     )
 
 
 async def download_audio(
-    source_url: str, filename: str, cookie: Cookie | None, task_context: TaskContext | None = None,
+    source_url: str,
+    filename: str,
+    cookie: Cookie | None,
+    task_context: TaskContext | None = None,
 ) -> Path:
     """
     Download providers video and perform to audio (.mp3) file
@@ -141,7 +148,8 @@ async def download_audio(
         "format": "bestaudio/best",
         "outtmpl": str(result_path),
         "logger": logger or logging.getLogger("yt_dlp.YoutubeDL"),
-        "progress_hooks": [partial(download_process_hook, task_context=task_context)],
+        # "progress_hooks": [partial(download_process_hook, task_context=task_context)],
+        "progress_hooks": [download_process_hook],
         "noprogress": True,
     }
     if cookie:
@@ -153,7 +161,9 @@ async def download_audio(
     return result_path
 
 
-async def get_source_media_info(source_info: SourceInfo) -> tuple[str, SourceMediaInfo | None]:
+async def get_source_media_info(
+    source_info: SourceInfo,
+) -> tuple[str, SourceMediaInfo | None]:
     """Allows extract info about providers video from Source (powered by yt_dlp)"""
 
     logger.info("Started fetching data for %s", source_info.url)
@@ -167,7 +177,9 @@ async def get_source_media_info(source_info: SourceInfo) -> tuple[str, SourceMed
             source_details = await run_in_threadpool(extract_info)
 
     except YoutubeDLError as exc:
-        logger.exception("ydl.extract_info failed: %s | Error: %r", source_info.url, exc)
+        logger.exception(
+            "ydl.extract_info failed: %s | Error: %r", source_info.url, exc
+        )
         return str(exc), None
 
     youtube_info = SourceMediaInfo(
@@ -186,7 +198,7 @@ def ffmpeg_preparation(
     src_path: str | Path,
     ffmpeg_params: list[str] = None,
     call_process_hook: bool = True,
-    task_context: TaskContext | None = None
+    task_context: TaskContext | None = None,
 ) -> None:
     """
     FFmpeg allows fixing problem with length of audio track
@@ -201,7 +213,7 @@ def ffmpeg_preparation(
             filename=filename,
             total_bytes=total_bytes,
             processed_bytes=0,
-            task_context=task_context,
+            # task_context=task_context,
         )
 
     tmp_path = settings.TMP_AUDIO_PATH / f"tmp_{filename}"
@@ -230,7 +242,7 @@ def ffmpeg_preparation(
             timeout=settings.FFMPEG_TIMEOUT,
         )
     except Exception as exc:
-        episode_process_hook(status=EpisodeStatus.ERROR, filename=filename, logger=logger)
+        episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
         with suppress(IOError):
             os.remove(tmp_path)
 
@@ -253,8 +265,12 @@ def ffmpeg_preparation(
         os.remove(src_path)
         os.rename(tmp_path, src_path)
     except (IOError, AssertionError) as exc:
-        episode_process_hook(status=EpisodeStatus.ERROR, filename=filename, logger=logger)
-        raise FFMPegPreparationError(f"Failed to rename/remove tmp file: {exc}") from exc
+        episode_process_hook(
+            status=EpisodeStatus.ERROR, filename=filename, logger=logger
+        )
+        raise FFMPegPreparationError(
+            f"Failed to rename/remove tmp file: {exc}"
+        ) from exc
 
     total_file_size = get_file_size(src_path)
     if call_process_hook:
@@ -306,7 +322,15 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
 
     with tempfile.NamedTemporaryFile() as tmp_metadata_file:
         metadata_str = execute_ffmpeg(
-            ["ffmpeg", "-y", "-i", str(file_path), "-f", "ffmetadata", tmp_metadata_file.name]
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                str(file_path),
+                "-f",
+                "ffmetadata",
+                tmp_metadata_file.name,
+            ]
         )
 
     # ==== Extracting meta data ===
@@ -315,8 +339,12 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
         raise FFMPegParseError(f"Found result: {metadata_str}")
 
     find_results = find_results.groupdict()
-    duration = _human_time_to_sec(find_results.get("duration", "").replace("Duration:", ""))
-    metadata = _raw_meta_to_dict((find_results.get("meta") or "").replace("Metadata:\n", ""))
+    duration = _human_time_to_sec(
+        find_results.get("duration", "").replace("Duration:", "")
+    )
+    metadata = _raw_meta_to_dict(
+        (find_results.get("meta") or "").replace("Metadata:\n", "")
+    )
 
     logger.debug(
         "FFMPEG success done extracting duration from the file %s:\nmeta: %s\nduration: %s",
@@ -339,7 +367,17 @@ def audio_cover(audio_file_path: Path) -> CoverMetaData | None:
     try:
         cover_path = settings.TMP_IMAGE_PATH / f"tmp_cover_{uuid.uuid4().hex}.jpg"
         execute_ffmpeg(
-            ["ffmpeg", "-y", "-i", audio_file_path, "-an", "-an", "-c:v", "copy", cover_path]
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                audio_file_path,
+                "-an",
+                "-an",
+                "-c:v",
+                "copy",
+                cover_path,
+            ]
         )
     except FFMPegPreparationError as exc:
         logger.warning("Couldn't extract cover from audio file: %r", exc)
@@ -349,7 +387,9 @@ def audio_cover(audio_file_path: Path) -> CoverMetaData | None:
     cover_hash = hashlib.sha256(cover_file_content).hexdigest()[:32]
     new_cover_path = settings.TMP_IMAGE_PATH / f"cover_{cover_hash}.jpg"
     os.rename(cover_path, new_cover_path)
-    return CoverMetaData(path=new_cover_path, hash=cover_hash, size=get_file_size(new_cover_path))
+    return CoverMetaData(
+        path=new_cover_path, hash=cover_hash, size=get_file_size(new_cover_path)
+    )
 
 
 def _raw_meta_to_dict(meta: str | None) -> dict:

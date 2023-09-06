@@ -44,7 +44,9 @@ async def check_state(episodes: Iterable[Episode]) -> list[dict]:
     """Allows getting info about download progress for requested episodes"""
 
     redis_client = RedisClient()
-    filenames = {redis_client.get_key_by_filename(episode.audio_filename) for episode in episodes}
+    filenames = {
+        redis_client.get_key_by_filename(episode.audio_filename) for episode in episodes
+    }
     current_states = await redis_client.async_get_many(filenames, pkey="event_key")
     result = []
     for episode in episodes:
@@ -81,7 +83,7 @@ async def check_state(episodes: Iterable[Episode]) -> list[dict]:
     return result
 
 
-def upload_process_hook(filename: str, chunk: int, task_context: TaskContext):
+def upload_process_hook(filename: str, chunk: int):
     """
     Allows handling uploading to S3 storage and update redis state (for user's progress).
     It is called by `s3.upload_file` (`podcast.utils.upload_episode`)
@@ -90,7 +92,7 @@ def upload_process_hook(filename: str, chunk: int, task_context: TaskContext):
         filename=filename,
         status=EpisodeStatus.DL_EPISODE_UPLOADING,
         chunk=chunk,
-        task_context=task_context,
+        # task_context=task_context,
     )
 
 
@@ -98,7 +100,7 @@ def post_processing_process_hook(
     filename: str,
     target_path: str,
     total_bytes: int,
-    task_context: TaskContext,
+    # task_context: TaskContext,
     tmp_file_path: str = "",
 ):
     """
@@ -112,7 +114,7 @@ def post_processing_process_hook(
             status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
             total_bytes=total_bytes,
             processed_bytes=processed_bytes,
-            task_context=task_context,
+            # task_context=task_context,
             processing_filepath=tmp_file_path,
         )
         time.sleep(1)
@@ -156,17 +158,20 @@ def episode_process_hook(
         channel=settings.REDIS_PROGRESS_PUBSUB_CH,
         message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
     )
-    print(f"2 post_processing_process_hook: {processing_filepath} | {processed_bytes} | {status}")
+    print(
+        f"2 post_processing_process_hook: {processing_filepath} | {processed_bytes} | {status}"
+    )
     # TODO: fix problems with processed_bytes == 0
 
-    task_context = get_task_context(filename)
+    task_context = TaskContext.create_from_redis(filename)
+    # task_context = get_task_context(filename)
     if task_context and task_context.task_canceled():
         if status == EpisodeStatus.DL_EPISODE_POSTPROCESSING:
             kill_process(grep=f"ffmpeg -y -i {processing_filepath}")
 
         raise CancelDownloading(
             TaskResultCode.CANCEL,
-            f"Task with jobID {task_context.job_id} marked as 'canceled'"
+            f"Task with jobID {task_context.job_id} marked as 'canceled'",
         )
 
     if processed_bytes and total_bytes:
@@ -186,23 +191,29 @@ def upload_episode(src_path: str | Path, task_context: TaskContext) -> str | Non
         status=EpisodeStatus.DL_EPISODE_UPLOADING,
         processed_bytes=0,
         total_bytes=get_file_size(src_path, logger=logger),
-        task_context=task_context,
+        # task_context=task_context,
     )
     logger.info("Upload for %s started.", filename)
     remote_path = StorageS3().upload_file(
         src_path=str(src_path),
         dst_path=settings.S3_BUCKET_AUDIO_PATH,
-        callback=partial(upload_process_hook, filename, task_context=task_context),
+        callback=partial(upload_process_hook, filename)
+        # , task_context=task_context),
     )
     if not remote_path:
         logger.warning("Couldn't upload file to S3 storage. SKIP")
         episode_process_hook(
-            filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0, task_context=task_context
+            filename=filename,
+            status=EpisodeStatus.ERROR,
+            processed_bytes=0
+            # , task_context=task_context
         )
         return None
 
     logger.info("Great! uploading for %s was done!", filename)
-    logger.debug("Finished uploading for file %s. \n Result url is %s", filename, remote_path)
+    logger.debug(
+        "Finished uploading for file %s. \n Result url is %s", filename, remote_path
+    )
     return remote_path
 
 
@@ -217,18 +228,25 @@ def remote_copy_episode(
         status=EpisodeStatus.DL_EPISODE_UPLOADING,
         processed_bytes=0,
         total_bytes=src_file_size,
-        task_context=task_context,
+        # task_context=task_context,
     )
     logger.debug("Remotely copying for %s started.", filename)
-    remote_path = StorageS3().copy_file(src_path=str(src_path), dst_path=dst_path, logger=logger)
+    remote_path = StorageS3().copy_file(
+        src_path=str(src_path), dst_path=dst_path, logger=logger
+    )
     if not remote_path:
         logger.warning("Couldn't move file in S3 storage remotely. SKIP")
         episode_process_hook(
-            filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0, task_context=task_context
+            filename=filename,
+            status=EpisodeStatus.ERROR,
+            processed_bytes=0
+            # , task_context=task_context
         )
         return None
 
-    logger.debug("Finished moving s3 for file %s. \n Remote path is %s", filename, remote_path)
+    logger.debug(
+        "Finished moving s3 for file %s. \n Remote path is %s", filename, remote_path
+    )
     return remote_path
 
 
@@ -261,7 +279,9 @@ async def publish_redis_stop_downloading(episode_id: int) -> None:
 def kill_process(grep: str) -> None:
     """Finds (with grep) process and tries to kill it"""
 
-    command = f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill"
+    command = (
+        f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill"
+    )
     try:
         print("Trying to kill subprocess by command: '%s'", command)
         os.system(command)
