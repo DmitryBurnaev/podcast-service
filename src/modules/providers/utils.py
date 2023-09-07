@@ -113,7 +113,7 @@ def extract_source_info(
     raise InvalidRequestError(f"Requested domain is not supported now {source_url}")
 
 
-def download_process_hook(event: dict, task_context: TaskContext):
+def download_process_hook(event: dict):
     """
     Allows handling processes of downloading episode's file.
     It is called by `yt_dlp.YoutubeDL`

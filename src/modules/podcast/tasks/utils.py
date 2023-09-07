@@ -1,6 +1,7 @@
 import dataclasses
 import logging
 from functools import lru_cache
+from typing import Optional
 
 from rq.job import Job
 
@@ -26,8 +27,8 @@ class TaskContext:
         RedisClient().set(key, self.job_id)
 
     @classmethod
-    # @lru_cache() TODO: do we need caching?
-    def create_from_redis(cls, filename: str) -> "TaskContext" | None:
+    @lru_cache  # TODO: do we need caching?
+    def create_from_redis(cls, filename: str) -> Optional["TaskContext"]:
         key = cls._redis_key_pattern.format(filename)
         if job_id := RedisClient().get(key):
             return TaskContext(job_id=job_id)

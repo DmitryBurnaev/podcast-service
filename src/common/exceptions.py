@@ -125,6 +125,10 @@ class EmailSendingError(BaseApplicationError):
     response_status = ResponseStatus.COMMUNICATION_ERROR
 
 
+class UserCancellationError(BaseApplicationError):
+    message = "Current processing was interrupted"
+
+
 class DownloadingInterrupted(Exception):
     episode_status: EpisodeStatus | None
 

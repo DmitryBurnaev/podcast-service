@@ -9,13 +9,12 @@ from functools import partial, lru_cache
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
-from common.exceptions import CancelDownloading
+from common.exceptions import UserCancellationError
 from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
 from common.enums import EpisodeStatus
 from modules.podcast.models import Episode
-from modules.podcast.tasks.base import TaskResultCode
 from modules.podcast.tasks.utils import TaskContext
 
 logger = logging.getLogger(__name__)
@@ -169,9 +168,8 @@ def episode_process_hook(
         if status == EpisodeStatus.DL_EPISODE_POSTPROCESSING:
             kill_process(grep=f"ffmpeg -y -i {processing_filepath}")
 
-        raise CancelDownloading(
-            TaskResultCode.CANCEL,
-            f"Task with jobID {task_context.job_id} marked as 'canceled'",
+        raise UserCancellationError(
+            f"Task with jobID {task_context.job_id} marked as 'canceled'"
         )
 
     if processed_bytes and total_bytes:

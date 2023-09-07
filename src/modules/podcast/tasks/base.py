@@ -19,13 +19,6 @@ class TaskResultCode(enum.StrEnum):
     CANCEL = "CANCEL"
 
 
-class TaskInProgressAction(enum.StrEnum):
-    CHECKING = "CHECKING"
-    DOWNLOADING = "DOWNLOADING"
-    POST_PROCESSING = "POST_PROCESSING"
-    UPLOADING = "UPLOADING"
-
-
 class RQTask:
     """Base class for RQ tasks implementation."""
 
@@ -142,8 +135,8 @@ class RQTask:
     #         return result
     #
     #     return asyncio.run(run_async(*args, **kwargs))
-        # result_state = asyncio.run(run_async(*args, **kwargs))
-        # self.task_state_queue.put(TaskStateInfo(state=result_state))
+    # result_state = asyncio.run(run_async(*args, **kwargs))
+    # self.task_state_queue.put(TaskStateInfo(state=result_state))
 
     # def _set_queue_action(
     #     self,
@@ -190,7 +183,9 @@ class RQTask:
     def task_canceled(cls, job_id: str) -> bool:
         job = Job.fetch(job_id, connection=RedisClient().sync_redis)
         job_status = job.get_status()
-        logger.debug("Check for canceling: jobid: %s | job_status: %s", job.id, job_status)
+        logger.debug(
+            "Check for canceling: jobid: %s | job_status: %s", job.id, job_status
+        )
         return job_status == "canceled"
 
     # def teardown(self, state_data: StateData) -> None:

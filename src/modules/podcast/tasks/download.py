@@ -11,12 +11,16 @@ from common.storage import StorageS3
 from common.enums import EpisodeStatus
 from common.utils import download_content
 from common.db_utils import make_session_maker
-from common.exceptions import NotFoundError, MaxAttemptsReached, DownloadingInterrupted
+from common.exceptions import (
+    NotFoundError,
+    MaxAttemptsReached,
+    DownloadingInterrupted,
+    UserCancellationError,
+)
 from modules.media.models import File
 from modules.podcast.models import Episode, Cookie
 from modules.podcast.tasks.base import RQTask, TaskResultCode
 from modules.podcast.tasks.rss import GenerateRSSTask
-from modules.podcast.tasks.utils import TaskContext
 from modules.podcast.utils import get_file_size
 from modules.providers import utils as provider_utils
 from modules.podcast import utils as podcast_utils
@@ -60,16 +64,20 @@ class DownloadEpisodeTask(RQTask):
             code = await self.perform_run(int(episode_id))
             code_value = code.value
 
+        except UserCancellationError as exc:
+            message = "Episode downloading was interrupted by user canceling: %r"
+            logger.log(log_levels[TaskResultCode.CANCEL], message, exc)
+            code_value = TaskResultCode.CANCEL
+            await Episode.async_update(
+                self.db_session,
+                filter_kwargs={"id": episode_id},
+                update_data={"status": Episode.Status.NEW},
+            )
+
         except DownloadingInterrupted as exc:
             message = "Episode downloading was interrupted: %r"
             logger.log(log_levels[exc.code], message, exc)
             code_value = exc.code.value
-            if exc.episode_status:
-                await Episode.async_update(
-                    self.db_session,
-                    filter_kwargs={"id": episode_id},
-                    update_data={"status": Episode.Status.NEW},
-                )
 
         except Exception as exc:
             logger.exception("Unable to prepare/publish episode: %r", exc)
