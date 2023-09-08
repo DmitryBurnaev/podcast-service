@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.db_utils import make_session_maker
 from common.redis import RedisClient
-from modules.podcast.tasks.utils import TaskContext
+from modules.podcast.utils import TaskContext
 
 logger = logging.getLogger(__name__)
 
@@ -178,15 +178,6 @@ class RQTask:
             logger.exception("Couldn't cancel task %s: %r", job_id, exc)
         else:
             logger.info("Canceled task %s", job_id)
-
-    @classmethod
-    def task_canceled(cls, job_id: str) -> bool:
-        job = Job.fetch(job_id, connection=RedisClient().sync_redis)
-        job_status = job.get_status()
-        logger.debug(
-            "Check for canceling: jobid: %s | job_status: %s", job.id, job_status
-        )
-        return job_status == "canceled"
 
     # def teardown(self, state_data: StateData) -> None:
     #     """

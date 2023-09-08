@@ -1,11 +1,13 @@
+import dataclasses
 import json
 import os
 import time
 import logging
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional
 from functools import partial, lru_cache
 
+from rq.job import Job
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
@@ -15,9 +17,34 @@ from common.redis import RedisClient
 from common.storage import StorageS3
 from common.enums import EpisodeStatus
 from modules.podcast.models import Episode
-from modules.podcast.tasks.utils import TaskContext
 
 logger = logging.getLogger(__name__)
+
+
+@dataclasses.dataclass
+class TaskContext:
+    job_id: str
+    canceled: bool = False
+    _redis_key_pattern = "jobid_for_file_{}"
+
+    def task_canceled(self) -> bool:
+        job = Job.fetch(self.job_id, connection=RedisClient().sync_redis)
+        job_status = job.get_status()
+        logger.debug("Check for canceling: jobid: %s | status: %s", job.id, job_status)
+        return job_status == "canceled"
+
+    def save_to_redis(self, filename: str) -> None:
+        key = self._redis_key_pattern.format(filename)
+        RedisClient().set(key, self.job_id)
+
+    @classmethod
+    @lru_cache  # TODO: do we need caching?
+    def create_from_redis(cls, filename: str) -> Optional["TaskContext"]:
+        key = cls._redis_key_pattern.format(filename)
+        if job_id := RedisClient().get(key):
+            return TaskContext(job_id=job_id)
+
+        return None
 
 
 def delete_file(filepath: str | Path, logger: logging.Logger = logger) -> None:
@@ -119,12 +146,12 @@ def post_processing_process_hook(
         time.sleep(1)
 
 
-@lru_cache
-def get_task_context(filename: str) -> TaskContext | None:
-    if job_id := RedisClient().get(f"job_for_file__{filename}"):
-        return TaskContext(job_id=job_id)
-
-    return None
+# @lru_cache
+# def get_task_context(filename: str) -> TaskContext | None:
+#     if job_id := RedisClient().get(f"job_for_file__{filename}"):
+#         return TaskContext(job_id=job_id)
+#
+#     return None
 
 
 def episode_process_hook(
@@ -180,7 +207,7 @@ def episode_process_hook(
     logger.debug("[%s] for %s: %s", status, filename, progress)
 
 
-def upload_episode(src_path: str | Path, task_context: TaskContext) -> str | None:
+def upload_episode(src_path: str | Path) -> str | None:
     """Allows uploading src_path to S3 storage"""
 
     filename = os.path.basename(src_path)
@@ -215,9 +242,7 @@ def upload_episode(src_path: str | Path, task_context: TaskContext) -> str | Non
     return remote_path
 
 
-def remote_copy_episode(
-    src_path: str, dst_path: str, src_file_size: int, task_context: TaskContext
-) -> str | None:
+def remote_copy_episode(src_path: str, dst_path: str, src_file_size: int) -> str | None:
     """Allows uploading src_path to S3 storage"""
 
     filename = os.path.basename(src_path)
