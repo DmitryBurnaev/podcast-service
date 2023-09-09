@@ -190,6 +190,7 @@ class DownloadEpisodeTask(RQTask):
         """Finding already downloaded file for episode's audio file path"""
 
         if not (audio_path := episode.audio.path):
+            # TODO: log
             return
 
         # self._set_queue_action(TaskInProgressAction.CHECKING)
@@ -197,6 +198,7 @@ class DownloadEpisodeTask(RQTask):
             dst_path=audio_path, logger=logger
         )
         if stored_file_size and stored_file_size == episode.audio.size:
+            # TODO: no log info about
             logger.info(
                 "[%s] Episode already downloaded and file correct. Downloading will be ignored.",
                 episode.source_id,

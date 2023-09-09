@@ -286,9 +286,16 @@ class EpisodeCancelDownloading(BaseHTTPEndpoint):
         if not episode or episode.status != EpisodeStatus.DOWNLOADING:
             raise InvalidRequestError(f"Episode #{episode_id} not found or is not in progress now")
 
+        logger.debug("Setting UP episode %s to CANCELING status", episode)
         episode.status = Episode.Status.CANCELING
         await episode.update(self.db_session, status=episode.status)
 
+        logger.debug("Start canceling DownloadEpisodeTask(episode_id=%s)...", episode_id)
         tasks.DownloadEpisodeTask.cancel_task(episode_id=episode_id)
+        logger.debug("Start canceling DownloadEpisodeImageTask(episode_id=%s)...", episode_id)
         tasks.DownloadEpisodeImageTask.cancel_task(episode_id=episode_id)
+        logger.info(
+            "Sent cancel state to: DownloadEpisodeTask, DownloadEpisodeImageTask for episode %s",
+            episode,
+        )
         return self._response(episode)

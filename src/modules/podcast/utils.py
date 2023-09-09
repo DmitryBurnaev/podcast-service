@@ -38,7 +38,7 @@ class TaskContext:
         RedisClient().set(key, self.job_id)
 
     @classmethod
-    @lru_cache  # TODO: do we need caching?
+    @lru_cache
     def create_from_redis(cls, filename: str) -> Optional["TaskContext"]:
         key = cls._redis_key_pattern.format(filename)
         if job_id := RedisClient().get(key):
@@ -114,19 +114,13 @@ def upload_process_hook(filename: str, chunk: int):
     Allows handling uploading to S3 storage and update redis state (for user's progress).
     It is called by `s3.upload_file` (`podcast.utils.upload_episode`)
     """
-    episode_process_hook(
-        filename=filename,
-        status=EpisodeStatus.DL_EPISODE_UPLOADING,
-        chunk=chunk,
-        # task_context=task_context,
-    )
+    episode_process_hook(filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk)
 
 
 def post_processing_process_hook(
     filename: str,
     target_path: str,
     total_bytes: int,
-    # task_context: TaskContext,
     tmp_file_path: str = "",
 ):
     """
@@ -140,18 +134,9 @@ def post_processing_process_hook(
             status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
             total_bytes=total_bytes,
             processed_bytes=processed_bytes,
-            # task_context=task_context,
             processing_filepath=tmp_file_path,
         )
         time.sleep(1)
-
-
-# @lru_cache
-# def get_task_context(filename: str) -> TaskContext | None:
-#     if job_id := RedisClient().get(f"job_for_file__{filename}"):
-#         return TaskContext(job_id=job_id)
-#
-#     return None
 
 
 def episode_process_hook(
@@ -161,7 +146,6 @@ def episode_process_hook(
     processed_bytes: int = None,
     chunk: int = 0,
     processing_filepath: str | None = None,
-    # task_context: TaskContext | None = None,
 ):
     """Allows handling processes of performing episode's file."""
     redis_client = RedisClient()
@@ -190,7 +174,11 @@ def episode_process_hook(
     # TODO: fix problems with processed_bytes == 0
 
     task_context = TaskContext.create_from_redis(filename)
-    # task_context = get_task_context(filename)
+    if task_context:
+        print(task_context, task_context.task_canceled())
+    else:
+        print("not found tak_context: ", filename)
+
     if task_context and task_context.task_canceled():
         if status == EpisodeStatus.DL_EPISODE_POSTPROCESSING:
             kill_process(grep=f"ffmpeg -y -i {processing_filepath}")
