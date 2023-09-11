@@ -57,12 +57,16 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
             self.db_session, limit=limit, offset=offset, **filter_kwargs
         )
         query = Episode.prepare_query(offset=(limit + offset), **filter_kwargs)
-        (has_next_episodes,) = next(await self.db_session.execute(exists(query).select()))
+        (has_next_episodes,) = next(
+            await self.db_session.execute(exists(query).select())
+        )
         return self._response({"has_next": has_next_episodes, "items": episodes})
 
     async def post(self, request: PRequest) -> Response:
         if not (podcast_id := request.path_params.get("podcast_id")):
-            raise MethodNotAllowedError("Couldn't create episode without provided podcast_id")
+            raise MethodNotAllowedError(
+                "Couldn't create episode without provided podcast_id"
+            )
 
         podcast = await self._get_object(podcast_id, db_model=Podcast)
         cleaned_data = await self._validate(request)
@@ -92,7 +96,9 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             "Fetching episode for uploaded file for podcast %(podcast_id)s | hash %(hash)s",
             request.path_params,
         )
-        if episode := await self._get_episode(podcast.id, audio_hash=request.path_params["hash"]):
+        if episode := await self._get_episode(
+            podcast.id, audio_hash=request.path_params["hash"]
+        ):
             return self._response(episode)
 
         raise NotFoundError(
@@ -106,7 +112,9 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
 
         cleaned_data = await self._validate(request)
 
-        if episode := await self._get_episode(podcast.id, audio_hash=cleaned_data["hash"]):
+        if episode := await self._get_episode(
+            podcast.id, audio_hash=cleaned_data["hash"]
+        ):
             created = False
         else:
             episode = await self._create_episode(podcast.id, cleaned_data)
@@ -127,7 +135,11 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             source_id=source_id,
         )
         if episode:
-            logger.info("Episode with source_id (hash) '%s' exist. Return %s", source_id, episode)
+            logger.info(
+                "Episode with source_id (hash) '%s' exist. Return %s",
+                source_id,
+                episode,
+            )
 
         return episode
 
@@ -245,7 +257,9 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
         episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
         if episode.status in Episode.PROGRESS_STATUSES:
-            raise InvalidRequestError(f"Can't remove episode in '{episode.status}' status")
+            raise InvalidRequestError(
+                f"Can't remove episode in '{episode.status}' status"
+            )
 
         await episode.delete(self.db_session)
         return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
@@ -284,15 +298,22 @@ class EpisodeCancelDownloading(BaseHTTPEndpoint):
         episode_id = request.path_params["episode_id"]
         episode: Episode = await Episode.async_get(self.db_session, id=episode_id)
         if not episode or episode.status != EpisodeStatus.DOWNLOADING:
-            raise InvalidRequestError(f"Episode #{episode_id} not found or is not in progress now")
+            raise InvalidRequestError(
+                f"Episode #{episode_id} not found or is not in progress now"
+            )
 
         logger.debug("Setting UP episode %s to CANCELING status", episode)
         episode.status = Episode.Status.CANCELING
-        await episode.update(self.db_session, status=episode.status)
+        await episode.update(self.db_session, status=Episode.Status.CANCELING)
+        # await episode.update(self.db_session, status=episode.status)
 
-        logger.debug("Start canceling DownloadEpisodeTask(episode_id=%s)...", episode_id)
+        logger.debug(
+            "Start canceling DownloadEpisodeTask(episode_id=%s)...", episode_id
+        )
         tasks.DownloadEpisodeTask.cancel_task(episode_id=episode_id)
-        logger.debug("Start canceling DownloadEpisodeImageTask(episode_id=%s)...", episode_id)
+        logger.debug(
+            "Start canceling DownloadEpisodeImageTask(episode_id=%s)...", episode_id
+        )
         tasks.DownloadEpisodeImageTask.cancel_task(episode_id=episode_id)
         logger.info(
             "Sent cancel state to: DownloadEpisodeTask, DownloadEpisodeImageTask for episode %s",

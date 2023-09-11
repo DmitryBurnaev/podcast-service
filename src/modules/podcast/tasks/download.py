@@ -58,6 +58,10 @@ class DownloadEpisodeTask(RQTask):
     async def run(
         self, episode_id: int
     ) -> TaskResultCode:  # pylint: disable=arguments-differ
+        print("sleep....")
+        await asyncio.sleep(120)
+        print("... awake")
+
         self.storage = StorageS3()
 
         try:
