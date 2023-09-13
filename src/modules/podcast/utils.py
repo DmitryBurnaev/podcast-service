@@ -47,7 +47,7 @@ class TaskContext:
         return None
 
 
-def delete_file(filepath: str | Path, logger: logging.Logger = logger) -> None:
+def delete_file(filepath: str | Path) -> None:
     """Delete local file"""
 
     try:
@@ -58,7 +58,7 @@ def delete_file(filepath: str | Path, logger: logging.Logger = logger) -> None:
         logger.info("File %s deleted", filepath)
 
 
-def get_file_size(file_path: str | Path, logger: logging.Logger = logger) -> int:
+def get_file_size(file_path: str | Path) -> int:
     try:
         return os.path.getsize(file_path)
     except FileNotFoundError:
@@ -203,7 +203,7 @@ def upload_episode(src_path: str | Path) -> str | None:
         filename=filename,
         status=EpisodeStatus.DL_EPISODE_UPLOADING,
         processed_bytes=0,
-        total_bytes=get_file_size(src_path, logger=logger),
+        total_bytes=get_file_size(src_path),
         # task_context=task_context,
     )
     logger.info("Upload for %s started.", filename)

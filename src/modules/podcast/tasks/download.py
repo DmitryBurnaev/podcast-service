@@ -111,13 +111,12 @@ class DownloadEpisodeTask(RQTask):
         await self._save_job_id(episode)
         await self._check_is_needed(episode)
         await self._remove_unfinished(episode)
-        print("sleep....")
-        await asyncio.sleep(120)
-        print("... awake")
-
         await self._update_episodes(
             episode, update_data={"status": Episode.Status.DOWNLOADING}
         )
+        print("sleep....")
+        await asyncio.sleep(120)
+        print("... awake")
         self.tmp_audio_path = await self._download_episode(episode)
 
         await self._process_file(episode, self.tmp_audio_path)
@@ -132,7 +131,7 @@ class DownloadEpisodeTask(RQTask):
         await self._update_files(episode, {"size": remote_file_size, "available": True})
         await self._update_all_rss(episode.source_id)
 
-        podcast_utils.delete_file(self.tmp_audio_path, logger=logger)
+        podcast_utils.delete_file(self.tmp_audio_path)
 
         logger.info("=== [%s] DOWNLOADING total finished ===", episode.source_id)
         return TaskResultCode.SUCCESS
@@ -453,7 +452,7 @@ class DownloadEpisodeImageTask(RQTask):
             if tmp_path := await self._download_and_crop_image(episode):
                 remote_path = await self._upload_cover(episode, tmp_path)
                 available = True
-                size = get_file_size(tmp_path, logger=logger)
+                size = get_file_size(tmp_path)
             else:
                 remote_path, available, size = "", False, None
 

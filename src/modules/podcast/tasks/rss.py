@@ -1,4 +1,5 @@
 import os
+import logging
 
 from jinja2 import Template
 
@@ -11,6 +12,7 @@ from modules.podcast.tasks.base import RQTask, TaskResultCode
 from modules.podcast.utils import get_file_size
 
 __all__ = ["GenerateRSSTask"]
+logger = logging.getLogger(__name__)
 
 
 class GenerateRSSTask(RQTask):
@@ -37,16 +39,16 @@ class GenerateRSSTask(RQTask):
     async def _generate(self, podcast: Podcast) -> dict:
         """Render RSS and upload it"""
 
-        self.logger.info("START rss generation for %s", podcast)
+        logger.info("START rss generation for %s", podcast)
         local_path = await self._render_rss_to_file(podcast)
         remote_path = self.storage.upload_file(local_path, dst_path=settings.S3_BUCKET_RSS_PATH)
         if not remote_path:
-            self.logger.error("Couldn't upload RSS file to storage. SKIP")
+            logger.error("Couldn't upload RSS file to storage. SKIP")
             return {podcast.id: TaskResultCode.ERROR}
 
         rss_data = {
             "path": remote_path,
-            "size": get_file_size(local_path, logger=self.logger),
+            "size": get_file_size(local_path),
             "available": True,
         }
         if podcast.rss_id:
@@ -60,14 +62,14 @@ class GenerateRSSTask(RQTask):
             )
             await podcast.update(self.db_session, rss_id=rss_file.id)
 
-        self.logger.info("Podcast #%i: RSS file uploaded, podcast record updated", podcast.id)
-        self.logger.info("FINISH generation for %s | PATH: %s", podcast, remote_path)
+        logger.info("Podcast #%i: RSS file uploaded, podcast record updated", podcast.id)
+        logger.info("FINISH generation for %s | PATH: %s", podcast, remote_path)
         return {podcast.id: TaskResultCode.SUCCESS}
 
     async def _render_rss_to_file(self, podcast: Podcast) -> str:
         """Generate rss for Podcast and Episodes marked as "published" """
 
-        self.logger.info("Podcast #%i: RSS generation has been started", podcast.id)
+        logger.info("Podcast #%i: RSS generation has been started", podcast.id)
         episodes = await Episode.async_filter(
             self.db_session,
             podcast_id=podcast.id,
@@ -80,10 +82,10 @@ class GenerateRSSTask(RQTask):
             template = Template(f.read())
 
         rss_filename = os.path.join(settings.TMP_RSS_PATH, f"{podcast.publish_id}.xml")
-        self.logger.info("Podcast #%i: Generation new file rss [%s]", podcast.id, rss_filename)
+        logger.info("Podcast #%i: Generation new file rss [%s]", podcast.id, rss_filename)
         with open(rss_filename, "wt", encoding="utf-8") as f:
             result_rss = template.render(podcast=podcast, **context)
             f.write(result_rss)
 
-        self.logger.info("Podcast #%i: RSS file %s generated.", podcast.id, rss_filename)
+        logger.info("Podcast #%i: RSS file %s generated.", podcast.id, rss_filename)
         return rss_filename
