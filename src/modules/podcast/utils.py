@@ -114,27 +114,29 @@ def upload_process_hook(filename: str, chunk: int):
     Allows handling uploading to S3 storage and update redis state (for user's progress).
     It is called by `s3.upload_file` (`podcast.utils.upload_episode`)
     """
-    episode_process_hook(filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk)
+    episode_process_hook(
+        filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk
+    )
 
 
 def post_processing_process_hook(
     filename: str,
     target_path: str,
     total_bytes: int,
-    tmp_file_path: str = "",
+    src_file_path: str | Path = "",
 ):
     """
     Allows handling progress for ffmpeg file's preparations
     """
     processed_bytes = 0
     while processed_bytes < total_bytes:
-        processed_bytes = get_file_size(target_path, logger=logger)
+        processed_bytes = get_file_size(target_path)
         episode_process_hook(
             filename=filename,
             status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
             total_bytes=total_bytes,
             processed_bytes=processed_bytes,
-            processing_filepath=tmp_file_path,
+            processing_filepath=src_file_path,
         )
         time.sleep(1)
 
@@ -145,7 +147,7 @@ def episode_process_hook(
     total_bytes: int = 0,
     processed_bytes: int = None,
     chunk: int = 0,
-    processing_filepath: str | None = None,
+    processing_filepath: str | Path | None = None,
 ):
     """Allows handling processes of performing episode's file."""
     redis_client = RedisClient()
@@ -204,14 +206,12 @@ def upload_episode(src_path: str | Path) -> str | None:
         status=EpisodeStatus.DL_EPISODE_UPLOADING,
         processed_bytes=0,
         total_bytes=get_file_size(src_path),
-        # task_context=task_context,
     )
     logger.info("Upload for %s started.", filename)
     remote_path = StorageS3().upload_file(
         src_path=str(src_path),
         dst_path=settings.S3_BUCKET_AUDIO_PATH,
         callback=partial(upload_process_hook, filename)
-        # , task_context=task_context),
     )
     if not remote_path:
         logger.warning("Couldn't upload file to S3 storage. SKIP")
@@ -242,16 +242,13 @@ def remote_copy_episode(src_path: str, dst_path: str, src_file_size: int) -> str
         # task_context=task_context,
     )
     logger.debug("Remotely copying for %s started.", filename)
-    remote_path = StorageS3().copy_file(
-        src_path=str(src_path), dst_path=dst_path, logger=logger
-    )
+    remote_path = StorageS3().copy_file(src_path=str(src_path), dst_path=dst_path)
     if not remote_path:
         logger.warning("Couldn't move file in S3 storage remotely. SKIP")
         episode_process_hook(
             filename=filename,
             status=EpisodeStatus.ERROR,
             processed_bytes=0
-            # , task_context=task_context
         )
         return None
 

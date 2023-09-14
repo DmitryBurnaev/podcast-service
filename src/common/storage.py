@@ -2,7 +2,7 @@ import os
 import logging
 import mimetypes
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
 import boto3
 import botocore
@@ -82,7 +82,7 @@ class StorageS3:
         src_path: str | Path,
         dst_path: str,
         filename: str | None = None,
-        callback: Callable | None = None,
+        callback: Optional[Callable] = None,
     ) -> str | None:
         """Upload file to S3 storage"""
         mimetype, _ = mimetypes.guess_type(src_path)
@@ -123,12 +123,10 @@ class StorageS3:
         src_path: str | Path,
         dst_path: str,
         filename: str | None = None,
-        callback: Callable | None = None,
-        logger: logging.Logger = logger,
+        callback: Optional[Callable] = None,
     ):
         return await run_in_threadpool(
             self.upload_file,
-            logger=logger,
             src_path=src_path,
             dst_path=dst_path,
             filename=filename,
@@ -140,7 +138,6 @@ class StorageS3:
         filename: str,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         error_log_level: int = logging.ERROR,
-        logger: logging.Logger = logger,
         dst_path: str | None = None,
     ) -> dict | None:
         """
@@ -151,7 +148,6 @@ class StorageS3:
         _, result = self.__call(
             self.s3.head_object,
             error_log_level=error_log_level,
-            logger=logger,
             Key=dst_path,
             Bucket=self.BUCKET_NAME,
         )
@@ -175,7 +171,6 @@ class StorageS3:
                 remote_path,
                 dst_path=dst_path,
                 error_log_level=logging.WARNING,
-                logger=logger,
             )
             if file_info:
                 return int(file_info["ResponseMetadata"]["HTTPHeaders"]["content-length"])
@@ -188,11 +183,9 @@ class StorageS3:
         filename: str | None = None,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         dst_path: str | None = None,
-        logger: logging.Logger = logger,
     ):
         return await run_in_threadpool(
             self.get_file_size,
-            logger=logger,
             filename=filename,
             remote_path=remote_path,
             dst_path=dst_path,
@@ -203,14 +196,15 @@ class StorageS3:
         filename: str | None = None,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         dst_path: str | None = None,
-        logger: logging.Logger = logger,
     ):
         if not dst_path and not filename:
             raise ValueError("At least one argument must be set: dst_path | filename")
 
         dst_path = dst_path or os.path.join(remote_path, filename)
         _, result = self.__call(
-            self.s3.delete_object, logger=logger, Key=dst_path, Bucket=self.BUCKET_NAME
+            self.s3.delete_object,
+            Key=dst_path,
+            Bucket=self.BUCKET_NAME,
         )
         return result
 
@@ -223,7 +217,7 @@ class StorageS3:
         for filename in filenames:
             dst_path = os.path.join(remote_path, filename)
             await self.__async_call(
-                self.s3.delete_object, logger=logger, Key=dst_path, Bucket=self.BUCKET_NAME
+                self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME,
             )
 
     async def get_presigned_url(
@@ -233,7 +227,6 @@ class StorageS3:
         if not (url := await redis.async_get(remote_path)):
             _, url = await self.__async_call(
                 self.s3.generate_presigned_url,
-                logger=logger,
                 ClientMethod="get_object",
                 Params={"Bucket": settings.S3_BUCKET_NAME, "Key": remote_path},
                 ExpiresIn=settings.S3_LINK_EXPIRES_IN,

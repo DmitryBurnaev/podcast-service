@@ -219,7 +219,7 @@ def ffmpeg_preparation(
             "filename": filename,
             "target_path": tmp_path,
             "total_bytes": total_bytes,
-            "tmp_file_path": tmp_path,
+            "src_file_path": src_path,
         },
     )
     process.start()
@@ -233,6 +233,7 @@ def ffmpeg_preparation(
             timeout=settings.FFMPEG_TIMEOUT,
         )
     except Exception as exc:
+        # TODO: catch canceling and reraise error here
         episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
         with suppress(IOError):
             os.remove(tmp_path)

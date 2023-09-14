@@ -303,7 +303,7 @@ class EpisodeCancelDownloading(BaseHTTPEndpoint):
             )
 
         logger.debug("Setting UP episode %s to CANCELING status", episode)
-        episode.status = Episode.Status.CANCELING
+        # episode.status = Episode.Status.CANCELING
         await episode.update(self.db_session, status=Episode.Status.CANCELING)
         # await episode.update(self.db_session, status=episode.status)
 

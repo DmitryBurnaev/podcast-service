@@ -12,7 +12,7 @@ rq = "==1.15.1"
 
 asyncpg = "==0.28.0"
 psycopg2-binary = "==2.9.6" # for alembic only
-sqlalchemy = "==2.0.19"
+sqlalchemy = "==2.0.20"
 alembic = "==1.9.0" # todo: rollback to the fresh version?
 greenlet = "==2.0.2" # optional dependency for sqlalchemy
 
