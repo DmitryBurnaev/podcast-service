@@ -183,7 +183,10 @@ def episode_process_hook(
 
     if task_context and task_context.task_canceled():
         if status == EpisodeStatus.DL_EPISODE_POSTPROCESSING:
+            logger.debug(f"Canceling postprocessing task for file {processing_filepath}...")
             kill_process(grep=f"ffmpeg -y -i {processing_filepath}")
+            # TODO: recheck killing watcher-process
+            return
 
         raise UserCancellationError(
             f"Task with jobID {task_context.job_id} marked as 'canceled'"

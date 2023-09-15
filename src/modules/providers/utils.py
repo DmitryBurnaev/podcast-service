@@ -18,7 +18,7 @@ from yt_dlp.utils import YoutubeDLError
 
 from core import settings
 from common.enums import SourceType, EpisodeStatus
-from common.exceptions import InvalidRequestError
+from common.exceptions import InvalidRequestError, UserCancellationError
 from modules.podcast.models import Cookie
 from modules.auth.hasher import get_random_hash
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
@@ -123,7 +123,6 @@ def download_process_hook(event: dict):
         filename=event["filename"],
         total_bytes=total_bytes,
         processed_bytes=event.get("downloaded_bytes", total_bytes),
-        # task_context=task_context,
     )
 
 
@@ -212,8 +211,8 @@ def ffmpeg_preparation(
 
     tmp_path = settings.TMP_AUDIO_PATH / f"tmp_{filename}"
 
-    logger.info("Start SUBPROCESS (filesize watching) for %s === ", filename)
-    process = Process(
+    logger.info("=== Start SUBPROCESS (filesize watching) for %s === ", filename)
+    watcher_process = Process(
         target=post_processing_process_hook,
         kwargs={
             "filename": filename,
@@ -222,7 +221,8 @@ def ffmpeg_preparation(
             "src_file_path": src_path,
         },
     )
-    process.start()
+    watcher_process.start()
+
     try:
         ffmpeg_params = ffmpeg_params or ["-vn", "-acodec", "libmp3lame", "-q:a", "5"]
         completed_proc = subprocess.run(
@@ -232,8 +232,12 @@ def ffmpeg_preparation(
             check=True,
             timeout=settings.FFMPEG_TIMEOUT,
         )
+
     except Exception as exc:
-        # TODO: catch canceling and reraise error here
+        watcher_process.terminate()
+        if isinstance(exc, subprocess.CalledProcessError) and exc.returncode == 255:
+            raise UserCancellationError("Background FFMPEG processing was interrupted")
+
         episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
         with suppress(IOError):
             os.remove(tmp_path)
@@ -242,10 +246,10 @@ def ffmpeg_preparation(
         if stdout := getattr(exc, "stdout", ""):
             err_details += f"\n{str(stdout, encoding='utf-8')}"
 
-        process.terminate()
+        watcher_process.terminate()
         raise FFMPegPreparationError(err_details) from exc
 
-    process.terminate()
+    watcher_process.terminate()
     logger.info(
         "FFMPEG success done preparation for file %s:\n%s",
         filename,
@@ -253,10 +257,13 @@ def ffmpeg_preparation(
     )
 
     try:
-        assert os.path.exists(tmp_path), f"Prepared file {tmp_path} wasn't created"
+        if not tmp_path.exists():
+            raise IOError(f"Prepared file {tmp_path} wasn't created")
+
         os.remove(src_path)
         os.rename(tmp_path, src_path)
-    except (IOError, AssertionError) as exc:
+
+    except IOError as exc:
         episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
         raise FFMPegPreparationError(f"Failed to rename/remove tmp file: {exc}") from exc
 
