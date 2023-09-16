@@ -26,7 +26,11 @@ from modules.providers import utils as provider_utils
 from modules.podcast import utils as podcast_utils
 from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
 
-__all__ = ["DownloadEpisodeTask", "UploadedEpisodeTask", "DownloadEpisodeImageTask"]
+__all__ = [
+    "DownloadEpisodeTask",
+    "UploadedEpisodeTask",
+    "DownloadEpisodeImageTask",
+]
 log_levels = {
     TaskResultCode.SUCCESS: logging.INFO,
     TaskResultCode.SKIP: logging.INFO,
@@ -55,9 +59,8 @@ class DownloadEpisodeTask(RQTask):
     storage: StorageS3
     tmp_audio_path: Path
 
-    async def run(
-        self, episode_id: int
-    ) -> TaskResultCode:  # pylint: disable=arguments-differ
+    # pylint: disable=arguments-differ
+    async def run(self, episode_id: int) -> TaskResultCode:
         self.storage = StorageS3()
 
         try:
@@ -169,9 +172,7 @@ class DownloadEpisodeTask(RQTask):
                     "published_at": episode.created_at,
                 },
             )
-            await self._update_files(
-                episode, {"size": stored_file_size, "available": True}
-            )
+            await self._update_files(episode, {"size": stored_file_size, "available": True})
             await self._update_all_rss(episode.source_id)
             raise DownloadingInterrupted(code=TaskResultCode.SKIP)
 
@@ -209,10 +210,6 @@ class DownloadEpisodeTask(RQTask):
             await self._update_episodes(episode, {"status": Episode.Status.ERROR})
             await self._update_files(episode, {"available": False})
             raise DownloadingInterrupted(code=TaskResultCode.ERROR) from exc
-        #
-        # except CancelDownloading as exc:
-        #     await self._update_files(episode, {"available": False})
-        #     raise DownloadingInterrupted(code=TaskResultCode.CANCEL) from exc
 
         logger.info("=== [%s] DOWNLOADING was done ===", episode.source_id)
         return result_path
@@ -233,15 +230,13 @@ class DownloadEpisodeTask(RQTask):
             )
             self.storage.delete_file(audio_path)
 
-    async def _process_file(self, episode: Episode, tmp_audio_path: Path) -> None:
+    @staticmethod
+    async def _process_file(episode: Episode, tmp_audio_path: Path) -> None:
         """Postprocessing for downloaded audio file"""
         source_config = SOURCE_CFG_MAP[episode.source_type]
         if source_config.need_postprocessing:
             logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
-            provider_utils.ffmpeg_preparation(
-                src_path=tmp_audio_path,
-                # task_context=self.task_context
-            )
+            provider_utils.ffmpeg_preparation(src_path=tmp_audio_path)
             logger.info("=== [%s] POST PROCESSING was done === ", episode.source_id)
         else:
             logger.info("=== [%s] POST PROCESSING SKIP === ", episode.source_id)
@@ -251,7 +246,6 @@ class DownloadEpisodeTask(RQTask):
 
         logger.info("=== [%s] UPLOADING === ", episode.source_id)
         remote_path = podcast_utils.upload_episode(tmp_audio_path)
-        # , task_context=self.task_context)
         if not remote_path:
             logger.warning("=== [%s] UPLOADING was broken === ")
             await self._update_episodes(episode, {"status": Episode.Status.ERROR})
@@ -306,6 +300,7 @@ class DownloadEpisodeTask(RQTask):
             self.db_session,
             filter_kwargs={"source_url": source_url},
             update_data=update_data,
+            db_commit=True,
         )
 
     @staticmethod
@@ -405,14 +400,12 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
 class DownloadEpisodeImageTask(RQTask):
     """Allows fetching episodes image (cover), prepare them and upload to S3"""
 
-    storage: StorageS3 = None
+    storage: StorageS3
     MAX_UPLOAD_ATTEMPT = 5
 
-    async def run(
-        self, episode_id: int | None = None
-    ) -> TaskResultCode:  # pylint: disable=arguments-differ
+    # pylint: disable=arguments-differ
+    async def run(self, episode_id: int | None = None) -> TaskResultCode:
         self.storage = StorageS3()
-
         try:
             code = await self.perform_run(episode_id)
         except Exception as exc:

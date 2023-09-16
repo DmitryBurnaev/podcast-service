@@ -17,17 +17,17 @@ logger = logging.getLogger(__name__)
 class StorageS3:
     """Simple client (singleton) for access to S3 bucket"""
 
-    __instance = None
+    # __instance = None
     BUCKET_NAME = settings.S3_BUCKET_NAME
     CODE_OK = 0
     CODE_CLIENT_ERROR = 1
     CODE_COMMON_ERROR = 2
 
-    def __new__(cls, *args, **kwargs):
-        if not cls.__instance:
-            cls.__instance = super().__new__(cls, *args, **kwargs)
-
-        return cls.__instance
+    # def __new__(cls, *args, **kwargs):
+    #     if not cls.__instance:
+    #         cls.__instance = super().__new__(cls, *args, **kwargs)
+    #
+    #     return cls.__instance
 
     def __init__(self):
         logger.debug("Creating s3 client's session (boto3)...")
