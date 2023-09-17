@@ -144,7 +144,6 @@ LOGGING = {
     "loggers": {
         "uvicorn": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
         "modules": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
-        "modules.podcast.tasks": {"handlers": [], "level": LOG_LEVEL, "propagate": False},
         "common": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
         "app": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
         "yt_dlp": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},

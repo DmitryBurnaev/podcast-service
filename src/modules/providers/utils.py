@@ -143,7 +143,7 @@ async def download_audio(
     params = {
         "format": "bestaudio/best",
         "outtmpl": str(result_path),
-        "logger": logger or logging.getLogger("yt_dlp.YoutubeDL"),
+        "logger": logging.getLogger("yt_dlp.YoutubeDL"),
         "progress_hooks": [download_process_hook],
         "noprogress": True,
     }
@@ -219,6 +219,7 @@ def ffmpeg_preparation(
             "target_path": tmp_path,
             "total_bytes": total_bytes,
             "src_file_path": src_path,
+            "hook_logger": logger,
         },
     )
     watcher_process.start()

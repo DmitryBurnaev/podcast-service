@@ -164,40 +164,37 @@ def episode_process_hook(
         "processed_bytes": processed_bytes,
         "total_bytes": total_bytes,
     }
-    print(f"1 post_processing_process_hook: {processing_filepath}")
     redis_client.set(event_key, event_data, ttl=settings.DOWNLOAD_EVENT_REDIS_TTL)
     redis_client.publish(
         channel=settings.REDIS_PROGRESS_PUBSUB_CH,
         message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
     )
-    print(
-        f"2 post_processing_process_hook: {processing_filepath} | {processed_bytes} | {status}"
-    )
-    # TODO: fix problems with processed_bytes == 0
-
     task_context = TaskContext.create_from_redis(filename)
-    if task_context:
-        print(task_context, task_context.task_canceled())
-    else:
-        print("not found tak_context: ", filename)
+    # TODO: resolve problem with root logger for post-processing hook
+    logger.warning(
+        "Task context: %s | canceled: %s",
+        task_context,
+        task_context.task_canceled() if task_context else "UNKNOWN"
+    )
 
     if task_context and task_context.task_canceled():
         if status == EpisodeStatus.DL_EPISODE_POSTPROCESSING:
-            logger.debug(f"Canceling postprocessing task for file {processing_filepath}...")
+            logger.warning(
+                "Canceling postprocessing task for file %s...",
+                processing_filepath
+            )
             kill_process(grep=f"ffmpeg -y -i {processing_filepath}")
             # TODO: recheck killing watcher-process
             return
 
-        raise UserCancellationError(
-            f"Task with jobID {task_context.job_id} marked as 'canceled'"
-        )
+        raise UserCancellationError(f"Task with jobID {task_context.job_id} marked as 'canceled'")
 
     if processed_bytes and total_bytes:
         progress = f"{processed_bytes / total_bytes:.2%}"
     else:
         progress = f"processed = {processed_bytes} | total = {total_bytes}"
 
-    logger.debug("[%s] for %s: %s", status, filename, progress)
+    logger.info("[%s] for %s: %s", status, filename, progress)
 
 
 def upload_episode(src_path: str | Path) -> str | None:
@@ -222,7 +219,6 @@ def upload_episode(src_path: str | Path) -> str | None:
             filename=filename,
             status=EpisodeStatus.ERROR,
             processed_bytes=0
-            # , task_context=task_context
         )
         return None
 
@@ -290,13 +286,11 @@ async def publish_redis_stop_downloading(episode_id: int) -> None:
 def kill_process(grep: str) -> None:
     """Finds (with grep) process and tries to kill it"""
 
-    command = (
-        f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill"
-    )
+    command = f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill"
     try:
-        print("Trying to kill subprocess by command: '%s'", command)
+        logger.debug("KILL: Trying to kill subprocess by command: '%s'", command)
         os.system(command)
     except Exception as exc:
-        print("Couldn't kill subprocess by grep: %s | err: %r", grep, exc)
+        logger.error("KILL: Couldn't kill subprocess by grep: %s | err: %r", grep, exc)
     else:
-        print("Killed process by grep: '%s'", grep)
+        logger.info("KILL: Killed process by grep: '%s'", grep)

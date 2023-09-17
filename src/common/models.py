@@ -72,13 +72,9 @@ class ModelMixin:
             .values(**update_data)
             .execution_options(synchronize_session="fetch")
         )
-        print(f"executing: {query}")
         await db_session.execute(query)
         if db_commit:
-            print(f"committing: {query}")
             await db_session.commit()
-
-        print(f"done: {query}")
 
     @classmethod
     async def async_delete(cls, db_session: AsyncSession, filter_kwargs: dict):

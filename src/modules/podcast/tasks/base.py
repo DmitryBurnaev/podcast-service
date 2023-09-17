@@ -27,7 +27,6 @@ class RQTask:
 
     def __init__(self, db_session: AsyncSession = None):
         self.db_session = db_session
-        self.logger = logger
 
     async def run(self, *args, **kwargs):
         """We need to override this method to implement main task logic"""

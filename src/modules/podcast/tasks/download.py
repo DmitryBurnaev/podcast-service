@@ -117,9 +117,6 @@ class DownloadEpisodeTask(RQTask):
         await self._update_episodes(
             episode, update_data={"status": Episode.Status.DOWNLOADING}
         )
-        print("sleep....")
-        await asyncio.sleep(10)
-        print("... awake")
         self.tmp_audio_path = await self._download_episode(episode)
 
         await self._process_file(episode, self.tmp_audio_path)
@@ -140,7 +137,7 @@ class DownloadEpisodeTask(RQTask):
         return TaskResultCode.SUCCESS
 
     async def _save_job_id(self, episode: Episode) -> None:
-        logger.debug(
+        logger.info(
             "Saving taskID by episodes' filename: %s | jobID: %s",
             episode.audio_filename,
             self.task_context.job_id,
@@ -270,7 +267,6 @@ class DownloadEpisodeTask(RQTask):
         podcast_ids = sorted([episode.podcast_id for episode in affected_episodes])
         logger.info("[%s] Found podcasts for rss updates: %s", source_id, podcast_ids)
         generate_rss_task = GenerateRSSTask(db_session=self.db_session)
-        generate_rss_task.logger = logger
         await generate_rss_task.run(*podcast_ids)
 
     async def _update_episodes(self, episode: Episode, update_data: dict) -> None:
