@@ -219,7 +219,6 @@ def ffmpeg_preparation(
             "target_path": tmp_path,
             "total_bytes": total_bytes,
             "src_file_path": src_path,
-            "hook_logger": logger,
         },
     )
     watcher_process.start()
