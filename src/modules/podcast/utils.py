@@ -170,13 +170,6 @@ def episode_process_hook(
         message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
     )
     task_context = TaskContext.create_from_redis(filename)
-    # TODO: resolve problem with root logger for post-processing hook
-    logger.warning(
-        "Task context: %s | canceled: %s",
-        task_context,
-        task_context.task_canceled() if task_context else "UNKNOWN"
-    )
-
     if task_context and task_context.task_canceled():
         if status == EpisodeStatus.DL_EPISODE_POSTPROCESSING:
             logger.warning(
@@ -184,7 +177,6 @@ def episode_process_hook(
                 processing_filepath
             )
             kill_process(grep=f"ffmpeg -y -i {processing_filepath}")
-            # TODO: recheck killing watcher-process
             return
 
         raise UserCancellationError(f"Task with jobID {task_context.job_id} marked as 'canceled'")
