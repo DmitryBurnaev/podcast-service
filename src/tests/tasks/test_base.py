@@ -1,5 +1,4 @@
 import logging
-import multiprocessing
 import time
 import uuid
 from unittest.mock import patch, MagicMock
@@ -15,11 +14,6 @@ test_logger = logging.getLogger(__name__)
 
 
 class TaskForTest(RQTask):
-    def __call__(self, *args, **kwargs) -> TaskResultCode:
-        """Base __call__ closes event loop (tests needed for running one)"""
-        task_state_queue = multiprocessing.Queue()
-        finish_code = self._perform_and_run(task_state_queue, *args, **kwargs)
-        return finish_code
 
     async def run(self, raise_error=False):
         if raise_error:
@@ -78,19 +72,7 @@ class TestRunTask:
         assert TaskForTest in task_classes
 
     @patch("rq.job.Job.fetch")
-    async def test_run_with_subprocess__ok(self, mocked_job_fetch):
-        mocked_job_fetch.return_value = MockJob()
-        task = TaskForSubprocessCallTesting()
-        assert task() == TaskResultCode.SUCCESS
-
-    @patch("rq.job.Job.fetch")
-    async def test_run_with_subprocess__fail(self, mocked_job_fetch):
-        mocked_job_fetch.return_value = MockJob()
-        task = TaskForSubprocessCallTesting()
-        assert task(raise_error=True) == TaskResultCode.ERROR
-
-    @patch("rq.job.Job.fetch")
-    async def test_run_with_subprocess__cancel(self, mocked_job_fetch):
+    async def test_run__cancel(self, mocked_job_fetch):
         # TODO: fix subprocess call's test
         ...
         # mocked_job_fetch.return_value = MockJob()

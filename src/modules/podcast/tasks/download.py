@@ -62,6 +62,7 @@ class DownloadEpisodeTask(RQTask):
     # pylint: disable=arguments-differ
     async def run(self, episode_id: int) -> TaskResultCode:
         self.storage = StorageS3()
+        self.task_context = self.task_context or self._prepare_task_context(episode_id)
 
         try:
             code = await self.perform_run(int(episode_id))

@@ -22,11 +22,9 @@ class TaskResultCode(enum.StrEnum):
 class RQTask:
     """Base class for RQ tasks implementation."""
 
-    db_session: AsyncSession
-    task_context: TaskContext
-
     def __init__(self, db_session: AsyncSession = None):
-        self.db_session = db_session
+        self.db_session: AsyncSession = db_session
+        self.task_context: TaskContext | None = None
 
     async def run(self, *args, **kwargs):
         """We need to override this method to implement main task logic"""
@@ -46,7 +44,7 @@ class RQTask:
         """Allows calling `self.run` in transaction block with catching any exceptions"""
 
         session_maker = make_session_maker()
-        self.task_context = TaskContext(job_id=self.get_job_id(*args, **kwargs))
+        self.task_context = self._prepare_task_context(*args, **kwargs)
 
         try:
             async with session_maker() as db_session:
@@ -87,3 +85,6 @@ class RQTask:
             logger.exception("Couldn't cancel task %s: %r", job_id, exc)
         else:
             logger.info("Canceled task %s", job_id)
+
+    def _prepare_task_context(self, *args, **kwargs) -> TaskContext:
+        return TaskContext(job_id=self.get_job_id(*args, **kwargs))
