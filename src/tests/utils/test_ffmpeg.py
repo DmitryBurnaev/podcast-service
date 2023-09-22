@@ -70,7 +70,12 @@ class TestFFMPEG(BaseTestCase):
         mocked_process.target_class.__init__.assert_called_with(
             mocked_process.target_obj,
             target=post_processing_process_hook,
-            kwargs={"filename": self.filename, "target_path": tmp_file, "total_bytes": 4},
+            kwargs={
+                "filename": self.filename,
+                "target_path": tmp_file,
+                "total_bytes": 4,
+                "src_file_path": tmp_file,
+            },
         )
 
         assert not os.path.exists(self.tmp_filename), f"File wasn't removed: {self.tmp_filename}"
@@ -138,6 +143,7 @@ class TestFFMPEG(BaseTestCase):
                     filename=self.filename,
                     total_bytes=100,
                     processed_bytes=100,
+                    processing_filepath="",
                 )
             ],
         )

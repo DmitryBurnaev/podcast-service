@@ -4,7 +4,12 @@ from common.enums import EpisodeStatus
 
 
 class TestEpisodeProcessHooks:
+
+    def test_call__get_task_context(self):
+        assert False
+
     def test_call_hook__ok(self, mocked_redis):
+        # TODO: return with side-effect method for getting job_id / hook-data
         mocked_redis.get.return_value = {"total_bytes": 1024}
         episode_process_hook(
             EpisodeStatus.DL_EPISODE_DOWNLOADING,
