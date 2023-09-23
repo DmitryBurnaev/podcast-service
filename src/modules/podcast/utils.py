@@ -24,8 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclasses.dataclass
 class TaskContext:
     job_id: str
-    canceled: bool = False
-    _redis_key_pattern = "jobid_for_file_{}"
+    _redis_key_pattern = "jobid_for_file__{}"
 
     def task_canceled(self) -> bool:
         job = Job.fetch(self.job_id, connection=RedisClient().sync_redis)
