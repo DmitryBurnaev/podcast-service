@@ -115,9 +115,7 @@ class DownloadEpisodeTask(RQTask):
         await self._save_job_id(episode)
         await self._check_is_needed(episode)
         await self._remove_unfinished(episode)
-        await self._update_episodes(
-            episode, update_data={"status": Episode.Status.DOWNLOADING}
-        )
+        await self._update_episodes(episode, update_data={"status": Episode.Status.DOWNLOADING})
         self.tmp_audio_path = await self._download_episode(episode)
 
         await self._process_file(episode, self.tmp_audio_path)
@@ -261,9 +259,7 @@ class DownloadEpisodeTask(RQTask):
         """Regenerating rss for all podcast with requested episode (by source_id)"""
 
         logger.info("=== [%s] Updating rss for all podcast === ", source_id)
-        affected_episodes = await Episode.async_filter(
-            self.db_session, source_id=source_id
-        )
+        affected_episodes = await Episode.async_filter(self.db_session, source_id=source_id)
         podcast_ids = sorted([episode.podcast_id for episode in affected_episodes])
         logger.info("[%s] Found podcasts for rss updates: %s", source_id, podcast_ids)
         generate_rss_task = GenerateRSSTask(db_session=self.db_session)
@@ -277,9 +273,7 @@ class DownloadEpisodeTask(RQTask):
             "source_type": episode.source_type,
             "status__ne": Episode.Status.ARCHIVED,
         }
-        logger.debug(
-            "Episodes update filter: %s | data: %s", filter_kwargs, update_data
-        )
+        logger.debug("Episodes update filter: %s | data: %s", filter_kwargs, update_data)
         await Episode.async_update(
             self.db_session,
             filter_kwargs=filter_kwargs,
@@ -326,10 +320,7 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
             episode.audio.path,
         )
         remote_size = self.storage.get_file_size(dst_path=episode.audio.path)
-        if (
-            episode.status == EpisodeStatus.PUBLISHED
-            and remote_size == episode.audio.size
-        ):
+        if episode.status == EpisodeStatus.PUBLISHED and remote_size == episode.audio.size:
             raise DownloadingInterrupted(
                 code=TaskResultCode.SKIP,
                 message=f"Episode #{episode_id} already published.",
@@ -426,9 +417,7 @@ class DownloadEpisodeImageTask(RQTask):
             logger.info("=== Episode %i from %i ===", index, episodes_count)
             image: File = episode.image
             if image.path.startswith(settings.S3_BUCKET_IMAGES_PATH):
-                logger.info(
-                    "Skip episode %i | image URL: %s", episode.id, episode.image_url
-                )
+                logger.info("Skip episode %i | image URL: %s", episode.id, episode.image_url)
                 continue
 
             if tmp_path := await self._download_and_crop_image(episode):
@@ -438,9 +427,7 @@ class DownloadEpisodeImageTask(RQTask):
             else:
                 remote_path, available, size = "", False, None
 
-            logger.info(
-                "Saving new image URL: episode %s | remote %s", episode.id, remote_path
-            )
+            logger.info("Saving new image URL: episode %s | remote %s", episode.id, remote_path)
             await image.update(
                 self.db_session,
                 path=remote_path,

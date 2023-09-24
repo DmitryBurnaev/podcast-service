@@ -11,11 +11,11 @@ from rq.job import Job
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
-from common.exceptions import UserCancellationError
 from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
 from common.enums import EpisodeStatus
+from common.exceptions import UserCancellationError
 from modules.podcast.models import Episode
 
 logger = logging.getLogger(__name__)
@@ -69,9 +69,7 @@ async def check_state(episodes: Iterable[Episode]) -> list[dict]:
     """Allows getting info about download progress for requested episodes"""
 
     redis_client = RedisClient()
-    filenames = {
-        redis_client.get_key_by_filename(episode.audio_filename) for episode in episodes
-    }
+    filenames = {redis_client.get_key_by_filename(episode.audio_filename) for episode in episodes}
     current_states = await redis_client.async_get_many(filenames, pkey="event_key")
     result = []
     for episode in episodes:
@@ -113,9 +111,7 @@ def upload_process_hook(filename: str, chunk: int):
     Allows handling uploading to S3 storage and update redis state (for user's progress).
     It is called by `s3.upload_file` (`podcast.utils.upload_episode`)
     """
-    episode_process_hook(
-        filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk
-    )
+    episode_process_hook(filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk)
 
 
 def post_processing_process_hook(
@@ -171,10 +167,7 @@ def episode_process_hook(
     task_context = TaskContext.create_from_redis(filename)
     if task_context and task_context.task_canceled():
         if status == EpisodeStatus.DL_EPISODE_POSTPROCESSING:
-            logger.warning(
-                "Canceling postprocessing task for file %s...",
-                processing_filepath
-            )
+            logger.warning("Canceling postprocessing task for file %s...", processing_filepath)
             kill_process(grep=f"ffmpeg -y -i {processing_filepath}")
             return
 
@@ -202,21 +195,15 @@ def upload_episode(src_path: str | Path) -> str | None:
     remote_path = StorageS3().upload_file(
         src_path=str(src_path),
         dst_path=settings.S3_BUCKET_AUDIO_PATH,
-        callback=partial(upload_process_hook, filename)
+        callback=partial(upload_process_hook, filename),
     )
     if not remote_path:
         logger.warning("Couldn't upload file to S3 storage. SKIP")
-        episode_process_hook(
-            filename=filename,
-            status=EpisodeStatus.ERROR,
-            processed_bytes=0
-        )
+        episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0)
         return None
 
     logger.info("Great! uploading for %s was done!", filename)
-    logger.debug(
-        "Finished uploading for file %s. \n Result url is %s", filename, remote_path
-    )
+    logger.debug("Finished uploading for file %s. \n Result url is %s", filename, remote_path)
     return remote_path
 
 
@@ -235,16 +222,10 @@ def remote_copy_episode(src_path: str, dst_path: str, src_file_size: int) -> str
     remote_path = StorageS3().copy_file(src_path=str(src_path), dst_path=dst_path)
     if not remote_path:
         logger.warning("Couldn't move file in S3 storage remotely. SKIP")
-        episode_process_hook(
-            filename=filename,
-            status=EpisodeStatus.ERROR,
-            processed_bytes=0
-        )
+        episode_process_hook(filename=filename, status=EpisodeStatus.ERROR, processed_bytes=0)
         return None
 
-    logger.debug(
-        "Finished moving s3 for file %s. \n Remote path is %s", filename, remote_path
-    )
+    logger.debug("Finished moving s3 for file %s. \n Remote path is %s", filename, remote_path)
     return remote_path
 
 

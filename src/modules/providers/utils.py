@@ -83,14 +83,10 @@ SOURCE_CFG_MAP = {
     ),
 }
 
-AUDIO_META_REGEXP = re.compile(
-    r"(?P<meta>Metadata.+)?(?P<duration>Duration:\s?[\d:]+)", re.DOTALL
-)
+AUDIO_META_REGEXP = re.compile(r"(?P<meta>Metadata.+)?(?P<duration>Duration:\s?[\d:]+)", re.DOTALL)
 
 
-def extract_source_info(
-    source_url: str | None = None, playlist: bool = False
-) -> SourceInfo:
+def extract_source_info(source_url: str | None = None, playlist: bool = False) -> SourceInfo:
     """Extracts providers (source) info and finds source ID"""
 
     if not source_url:
@@ -172,9 +168,7 @@ async def get_source_media_info(
             source_details = await run_in_threadpool(extract_info)
 
     except YoutubeDLError as exc:
-        logger.exception(
-            "ydl.extract_info failed: %s | Error: %r", source_info.url, exc
-        )
+        logger.exception("ydl.extract_info failed: %s | Error: %r", source_info.url, exc)
         return str(exc), None
 
     youtube_info = SourceMediaInfo(
@@ -235,8 +229,9 @@ def ffmpeg_preparation(
 
     except Exception as exc:
         watcher_process.terminate()
+        # pylint: disable=no-member
         if isinstance(exc, subprocess.CalledProcessError) and exc.returncode == 255:
-            raise UserCancellationError("Background FFMPEG processing was interrupted")
+            raise UserCancellationError("Background FFMPEG processing was interrupted") from exc
 
         episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
         with suppress(IOError):
@@ -292,7 +287,7 @@ class CoverMetaData(NamedTuple):
     size: int
 
 
-def execute_ffmpeg(command: list[str], logger: logging.Logger = logger) -> str:
+def execute_ffmpeg(command: list[str]) -> str:
     try:
         logger.debug("Executing FFMPEG: '%s'", " ".join(map(str, command)))
         completed_proc = subprocess.run(
@@ -334,12 +329,8 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
         raise FFMPegParseError(f"Found result: {metadata_str}")
 
     find_results = find_results.groupdict()
-    duration = _human_time_to_sec(
-        find_results.get("duration", "").replace("Duration:", "")
-    )
-    metadata = _raw_meta_to_dict(
-        (find_results.get("meta") or "").replace("Metadata:\n", "")
-    )
+    duration = _human_time_to_sec(find_results.get("duration", "").replace("Duration:", ""))
+    metadata = _raw_meta_to_dict((find_results.get("meta") or "").replace("Metadata:\n", ""))
 
     logger.debug(
         "FFMPEG success done extracting duration from the file %s:\nmeta: %s\nduration: %s",
@@ -382,9 +373,7 @@ def audio_cover(audio_file_path: Path) -> CoverMetaData | None:
     cover_hash = hashlib.sha256(cover_file_content).hexdigest()[:32]
     new_cover_path = settings.TMP_IMAGE_PATH / f"cover_{cover_hash}.jpg"
     os.rename(cover_path, new_cover_path)
-    return CoverMetaData(
-        path=new_cover_path, hash=cover_hash, size=get_file_size(new_cover_path)
-    )
+    return CoverMetaData(path=new_cover_path, hash=cover_hash, size=get_file_size(new_cover_path))
 
 
 def _raw_meta_to_dict(meta: str | None) -> dict:

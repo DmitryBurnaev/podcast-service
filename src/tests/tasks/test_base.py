@@ -14,7 +14,6 @@ test_logger = logging.getLogger(__name__)
 
 
 class TaskForTest(RQTask):
-
     async def run(self, raise_error=False):
         if raise_error:
             raise RuntimeError("Oops")

@@ -17,17 +17,10 @@ logger = logging.getLogger(__name__)
 class StorageS3:
     """Simple client (singleton) for access to S3 bucket"""
 
-    # __instance = None
     BUCKET_NAME = settings.S3_BUCKET_NAME
     CODE_OK = 0
     CODE_CLIENT_ERROR = 1
     CODE_COMMON_ERROR = 2
-
-    # def __new__(cls, *args, **kwargs):
-    #     if not cls.__instance:
-    #         cls.__instance = super().__new__(cls, *args, **kwargs)
-    #
-    #     return cls.__instance
 
     def __init__(self):
         logger.debug("Creating s3 client's session (boto3)...")
@@ -44,7 +37,6 @@ class StorageS3:
         self,
         handler: Callable,
         error_log_level: int = logging.ERROR,
-        logger: logging.Logger = logger,
         **handler_kwargs,
     ) -> tuple[int, dict | None]:
         try:
@@ -70,7 +62,6 @@ class StorageS3:
         self,
         handler: Callable,
         error_log_level: int = logging.ERROR,
-        logger: logging.Logger = logger,
         **handler_kwargs,
     ) -> tuple[int, dict | None]:
         return await run_in_threadpool(
@@ -102,9 +93,7 @@ class StorageS3:
         logger.info("File %s successful uploaded. Remote path: %s", filename, dst_path)
         return dst_path
 
-    def copy_file(
-        self, src_path: str, dst_path: str, logger: logging.Logger = logger
-    ) -> str | None:
+    def copy_file(self, src_path: str, dst_path: str) -> str | None:
         """Upload file to S3 storage"""
         code, _ = self.__call(
             self.s3.copy_object,
@@ -158,7 +147,6 @@ class StorageS3:
         filename: str | None = None,
         remote_path: str = settings.S3_BUCKET_AUDIO_PATH,
         dst_path: str | None = None,
-        logger: logging.Logger = logger,
     ) -> int:
         """
         Allows finding file on remote storage (S3) and calculate size
@@ -212,17 +200,16 @@ class StorageS3:
         self,
         filenames: list[str],
         remote_path: str,
-        logger: logging.Logger = logger,
     ):
         for filename in filenames:
             dst_path = os.path.join(remote_path, filename)
             await self.__async_call(
-                self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME,
+                self.s3.delete_object,
+                Key=dst_path,
+                Bucket=self.BUCKET_NAME,
             )
 
-    async def get_presigned_url(
-        self, remote_path: str, logger: logging.Logger = logger
-    ) -> str:
+    async def get_presigned_url(self, remote_path: str) -> str:
         redis = RedisClient()
         if not (url := await redis.async_get(remote_path)):
             _, url = await self.__async_call(

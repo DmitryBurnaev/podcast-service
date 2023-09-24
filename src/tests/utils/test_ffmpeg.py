@@ -10,11 +10,7 @@ from core import settings
 from common.enums import EpisodeStatus
 from modules.podcast.utils import post_processing_process_hook
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
-from modules.providers.utils import (
-    ffmpeg_preparation,
-    audio_metadata,
-    AudioMetaData
-)
+from modules.providers.utils import ffmpeg_preparation, audio_metadata, AudioMetaData
 from tests.api.test_base import BaseTestCase
 
 
@@ -74,7 +70,7 @@ class TestFFMPEG(BaseTestCase):
                 "filename": self.filename,
                 "target_path": tmp_file,
                 "total_bytes": 4,
-                "src_file_path": tmp_file,
+                "src_file_path": str(self.src_path),
             },
         )
 
