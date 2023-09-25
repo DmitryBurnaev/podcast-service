@@ -64,9 +64,7 @@ class StorageS3:
         error_log_level: int = logging.ERROR,
         **handler_kwargs,
     ) -> tuple[int, dict | None]:
-        return await run_in_threadpool(
-            self.__call, handler, error_log_level, logger, **handler_kwargs
-        )
+        return await run_in_threadpool(self.__call, handler, error_log_level, **handler_kwargs)
 
     def upload_file(
         self,
