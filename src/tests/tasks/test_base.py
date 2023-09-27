@@ -70,15 +70,6 @@ class TestRunTask:
         task_classes = list(RQTask.get_subclasses())
         assert TaskForTest in task_classes
 
-    @patch("rq.job.Job.fetch")
-    async def test_run__cancel(self, mocked_job_fetch):
-        # TODO: fix subprocess call's test
-        ...
-        # mocked_job_fetch.return_value = MockJob()
-        # task = TaskForSubprocessCallTesting()
-        # task(wait_for_cancel=True)
-        # assert task(raise_error=True) == TaskResultCode.ERROR
-
 
 @patch("rq.job.Job.cancel")
 @patch("rq.job.Job.fetch")
