@@ -6,7 +6,11 @@ from starlette.responses import Response
 
 from common.request import PRequest
 from common.views import BaseHTTPEndpoint
-from common.exceptions import PermissionDeniedError, InvalidRequestError
+from common.exceptions import (
+    PermissionDeniedError,
+    InvalidRequestError,
+    MethodNotAllowedError,
+)
 from modules.podcast.models import Cookie, Episode
 from modules.podcast.schemas import CookieResponseSchema, CookieCreateUpdateSchema
 
@@ -49,10 +53,11 @@ class CookieListCreateAPIView(BaseCookieAPIView):
 
     async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request)
-        cookie = await Cookie.async_create(
-            db_session=request.db_session, owner_id=request.user.id, **cleaned_data
-        )
-        return self._response(cookie, status_code=status.HTTP_201_CREATED)
+        raise MethodNotAllowedError("Creating cookie isn't allowed now.")
+        # cookie = await Cookie.async_create(
+        #     db_session=request.db_session, owner_id=request.user.id, **cleaned_data
+        # )
+        # return self._response(cookie, status_code=status.HTTP_201_CREATED)
 
 
 class CookieRUDAPIView(BaseCookieAPIView):
