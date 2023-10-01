@@ -73,7 +73,9 @@ class TestCookieListCreateAPIView(BaseTestAPIView):
         cookie_data = {"source_type": SourceType.YANDEX}
         await client.login(user)
         response = client.post(self.url, data=cookie_data, files={"file": _cookie_file()})
-        response_data = self.assert_fail_response(response, status_code=405)
+        response_data = self.assert_fail_response(
+            response, status_code=405, response_status=ResponseStatus.NOT_ALLOWED,
+        )
         # cookie = await Cookie.async_get(dbs, id=response_data["id"])
         # assert cookie is not None
         # assert response_data == _cookie(cookie)
