@@ -74,7 +74,11 @@ class MockYoutubeDL(BaseMock):
         self.extract_info = Mock(return_value=self.info)
 
     def mock_init(self, *args, **kwargs):
+        class RequestDirector:
+            close = Mock()
+
         self.target_obj.params = {}
+        self.target_obj._request_director = RequestDirector()
 
     def assert_called_with(self, **kwargs):
         mock: Mock = self.target_class.__init__  # noqa
