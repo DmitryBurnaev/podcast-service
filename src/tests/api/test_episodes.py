@@ -732,7 +732,7 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
         response = client.get(self.url, params={"limit": 1})
         response_data = self.assert_ok_response(response)
         self.assert_episodes(response_data, expected_episode_ids=[self.episode_2.id])
-        assert response_data["has_next"] is True, response_data
+        assert response_data.get("has_next") is True, response_data
 
     async def test_get_list__offset__ok(self, client, episode_data, user, dbs):
         await self.setup_episodes(dbs, user, episode_data)
@@ -740,7 +740,7 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
         response = client.get(self.url, params={"offset": 1})
         response_data = self.assert_ok_response(response)
         self.assert_episodes(response_data, expected_episode_ids=[self.episode_1.id])
-        assert response_data["has_next"] is False, response_data
+        assert response_data.get("has_next") is False, response_data
 
     @pytest.mark.parametrize(
         "search,title1,title2,expected_titles",

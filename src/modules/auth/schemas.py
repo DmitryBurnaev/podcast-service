@@ -15,6 +15,8 @@ __all__ = [
     "UserInviteResponseSchema",
     "ResetPasswordRequestSchema",
     "ResetPasswordResponseSchema",
+    "UserIPsResponseSchema",
+    "UserIPsDeleteRequestSchema",
 ]
 
 
@@ -104,3 +106,19 @@ class UserPatchRequestSchema(TwoPasswordsMixin, Schema):
     PASSWORDS_REQUIRED = False  # password is not required for user's patch logic
 
     email = fields.Email()
+
+
+class PodcastShortSchema(Schema):
+    id = fields.Int()
+    name = fields.String()
+
+
+class UserIPsResponseSchema(Schema):
+    id = fields.Int()
+    ip_address = fields.String()
+    created_at = fields.DateTime()
+    by_rss_podcast = fields.Nested(PodcastShortSchema)
+
+
+class UserIPsDeleteRequestSchema(Schema):
+    ips = fields.List(fields.String)

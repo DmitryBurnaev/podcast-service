@@ -26,14 +26,6 @@ from common.exceptions import (
 logger = logging.getLogger(__name__)
 
 
-def status_is_success(code):
-    return 200 <= code <= 299
-
-
-def status_is_server_error(code):
-    return 500 <= code <= 600
-
-
 async def send_email(recipient_email: str, subject: str, html_content: str):
     """Allows to send email via Sendgrid API"""
 
@@ -116,7 +108,7 @@ def custom_exception_handler(_, exc):
         payload["details"] = error_details
 
     response_data = {"status": response_status, "payload": payload}
-    log_level = logging.ERROR if status_is_server_error(status_code) else logging.WARNING
+    log_level = logging.ERROR if httpx.codes.is_error(status_code) else logging.WARNING
     log_message(exc, response_data["payload"], log_level)
     return JSONResponse(response_data, status_code=status_code)
 

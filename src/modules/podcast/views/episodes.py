@@ -2,7 +2,6 @@ import logging
 from typing import Type
 
 from marshmallow import Schema
-from sqlalchemy import exists
 from starlette import status
 from starlette.responses import Response
 
@@ -21,7 +20,6 @@ from modules.podcast.schemas import (
     EpisodeUpdateSchema,
     EpisodeDetailsSchema,
     EpisodeListRequestSchema,
-    EpisodeListResponseSchema,
     EpisodeListSchema,
     EpisodeUploadedSchema,
 )
@@ -32,14 +30,11 @@ logger = logging.getLogger(__name__)
 class EpisodeListCreateAPIView(BaseHTTPEndpoint):
     """List and Create (based on `EpisodeCreator` logic) API for episodes"""
 
+    schema_response = EpisodeListSchema
+
     @property
     def schema_request(self) -> Type[Schema]:
         schema_map = {"get": EpisodeListRequestSchema, "post": EpisodeCreateSchema}
-        return schema_map.get(self.request.method.lower())
-
-    @property
-    def schema_response(self) -> Type[Schema]:
-        schema_map = {"get": EpisodeListResponseSchema, "post": EpisodeListSchema}
         return schema_map.get(self.request.method.lower())
 
     async def get(self, request: PRequest) -> Response:
@@ -53,12 +48,10 @@ class EpisodeListCreateAPIView(BaseHTTPEndpoint):
         if episode_status := cleaned_data.get("status"):
             filter_kwargs["status"] = episode_status
 
-        episodes = await Episode.async_filter(
-            self.db_session, limit=limit, offset=offset, **filter_kwargs
+        episodes_query = Episode.prepare_query(**filter_kwargs)
+        return await self._paginated_response(
+            episodes_query, limit=limit, offset=offset, return_scalar=True
         )
-        query = Episode.prepare_query(offset=(limit + offset), **filter_kwargs)
-        (has_next_episodes,) = next(await self.db_session.execute(exists(query).select()))
-        return self._response({"has_next": has_next_episodes, "items": episodes})
 
     async def post(self, request: PRequest) -> Response:
         if not (podcast_id := request.path_params.get("podcast_id")):

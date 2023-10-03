@@ -6,6 +6,8 @@ routes = [
         "/auth",
         routes=[
             Route("/me/", views.ProfileApiView),
+            Route("/ips/", views.UserIPsRetrieveAPIView),
+            Route("/ips/delete/", views.UserIPsDeleteAPIView),
             Route("/sign-in/", views.SignInAPIView),
             Route("/sign-up/", views.SignUpAPIView),
             Route("/sign-out/", views.SignOutAPIView),

@@ -2,11 +2,13 @@ import json
 import uuid
 import base64
 import logging
+from typing import Generator, Iterable
 from uuid import UUID
 from datetime import datetime, timedelta
 
 from starlette import status
 from starlette.responses import Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import settings
@@ -15,7 +17,7 @@ from common.views import BaseHTTPEndpoint
 from common.statuses import ResponseStatus
 from common.utils import send_email
 from common.exceptions import AuthenticationFailedError, InvalidRequestError
-from modules.auth.models import User, UserSession, UserInvite
+from modules.auth.models import User, UserSession, UserInvite, UserIP
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
 from modules.auth.utils import (
@@ -37,8 +39,12 @@ from modules.auth.schemas import (
     ResetPasswordRequestSchema,
     ResetPasswordResponseSchema,
     UserPatchRequestSchema,
+    UserIPsResponseSchema,
+    UserIPsDeleteRequestSchema,
 )
+from modules.media.models import File
 from modules.podcast.models import Podcast
+from modules.podcast.schemas import BaseLimitOffsetSchema
 
 logger = logging.getLogger(__name__)
 
@@ -382,3 +388,46 @@ class ProfileApiView(BaseHTTPEndpoint):
             update_data["password"] = User.make_password(password)
 
         return update_data
+
+
+class UserIPsRetrieveAPIView(BaseHTTPEndpoint):
+    schema_request = BaseLimitOffsetSchema
+    schema_response = UserIPsResponseSchema
+
+    async def get(self, request: PRequest) -> Response:
+        cleaned_data = await self._validate(request, location="query")
+        limit, offset = cleaned_data["limit"], cleaned_data["offset"]
+        ips_query = (
+            select(UserIP, Podcast)
+            .outerjoin(File, UserIP.registered_by == File.access_token)  # noqa
+            .outerjoin(Podcast, File.id == Podcast.rss_id)
+            .filter(UserIP.user_id == request.user.id)
+            .order_by(UserIP.created_at.desc())
+        )
+
+        def process_items(items: Iterable[tuple]) -> Generator:
+            """
+            query consists of tuple (UserIP, Podcast).
+            we need to combine it before response and after limit / offset operations
+            """
+            for user_ip, podcast in items:
+                user_ip.by_rss_podcast = podcast
+                yield user_ip
+
+        return await self._paginated_response(
+            ips_query,
+            limit=limit,
+            offset=offset,
+            process_items=process_items,
+        )
+
+
+class UserIPsDeleteAPIView(BaseHTTPEndpoint):
+    schema_request = UserIPsDeleteRequestSchema
+
+    async def post(self, request: PRequest) -> Response:
+        cleaned_data = await self._validate(request)
+        await UserIP.async_delete(
+            self.db_session, user_id=request.user.id, ip_address__in=cleaned_data["ips"]
+        )
+        return self._response()

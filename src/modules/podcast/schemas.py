@@ -11,7 +11,6 @@ __all__ = [
     "PodcastDetailsSchema",
     "PodcastCreateUpdateSchema",
     "EpisodeListRequestSchema",
-    "EpisodeListResponseSchema",
     "EpisodeListSchema",
     "EpisodeCreateSchema",
     "EpisodeDetailsSchema",
@@ -91,11 +90,6 @@ class EpisodeListSchema(Schema):
     image_url = fields.URL()
     status = fields.Str(required=True)
     source_type = fields.Str(required=True)
-
-
-class EpisodeListResponseSchema(Schema):
-    has_next = fields.Bool()
-    items = fields.Nested(EpisodeListSchema, many=True)
 
 
 class PodcastInEpisodeSchema(Schema):
