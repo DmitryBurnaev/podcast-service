@@ -51,8 +51,8 @@ class CookieListCreateAPIView(BaseCookieAPIView):
         return self._response(cookies)
 
     async def post(self, request: PRequest) -> Response:
+        await self._validate(request)
         raise MethodNotAllowedError("Creating cookie isn't allowed now.")
-        # cleaned_data = await self._validate(request)
         # cookie = await Cookie.async_create(
         #     db_session=request.db_session, owner_id=request.user.id, **cleaned_data
         # )
