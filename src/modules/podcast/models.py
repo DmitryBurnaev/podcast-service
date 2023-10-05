@@ -81,7 +81,7 @@ class Episode(ModelBase, ModelMixin):
 
     Status = EpisodeStatus
     Sources = SourceType
-    PROGRESS_STATUSES = (Status.DOWNLOADING,)
+    PROGRESS_STATUSES = (EpisodeStatus.DOWNLOADING, EpisodeStatus.CANCELING)
 
     id = Column(Integer, primary_key=True)
     title = Column(String(length=256), nullable=False)
@@ -96,7 +96,7 @@ class Episode(ModelBase, ModelMixin):
     length = Column(Integer, default=0)
     description = Column(String)
     author = Column(String(length=256))
-    status = EnumTypeColumn(Status, default=Status.NEW)
+    status = EnumTypeColumn(EpisodeStatus, default=EpisodeStatus.NEW)
     created_at = Column(DateTime, default=datetime.utcnow)
     published_at = Column(DateTime)
 
@@ -184,11 +184,11 @@ class Cookie(ModelBase, ModelMixin):
         def store_tmp_file():
             cookies_file = settings.TMP_COOKIES_PATH / f"cookie_{self.source_type}_{self.id}.txt"
             if not os.path.exists(cookies_file):
-                logger.info("Cookie #%s: Generation cookie file [%s]", self.id, cookies_file)
+                logger.debug("Cookie #%s: Generation cookie file [%s]", self.id, cookies_file)
                 with open(cookies_file, "wt", encoding="utf-8") as f:
                     f.write(self.data)
             else:
-                logger.info("Cookie #%s: Found already generated file [%s]", self.id, cookies_file)
+                logger.debug("Cookie #%s: Found already generated file [%s]", self.id, cookies_file)
 
             return cookies_file
 

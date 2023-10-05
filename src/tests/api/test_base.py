@@ -46,10 +46,13 @@ class BaseTestAPIView(BaseTestCase):
     default_fail_response_status = ResponseStatus.INTERNAL_ERROR
 
     @staticmethod
-    def assert_ok_response(response: Response, status_code: int = 200) -> dict | list:
+    def assert_ok_response(response: Response, status_code: int = 200) -> dict | list | None:
         assert (
             response.status_code == status_code
         ), f"Unexpected status code. Response: {response.content}"
+
+        if status_code == 204:
+            return
 
         try:
             response_data = response.json()

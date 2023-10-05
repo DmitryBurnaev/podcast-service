@@ -2,7 +2,7 @@ import os
 import logging
 import mimetypes
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
 import boto3
 import botocore
@@ -17,17 +17,10 @@ logger = logging.getLogger(__name__)
 class StorageS3:
     """Simple client (singleton) for access to S3 bucket"""
 
-    __instance = None
     BUCKET_NAME = settings.S3_BUCKET_NAME
     CODE_OK = 0
     CODE_CLIENT_ERROR = 1
     CODE_COMMON_ERROR = 2
-
-    def __new__(cls, *args, **kwargs):
-        if not cls.__instance:
-            cls.__instance = super().__new__(cls, *args, **kwargs)
-
-        return cls.__instance
 
     def __init__(self):
         logger.debug("Creating s3 client's session (boto3)...")
@@ -41,7 +34,10 @@ class StorageS3:
         logger.debug("S3 client %s created", self.s3)
 
     def __call(
-        self, handler: Callable, error_log_level: int = logging.ERROR, **handler_kwargs
+        self,
+        handler: Callable,
+        error_log_level: int = logging.ERROR,
+        **handler_kwargs,
     ) -> tuple[int, dict | None]:
         try:
             logger.info("Executing request (%s) to S3 kwargs: %s", handler.__name__, handler_kwargs)
@@ -63,7 +59,10 @@ class StorageS3:
         return self.CODE_OK, response
 
     async def __async_call(
-        self, handler: Callable, error_log_level: int = logging.ERROR, **handler_kwargs
+        self,
+        handler: Callable,
+        error_log_level: int = logging.ERROR,
+        **handler_kwargs,
     ) -> tuple[int, dict | None]:
         return await run_in_threadpool(self.__call, handler, error_log_level, **handler_kwargs)
 
@@ -72,10 +71,9 @@ class StorageS3:
         src_path: str | Path,
         dst_path: str,
         filename: str | None = None,
-        callback: Callable | None = None,
+        callback: Optional[Callable] = None,
     ) -> str | None:
         """Upload file to S3 storage"""
-
         mimetype, _ = mimetypes.guess_type(src_path)
         filename = filename or os.path.basename(src_path)
         dst_path = os.path.join(dst_path, filename)
@@ -95,7 +93,6 @@ class StorageS3:
 
     def copy_file(self, src_path: str, dst_path: str) -> str | None:
         """Upload file to S3 storage"""
-
         code, _ = self.__call(
             self.s3.copy_object,
             Bucket=settings.S3_BUCKET_NAME,
@@ -113,7 +110,7 @@ class StorageS3:
         src_path: str | Path,
         dst_path: str,
         filename: str | None = None,
-        callback: Callable | None = None,
+        callback: Optional[Callable] = None,
     ):
         return await run_in_threadpool(
             self.upload_file,
@@ -156,7 +153,10 @@ class StorageS3:
 
         if filename or dst_path:
             file_info = self.get_file_info(
-                filename, remote_path, dst_path=dst_path, error_log_level=logging.WARNING
+                filename,
+                remote_path,
+                dst_path=dst_path,
+                error_log_level=logging.WARNING,
             )
             if file_info:
                 return int(file_info["ResponseMetadata"]["HTTPHeaders"]["content-length"])
@@ -187,13 +187,25 @@ class StorageS3:
             raise ValueError("At least one argument must be set: dst_path | filename")
 
         dst_path = dst_path or os.path.join(remote_path, filename)
-        _, result = self.__call(self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME)
+        _, result = self.__call(
+            self.s3.delete_object,
+            Key=dst_path,
+            Bucket=self.BUCKET_NAME,
+        )
         return result
 
-    async def delete_files_async(self, filenames: list[str], remote_path: str):
+    async def delete_files_async(
+        self,
+        filenames: list[str],
+        remote_path: str,
+    ):
         for filename in filenames:
             dst_path = os.path.join(remote_path, filename)
-            await self.__async_call(self.s3.delete_object, Key=dst_path, Bucket=self.BUCKET_NAME)
+            await self.__async_call(
+                self.s3.delete_object,
+                Key=dst_path,
+                Bucket=self.BUCKET_NAME,
+            )
 
     async def get_presigned_url(self, remote_path: str) -> str:
         redis = RedisClient()

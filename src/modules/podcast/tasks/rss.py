@@ -8,11 +8,11 @@ from common.enums import FileType
 from common.storage import StorageS3
 from modules.media.models import File
 from modules.podcast.models import Podcast, Episode
-from modules.podcast.tasks.base import RQTask, FinishCode
+from modules.podcast.tasks.base import RQTask, TaskResultCode
 from modules.podcast.utils import get_file_size
 
-logger = logging.getLogger(__name__)
 __all__ = ["GenerateRSSTask"]
+logger = logging.getLogger(__name__)
 
 
 class GenerateRSSTask(RQTask):
@@ -20,22 +20,21 @@ class GenerateRSSTask(RQTask):
 
     storage: StorageS3
 
-    async def run(self, *podcast_ids: int, **_) -> FinishCode:
+    async def run(self, *podcast_ids: int, **_) -> TaskResultCode:
         """Run process for generation and upload RSS to the cloud (S3)"""
 
         self.storage = StorageS3()
         filter_kwargs = {"id__in": map(int, podcast_ids)} if podcast_ids else {}
         podcasts = await Podcast.async_filter(self.db_session, **filter_kwargs)
         results = {}
+
         for podcast in podcasts:
             results.update(await self._generate(podcast))
 
-        logger.info("Regeneration results: \n%s", results)
+        if TaskResultCode.ERROR in results.values():
+            return TaskResultCode.ERROR
 
-        if FinishCode.ERROR in results.values():
-            return FinishCode.ERROR
-
-        return FinishCode.OK
+        return TaskResultCode.SUCCESS
 
     async def _generate(self, podcast: Podcast) -> dict:
         """Render RSS and upload it"""
@@ -45,7 +44,7 @@ class GenerateRSSTask(RQTask):
         remote_path = self.storage.upload_file(local_path, dst_path=settings.S3_BUCKET_RSS_PATH)
         if not remote_path:
             logger.error("Couldn't upload RSS file to storage. SKIP")
-            return {podcast.id: FinishCode.ERROR}
+            return {podcast.id: TaskResultCode.ERROR}
 
         rss_data = {
             "path": remote_path,
@@ -65,7 +64,7 @@ class GenerateRSSTask(RQTask):
 
         logger.info("Podcast #%i: RSS file uploaded, podcast record updated", podcast.id)
         logger.info("FINISH generation for %s | PATH: %s", podcast, remote_path)
-        return {podcast.id: FinishCode.OK}
+        return {podcast.id: TaskResultCode.SUCCESS}
 
     async def _render_rss_to_file(self, podcast: Podcast) -> str:
         """Generate rss for Podcast and Episodes marked as "published" """

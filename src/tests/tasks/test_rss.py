@@ -7,7 +7,7 @@ from common.enums import FileType
 from modules.media.models import File
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
-from modules.podcast.tasks.base import FinishCode
+from modules.podcast.tasks.base import TaskResultCode
 from modules.podcast.utils import get_file_size
 from tests.helpers import get_episode_data, get_podcast_data, create_episode
 
@@ -39,7 +39,7 @@ class TestGenerateRSSTask:
         expected_file_path = mocked_s3.tmp_upload_dir / f"{podcast_1.publish_id}.xml"
         generate_rss_task = tasks.GenerateRSSTask(db_session=dbs)
         result_code = await generate_rss_task.run(podcast_1.id)
-        assert result_code == FinishCode.OK
+        assert result_code == TaskResultCode.SUCCESS
 
         assert os.path.exists(expected_file_path), f"File {expected_file_path} didn't uploaded"
         with open(expected_file_path) as f:
@@ -68,7 +68,7 @@ class TestGenerateRSSTask:
         expected_file_path = mocked_s3.tmp_upload_dir / f"{podcast.publish_id}.xml"
         generate_rss_task = tasks.GenerateRSSTask(db_session=dbs)
         result_code = await generate_rss_task.run(podcast.id)
-        assert result_code == FinishCode.OK
+        assert result_code == TaskResultCode.SUCCESS
 
         await dbs.refresh(podcast)
         assert podcast.rss_id == old_rss_id
@@ -87,7 +87,7 @@ class TestGenerateRSSTask:
 
         generate_rss_task = tasks.GenerateRSSTask(db_session=dbs)
         result_code = await generate_rss_task.run(podcast_1.id, podcast_2.id)
-        assert result_code == FinishCode.OK
+        assert result_code == TaskResultCode.SUCCESS
 
         for podcast in [podcast_1, podcast_2]:
             expected_file_path = mocked_s3.tmp_upload_dir / f"{podcast.publish_id}.xml"
@@ -102,7 +102,7 @@ class TestGenerateRSSTask:
 
         generate_rss_task = tasks.GenerateRSSTask(db_session=dbs)
         result_code = await generate_rss_task.run(podcast.id)
-        assert result_code == FinishCode.ERROR
+        assert result_code == TaskResultCode.ERROR
 
         podcast_1 = await Podcast.async_get(dbs, id=podcast.id)
         assert podcast_1.rss_id is not None

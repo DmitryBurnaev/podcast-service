@@ -58,6 +58,11 @@ REDIS = {
 }
 REDIS_PROGRESS_PUBSUB_CH = config("REDIS_PROGRESS_PUBSUB_CH", default="channel:episodes-progress")
 REDIS_PROGRESS_PUBSUB_SIGNAL = "EPISODES_UPDATED"
+REDIS_STOP_DOWNLOADING_PUBSUB_CH = config(
+    "REDIS_STOP_DOWNLOADING_PUBSUB_CH",
+    default="channel:episodes-stop-downloading",
+)
+REDIS_STOP_DOWNLOADING_PUBSUB_SIGNAL = "EPISODE_CANCEL_DOWNLOADING"
 RQ_QUEUE_NAME = config("RQ_QUEUE_NAME", default="podcast")
 
 TMP_PATH = Path(tempfile.mkdtemp(prefix="podcast__"))
@@ -132,7 +137,7 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "standard": {
-            "format": "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+            "format": "[%(asctime)s] %(levelname)s [%(filename)s:%(lineno)s] %(message)s",
             "datefmt": "%d.%m.%Y %H:%M:%S",
         },
     },

@@ -265,7 +265,9 @@ class TestPodcastGenerateRSSAPIView(BaseTestAPIView):
         url = self.url.format(id=podcast.id)
         response = client.put(url)
         assert response.status_code == 202
-        mocked_rq_queue.enqueue.assert_called_with(GenerateRSSTask(), podcast.id)
+        mocked_rq_queue.enqueue.assert_called_with(
+            GenerateRSSTask(), podcast.id, job_id=GenerateRSSTask.get_job_id(podcast.id)
+        )
 
     async def test_run_generation__podcast_from_another_user__fail(self, client, podcast, dbs):
         await client.login(await create_user(dbs))
@@ -277,10 +279,6 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
     url = "/api/podcasts/{id}/upload-image/"
     remote_path = "/remote/path-to-file.png"
     default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
-
-    @staticmethod
-    def _file() -> io.BytesIO:
-        return io.BytesIO(b"Binary image data: \x00\x01")
 
     @patch("common.storage.StorageS3.upload_file")
     async def test_upload__ok(self, mocked_upload_file, mocked_s3, client, user, dbs):
@@ -295,6 +293,10 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
         assert response_data == {"id": podcast.id, "image_url": podcast.image_url}
         assert podcast.image.path == self.remote_path
         mocked_s3.delete_files_async.assert_not_called()
+
+    @staticmethod
+    def _file() -> io.BytesIO:
+        return io.BytesIO(b"Binary image data: \x00\x01")
 
     @patch("common.storage.StorageS3.upload_file")
     async def test_upload__replace_image__ok(

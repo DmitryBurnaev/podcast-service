@@ -1,5 +1,6 @@
 import os
 import subprocess
+from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import patch
 
@@ -44,6 +45,7 @@ class TestFFMPEG(BaseTestCase):
     def test_episode_prepare__ok(self, mocked_process_hook, mocked_run, mocked_process):
         mocked_run.return_value = CompletedProcess([], returncode=0, stdout=b"Success")
         ffmpeg_preparation(self.src_path)
+        tmp_file = Path(self.tmp_filename)
         self.assert_called_with(
             mocked_run,
             [
@@ -56,7 +58,7 @@ class TestFFMPEG(BaseTestCase):
                 "libmp3lame",
                 "-q:a",
                 "5",
-                self.tmp_filename,
+                tmp_file,
             ],
             check=True,
             timeout=settings.FFMPEG_TIMEOUT,
@@ -64,7 +66,12 @@ class TestFFMPEG(BaseTestCase):
         mocked_process.target_class.__init__.assert_called_with(
             mocked_process.target_obj,
             target=post_processing_process_hook,
-            kwargs={"filename": self.filename, "target_path": self.tmp_filename, "total_bytes": 4},
+            kwargs={
+                "filename": self.filename,
+                "target_path": tmp_file,
+                "total_bytes": 4,
+                "src_file_path": str(self.src_path),
+            },
         )
 
         assert not os.path.exists(self.tmp_filename), f"File wasn't removed: {self.tmp_filename}"
@@ -91,7 +98,10 @@ class TestFFMPEG(BaseTestCase):
         )
         self.assert_hooks_calls(
             mocked_process_hook,
-            finish_call=dict(status=EpisodeStatus.ERROR, filename=self.filename),
+            finish_call=dict(
+                status=EpisodeStatus.ERROR,
+                filename=self.filename,
+            ),
         )
 
     @patch("subprocess.run")
@@ -108,7 +118,10 @@ class TestFFMPEG(BaseTestCase):
         )
         self.assert_hooks_calls(
             mocked_process_hook,
-            finish_call=dict(status=EpisodeStatus.ERROR, filename=self.filename),
+            finish_call=dict(
+                status=EpisodeStatus.ERROR,
+                filename=self.filename,
+            ),
         )
 
     @patch("time.sleep", lambda x: None)
@@ -126,6 +139,7 @@ class TestFFMPEG(BaseTestCase):
                     filename=self.filename,
                     total_bytes=100,
                     processed_bytes=100,
+                    processing_filepath="",
                 )
             ],
         )

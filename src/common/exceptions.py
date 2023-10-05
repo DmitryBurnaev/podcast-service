@@ -1,4 +1,9 @@
+from typing import TYPE_CHECKING
+
 from common.statuses import ResponseStatus
+
+if TYPE_CHECKING:
+    from modules.podcast.tasks.base import TaskResultCode
 
 
 class BaseApplicationError(Exception):
@@ -117,3 +122,16 @@ class EmailSendingError(BaseApplicationError):
     status_code = 503
     message = "Couldn't send email to recipient"
     response_status = ResponseStatus.COMMUNICATION_ERROR
+
+
+class UserCancellationError(BaseApplicationError):
+    message = "Current processing was interrupted"
+
+
+class DownloadingInterrupted(Exception):
+    def __init__(self, code: "TaskResultCode", message: str = ""):
+        self.code = code
+        self.message = message
+
+    def __repr__(self):
+        return f'DownloadingInterrupted({self.code.name}, "{self.message}")'

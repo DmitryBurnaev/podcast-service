@@ -16,7 +16,7 @@ from sqlalchemy import table, column, select
 from sqlalchemy.engine import Connection
 
 from common.enums import EpisodeStatus, FileType
-from modules.media.models import File
+from modules.media.models import File  # only for `generate_token` method
 
 
 revision = "0010"

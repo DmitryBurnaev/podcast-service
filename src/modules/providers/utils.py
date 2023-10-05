@@ -18,7 +18,7 @@ from yt_dlp.utils import YoutubeDLError
 
 from core import settings
 from common.enums import SourceType, EpisodeStatus
-from common.exceptions import InvalidRequestError
+from common.exceptions import InvalidRequestError, UserCancellationError
 from modules.podcast.models import Cookie
 from modules.auth.hasher import get_random_hash
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
@@ -122,7 +122,11 @@ def download_process_hook(event: dict):
     )
 
 
-async def download_audio(source_url: str, filename: str, cookie: Cookie | None) -> Path:
+async def download_audio(
+    source_url: str,
+    filename: str,
+    cookie: Cookie | None,
+) -> Path:
     """
     Download providers video and perform to audio (.mp3) file
 
@@ -148,7 +152,9 @@ async def download_audio(source_url: str, filename: str, cookie: Cookie | None) 
     return result_path
 
 
-async def get_source_media_info(source_info: SourceInfo) -> tuple[str, SourceMediaInfo | None]:
+async def get_source_media_info(
+    source_info: SourceInfo,
+) -> tuple[str, SourceMediaInfo | None]:
     """Allows extract info about providers video from Source (powered by yt_dlp)"""
 
     logger.info("Started fetching data for %s", source_info.url)
@@ -178,7 +184,9 @@ async def get_source_media_info(source_info: SourceInfo) -> tuple[str, SourceMed
 
 
 def ffmpeg_preparation(
-    src_path: str | Path, ffmpeg_params: list[str] = None, call_process_hook: bool = True
+    src_path: str | Path,
+    ffmpeg_params: list[str] = None,
+    call_process_hook: bool = True,
 ) -> None:
     """
     FFmpeg allows fixing problem with length of audio track
@@ -194,14 +202,21 @@ def ffmpeg_preparation(
             total_bytes=total_bytes,
             processed_bytes=0,
         )
-    tmp_path = os.path.join(settings.TMP_AUDIO_PATH, f"tmp_{filename}")
 
-    logger.info("Start SUBPROCESS (filesize watching) for %s === ", filename)
-    process = Process(
+    tmp_path = settings.TMP_AUDIO_PATH / f"tmp_{filename}"
+
+    logger.info("=== Start SUBPROCESS (filesize watching) for %s === ", filename)
+    watcher_process = Process(
         target=post_processing_process_hook,
-        kwargs={"filename": filename, "target_path": tmp_path, "total_bytes": total_bytes},
+        kwargs={
+            "filename": filename,
+            "target_path": tmp_path,
+            "total_bytes": total_bytes,
+            "src_file_path": src_path,
+        },
     )
-    process.start()
+    watcher_process.start()
+
     try:
         ffmpeg_params = ffmpeg_params or ["-vn", "-acodec", "libmp3lame", "-q:a", "5"]
         completed_proc = subprocess.run(
@@ -211,7 +226,13 @@ def ffmpeg_preparation(
             check=True,
             timeout=settings.FFMPEG_TIMEOUT,
         )
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+
+    except Exception as exc:
+        watcher_process.terminate()
+        # pylint: disable=no-member
+        if isinstance(exc, subprocess.CalledProcessError) and exc.returncode == 255:
+            raise UserCancellationError("Background FFMPEG processing was interrupted") from exc
+
         episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
         with suppress(IOError):
             os.remove(tmp_path)
@@ -220,10 +241,10 @@ def ffmpeg_preparation(
         if stdout := getattr(exc, "stdout", ""):
             err_details += f"\n{str(stdout, encoding='utf-8')}"
 
-        process.terminate()
+        watcher_process.terminate()
         raise FFMPegPreparationError(err_details) from exc
 
-    process.terminate()
+    watcher_process.terminate()
     logger.info(
         "FFMPEG success done preparation for file %s:\n%s",
         filename,
@@ -231,10 +252,13 @@ def ffmpeg_preparation(
     )
 
     try:
-        assert os.path.exists(tmp_path), f"Prepared file {tmp_path} wasn't created"
+        if not tmp_path.exists():
+            raise IOError(f"Prepared file {tmp_path} wasn't created")
+
         os.remove(src_path)
         os.rename(tmp_path, src_path)
-    except (IOError, AssertionError) as exc:
+
+    except IOError as exc:
         episode_process_hook(status=EpisodeStatus.ERROR, filename=filename)
         raise FFMPegPreparationError(f"Failed to rename/remove tmp file: {exc}") from exc
 
@@ -288,7 +312,15 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
 
     with tempfile.NamedTemporaryFile() as tmp_metadata_file:
         metadata_str = execute_ffmpeg(
-            ["ffmpeg", "-y", "-i", str(file_path), "-f", "ffmetadata", tmp_metadata_file.name]
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                str(file_path),
+                "-f",
+                "ffmetadata",
+                tmp_metadata_file.name,
+            ]
         )
 
     # ==== Extracting meta data ===
@@ -321,7 +353,17 @@ def audio_cover(audio_file_path: Path) -> CoverMetaData | None:
     try:
         cover_path = settings.TMP_IMAGE_PATH / f"tmp_cover_{uuid.uuid4().hex}.jpg"
         execute_ffmpeg(
-            ["ffmpeg", "-y", "-i", audio_file_path, "-an", "-an", "-c:v", "copy", cover_path]
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                audio_file_path,
+                "-an",
+                "-an",
+                "-c:v",
+                "copy",
+                cover_path,
+            ]
         )
     except FFMPegPreparationError as exc:
         logger.warning("Couldn't extract cover from audio file: %r", exc)

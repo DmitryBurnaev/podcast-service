@@ -5,12 +5,12 @@ from marshmallow import Schema
 from starlette import status
 from starlette.responses import Response
 
-from common.enums import FileType, SourceType
+from common.enums import FileType, SourceType, EpisodeStatus
 from common.request import PRequest
 from common.statuses import ResponseStatus
 from common.utils import cut_string
 from common.views import BaseHTTPEndpoint
-from common.exceptions import MethodNotAllowedError, NotFoundError
+from common.exceptions import MethodNotAllowedError, NotFoundError, InvalidRequestError
 from modules.media.models import File
 from modules.podcast import tasks
 from modules.podcast.episodes import EpisodeCreator
@@ -120,7 +120,11 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
             source_id=source_id,
         )
         if episode:
-            logger.info("Episode with source_id (hash) '%s' exist. Return %s", source_id, episode)
+            logger.info(
+                "Episode with source_id (hash) '%s' exist. Return %s",
+                source_id,
+                episode,
+            )
 
         return episode
 
@@ -237,6 +241,9 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
     async def delete(self, request: PRequest) -> Response:
         episode_id = request.path_params["episode_id"]
         episode = await self._get_object(episode_id)
+        if episode.status in Episode.PROGRESS_STATUSES:
+            raise InvalidRequestError(f"Can't remove episode in '{episode.status}' status")
+
         await episode.delete(self.db_session)
         return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
 
@@ -262,4 +269,27 @@ class EpisodeDownloadAPIView(BaseHTTPEndpoint):
         await episode.update(self.db_session, status=episode.status)
         task_class = self.perform_tasks_map.get(episode.source_type)
         await self._run_task(task_class, episode_id=episode.id)
+        return self._response(episode)
+
+
+class EpisodeCancelDownloading(BaseHTTPEndpoint):
+    """Allows to stop current downloaded episode"""
+
+    schema_response = EpisodeDetailsSchema
+
+    async def put(self, request: PRequest) -> Response:
+        episode_id = request.path_params["episode_id"]
+        episode: Episode = await Episode.async_get(self.db_session, id=episode_id)
+        if not episode or episode.status != EpisodeStatus.DOWNLOADING:
+            raise InvalidRequestError(f"Episode #{episode_id} not found or is not in progress now")
+
+        logger.debug("Setting UP episode %s to CANCELING status", episode)
+        await episode.update(self.db_session, status=Episode.Status.CANCELING)
+
+        tasks.DownloadEpisodeTask.cancel_task(episode_id=episode_id)
+        tasks.DownloadEpisodeImageTask.cancel_task(episode_id=episode_id)
+        logger.info(
+            "Canceled tasks: DownloadEpisodeTask, DownloadEpisodeImageTask for episode %s",
+            episode,
+        )
         return self._response(episode)

@@ -15,8 +15,8 @@ disable=missing-module-docstring,
 [FORMAT]
 
 max-line-length=100
+max-args = 6
 
 [BASIC]
 
 good-names=id,_,s3,f
-

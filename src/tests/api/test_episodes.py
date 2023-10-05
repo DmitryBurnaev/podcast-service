@@ -1,5 +1,6 @@
 import uuid
 from functools import partial
+from unittest.mock import patch
 
 import pytest
 
@@ -9,7 +10,7 @@ from core import settings
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
-from modules.podcast.tasks import DownloadEpisodeTask, UploadedEpisodeTask
+from modules.podcast.tasks import DownloadEpisodeTask, UploadedEpisodeTask, DownloadEpisodeImageTask
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import (
     get_source_id,
@@ -49,12 +50,13 @@ def _episode_in_list(episode: Episode):
     }
 
 
-def _episode_details(episode: Episode):
+def _episode_details(episode: Episode, status: EpisodeStatus | None = None):
+    status = status or episode.status
     return {
         "id": episode.id,
         "title": episode.title,
         "author": episode.author,
-        "status": str(episode.status),
+        "status": str(status),
         "length": episode.length,
         "audio_url": episode.audio.url,
         "audio_size": episode.audio.size,
@@ -145,7 +147,9 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         )
         mocked_episode_creator.create.assert_called_once()
         mocked_rq_queue.enqueue.assert_called_with(
-            tasks.DownloadEpisodeImageTask(), episode_id=episode.id
+            tasks.DownloadEpisodeImageTask(),
+            episode_id=episode.id,
+            job_id=DownloadEpisodeImageTask.get_job_id(episode_id=episode.id),
         )
 
     async def test_create__start_downloading__ok(
@@ -157,9 +161,17 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         response = client.post(url, json={"source_url": episode_data["watch_url"]})
         self.assert_ok_response(response, status_code=201)
 
+        job_download_id = DownloadEpisodeTask.get_job_id(episode_id=episode.id)
+        job_download_image_id = DownloadEpisodeImageTask.get_job_id(episode_id=episode.id)
         expected_calls = [
-            {"args": (tasks.DownloadEpisodeTask(),), "kwargs": {"episode_id": episode.id}},
-            {"args": (tasks.DownloadEpisodeImageTask(),), "kwargs": {"episode_id": episode.id}},
+            {
+                "args": (tasks.DownloadEpisodeTask(),),
+                "kwargs": {"episode_id": episode.id, "job_id": job_download_id},
+            },
+            {
+                "args": (tasks.DownloadEpisodeImageTask(),),
+                "kwargs": {"episode_id": episode.id, "job_id": job_download_image_id},
+            },
         ]
         actual_calls = [
             {"args": call.args, "kwargs": call.kwargs}
@@ -257,7 +269,9 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
 
         if auto_start_task:
             mocked_rq_queue.enqueue.assert_called_with(
-                tasks.UploadedEpisodeTask(), episode_id=episode.id
+                tasks.UploadedEpisodeTask(),
+                episode_id=episode.id,
+                job_id=tasks.UploadedEpisodeTask.get_job_id(episode_id=episode.id),
             )
         else:
             mocked_rq_queue.enqueue.assert_not_called()
@@ -298,7 +312,9 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         assert response_data == _episode_details(episode), response.json()
         assert episode.source_type == SourceType.UPLOAD
         mocked_rq_queue.enqueue.assert_called_with(
-            tasks.UploadedEpisodeTask(), episode_id=episode.id
+            tasks.UploadedEpisodeTask(),
+            episode_id=episode.id,
+            job_id=tasks.UploadedEpisodeTask.get_job_id(episode_id=episode.id),
         )
 
     async def test_get_exists_episode__ok(
@@ -498,6 +514,19 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.delete(url), episode)
 
+    @pytest.mark.parametrize("status", (EpisodeStatus.DOWNLOADING, EpisodeStatus.CANCELING))
+    async def test_delete__episode_in_progress_state__fail(
+        self, client, episode, user, dbs, status
+    ):
+        await client.login(user)
+        await episode.update(dbs, status=status, db_commit=True)
+
+        url = self.url.format(id=episode.id)
+        response = client.delete(url)
+        response_data = response.json()
+        assert response_data["payload"]["details"] == f"Can't remove episode in '{status}' status"
+        assert await Episode.async_get(dbs, id=episode.id) is not None
+
     @pytest.mark.parametrize(
         "same_episode_status, delete_called",
         [
@@ -523,10 +552,12 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         podcast_1 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user_1.id))
         podcast_2 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user_2.id))
 
+        # episode-1 (from another podcast)
         episode_data["source_id"] = source_id
         episode_data["owner_id"] = user_1.id
         await create_episode(dbs, episode_data, podcast_1, status=same_episode_status)
 
+        # episode-2 (will be removed)
         episode_data["owner_id"] = user_2.id
         episode_2 = await create_episode(
             dbs, episode_data, podcast_2, status=Episode.Status.PUBLISHED
@@ -536,7 +567,9 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         await client.login(user_2)
         response = client.delete(url)
         assert response.status_code == 204, f"Delete API is not available: {response.text}"
+
         assert await Episode.async_get(dbs, id=episode_2.id) is None
+
         if delete_called:
             mocked_s3.delete_files_async.assert_any_call(
                 [episode_2.audio.name], remote_path=settings.S3_BUCKET_AUDIO_PATH
@@ -545,6 +578,37 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
         mocked_s3.delete_files_async.assert_any_call(
             [episode_2.image.name], remote_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
         )
+
+    @pytest.mark.parametrize(
+        "episode_status",
+        (
+            Episode.Status.NEW,
+            Episode.Status.PUBLISHED,
+            Episode.Status.ERROR,
+        ),
+    )
+    @patch("modules.podcast.tasks.base.RQTask.cancel_task")
+    async def test_delete__no_cancel_task(
+        self,
+        mock_cancel_task,
+        dbs,
+        user,
+        client,
+        episode,
+        mocked_s3,
+        episode_status,
+    ):
+        await episode.update(dbs, status=episode_status, db_commit=True)
+        await client.login(user)
+
+        url = self.url.format(id=episode.id)
+        response = client.delete(url)
+        assert response.status_code == 204
+        assert await Episode.async_get(dbs, id=episode.id) is None
+
+        mock_cancel_task.assert_not_called()
+        mocked_s3.delete_files_async.assert_called()
+        mocked_s3.delete_files_async.assert_called()
 
 
 class TestEpisodeDownloadAPIView(BaseTestAPIView):
@@ -562,19 +626,73 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
         self, dbs, client, episode, user, mocked_rq_queue, source_type, task
     ):
         await episode.update(dbs, source_type=source_type, db_commit=True)
+        assert episode.status == EpisodeStatus.NEW
 
         await client.login(user)
         url = self.url.format(id=episode.id)
         response = client.put(url)
-        await dbs.refresh(episode)
         response_data = self.assert_ok_response(response)
-        assert response_data == _episode_details(episode)
-        mocked_rq_queue.enqueue.assert_called_with(task(), episode_id=episode.id)
+        await dbs.refresh(episode)
+        assert episode.status == EpisodeStatus.DOWNLOADING
+        assert response_data == _episode_details(episode, status=EpisodeStatus.DOWNLOADING)
+        mocked_rq_queue.enqueue.assert_called_with(
+            task(), episode_id=episode.id, job_id=task.get_job_id(episode_id=episode.id)
+        )
 
     async def test_download__episode_from_another_user__fail(self, client, episode, dbs):
         await client.login(await create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.put(url), episode)
+
+
+class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
+    url = "/api/episodes/{id}/cancel-downloading/"
+    default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
+
+    @patch("modules.podcast.tasks.download.DownloadEpisodeTask.cancel_task")
+    @patch("modules.podcast.tasks.download.DownloadEpisodeImageTask.cancel_task")
+    async def test_cancel_downloading__ok(
+        self,
+        mocked_cancel_download_episode_task,
+        mocked_cancel_download_image_task,
+        dbs,
+        client,
+        episode,
+        user,
+    ):
+        await episode.update(dbs, status=EpisodeStatus.DOWNLOADING, db_commit=True)
+        await client.login(user)
+        url = self.url.format(id=episode.id)
+        response_data = self.assert_ok_response(client.put(url))
+        await dbs.refresh(episode)
+        assert episode.status == EpisodeStatus.CANCELING
+        assert response_data == _episode_details(episode, status=EpisodeStatus.CANCELING)
+
+        mocked_cancel_download_episode_task.assert_called_with(episode_id=episode.id)
+        mocked_cancel_download_image_task.assert_called_with(episode_id=episode.id)
+
+    @patch("modules.podcast.tasks.download.DownloadEpisodeTask.cancel_task")
+    @patch("modules.podcast.tasks.download.DownloadEpisodeImageTask.cancel_task")
+    async def test_cancel_downloading__episode_not_in_progress__fail(
+        self,
+        mocked_cancel_download_episode_task,
+        mocked_cancel_download_image_task,
+        dbs,
+        client,
+        episode,
+        user,
+    ):
+        await episode.update(dbs, status=EpisodeStatus.NEW, db_commit=True)
+        await client.login(user)
+        url = self.url.format(id=episode.id)
+        response_data = self.assert_fail_response(client.put(url), status_code=400)
+        assert response_data["details"] == (
+            f"Episode #{episode.id} not found or is not in progress now"
+        )
+        dbs.refresh(episode)
+        assert episode.status == EpisodeStatus.NEW
+        mocked_cancel_download_episode_task.assert_not_called()
+        mocked_cancel_download_image_task.assert_not_called()
 
 
 class TestEpisodeFlatListAPIView(BaseTestAPIView):

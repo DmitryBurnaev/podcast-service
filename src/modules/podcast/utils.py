@@ -1,10 +1,13 @@
+import dataclasses
+import json
 import os
 import time
 import logging
 from pathlib import Path
-from typing import Iterable
-from functools import partial
+from typing import Iterable, Optional
+from functools import partial, lru_cache
 
+from rq.job import Job
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
@@ -12,12 +15,38 @@ from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
 from common.enums import EpisodeStatus
+from common.exceptions import UserCancellationError
 from modules.podcast.models import Episode
 
 logger = logging.getLogger(__name__)
 
 
-def delete_file(filepath: str | Path):
+@dataclasses.dataclass
+class TaskContext:
+    job_id: str
+    _redis_key_pattern = "jobid_for_file__{}"
+
+    def task_canceled(self) -> bool:
+        job = Job.fetch(self.job_id, connection=RedisClient().sync_redis)
+        job_status = job.get_status()
+        logger.debug("Check for canceling: jobid: %s | status: %s", job.id, job_status)
+        return job_status == "canceled"
+
+    def save_to_redis(self, filename: str) -> None:
+        key = self._redis_key_pattern.format(filename)
+        RedisClient().set(key, self.job_id)
+
+    @classmethod
+    @lru_cache
+    def create_from_redis(cls, filename: str) -> Optional["TaskContext"]:
+        key = cls._redis_key_pattern.format(filename)
+        if job_id := RedisClient().get(key):
+            return TaskContext(job_id=job_id)
+
+        return None
+
+
+def delete_file(filepath: str | Path) -> None:
     """Delete local file"""
 
     try:
@@ -28,7 +57,7 @@ def delete_file(filepath: str | Path):
         logger.info("File %s deleted", filepath)
 
 
-def get_file_size(file_path: str | Path):
+def get_file_size(file_path: str | Path) -> int:
     try:
         return os.path.getsize(file_path)
     except FileNotFoundError:
@@ -85,7 +114,12 @@ def upload_process_hook(filename: str, chunk: int):
     episode_process_hook(filename=filename, status=EpisodeStatus.DL_EPISODE_UPLOADING, chunk=chunk)
 
 
-def post_processing_process_hook(filename: str, target_path: str, total_bytes: int):
+def post_processing_process_hook(
+    filename: str,
+    target_path: str,
+    total_bytes: int,
+    src_file_path: str | Path = "",
+):
     """
     Allows handling progress for ffmpeg file's preparations
     """
@@ -97,6 +131,7 @@ def post_processing_process_hook(filename: str, target_path: str, total_bytes: i
             status=EpisodeStatus.DL_EPISODE_POSTPROCESSING,
             total_bytes=total_bytes,
             processed_bytes=processed_bytes,
+            processing_filepath=src_file_path,
         )
         time.sleep(1)
 
@@ -107,6 +142,7 @@ def episode_process_hook(
     total_bytes: int = 0,
     processed_bytes: int = None,
     chunk: int = 0,
+    processing_filepath: str | Path | None = None,
 ):
     """Allows handling processes of performing episode's file."""
     redis_client = RedisClient()
@@ -128,12 +164,21 @@ def episode_process_hook(
         channel=settings.REDIS_PROGRESS_PUBSUB_CH,
         message=settings.REDIS_PROGRESS_PUBSUB_SIGNAL,
     )
+    task_context = TaskContext.create_from_redis(filename)
+    if task_context and task_context.task_canceled():
+        if status == EpisodeStatus.DL_EPISODE_POSTPROCESSING:
+            logger.warning("Canceling postprocessing task for file %s...", processing_filepath)
+            kill_process(grep=f"ffmpeg -y -i {processing_filepath}")
+            return
+
+        raise UserCancellationError(f"Task with jobID {task_context.job_id} marked as 'canceled'")
+
     if processed_bytes and total_bytes:
         progress = f"{processed_bytes / total_bytes:.2%}"
     else:
         progress = f"processed = {processed_bytes} | total = {total_bytes}"
 
-    logger.debug("[%s] for %s: %s", status, filename, progress)
+    logger.info("[%s] for %s: %s", status, filename, progress)
 
 
 def upload_episode(src_path: str | Path) -> str | None:
@@ -162,11 +207,7 @@ def upload_episode(src_path: str | Path) -> str | None:
     return remote_path
 
 
-def remote_copy_episode(
-    src_path: str,
-    dst_path: str,
-    src_file_size: int = 0,
-) -> str | None:
+def remote_copy_episode(src_path: str, dst_path: str, src_file_size: int) -> str | None:
     """Allows uploading src_path to S3 storage"""
 
     filename = os.path.basename(src_path)
@@ -175,6 +216,7 @@ def remote_copy_episode(
         status=EpisodeStatus.DL_EPISODE_UPLOADING,
         processed_bytes=0,
         total_bytes=src_file_size,
+        # task_context=task_context,
     )
     logger.debug("Remotely copying for %s started.", filename)
     remote_path = StorageS3().copy_file(src_path=str(src_path), dst_path=dst_path)
@@ -204,3 +246,23 @@ async def save_uploaded_file(
         raise ValueError("result file-size is more than allowed")
 
     return result_file_path
+
+
+async def publish_redis_stop_downloading(episode_id: int) -> None:
+    await RedisClient().async_publish(
+        channel=settings.REDIS_STOP_DOWNLOADING_PUBSUB_CH,
+        message=json.dumps({"episode_id": episode_id}),
+    )
+
+
+def kill_process(grep: str) -> None:
+    """Finds (with grep) process and tries to kill it"""
+
+    command = f"ps aux | grep \"{grep}\" | grep -v grep | awk '{{print $2}}' | xargs kill"
+    try:
+        logger.debug("KILL: Trying to kill subprocess by command: '%s'", command)
+        os.system(command)
+    except Exception as exc:
+        logger.error("KILL: Couldn't kill subprocess by grep: %s | err: %r", grep, exc)
+    else:
+        logger.info("KILL: Killed process by grep: '%s'", grep)

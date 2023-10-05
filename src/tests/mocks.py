@@ -74,7 +74,11 @@ class MockYoutubeDL(BaseMock):
         self.extract_info = Mock(return_value=self.info)
 
     def mock_init(self, *args, **kwargs):
+        class RequestDirector:
+            close = Mock()
+
         self.target_obj.params = {}
+        self.target_obj._request_director = RequestDirector()
 
     def assert_called_with(self, **kwargs):
         mock: Mock = self.target_class.__init__  # noqa
@@ -163,10 +167,13 @@ class MockS3Client(BaseMock):
         self.upload_file_async = AsyncMock(return_value="")
         self.get_presigned_url = AsyncMock(return_value="https://s3.storage/link")
 
-    def upload_file_mock(self, src_path, *_, **__):
-        target_path = self.tmp_upload_dir / os.path.basename(src_path)
+    def upload_file_mock(self, src_path: str | Path, *_, **__) -> str:
+        target_path = self.get_mocked_remote_path(src_path)
         shutil.copy(src_path, target_path)
         return str(target_path)
+
+    def get_mocked_remote_path(self, src_path: str | Path) -> str:
+        return str(self.tmp_upload_dir / os.path.basename(src_path))
 
 
 class MockEpisodeCreator(BaseMock):

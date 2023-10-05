@@ -25,6 +25,7 @@ class EpisodeStatus(StringEnumMixin, enum.StrEnum):
 
     NEW = "NEW"
     DOWNLOADING = "DOWNLOADING"
+    CANCELING = "CANCELING"
     PUBLISHED = "PUBLISHED"
     ARCHIVED = "ARCHIVED"
     ERROR = "ERROR"
