@@ -47,6 +47,7 @@ class TestGenerateRSSTask:
 
         assert ep_published.title in generated_rss_content
         assert ep_published.description in generated_rss_content
+        assert ep_published.watch_url in generated_rss_content
         audio: File = await File.async_get(dbs, id=ep_published.audio_id)
         assert audio.url in generated_rss_content
 
