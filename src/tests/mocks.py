@@ -11,8 +11,10 @@ from unittest.mock import Mock, AsyncMock
 import aiosmtplib
 import rq
 import httpx
+from Cryptodome.Cipher import AES
 from yt_dlp import YoutubeDL
 
+from common.encryption import SensitiveData
 from common.enums import SourceType
 from common.redis import RedisClient
 from common.storage import StorageS3
@@ -219,6 +221,21 @@ class MockAuthBackend(BaseMock):
 
     def __init__(self):
         self.authenticate = AsyncMock(return_value=None)
+
+
+class MockAES(BaseMock):
+    target_class = AES
+
+    def __init__(self):
+        self.encrypt_and_digest = Mock()
+
+
+class MockSensitiveData(BaseMock):
+    target_class = SensitiveData
+
+    def __init__(self):
+        self.encrypt = Mock(return_value="encrypted_data")
+        self.decrypt = Mock(return_value="decrypted_data")
 
 
 class MockHTTPXClient(BaseMockWithContextManager):
