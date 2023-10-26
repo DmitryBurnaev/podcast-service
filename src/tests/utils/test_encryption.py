@@ -6,11 +6,19 @@ import pytest
 
 from common.encryption import SensitiveData
 
+ENCRYPT_KEY = "testEncryptKey"
+SENS_DATA = "sens_data"
+ENCRYPTED_SENS_DATA = b"encrypted_sens_data"
+ENCRYPT_TAG = b"encrypt_tag"
+ENCRYPT_NONCE = b"TEST_NONCE"
+
 
 class MockedCipherAES:
     def __init__(self):
         self.encrypt_and_digest = Mock()
-        self.nonce = b"TEST_NONCE"
+        self.decrypt = Mock()
+        self.verify = Mock()
+        self.nonce = ENCRYPT_NONCE
 
 
 class MockAESResult(NamedTuple):
@@ -28,22 +36,32 @@ def mocked_aes(monkeypatch) -> MockAESResult:
 
 
 class TestEncryptSensitiveData:
-    encrypt_key = "testEncryptKey"
-    sens_data = "sens_data"
 
-    def test_encrypt(self, mocked_aes):
-        mocked_aes.cipher.encrypt_and_digest.return_value = (b"test_encoded_message", b"test_tag")
-        encrypted = SensitiveData(self.encrypt_key).encrypt(self.sens_data)
-
-        expected_nonce_b64b = base64.b64encode(b"TEST_NONCE").decode()
-        expected_encoded_message_b64b = base64.b64encode(b"test_encoded_message").decode()
-        expected_tag_b64b = base64.b64encode(b"test_tag").decode()
-        assert encrypted == (
+    @staticmethod
+    def _encrypted_string() -> str:
+        expected_nonce_b64b = base64.b64encode(ENCRYPT_NONCE).decode()
+        expected_encoded_message_b64b = base64.b64encode(ENCRYPTED_SENS_DATA).decode()
+        expected_tag_b64b = base64.b64encode(ENCRYPT_TAG).decode()
+        return (
             f"AES256;{expected_nonce_b64b};{expected_encoded_message_b64b};{expected_tag_b64b}"
         )
 
-        mocked_aes.cipher.encrypt_and_digest.assert_called_with(self.sens_data.encode())
-        mocked_aes.new_mock.assert_called_with(self.encrypt_key)
+    def test_encrypt(self, mocked_aes):
+        mocked_aes.cipher.encrypt_and_digest.return_value = (ENCRYPTED_SENS_DATA, ENCRYPT_TAG)
 
-    def test_decrypt(self):
-        assert False
+        encrypted = SensitiveData(ENCRYPT_KEY).encrypt(SENS_DATA)
+        assert encrypted == self._encrypted_string()
+
+        mocked_aes.new_mock.assert_called_with(ENCRYPT_KEY)
+        mocked_aes.cipher.encrypt_and_digest.assert_called_with(SENS_DATA.encode())
+
+    def test_decrypt(self, mocked_aes):
+        mocked_aes.cipher.decrypt.return_value = SENS_DATA
+
+        encrypted_data = self._encrypted_string()
+        decrypted = SensitiveData(ENCRYPT_KEY).decrypt(encrypted_data)
+        assert decrypted == SENS_DATA
+
+        mocked_aes.new_mock.assert_called_with(ENCRYPT_KEY)
+        mocked_aes.cipher.decrypt.assert_called_with(encrypted_data)
+        mocked_aes.cipher.verify.assert_called_with(ENCRYPT_TAG)
