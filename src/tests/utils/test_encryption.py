@@ -3,6 +3,7 @@ from typing import NamedTuple
 from unittest.mock import patch, Mock
 
 import pytest
+from Cryptodome.Cipher import AES
 
 from common.encryption import SensitiveData
 
@@ -23,7 +24,7 @@ class MockedCipherAES:
 
 class MockAESResult(NamedTuple):
     cipher: MockedCipherAES
-    new_mock: Mock
+    mock_new: Mock
 
 
 @pytest.fixture
@@ -31,8 +32,8 @@ def mocked_aes(monkeypatch) -> MockAESResult:
     mocked_aes_object = MockedCipherAES()
 
     with patch("Cryptodome.Cipher.AES.new") as mock_new:
-        mock_new.return_value = mock_new
-        yield MockAESResult(cipher=mocked_aes_object, new_mock=mock_new)
+        mock_new.return_value = mocked_aes_object
+        yield MockAESResult(cipher=mocked_aes_object, mock_new=mock_new)
 
 
 class TestEncryptSensitiveData:
@@ -52,16 +53,16 @@ class TestEncryptSensitiveData:
         encrypted = SensitiveData(ENCRYPT_KEY).encrypt(SENS_DATA)
         assert encrypted == self._encrypted_string()
 
-        mocked_aes.new_mock.assert_called_with(ENCRYPT_KEY)
+        mocked_aes.mock_new.assert_called_with(ENCRYPT_KEY, AES.MODE_EAX)
         mocked_aes.cipher.encrypt_and_digest.assert_called_with(SENS_DATA.encode())
 
     def test_decrypt(self, mocked_aes):
-        mocked_aes.cipher.decrypt.return_value = SENS_DATA
+        mocked_aes.cipher.decrypt.return_value = SENS_DATA.encode()
 
         encrypted_data = self._encrypted_string()
         decrypted = SensitiveData(ENCRYPT_KEY).decrypt(encrypted_data)
         assert decrypted == SENS_DATA
 
-        mocked_aes.new_mock.assert_called_with(ENCRYPT_KEY)
-        mocked_aes.cipher.decrypt.assert_called_with(encrypted_data)
+        mocked_aes.mock_new.assert_called_with(ENCRYPT_KEY, AES.MODE_EAX, nonce=ENCRYPT_NONCE)
+        mocked_aes.cipher.decrypt.assert_called_with(ENCRYPTED_SENS_DATA)
         mocked_aes.cipher.verify.assert_called_with(ENCRYPT_TAG)
