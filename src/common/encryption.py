@@ -65,7 +65,7 @@ class SensitiveData:
             raise ValueError(f"Couldn't encode message: unexpected prefix detected: {prefix}")
 
         return StructMessage(
-            nonce=base64.b64encode(nonce_b64b),
-            encoded_message=base64.b64encode(encoded_message_b64b),
-            tag=base64.b64encode(tag_b64b)
+            nonce=base64.b64decode(nonce_b64b.encode()),
+            encoded_message=base64.b64decode(encoded_message_b64b.encode()),
+            tag=base64.b64decode(tag_b64b.encode())
         )
