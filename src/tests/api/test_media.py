@@ -107,7 +107,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
         assert response.status_code == 404
 
     async def test_get_image_file_not_allowed__fail(
-        self, client, image_file: File, user, mocked_s3
+        self, client: PodcastTestClient, image_file: File, user: User, mocked_s3: MockS3Client,
     ):
         url = self.url.format(token=image_file.access_token)
         await client.login(user)
