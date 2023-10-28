@@ -107,7 +107,11 @@ class TestMediaFileAPIView(BaseTestAPIView):
         assert response.status_code == 404
 
     async def test_get_image_file_not_allowed__fail(
-        self, client: PodcastTestClient, image_file: File, user: User, mocked_s3: MockS3Client,
+        self,
+        client: PodcastTestClient,
+        image_file: File,
+        user: User,
+        mocked_s3: MockS3Client,
     ):
         url = self.url.format(token=image_file.access_token)
         await client.login(user)
@@ -122,7 +126,12 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
-    async def test_get_public_image_file__ok(self, dbs, user, mocked_s3):
+    async def test_get_public_image_file__ok(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        mocked_s3: MockS3Client,
+    ):
         source_url = f"https://test.source.url/{uuid.uuid4().hex}.jpg"
         image_file = await File.create(
             dbs,
@@ -137,7 +146,11 @@ class TestMediaFileAPIView(BaseTestAPIView):
         assert image_file.url == source_url
 
     async def test_get_media_file_unknown_user_ip__fail(
-        self, client, image_file: File, user, mocked_s3
+        self,
+        client: PodcastTestClient,
+        image_file: File,
+        user: User,
+        mocked_s3: MockS3Client,
     ):
         url = self.url.format(token=image_file.access_token)
         await client.login(user)
@@ -149,7 +162,11 @@ class TestMediaFileAPIView(BaseTestAPIView):
         assert response.status_code == 404
 
     async def test_get_media_file_user_ip_rss_registered__fail(
-        self, client, image_file, rss_file, user
+        self,
+        client: PodcastTestClient,
+        image_file: File,
+        rss_file: File,
+        user: User,
     ):
         url = self.url.format(token=image_file.access_token)
         await client.login(user)
@@ -183,7 +200,14 @@ class TestRSSFileAPIView(BaseTestAPIView):
         ],
     )
     async def test_get_rss__register_user_ip__ok(
-        self, client, rss_file, user, mocked_s3, method, status_code, headers
+        self,
+        client: PodcastTestClient,
+        rss_file: File,
+        user: User,
+        mocked_s3: MockS3Client,
+        method: str,
+        status_code: int,
+        headers: dict,
     ):
         await rss_file.update(client.db_session, size=1024, db_commit=True)
 
