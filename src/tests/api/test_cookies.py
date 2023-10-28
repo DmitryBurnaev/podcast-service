@@ -52,7 +52,10 @@ class TestCookieListCreateAPIView(BaseTestAPIView):
         assert response_data == [_cookie(cookie)]
 
     async def test_get_list__unique_results__ok(
-        self, dbs: AsyncSession, client: PodcastTestClient, user: User
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
     ):
         cd = {
             "data": "Cookie at netscape format\n",
@@ -109,7 +112,10 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         assert response_data == _cookie(cookie)
 
     async def test_get__cookie_from_another_user__fail(
-        self, client: PodcastTestClient, cookie: Cookie, dbs
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        cookie: Cookie,
     ):
         await client.login(await create_user(dbs))
         url = self.url.format(id=cookie.id)
@@ -134,9 +140,9 @@ class TestCookieRUDAPIView(BaseTestAPIView):
 
     async def test_update__cookie_from_another_user__fail(
         self,
+        dbs: AsyncSession,
         client: PodcastTestClient,
         cookie: Cookie,
-        dbs: AsyncSession,
     ):
         await client.login(await create_user(dbs))
         url = self.url.format(id=cookie.id)
@@ -144,7 +150,10 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         self.assert_not_found(client.put(url, data=data, files={"file": _cookie_file()}), cookie)
 
     async def test_update__invalid_request__fail(
-        self, client: PodcastTestClient, cookie: Cookie, user: User
+        self,
+        client: PodcastTestClient,
+        cookie: Cookie,
+        user: User,
     ):
         await client.login(user)
         url = self.url.format(id=cookie.id)
@@ -155,7 +164,11 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         )
 
     async def test_delete__ok(
-        self, dbs: AsyncSession, client: PodcastTestClient, cookie: Cookie, user: User
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        cookie: Cookie,
+        user: User,
     ):
         await client.login(user)
         url = self.url.format(id=cookie.id)
@@ -164,7 +177,11 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         assert await Cookie.async_get(dbs, id=cookie.id) is None
 
     async def test_delete__cookie_from_another_user__fail(
-        self, dbs: AsyncSession, client: PodcastTestClient, cookie: Cookie, user: User
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        cookie: Cookie,
+        user: User,
     ):
         user_2 = await create_user(dbs)
         await client.login(user_2)

@@ -2,6 +2,7 @@ import json
 import uuid
 import base64
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +21,7 @@ from modules.auth.utils import (
 )
 from modules.podcast.models import Podcast
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import prepare_request
+from tests.helpers import prepare_request, PodcastTestClient
 
 INVALID_SIGN_IN_DATA = [
     [{"email": "fake-email"}, {"email": "Not a valid email address."}],
@@ -139,13 +140,17 @@ class TestAuthSignInAPIView(BaseTestAPIView):
             is_active=is_active,
         )
 
-    async def test_sign_in__ok(self, client, dbs):
+    async def test_sign_in__ok(self, dbs: AsyncSession, client: PodcastTestClient):
         await self._create_user(dbs)
         response = client.post(self.url, json={"email": self.email, "password": self.raw_password})
         response_data = self.assert_ok_response(response)
         assert_tokens(response_data, self.user)
 
-    async def test_sign_in__check_user_session__ok(self, client, dbs):
+    async def test_sign_in__check_user_session__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+    ):
         await self._create_user(dbs)
         response = client.post(self.url, json={"email": self.email, "password": self.raw_password})
         response_data = self.assert_ok_response(response)
@@ -161,7 +166,11 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         assert user_session.refreshed_at is not None
         assert decoded_refresh_token.get("session_id") == user_session.public_id
 
-    async def test_sign_in__create_new_user_session__ok(self, client, dbs):
+    async def test_sign_in__create_new_user_session__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+    ):
         await self._create_user(dbs)
         old_expired_at = datetime.now() + timedelta(seconds=1)
         old_user_session = await UserSession.async_create(
@@ -189,7 +198,11 @@ class TestAuthSignInAPIView(BaseTestAPIView):
         assert new_session.is_active is True
         assert old_session.refreshed_at is not None
 
-    async def test_sign_in__password_mismatch__fail(self, client, dbs):
+    async def test_sign_in__password_mismatch__fail(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+    ):
         await self._create_user(dbs)
         response = client.post(self.url, json={"email": self.email, "password": "fake-password"})
         response_data = self.assert_fail_response(response)
@@ -198,7 +211,7 @@ class TestAuthSignInAPIView(BaseTestAPIView):
             "details": "Email or password is invalid.",
         }
 
-    async def test_sign_in__user_not_found__fail(self, client):
+    async def test_sign_in__user_not_found__fail(self, client: PodcastTestClient):
         response = client.post(self.url, json={"email": "fake@t.ru", "password": self.raw_password})
         response_data = self.assert_fail_response(response)
         assert response_data == {
@@ -208,11 +221,11 @@ class TestAuthSignInAPIView(BaseTestAPIView):
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_SIGN_IN_DATA)
     async def test_sign_in__invalid_request__fail(
-        self, client, invalid_data: dict, error_details: dict
+        self, client: PodcastTestClient, invalid_data: dict, error_details: dict
     ):
         self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
 
-    async def test_sign_in__user_inactive__fail(self, client, dbs):
+    async def test_sign_in__user_inactive__fail(self, dbs: AsyncSession, client: PodcastTestClient):
         await self._create_user(dbs, is_active=False)
         response = client.post(self.url, json={"email": self.email, "password": self.raw_password})
         response_data = self.assert_fail_response(response)
@@ -236,7 +249,12 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
             "password_2": "test-password",
         }
 
-    async def test_sign_up__ok(self, client, user_invite, dbs):
+    async def test_sign_up__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user_invite: UserInvite,
+    ):
         request_data = self._sign_up_data(user_invite)
         response = client.post(self.url, json=request_data)
         response_data = self.assert_ok_response(response, status_code=201)
@@ -256,7 +274,12 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
     ):
         self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
 
-    async def test_sign_up__user_already_exists__fail(self, client, user_invite, dbs):
+    async def test_sign_up__user_already_exists__fail(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user_invite: UserInvite,
+    ):
         request_data = self._sign_up_data(user_invite)
         user_email = request_data["email"]
 
@@ -276,7 +299,13 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
             {"is_applied": True},
         ],
     )
-    async def test_sign_up__token_problems__fail(self, client, user_invite, token_update_data, dbs):
+    async def test_sign_up__token_problems__fail(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user_invite: UserInvite,
+        token_update_data: dict,
+    ):
         request_data = self._sign_up_data(user_invite)
         await user_invite.update(dbs, **token_update_data)
         await dbs.commit()
@@ -287,32 +316,44 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
             "details": "Invitation link is expired or unavailable",
         }
 
-    async def test_sign_up__email_mismatch_with_token__fail(self, client, user_invite):
+    async def test_sign_up__email_mismatch_with_token__fail(
+        self,
+        client: PodcastTestClient,
+        user_invite: UserInvite,
+    ):
         request_data = self._sign_up_data(user_invite)
         request_data["email"] = f"another.email{uuid.uuid4().hex[:10]}@test.com"
         response = client.post(self.url, json=request_data)
         response_data = self.assert_fail_response(response)
         assert response_data["error"] == "Email does not match with your invitation."
 
-    # return await acreate_user(dbs)
-
 
 class TestSignOutAPIView(BaseTestAPIView):
     url = "/api/auth/sign-out/"
 
-    async def test_sign_out__ok(self, client, user, dbs):
+    async def test_sign_out__ok(self, dbs: AsyncSession, client: PodcastTestClient, user: User):
         user_session = await client.login(user)
         response = client.delete(self.url)
         assert response.status_code == 200
         user_session = await UserSession.async_get(dbs, id=user_session.id)
         assert user_session.is_active is False
 
-    async def test_sign_out__user_session_not_found__ok(self, client, user):
+    async def test_sign_out__user_session_not_found__ok(
+        self,
+        client: PodcastTestClient,
+        user: User,
+    ):
         await client.login(user)
         response = client.delete(self.url)
         assert response.status_code == 200
 
-    async def test_sign_out__another_session_exists__ok(self, client, user, user_session, dbs):
+    async def test_sign_out__another_session_exists__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        user_session: UserSession,
+    ):
         another_user_session = user_session
         current_user_session = await client.login(user)
 
@@ -336,7 +377,13 @@ class TestUserInviteApiView(BaseTestAPIView):
     def setup_method(self):
         self.email = f"user_{uuid.uuid4().hex[:10]}@test.com"
 
-    async def test_invite__ok(self, client, user, mocked_auth_send, dbs):
+    async def test_invite__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        mocked_auth_send: AsyncMock,
+    ):
         await client.login(user)
         response = client.post(self.url, json={"email": self.email})
         response_data = self.assert_ok_response(response, status_code=201)
@@ -370,16 +417,20 @@ class TestUserInviteApiView(BaseTestAPIView):
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_INVITE_DATA)
     async def test_invalid_request__fail(
-        self, client, user, invalid_data: dict, error_details: dict
+        self,
+        client: PodcastTestClient,
+        user: User,
+        invalid_data: dict,
+        error_details: dict,
     ):
         await client.login(user)
         self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
 
-    async def test_invite__unauth__fail(self, client):
+    async def test_invite__unauth__fail(self, client: PodcastTestClient):
         client.logout()
         self.assert_unauth(client.post(self.url, json={"email": self.email}))
 
-    async def test_invite__user_already_exists__fail(self, client, user):
+    async def test_invite__user_already_exists__fail(self, client: PodcastTestClient, user: User):
         await client.login(user)
         response = client.post(self.url, json={"email": user.email})
 
@@ -390,7 +441,11 @@ class TestUserInviteApiView(BaseTestAPIView):
         }
 
     async def test_invite__user_already_invited__update_invite__ok(
-        self, client, user, mocked_auth_send, dbs
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        mocked_auth_send: AsyncMock,
     ):
         old_token = UserInvite.generate_token()
         old_expired_at = datetime.utcnow()
@@ -426,7 +481,13 @@ class TestResetPasswordAPIView(BaseTestAPIView):
     def setup_method(self):
         self.email = f"user_{uuid.uuid4().hex[:10]}@test.com"
 
-    async def test_reset_password__ok(self, client, user, mocked_auth_send, dbs):
+    async def test_reset_password__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        mocked_auth_send: AsyncMock,
+    ):
         request_user = user
         await request_user.update(dbs, is_superuser=True)
         target_user = await User.async_create(
@@ -454,11 +515,17 @@ class TestResetPasswordAPIView(BaseTestAPIView):
             html_content=expected_body,
         )
 
-    async def test_reset_password__unauth__fail(self, client):
+    async def test_reset_password__unauth__fail(self, client: PodcastTestClient):
         client.logout()
         self.assert_unauth(client.post(self.url, json={"email": self.email}))
 
-    async def test_reset_password__user_not_found__fail(self, client, user, mocked_auth_send, dbs):
+    async def test_reset_password__user_not_found__fail(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        mocked_auth_send: AsyncMock,
+    ):
         request_user = user
         await request_user.update(dbs, is_superuser=True, db_commit=True)
 
@@ -472,7 +539,11 @@ class TestResetPasswordAPIView(BaseTestAPIView):
             "details": "User with email=[fake-email@test.com] not found.",
         }
 
-    async def test_reset_password__user_is_not_superuser__fail(self, client, user):
+    async def test_reset_password__user_is_not_superuser__fail(
+        self,
+        client: PodcastTestClient,
+        user: User,
+    ):
         await client.login(user)
         response = client.post(self.url, json={"email": user.email})
         response_data = self.assert_fail_response(
@@ -494,7 +565,10 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
 
     @staticmethod
     async def _prepare_token(
-        dbs: AsyncSession, user: User, is_active=True, refresh=True
+        dbs: AsyncSession,
+        user: User,
+        is_active: bool = True,
+        refresh: bool = True,
     ) -> UserSession:
         token_type = TOKEN_TYPE_REFRESH if refresh else TOKEN_TYPE_ACCESS
         session_id = str(uuid.uuid4())
@@ -512,14 +586,24 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         )
         return user_session
 
-    async def test_refresh_token__ok(self, client, user, dbs):
+    async def test_refresh_token__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+    ):
         user_session = await self._prepare_token(dbs, user)
         client.logout()
         response = client.post(self.url, json={"refresh_token": user_session.refresh_token})
         response_data = self.assert_ok_response(response)
         assert_tokens(response_data, user)
 
-    async def test_refresh_token__several_sessions_for_user__ok(self, client, user, dbs):
+    async def test_refresh_token__several_sessions_for_user__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+    ):
         user_session_1 = await self._prepare_token(dbs, user)
         user_session_2 = await self._prepare_token(dbs, user)
         client.logout()
@@ -534,14 +618,24 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         assert user_session_1.refresh_token == upd_user_session_1.refresh_token
         assert user_session_1.refreshed_at < upd_user_session_2.refreshed_at
 
-    async def test_refresh_token__user_inactive__fail(self, client, user, dbs):
+    async def test_refresh_token__user_inactive__fail(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+    ):
         user_session = await self._prepare_token(dbs, user)
         await user.update(dbs, is_active=False, db_commit=True)
 
         response = client.post(self.url, json={"refresh_token": user_session.refresh_token})
         self.assert_auth_invalid(response, f"Couldn't found active user with id={user.id}.")
 
-    async def test_refresh_token__session_inactive__fail(self, client, user, dbs):
+    async def test_refresh_token__session_inactive__fail(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+    ):
         session = await self._prepare_token(dbs, user, is_active=False)
         response = client.post(self.url, json={"refresh_token": session.refresh_token})
         expected_msg = (
@@ -550,7 +644,12 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         self.assert_auth_invalid(response, expected_msg)
 
     @pytest.mark.parametrize("token_type", [TOKEN_TYPE_ACCESS, TOKEN_TYPE_RESET_PASSWORD])
-    async def test_refresh_token__token_not_refresh__fail(self, client, user, token_type):
+    async def test_refresh_token__token_not_refresh__fail(
+        self,
+        client: PodcastTestClient,
+        user: User,
+        token_type: str,
+    ):
         refresh_token, _ = encode_jwt({"user_id": user.id}, token_type=token_type)
         response = client.post(self.url, json={"refresh_token": refresh_token})
         response_data = self.assert_fail_response(
@@ -561,7 +660,12 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
             "details": f"Token type 'refresh' expected, got '{token_type}' instead.",
         }
 
-    async def test_refresh_token__token_mismatch__fail(self, client, user, dbs):
+    async def test_refresh_token__token_mismatch__fail(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+    ):
         user_session = await self._prepare_token(dbs, user, is_active=True)
         refresh_token = user_session.refresh_token
         await user_session.update(dbs, refresh_token="fake-token", db_commit=True)
@@ -571,12 +675,17 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
             response, "Refresh token does not match with user session.", ResponseStatus.AUTH_FAILED
         )
 
-    async def test_refresh_token__fake_jwt__fail(self, client, user):
+    async def test_refresh_token__fake_jwt__fail(self, client: PodcastTestClient, user: User):
         response = client.post(self.url, json={"refresh_token": "fake-jwt-token"})
         self.assert_auth_invalid(response, "Token could not be decoded: Not enough segments")
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_REFRESH_TOKEN_DATA)
-    async def test_invalid_request__fail(self, client, invalid_data: dict, error_details: dict):
+    async def test_invalid_request__fail(
+        self,
+        client: PodcastTestClient,
+        invalid_data: dict,
+        error_details: dict,
+    ):
         client.logout()
         self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
 
@@ -590,14 +699,19 @@ class TestUserIPRegistration(BaseTestAPIView):
         request.scope["user"] = user
         return request
 
-    async def test_register_success(self, client, user):
+    async def test_register_success(self, client: PodcastTestClient, user: User):
         self.client = client
         request = self._request(user=user)
         await register_ip(request)
         user_ip = await UserIP.async_get(client.db_session, user_id=user.id, ip_address=self.IP)
         assert user_ip is not None
 
-    async def test_register_ip_already_exists(self, dbs, client, user):
+    async def test_register_ip_already_exists(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+    ):
         self.client = client
         old_user_ip = await UserIP.async_create(
             dbs, user_id=user.id, ip_address=self.IP, db_commit=True
@@ -610,7 +724,12 @@ class TestUserIPRegistration(BaseTestAPIView):
         assert new_user_ip is not None
         assert new_user_ip.id == old_user_ip.id
 
-    async def test_register_ip_several_requests(self, client, user, user_session):
+    async def test_register_ip_several_requests(
+        self,
+        client: PodcastTestClient,
+        user: User,
+        user_session: UserSession,
+    ):
         self.client = client
         request_1 = self._request(user=user, ip_address="172.17.0.1")
         request_2 = self._request(user=user, ip_address="172.17.0.2")
@@ -621,7 +740,7 @@ class TestUserIPRegistration(BaseTestAPIView):
         actual_ips = [user_ip.ip_address for user_ip in user_ips]
         assert actual_ips == ["172.17.0.2", "172.17.0.1"]
 
-    async def test_register_missed_ip_header(self, dbs, user):
+    async def test_register_missed_ip_header(self, dbs: AsyncSession, user: User):
         request = prepare_request(dbs, headers={"WRONG-X-Real-IP": "172.17.0.1"})
         request.scope["user"] = user
         await register_ip(request)
