@@ -1,8 +1,10 @@
 import uuid
 from functools import partial
-from unittest.mock import patch
+from typing import Type
+from unittest.mock import patch, Mock
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.enums import SourceType, EpisodeStatus
 from common.statuses import ResponseStatus
@@ -10,6 +12,7 @@ from core import settings
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
+from modules.auth.models import User
 from modules.podcast.tasks import DownloadEpisodeTask, UploadedEpisodeTask, DownloadEpisodeImageTask
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import (
@@ -17,7 +20,9 @@ from tests.helpers import (
     create_user,
     get_podcast_data,
     create_episode,
+    PodcastTestClient,
 )
+from tests.mocks import MockEpisodeCreator, MockRQQueue, MockS3Client
 
 INVALID_UPDATE_DATA = [
     [{"title": "title" * 100}, {"title": "Longer than maximum length 256."}],
@@ -77,14 +82,20 @@ def _episode_details(episode: Episode, status: EpisodeStatus | None = None):
 class TestEpisodeListCreateAPIView(BaseTestAPIView):
     url = "/api/podcasts/{id}/episodes/"
 
-    async def test_get_list__ok(self, client, episode, user):
+    async def test_get_list__ok(self, client: PodcastTestClient, episode: Episode, user: User):
         await client.login(user)
         url = self.url.format(id=episode.podcast_id)
         response = client.get(url)
         response_data = self.assert_ok_response(response)
         assert response_data["items"] == [_episode_in_list(episode)]
 
-    async def test_get_list__filter_by_podcast__ok(self, dbs, client, episode_data, user):
+    async def test_get_list__filter_by_podcast__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        episode_data: dict,
+    ):
         await client.login(user)
         episode_data |= {"owner_id": user.id}
         podcast_data = partial(get_podcast_data, owner_id=user.id)
@@ -99,7 +110,14 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert response_data["items"] == [_episode_in_list(ep)]
 
-    async def test_get_list__filter_status__ok(self, dbs, client, podcast, episode_data, user):
+    async def test_get_list__filter_status__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        podcast: Podcast,
+        episode_data: dict,
+    ):
         await client.login(user)
         episode_data |= {"owner_id": user.id}
         ep = await create_episode(dbs, episode_data, podcast, status=EpisodeStatus.PUBLISHED)
@@ -110,7 +128,14 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert response_data["items"] == [_episode_in_list(ep)]
 
-    async def test_get_list__search_by_title__ok(self, dbs, client, podcast, episode_data, user):
+    async def test_get_list__search_by_title__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        podcast: Podcast,
+        episode_data: dict,
+    ):
         await client.login(user)
         episode_data |= {"owner_id": user.id, "status": EpisodeStatus.PUBLISHED}
         ep1 = await create_episode(dbs, episode_data | {"title": "Python NEWS"}, podcast)
@@ -124,13 +149,13 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
 
     async def test_create__ok(
         self,
-        client,
-        podcast,
-        episode,
-        episode_data,
-        user,
-        mocked_episode_creator,
-        mocked_rq_queue,
+        client: PodcastTestClient,
+        user: User,
+        podcast: Podcast,
+        episode: Episode,
+        episode_data: dict,
+        mocked_episode_creator: MockEpisodeCreator,
+        mocked_rq_queue: MockRQQueue,
     ):
         mocked_episode_creator.create.return_value = episode
         await client.login(user)
@@ -153,7 +178,14 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         )
 
     async def test_create__start_downloading__ok(
-        self, client, podcast, episode, episode_data, user, mocked_episode_creator, mocked_rq_queue
+        self,
+        client: PodcastTestClient,
+        user: User,
+        podcast: Podcast,
+        episode: Episode,
+        episode_data: dict,
+        mocked_episode_creator: MockEpisodeCreator,
+        mocked_rq_queue: MockRQQueue,
     ):
         mocked_episode_creator.create.return_value = episode
         await client.login(user)
@@ -180,7 +212,12 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         assert actual_calls == expected_calls
 
     async def test_create__youtube_error__fail(
-        self, client, podcast, episode_data, user, mocked_episode_creator
+        self,
+        client: PodcastTestClient,
+        user: User,
+        podcast: Podcast,
+        episode_data: dict,
+        mocked_episode_creator: MockEpisodeCreator,
     ):
         mocked_episode_creator.create.side_effect = SourceFetchError("Oops")
         await client.login(user)
@@ -194,13 +231,23 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_CREATE_DATA)
     async def test_create__invalid_request__fail(
-        self, client, podcast, user, invalid_data: dict, error_details: dict
+        self,
+        client: PodcastTestClient,
+        user: User,
+        podcast: Podcast,
+        invalid_data: dict,
+        error_details: dict,
     ):
         await client.login(user)
         url = self.url.format(id=podcast.id)
         self.assert_bad_request(client.post(url, json=invalid_data), error_details)
 
-    async def test_create__podcast_from_another_user__fail(self, client, podcast, dbs):
+    async def test_create__podcast_from_another_user__fail(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        podcast: Podcast,
+    ):
         await client.login(await create_user(dbs))
         url = self.url.format(id=podcast.id)
         data = {"source_url": "http://link.to.resource/"}
@@ -214,12 +261,12 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
     @pytest.mark.parametrize("auto_start_task", (True, False))
     async def test_create__ok(
         self,
-        dbs,
-        client,
-        podcast,
-        user,
-        mocked_rq_queue,
-        auto_start_task,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        podcast: Podcast,
+        user: User,
+        mocked_rq_queue: MockRQQueue,
+        auto_start_task: bool,
     ):
         audio_duration = 90
         await podcast.update(dbs, download_automatically=auto_start_task, db_commit=True)
@@ -278,12 +325,12 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
 
     async def test_create_duplicated_episode__ok(
         self,
-        dbs,
-        podcast,
-        episode,
-        client,
-        user,
-        mocked_rq_queue,
+        dbs: AsyncSession,
+        user: User,
+        podcast: Podcast,
+        episode: Episode,
+        client: PodcastTestClient,
+        mocked_rq_queue: MockRQQueue,
     ):
         audio_hash = str(uuid.uuid4().hex)
         await episode.update(dbs, source_type=SourceType.UPLOAD, source_id=f"upl_{audio_hash[:11]}")
@@ -319,11 +366,11 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
 
     async def test_get_exists_episode__ok(
         self,
-        dbs,
-        podcast,
-        episode,
-        client,
-        user,
+        dbs: AsyncSession,
+        user: User,
+        podcast: Podcast,
+        episode: Episode,
+        client: PodcastTestClient,
     ):
         audio_hash = str(uuid.uuid4().hex)
         await episode.update(dbs, source_type=SourceType.UPLOAD, source_id=f"upl_{audio_hash[:11]}")
@@ -340,10 +387,10 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
 
     async def test_get_exists_episode__fake_hash__fail(
         self,
-        dbs,
-        podcast,
-        client,
-        user,
+        dbs: AsyncSession,
+        user: User,
+        podcast: Podcast,
+        client: PodcastTestClient,
     ):
         await client.login(user)
         url = self.url_fetch_exists.format(id=podcast.id, hash="fake-audio-hash")
@@ -363,52 +410,51 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
             (
                 "only_title",
                 {"duration": 1, "title": "Test title"},
-                {"title": "Test title", "author": "",
-                 "description": "Uploaded Episode 'Test title'"}
+                {"title": "Test title", "author": "", "description": "Uploaded Episode 'Test title'"}
             ),
             (
                 "title_author",
                 {"duration": 1, "title": "Test Title", "author": "Test Author"},
-                {"title": "Test Title", "author": "Test Author",
-                 "description": "Uploaded Episode 'Test Title'\nAuthor: Test Author"}),
+                {"title": "Test Title", "author": "Test Author", "description": "Uploaded Episode 'Test Title'\nAuthor: Test Author"}
+            ),
             (
                 "only_author",
                 {"duration": 1, "title": '', "author": "Test Author"},
-                {"title": "filename", "author": "Test Author",
-                 "description": "Uploaded Episode 'filename'\nAuthor: Test Author"}),
+                {"title": "filename", "author": "Test Author", "description": "Uploaded Episode 'filename'\nAuthor: Test Author"}
+            ),
             (
                 "only_track",
                 {"duration": 1, "track": "01"},
-                {"title": "Track #01. filename",
-                 "description": "Uploaded Episode 'Track #01. filename'\nTrack: #01"}),
+                {"title": "Track #01. filename", "description": "Uploaded Episode 'Track #01. filename'\nTrack: #01"}
+            ),
             (
                 "title_album_track",
                 {"duration": 1, "title": "Test Title", "album": "Test Album", "track": "01"},
-                {"title": "Test Album #01. Test Title",
-                 "description": "Uploaded Episode 'Test Album #01. Test Title'\nAlbum: Test Album (track #01)"}), # noqa
+                {"title": "Test Album #01. Test Title", "description": "Uploaded Episode 'Test Album #01. Test Title'\nAlbum: Test Album (track #01)"}
+            ),
             (
                 "album_track",
                 {"duration": 1, "album": "Test Album", "track": "01"},
-                {"title": "Test Album #01. filename",
-                 "description": "Uploaded Episode 'Test Album #01. filename'\nAlbum: Test Album (track #01)"}), # noqa
+                {"title": "Test Album #01. filename", "description": "Uploaded Episode 'Test Album #01. filename'\nAlbum: Test Album (track #01)"}
+            ),
             (
                 "large_title",
                 {"duration": 1, "title": "l-title-" * 100},
-                {"title": ("l-title-" * 100)[:252] + "...",
-                 "description": f"Uploaded Episode \'{('l-title-' * 100)}\'"}),
+                {"title": ("l-title-" * 100)[:252] + "...", "description": f"Uploaded Episode \'{('l-title-' * 100)}\'"}
+            ),
         ]
     )
     # fmt: on
     async def test_create__various_metadata__ok(
         self,
-        dbs,
-        user,
-        client,
-        podcast,
-        mocked_rq_queue,
-        label,
-        metadata,
-        episode_data,
+        dbs: AsyncSession,
+        user: User,
+        client: PodcastTestClient,
+        podcast: Podcast,
+        mocked_rq_queue: MockRQQueue,
+        label: str,
+        metadata: dict,
+        episode_data: dict,
     ):
         await client.login(user)
         url = self.url.format(id=podcast.id)
@@ -433,7 +479,12 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_UPLOADED_EPISODES_DATA)
     async def test_create__invalid_request__fail(
-        self, client, podcast, user, invalid_data: dict, error_details: dict
+        self,
+        client: PodcastTestClient,
+        user: User,
+        podcast: Podcast,
+        invalid_data: dict,
+        error_details: dict,
     ):
         await client.login(user)
         url = self.url.format(id=podcast.id)
@@ -456,19 +507,27 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
 class TestEpisodeRUDAPIView(BaseTestAPIView):
     url = "/api/episodes/{id}/"
 
-    async def test_get_details__ok(self, client, episode, user):
+    async def test_get_details__ok(self, client: PodcastTestClient, episode: Episode, user: User):
         await client.login(user)
         url = self.url.format(id=episode.id)
         response = client.get(url)
         response_data = self.assert_ok_response(response)
         assert response_data == _episode_details(episode)
 
-    async def test_get_details__episode_from_another_user__fail(self, client, episode, dbs):
+    async def test_get_details__episode_from_another_user__fail(
+        self, dbs: AsyncSession, client: PodcastTestClient, episode: Episode
+    ):
         await client.login(await create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.get(url), episode)
 
-    async def test_update__ok(self, client, episode, user, dbs):
+    async def test_update__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        episode: Episode,
+    ):
         await client.login(user)
         url = self.url.format(id=episode.id)
         patch_data = {
@@ -487,18 +546,30 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_UPDATE_DATA)
     async def test_update__invalid_request__fail(
-        self, client, episode, user, invalid_data: dict, error_details: dict
+        self,
+        client: PodcastTestClient,
+        user: User,
+        episode: Episode,
+        invalid_data: dict,
+        error_details: dict,
     ):
         await client.login(user)
         url = self.url.format(id=episode.id)
         self.assert_bad_request(client.patch(url, json=invalid_data), error_details)
 
-    async def test_update__episode_from_another_user__fail(self, client, episode, dbs):
+    async def test_update__episode_from_another_user__fail(self, client, episode: Episode, dbs):
         await client.login(await create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.patch(url, json={}), episode)
 
-    async def test_delete__ok(self, client, episode, user, mocked_s3, dbs):
+    async def test_delete__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        episode: Episode,
+        mocked_s3: MockS3Client,
+    ):
         await client.login(user)
         url = self.url.format(id=episode.id)
         response = client.delete(url)
@@ -509,14 +580,24 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
             [episode.image.name], remote_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH
         )
 
-    async def test_delete__episode_from_another_user__fail(self, client, episode, dbs):
+    async def test_delete__episode_from_another_user__fail(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        episode: Episode,
+    ):
         await client.login(await create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.delete(url), episode)
 
     @pytest.mark.parametrize("status", (EpisodeStatus.DOWNLOADING, EpisodeStatus.CANCELING))
     async def test_delete__episode_in_progress_state__fail(
-        self, client, episode, user, dbs, status
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        episode: Episode,
+        status: EpisodeStatus,
     ):
         await client.login(user)
         await episode.update(dbs, status=status, db_commit=True)
@@ -537,12 +618,12 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
     )
     async def test_delete__same_episode_exists__ok(
         self,
-        client,
-        episode_data,
-        mocked_s3,
-        same_episode_status,
-        delete_called,
-        dbs,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        episode_data: dict,
+        mocked_s3: MockS3Client,
+        same_episode_status: EpisodeStatus,
+        delete_called: bool,
     ):
         source_id = get_source_id()
 
@@ -590,13 +671,13 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
     @patch("modules.podcast.tasks.base.RQTask.cancel_task")
     async def test_delete__no_cancel_task(
         self,
-        mock_cancel_task,
-        dbs,
-        user,
-        client,
-        episode,
-        mocked_s3,
-        episode_status,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        mock_cancel_task: Mock,
+        episode: Episode,
+        mocked_s3: MockS3Client,
+        episode_status: EpisodeStatus,
     ):
         await episode.update(dbs, status=episode_status, db_commit=True)
         await client.login(user)
@@ -623,7 +704,14 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
         ),
     )
     async def test_download__ok(
-        self, dbs, client, episode, user, mocked_rq_queue, source_type, task
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        episode: Episode,
+        mocked_rq_queue: MockRQQueue,
+        source_type: SourceType,
+        task: Type[DownloadEpisodeTask],
     ):
         await episode.update(dbs, source_type=source_type, db_commit=True)
         assert episode.status == EpisodeStatus.NEW
@@ -639,7 +727,12 @@ class TestEpisodeDownloadAPIView(BaseTestAPIView):
             task(), episode_id=episode.id, job_id=task.get_job_id(episode_id=episode.id)
         )
 
-    async def test_download__episode_from_another_user__fail(self, client, episode, dbs):
+    async def test_download__episode_from_another_user__fail(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        episode: Episode,
+    ):
         await client.login(await create_user(dbs))
         url = self.url.format(id=episode.id)
         self.assert_not_found(client.put(url), episode)
@@ -653,12 +746,12 @@ class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
     @patch("modules.podcast.tasks.download.DownloadEpisodeImageTask.cancel_task")
     async def test_cancel_downloading__ok(
         self,
-        mocked_cancel_download_episode_task,
-        mocked_cancel_download_image_task,
-        dbs,
-        client,
-        episode,
-        user,
+        mocked_cancel_download_episode_task: Mock,
+        mocked_cancel_download_image_task: Mock,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        episode: Episode,
     ):
         await episode.update(dbs, status=EpisodeStatus.DOWNLOADING, db_commit=True)
         await client.login(user)
@@ -675,12 +768,12 @@ class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
     @patch("modules.podcast.tasks.download.DownloadEpisodeImageTask.cancel_task")
     async def test_cancel_downloading__episode_not_in_progress__fail(
         self,
-        mocked_cancel_download_episode_task,
-        mocked_cancel_download_image_task,
-        dbs,
-        client,
-        episode,
-        user,
+        mocked_cancel_download_episode_task: Mock,
+        mocked_cancel_download_image_task: Mock,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        episode: Episode,
+        user: User,
     ):
         await episode.update(dbs, status=EpisodeStatus.NEW, db_commit=True)
         await client.login(user)
@@ -689,7 +782,7 @@ class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
         assert response_data["details"] == (
             f"Episode #{episode.id} not found or is not in progress now"
         )
-        dbs.refresh(episode)
+        await dbs.refresh(episode)
         assert episode.status == EpisodeStatus.NEW
         mocked_cancel_download_episode_task.assert_not_called()
         mocked_cancel_download_image_task.assert_not_called()
@@ -698,7 +791,7 @@ class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
 class TestEpisodeFlatListAPIView(BaseTestAPIView):
     url = "/api/episodes/"
 
-    async def setup_episodes(self, dbs, user, episode_data):
+    async def setup_episodes(self, dbs: AsyncSession, user: User, episode_data: dict):
         self.user_2 = await create_user(dbs)
         podcast_1 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id))
         podcast_2 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id))
@@ -717,7 +810,13 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
         actual_episode_ids = [episode["id"] for episode in response_data["items"]]
         assert actual_episode_ids == expected_episode_ids
 
-    async def test_get_list__ok(self, client, episode_data, user, dbs):
+    async def test_get_list__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        episode_data: dict,
+        user: User,
+    ):
         await self.setup_episodes(dbs, user, episode_data)
 
         await client.login(user)
@@ -726,7 +825,13 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
         expected_episode_ids = [self.episode_2.id, self.episode_1.id]
         self.assert_episodes(response_data, expected_episode_ids)
 
-    async def test_get_list__limited__ok(self, client, episode_data, user, dbs):
+    async def test_get_list__limited__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        episode_data: dict,
+    ):
         await self.setup_episodes(dbs, user, episode_data)
         await client.login(user)
         response = client.get(self.url, params={"limit": 1})
@@ -734,7 +839,13 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
         self.assert_episodes(response_data, expected_episode_ids=[self.episode_2.id])
         assert response_data.get("has_next") is True, response_data
 
-    async def test_get_list__offset__ok(self, client, episode_data, user, dbs):
+    async def test_get_list__offset__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        episode_data: dict,
+    ):
         await self.setup_episodes(dbs, user, episode_data)
         await client.login(user)
         response = client.get(self.url, params={"offset": 1})
@@ -750,7 +861,15 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
         ],
     )
     async def test_get_list__filter_by_title__ok(
-        self, client, episode_data, user, dbs, search, title1, title2, expected_titles
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        episode_data: dict,
+        search: str,
+        title1: str,
+        title2: str,
+        expected_titles: list[str],
     ):
         await self.setup_episodes(dbs, user, episode_data)
         await self.episode_1.update(dbs, **{"title": title1})
@@ -766,7 +885,12 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         self.assert_episodes(response_data, expected_episodes)
 
-    async def test_create_without_podcast__fail(self, client, episode_data, user, dbs):
+    async def test_create_without_podcast__fail(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+    ):
         await client.login(user)
         response = client.post(self.url, data=get_podcast_data())
         self.assert_fail_response(

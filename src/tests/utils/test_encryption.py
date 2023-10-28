@@ -37,15 +37,12 @@ def mocked_aes(monkeypatch) -> MockAESResult:
 
 
 class TestEncryptSensitiveData:
-
     @staticmethod
     def _encrypted_string() -> str:
         expected_nonce_b64b = base64.b64encode(ENCRYPT_NONCE).decode()
         expected_encoded_message_b64b = base64.b64encode(ENCRYPTED_SENS_DATA).decode()
         expected_tag_b64b = base64.b64encode(ENCRYPT_TAG).decode()
-        return (
-            f"AES256;{expected_nonce_b64b};{expected_encoded_message_b64b};{expected_tag_b64b}"
-        )
+        return f"AES256;{expected_nonce_b64b};{expected_encoded_message_b64b};{expected_tag_b64b}"
 
     def test_encrypt(self, mocked_aes):
         mocked_aes.cipher.encrypt_and_digest.return_value = (ENCRYPTED_SENS_DATA, ENCRYPT_TAG)
