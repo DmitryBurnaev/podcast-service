@@ -8,10 +8,9 @@ from argparse import ArgumentParser
 from pathlib import Path
 from unittest.mock import Mock, AsyncMock
 
-import aiosmtplib
 import rq
 import httpx
-from Cryptodome.Cipher import AES
+import aiosmtplib
 from yt_dlp import YoutubeDL
 
 from common.encryption import SensitiveData
@@ -58,7 +57,7 @@ class BaseMockWithContextManager(BaseMock, ABC):
         self.__aexit__ = AsyncMock(side_effect=self._process_exit)
 
     @staticmethod
-    async def _process_exit(exc_type, exc_val, exc_tb):
+    async def _process_exit(exc_type, exc_val, exc_tb):  # noqa
         if exc_val:
             raise exc_val
 
@@ -221,13 +220,6 @@ class MockAuthBackend(BaseMock):
 
     def __init__(self):
         self.authenticate = AsyncMock(return_value=None)
-
-
-class MockAES(BaseMock):
-    target_class = AES
-
-    def __init__(self):
-        self.encrypt_and_digest = Mock()
 
 
 class MockSensitiveData(BaseMock):

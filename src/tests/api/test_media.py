@@ -4,15 +4,17 @@ from hashlib import md5
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.enums import FileType
 from common.exceptions import NotSupportedError
 from core import settings
-from modules.auth.models import UserIP
+from modules.auth.models import UserIP, User
 from modules.media.models import File
 from modules.providers.utils import AudioMetaData
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import create_file
+from tests.helpers import create_file, PodcastTestClient
+from tests.mocks import MockS3Client
 
 pytestmark = pytest.mark.asyncio
 
@@ -21,7 +23,13 @@ class TestMediaFileAPIView(BaseTestAPIView):
     url = "/m/{token}/"
     user_ip = "172.17.0.2"
 
-    async def test_get_media_file__ok(self, client, image_file, user, mocked_s3):
+    async def test_get_media_file__ok(
+        self,
+        client: PodcastTestClient,
+        image_file: File,
+        user: User,
+        mocked_s3: MockS3Client,
+    ):
         temp_link = f"https://s3.storage/tmp.link/{image_file.access_token}"
         mocked_s3.get_presigned_url.return_value = temp_link
         url = self.url.format(token=image_file.access_token)
@@ -37,13 +45,19 @@ class TestMediaFileAPIView(BaseTestAPIView):
         assert response.status_code == 302
         assert response.headers["location"] == temp_link
 
-    async def test_file_headers(self, dbs, image_file):
+    async def test_file_headers(self, dbs: AsyncSession, image_file: File):
         await image_file.update(dbs, size=1024)
         await dbs.flush()
         assert image_file.headers == {"content-length": "1024", "content-type": "image/png"}
 
     @patch("core.settings.APP_DEBUG", False)
-    async def test_get_media_file_missed_ip__fail(self, client, image_file, user, mocked_s3):
+    async def test_get_media_file_missed_ip__fail(
+        self,
+        client: PodcastTestClient,
+        image_file: File,
+        user: User,
+        mocked_s3: MockS3Client,
+    ):
         url = self.url.format(token=image_file.access_token)
         await client.login(user)
         await UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip)
@@ -55,7 +69,12 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.get(url, follow_redirects=False)
         assert response.status_code == 404
 
-    async def test_get_media_file_bad_token__fail(self, client, user, mocked_s3):
+    async def test_get_media_file_bad_token__fail(
+        self,
+        client: PodcastTestClient,
+        user: User,
+        mocked_s3: MockS3Client,
+    ):
         url = self.url.format(token="fake-token")
         await client.login(user)
         await UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip)
@@ -67,7 +86,13 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
-    async def test_get_media_file_not_found__fail(self, client, image_file, user, mocked_s3):
+    async def test_get_media_file_not_found__fail(
+        self,
+        client: PodcastTestClient,
+        image_file: File,
+        user: User,
+        mocked_s3: MockS3Client,
+    ):
         url = self.url.format(token=image_file.access_token)
         await client.login(user)
 
@@ -81,7 +106,9 @@ class TestMediaFileAPIView(BaseTestAPIView):
         response = client.get(url, follow_redirects=False, headers={"X-Real-IP": self.user_ip})
         assert response.status_code == 404
 
-    async def test_get_image_file_not_allowed__fail(self, client, image_file, user, mocked_s3):
+    async def test_get_image_file_not_allowed__fail(
+        self, client, image_file: File, user, mocked_s3
+    ):
         url = self.url.format(token=image_file.access_token)
         await client.login(user)
 
@@ -109,7 +136,9 @@ class TestMediaFileAPIView(BaseTestAPIView):
         await dbs.refresh(image_file)
         assert image_file.url == source_url
 
-    async def test_get_media_file_unknown_user_ip__fail(self, client, image_file, user, mocked_s3):
+    async def test_get_media_file_unknown_user_ip__fail(
+        self, client, image_file: File, user, mocked_s3
+    ):
         url = self.url.format(token=image_file.access_token)
         await client.login(user)
 

@@ -44,6 +44,7 @@ from tests.mocks import (
     MockAuthBackend,
     MockHTTPXClient,
     MockSMTPSender,
+    MockSensitiveData,
 )
 
 
@@ -194,6 +195,11 @@ def mocked_smtp_sender(monkeypatch) -> MockSMTPSender:
 
 
 @pytest.fixture
+def mocked_sens_data(monkeypatch) -> MockSensitiveData:
+    yield from mock_target_class(MockSensitiveData, monkeypatch)
+
+
+@pytest.fixture
 def mocked_ffmpeg(monkeypatch) -> Mock:
     mocked_ffmpeg_function = Mock()
     monkeypatch.setattr(youtube_utils, "ffmpeg_preparation", mocked_ffmpeg_function)
@@ -230,7 +236,7 @@ async def user(dbs) -> User:
 
 
 @pytest_asyncio.fixture
-async def user_session(user, dbs) -> UserSession:
+async def user_session(user: User, dbs: AsyncSession) -> UserSession:
     return await create_user_session(dbs, user)
 
 
@@ -240,12 +246,12 @@ def podcast_data() -> dict[str, Any]:
 
 
 @pytest.fixture
-def episode_data(podcast) -> dict[str, Any]:
+def episode_data(podcast: Podcast) -> dict[str, Any]:
     return get_episode_data(podcast=podcast)
 
 
 @pytest_asyncio.fixture
-async def podcast(podcast_data, user, dbs) -> Podcast:
+async def podcast(podcast_data: dict, user: User, dbs: AsyncSession) -> Podcast:
     podcast_data["owner_id"] = user.id
     publish_id = podcast_data["publish_id"]
     image = await File.create(
@@ -272,7 +278,7 @@ async def podcast(podcast_data, user, dbs) -> Podcast:
 
 
 @pytest_asyncio.fixture
-async def cookie(user, dbs) -> Cookie:
+async def cookie(user: User, dbs: AsyncSession) -> Cookie:
     cookie_data = {
         "source_type": SourceType.YANDEX,
         "data": "Cookie at netscape format\n",
@@ -284,7 +290,7 @@ async def cookie(user, dbs) -> Cookie:
 
 
 @pytest_asyncio.fixture
-async def image_file(user, dbs) -> File:
+async def image_file(user: User, dbs: AsyncSession) -> File:
     return await File.create(
         dbs,
         FileType.IMAGE,
@@ -296,14 +302,14 @@ async def image_file(user, dbs) -> File:
 
 
 @pytest_asyncio.fixture
-async def rss_file(user, dbs) -> File:
+async def rss_file(user: User, dbs: AsyncSession) -> File:
     return await File.create(
         dbs, FileType.RSS, owner_id=user.id, path="/remote/path/to/rss_file.xml", db_commit=True
     )
 
 
 @pytest_asyncio.fixture
-async def episode(podcast, user, dbs) -> Episode:
+async def episode(podcast: Podcast, user: User, dbs: AsyncSession) -> Episode:
     episode_data = get_episode_data(podcast=podcast, creator=user)
     source_id = get_source_id()
     audio = await File.create(
@@ -335,7 +341,7 @@ async def episode(podcast, user, dbs) -> Episode:
 
 
 @pytest_asyncio.fixture
-async def user_invite(user, dbs) -> UserInvite:
+async def user_invite(user: User, dbs: AsyncSession) -> UserInvite:
     return await UserInvite.async_create(
         dbs,
         db_commit=True,

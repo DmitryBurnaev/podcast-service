@@ -21,6 +21,7 @@ class SensitiveData:
     """
     Encrypts/decrypt incoming data
     """
+
     AES256_PREFIX = "AES256"
     KEY_LENGTH = int(256 / 8)
 
@@ -67,5 +68,5 @@ class SensitiveData:
         return StructMessage(
             nonce=base64.b64decode(nonce_b64b.encode()),
             encoded_message=base64.b64decode(encoded_message_b64b.encode()),
-            tag=base64.b64decode(tag_b64b.encode())
+            tag=base64.b64decode(tag_b64b.encode()),
         )

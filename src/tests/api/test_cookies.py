@@ -73,7 +73,7 @@ class TestCookieListCreateAPIView(BaseTestAPIView):
             _cookie(last_cookie_yandex),
         ]
 
-    async def test_create__ok(self, client: PodcastTestClient, dbs, user: User):
+    async def test_create__ok(self, client: PodcastTestClient, dbs: AsyncSession, user: User):
         cookie_data = {"source_type": SourceType.YANDEX}
         await client.login(user)
         response = client.post(self.url, data=cookie_data, files={"file": _cookie_file()})
@@ -133,7 +133,10 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         assert cookie.updated_at > cookie.created_at
 
     async def test_update__cookie_from_another_user__fail(
-        self, client: PodcastTestClient, cookie: Cookie, dbs
+        self,
+        client: PodcastTestClient,
+        cookie: Cookie,
+        dbs: AsyncSession,
     ):
         await client.login(await create_user(dbs))
         url = self.url.format(id=cookie.id)
