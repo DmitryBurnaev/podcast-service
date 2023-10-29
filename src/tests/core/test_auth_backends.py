@@ -21,7 +21,7 @@ class TestBackendAuth:
         jwt, _ = encode_jwt({"user_id": user.id, "session_id": user_session.public_id})
         return prepare_request(dbs, headers={"authorization": f"Bearer {jwt}"})
 
-    async def test_check_auth__ok(self, user, user_session, dbs):
+    async def test_check_auth__ok(self, dbs: AsyncSession, user: User, user_session: UserSession):
         request = self._prepare_request(dbs, user, user_session)
         authenticated_user, _ = await BaseAuthJWTBackend(request).authenticate()
         assert authenticated_user.id == user.id
@@ -51,7 +51,13 @@ class TestBackendAuth:
             ),
         ],
     )
-    async def test_invalid_token__fail(self, auth_header, auth_exception, err_details, dbs):
+    async def test_invalid_token__fail(
+        self,
+        dbs: AsyncSession,
+        auth_header,
+        auth_exception,
+        err_details,
+    ):
         request = Request(scope={"type": "http", "headers": [auth_header]})
         request.db_session = dbs
         with pytest.raises(auth_exception) as exc:
@@ -59,7 +65,12 @@ class TestBackendAuth:
 
         assert exc.value.details == err_details
 
-    async def test_check_auth__user_not_active__fail(self, user, user_session, dbs):
+    async def test_check_auth__user_not_active__fail(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        user_session: UserSession,
+    ):
         await user.update(dbs, is_active=False, db_commit=True)
         request = self._prepare_request(dbs, user, user_session)
         with pytest.raises(AuthenticationFailedError) as exc:
@@ -67,7 +78,12 @@ class TestBackendAuth:
 
         assert exc.value.details == f"Couldn't found active user with id={user.id}."
 
-    async def test_check_auth__session_not_active__fail(self, user, user_session, dbs):
+    async def test_check_auth__session_not_active__fail(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        user_session: UserSession,
+    ):
         await user_session.update(dbs, is_active=False, db_commit=True)
         request = self._prepare_request(dbs, user, user_session)
         with pytest.raises(AuthenticationFailedError) as exc:
@@ -79,7 +95,13 @@ class TestBackendAuth:
         )
 
     @pytest.mark.parametrize("token_type", [TOKEN_TYPE_REFRESH, TOKEN_TYPE_RESET_PASSWORD])
-    async def test_check_auth__token_t_mismatch__fail(self, user, user_session, token_type, dbs):
+    async def test_check_auth__token_t_mismatch__fail(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        user_session: UserSession,
+        token_type,
+    ):
         await user_session.update(dbs, is_active=False, db_commit=True)
         token, _ = encode_jwt({"user_id": user.id}, token_type=token_type)
         request = self._prepare_request(dbs, user, user_session)
@@ -88,13 +110,23 @@ class TestBackendAuth:
 
         assert exc.value.details == f"Token type 'access' expected, got '{token_type}' instead."
 
-    async def test_check_auth__admin_required__ok(self, user, user_session, dbs):
+    async def test_check_auth__admin_required__ok(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        user_session: UserSession,
+    ):
         await user.update(dbs, is_superuser=True, db_commit=True)
         request = self._prepare_request(dbs, user, user_session)
         authenticated_user, _ = await AdminRequiredAuthBackend(request).authenticate()
         assert authenticated_user.id == user.id
 
-    async def test_check_auth__admin_required__not_superuser__fail(self, user, user_session, dbs):
+    async def test_check_auth__admin_required__not_superuser__fail(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        user_session: UserSession,
+    ):
         await user.update(dbs, is_superuser=False, db_commit=True)
         request = self._prepare_request(dbs, user, user_session)
         with pytest.raises(PermissionDeniedError) as exc:

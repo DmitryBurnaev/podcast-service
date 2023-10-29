@@ -4,6 +4,7 @@ import pytest
 
 from cli import run_task
 from modules.podcast.tasks import RQTask, GenerateRSSTask, DownloadEpisodeTask
+from tests.mocks import MockArgumentParser, MockRQQueue
 
 
 class RunTaskParams(NamedTuple):
@@ -21,8 +22,8 @@ class TestCLIRunTask:
     )
     def test_run_task__ok(
         self,
-        mocked_arg_parser,
-        mocked_rq_queue,
+        mocked_arg_parser: MockArgumentParser,
+        mocked_rq_queue: MockRQQueue,
         task_name: str,
         task_args: list[str],
         task_class: Type[RQTask],
