@@ -1,15 +1,17 @@
 import uuid
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 import pytest
 import yt_dlp
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.enums import SourceType
 from common.statuses import ResponseStatus
+from modules.auth.models import User
 from modules.podcast.models import Cookie
 from modules.providers.utils import SourceInfo
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import create_user
+from tests.helpers import create_user, PodcastTestClient
 from tests.mocks import MockYoutubeDL
 
 pytestmark = pytest.mark.asyncio
@@ -30,7 +32,13 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
             "entries": [mocked_youtube.episode_info(source_type)],
         }
 
-    async def test_retrieve__ok(self, client, user, mocked_source_info_youtube, mocked_youtube):
+    async def test_retrieve__ok(
+        self,
+        client: PodcastTestClient,
+        user: User,
+        mocked_source_info_youtube: Mock,
+        mocked_youtube: MockYoutubeDL,
+    ):
         self._playlist_data(mocked_youtube, source_type=SourceType.YOUTUBE)
         await client.login(user)
         response = client.get(self.url, params={"url": "http://link.to.source/"})
@@ -50,7 +58,11 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         }
 
     async def test_retrieve__yandex__ok(
-        self, client, user, mocked_source_info_yandex, mocked_youtube
+        self,
+        client: PodcastTestClient,
+        user: User,
+        mocked_source_info_yandex: Mock,
+        mocked_youtube: MockYoutubeDL,
     ):
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
         await client.login(user)
@@ -68,7 +80,12 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         ]
 
     async def test_retrieve__use_cookies(
-        self, dbs, client, user, mocked_source_info_yandex, mocked_youtube
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        mocked_source_info_yandex: Mock,
+        mocked_youtube: MockYoutubeDL,
     ):
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
         cdata = self.cdata | {"owner_id": user.id}
@@ -80,7 +97,12 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         mocked_youtube.assert_called_with(cookiefile=await cookie.as_file())
 
     async def test_retrieve__cookies_from_another_user(
-        self, dbs, client, user, mocked_source_info_yandex, mocked_youtube
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        mocked_source_info_yandex: Mock,
+        mocked_youtube: MockYoutubeDL,
     ):
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
 
@@ -96,7 +118,12 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         mocked_youtube.assert_called_with(cookiefile=await cookie.as_file())
 
     async def test_retrieve__last_cookie(
-        self, dbs, client, user, mocked_source_info_yandex, mocked_youtube
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        mocked_source_info_yandex: Mock,
+        mocked_youtube: MockYoutubeDL,
     ):
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
         cdata = self.cdata | {"owner_id": user.id}
@@ -111,7 +138,11 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
 
     @patch("modules.providers.utils.extract_source_info")
     async def test_retrieve__invalid_playlist_link__fail(
-        self, mocked_src_info, client, user, mocked_youtube
+        self,
+        mocked_src_info: Mock,
+        client: PodcastTestClient,
+        user: User,
+        mocked_youtube: MockYoutubeDL,
     ):
         mocked_youtube.extract_info.return_value = {"_type": "video"}
         mocked_src_info.return_value = SourceInfo(id=uuid.uuid4().hex, type=SourceType.YOUTUBE)
@@ -125,7 +156,11 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
 
     @patch("modules.providers.utils.extract_source_info")
     async def test_retrieve__unsupported_url__fail(
-        self, mocked_src_info, client, user, mocked_youtube
+        self,
+        mocked_src_info: Mock,
+        client: PodcastTestClient,
+        user: User,
+        mocked_youtube: MockYoutubeDL,
     ):
         err_msg = "Unsupported URL: https://fake.url"
         mocked_youtube.extract_info.side_effect = yt_dlp.utils.DownloadError(err_msg)

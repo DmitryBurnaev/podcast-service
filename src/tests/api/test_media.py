@@ -1,7 +1,7 @@
 import os
 import uuid
 from hashlib import md5
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -228,7 +228,11 @@ class TestRSSFileAPIView(BaseTestAPIView):
         assert user_ip.registered_by == rss_file.access_token
 
     async def test_get_rss__user_ip_already_registered_by__with_current_rss__ok(
-        self, client, rss_file, user, mocked_s3
+        self,
+        client: PodcastTestClient,
+        rss_file: File,
+        user: User,
+        mocked_s3: MockS3Client,
     ):
         mocked_s3.get_presigned_url.return_value = self.temp_link
 
@@ -252,7 +256,11 @@ class TestRSSFileAPIView(BaseTestAPIView):
         assert response.headers["location"] == self.temp_link
 
     async def test_get_rss__user_ip_already_registered_by__with_another_file__ok(
-        self, client, rss_file, user, mocked_s3
+        self,
+        client: PodcastTestClient,
+        rss_file: File,
+        user: User,
+        mocked_s3: MockS3Client,
     ):
         mocked_s3.get_presigned_url.return_value = self.temp_link
         await UserIP.async_create(
@@ -273,7 +281,7 @@ class TestRSSFileAPIView(BaseTestAPIView):
         assert response.status_code == 302
         assert response.headers["location"] == self.temp_link
 
-    async def test_get_not_rss__fail(self, client, image_file, user):
+    async def test_get_not_rss__fail(self, client: PodcastTestClient, image_file: File, user: User):
         await client.login(user)
         url = self.url.format(token=image_file.access_token)
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
@@ -297,7 +305,13 @@ class TestFileURL:
             (FileType.AUDIO, "/m/{access_token}/"),
         ),
     )
-    async def test_url(self, dbs, user, file_type, url_path_pattern):
+    async def test_url(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        file_type: FileType,
+        url_path_pattern: str,
+    ):
         file = await File.create(
             dbs,
             file_type=file_type,
@@ -308,26 +322,31 @@ class TestFileURL:
         url_path = url_path_pattern.format(access_token=file.access_token)
         assert file.url == f"https://self-service.test.url{url_path}"
 
-    async def test_url__file_not_available(self, dbs, image_file):
+    async def test_url__file_not_available(self, dbs: AsyncSession, image_file: File):
         await image_file.update(dbs, available=False, db_commit=True)
         assert image_file.url is None
 
-    async def test_public_url(self, dbs, image_file):
+    async def test_public_url(self, dbs: AsyncSession, image_file: File):
         await image_file.update(dbs, public=True, db_commit=True)
         assert image_file.url == f"https://storage.test.url/test-bucket{image_file.path}"
 
-    async def test_public_url__from_source(self, dbs, image_file):
+    async def test_public_url__from_source(self, dbs: AsyncSession, image_file: File):
         await image_file.update(
             dbs, public=True, source_url="https://test.file-src.com", db_commit=True
         )
         assert image_file.url == "https://test.file-src.com"
 
-    async def test_presigned_url(self, mocked_s3, image_file):
+    async def test_presigned_url(self, mocked_s3: MockS3Client, image_file: File):
         mocked_url = f"https://storage.test.url/presigned-url-to-file/{image_file.id}"
         mocked_s3.get_presigned_url.return_value = mocked_url
         assert await image_file.presigned_url == mocked_url
 
-    async def test_presigned_url__file_has_not_path(self, dbs, mocked_s3, image_file):
+    async def test_presigned_url__file_has_not_path(
+        self,
+        dbs: AsyncSession,
+        mocked_s3: MockS3Client,
+        image_file: File,
+    ):
         await image_file.update(dbs, path="", db_commit=True)
         mocked_url = f"https://storage.test.url/presigned-url-to-file/{image_file.id}"
         mocked_s3.get_presigned_url.return_value = mocked_url
@@ -343,12 +362,12 @@ class TestUploadAudioAPIView(BaseTestAPIView):
     @pytest.mark.parametrize("metadata", ("full", "empty"))
     async def test_upload__ok(
         self,
-        client,
-        user,
-        mocked_s3,
-        tmp_file,
+        client: PodcastTestClient,
+        user: User,
+        mocked_s3: MockS3Client,
+        tmp_file: File,
         mocked_audio_metadata,
-        metadata,
+        metadata: str,
     ):
         if metadata == "full":
             audio_metadata = {
@@ -400,11 +419,11 @@ class TestUploadAudioAPIView(BaseTestAPIView):
 
     async def test_upload__duplicate_uploaded_file__ok(
         self,
-        user,
-        client,
-        tmp_file,
-        mocked_s3,
-        mocked_audio_metadata,
+        user: User,
+        client: PodcastTestClient,
+        tmp_file: File,
+        mocked_s3: MockS3Client,
+        mocked_audio_metadata: Mock,
     ):
         audio_metadata = {
             "title": f"Test Title {uuid.uuid4().hex}",
@@ -441,25 +460,29 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         mocked_s3.upload_file_async.assert_not_awaited()
         mocked_audio_metadata.assert_called()
 
-    async def test_upload__empty_file__fail(self, client, user):
+    async def test_upload__empty_file__fail(self, client: PodcastTestClient, user: User):
         await client.login(user)
         file = ("test-audio.mp3", create_file(b""), "audio/mpeg")
         response = client.post(self.url, files={"file": file})
         self.assert_bad_request(response, {"file": "result file-size is less than allowed"})
 
-    async def test_upload__too_big_file__fail(self, client, user):
+    async def test_upload__too_big_file__fail(self, client: PodcastTestClient, user: User):
         await client.login(user)
         file = ("test-audio.mp3", create_file(b"test-data-too-big" * 10), "audio/mpeg")
         response = client.post(self.url, files={"file": file})
         self.assert_bad_request(response, {"file": "result file-size is more than allowed"})
 
-    async def test_upload__incorrect_content_type__fail(self, client, user):
+    async def test_upload__incorrect_content_type__fail(
+        self,
+        client: PodcastTestClient,
+        user: User,
+    ):
         await client.login(user)
         file = ("test-audio.mp3", create_file(b"test-data"), "image/jpeg")
         response = client.post(self.url, files={"file": file})
         self.assert_bad_request(response, {"file": "File must be audio, not image/jpeg"})
 
-    async def test_upload__missed_file__fail(self, client, user):
+    async def test_upload__missed_file__fail(self, client: PodcastTestClient, user: User):
         await client.login(user)
         response = client.post(self.url, files={"fake": create_file(b"")})
         self.assert_bad_request(
