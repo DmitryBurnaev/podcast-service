@@ -2,8 +2,10 @@ import asyncio
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import settings
+from modules.auth.models import UserSession, User
 from modules.podcast.models import Podcast, Episode
 from common.enums import EpisodeStatus
 from tests.api.test_base import BaseTestWSAPI
@@ -13,7 +15,9 @@ from tests.helpers import (
     get_episode_data,
     get_podcast_data,
     create_user_session,
+    PodcastTestClient,
 )
+from tests.mocks import MockRedisClient
 
 MB_1 = 1 * 1024 * 1024
 MB_2 = 2 * 1024 * 1024
@@ -57,12 +61,22 @@ def _redis_key(filename: str) -> str:
 class TestProgressAPIView(BaseTestWSAPI):
     url = "/ws/progress/"
 
-    async def test_no_items(self, client, user_session, mocked_redis):
+    async def test_no_items(
+        self,
+        client: PodcastTestClient,
+        user_session: UserSession,
+        mocked_redis: MockRedisClient,
+    ):
         response = self._ws_request(client, user_session)
         assert response == {"progressItems": []}
 
     async def test_filter_by_status__ok(
-        self, client, user_session, episode_data, mocked_redis, dbs
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user_session: UserSession,
+        episode_data: dict,
+        mocked_redis: MockRedisClient,
     ):
         user_id = user_session.user_id
         podcast_1 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user_id))
@@ -105,7 +119,13 @@ class TestProgressAPIView(BaseTestWSAPI):
             _episode_in_progress(podcast_1, p1_ep_down, current_size=MB_1, completed=50.0)
         )
 
-    async def test_filter_by_user__ok(self, client, episode_data, mocked_redis, dbs):
+    async def test_filter_by_user__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        episode_data: dict,
+        mocked_redis: MockRedisClient,
+    ):
         user_1 = await create_user(dbs)
         user_2 = await create_user(dbs)
 
@@ -145,7 +165,15 @@ class TestProgressAPIView(BaseTestWSAPI):
 class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
     url = "/ws/progress/"
 
-    async def test_single_episode__ok(self, client, user, user_session, podcast, mocked_redis, dbs):
+    async def test_single_episode__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        user_session: UserSession,
+        podcast: Podcast,
+        mocked_redis: MockRedisClient,
+    ):
         ep_data_1 = get_episode_data(creator=user)
         ep_data_2 = get_episode_data(creator=user)
         episode_1 = await create_episode(dbs, ep_data_1, podcast, STATUS.DOWNLOADING, MB_2)
@@ -173,7 +201,13 @@ class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
         ]
 
     async def test_single_episode__pubsub_ok(
-        self, client, user, user_session, podcast, mocked_redis, dbs
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        user_session: UserSession,
+        podcast: Podcast,
+        mocked_redis: MockRedisClient,
     ):
         mocked_redis.pubsub_channel.get_message.side_effect = {
             "data": settings.REDIS_PROGRESS_PUBSUB_SIGNAL
@@ -198,7 +232,14 @@ class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
         mocked_redis.pubsub_channel.subscribe.assert_awaited_with(settings.REDIS_PROGRESS_PUBSUB_CH)
 
     @patch("modules.podcast.views.progress.ProgressWS._send_progress_for_episodes")
-    async def test_single_episode__pubsub_timeout(self, _, client, user_session, mocked_redis, dbs):
+    async def test_single_episode__pubsub_timeout(
+        self,
+        _,
+        dbs: AsyncSession,
+        client,
+        user_session: UserSession,
+        mocked_redis: MockRedisClient,
+    ):
         mocked_redis.pubsub_channel.get_message.side_effect = asyncio.TimeoutError()
 
         response_data = self._ws_request(client, user_session, data={"episodeID": 1})
@@ -220,14 +261,14 @@ class TestEpisodeInProgressWSAPI(BaseTestWSAPI):
     )
     async def test_single_episode__no_progress_data__ok(
         self,
-        dbs,
-        client,
-        podcast,
-        episode,
-        user_session,
-        mocked_redis,
-        episode_status,
-        progress_status,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        podcast: Podcast,
+        episode: Episode,
+        user_session: UserSession,
+        mocked_redis: MockRedisClient,
+        episode_status: EpisodeStatus,
+        progress_status: EpisodeStatus,
     ):
         mocked_redis.async_get_many.return_value = lambda *_, **__: {}
         await episode.update(dbs, status=episode_status, db_commit=True)

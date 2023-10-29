@@ -1,20 +1,23 @@
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 from yt_dlp.utils import ExtractorError
 
 from common.enums import SourceType, FileType
+from modules.auth.models import User
 from modules.media.models import File
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast.episodes import EpisodeCreator
 from modules.podcast.models import Podcast, Episode, Cookie
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import get_podcast_data, create_user
+from tests.mocks import MockYoutubeDL
 
 pytestmark = pytest.mark.asyncio
 
 
 class TestEpisodeCreator(BaseTestAPIView):
     @staticmethod
-    async def assert_files(dbs, episode: Episode, new_episode: Episode):
+    async def assert_files(dbs: AsyncSession, episode: Episode, new_episode: Episode):
         audio: File = await File.async_get(dbs, id=episode.audio_id)
         new_audio: File = await File.async_get(dbs, id=new_episode.audio_id)
         assert audio.type == new_audio.type
@@ -31,7 +34,13 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert image.source_url == new_image.source_url
         assert image.available == new_image.available
 
-    async def test_ok(self, podcast, user, mocked_youtube, dbs):
+    async def test_ok(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        podcast: Podcast,
+        mocked_youtube,
+    ):
         source_id = mocked_youtube.source_id
         watch_url = f"https://www.youtube.com/watch?v={source_id}"
         episode_creator = EpisodeCreator(
@@ -60,7 +69,13 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert image.available is False
         assert image.public is True
 
-    async def test_same_episode_in_podcast__ok(self, episode, user, mocked_youtube, dbs):
+    async def test_same_episode_in_podcast__ok(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        episode: Episode,
+        mocked_youtube: MockYoutubeDL,
+    ):
         episode_creator = EpisodeCreator(
             dbs,
             podcast_id=episode.podcast_id,
@@ -73,7 +88,13 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert new_episode.source_id == episode.source_id
         assert new_episode.watch_url == episode.watch_url
 
-    async def test_same_episode_in_other_podcast__ok(self, episode, user, mocked_youtube, dbs):
+    async def test_same_episode_in_other_podcast__ok(
+        self,
+        episode: Episode,
+        user: User,
+        mocked_youtube: MockYoutubeDL,
+        dbs: AsyncSession,
+    ):
         mocked_youtube.extract_info.return_value = {
             "id": episode.source_id,
             "title": "Updated title",
@@ -104,7 +125,13 @@ class TestEpisodeCreator(BaseTestAPIView):
 
         await self.assert_files(dbs, episode, new_episode)
 
-    async def test_same_episode__extract_failed__ok(self, episode, user, mocked_youtube, dbs):
+    async def test_same_episode__extract_failed__ok(
+        self,
+        episode,
+        user,
+        mocked_youtube,
+        dbs: AsyncSession,
+    ):
         mocked_youtube.extract_info.side_effect = ExtractorError("Something went wrong here")
         new_podcast = await Podcast.async_create(dbs, **get_podcast_data())
         episode_creator = EpisodeCreator(
@@ -121,7 +148,14 @@ class TestEpisodeCreator(BaseTestAPIView):
 
         await self.assert_files(dbs, episode, new_episode)
 
-    async def test_extract_failed__fail(self, podcast, episode_data, user, mocked_youtube, dbs):
+    async def test_extract_failed__fail(
+        self,
+        podcast,
+        episode_data,
+        user,
+        mocked_youtube,
+        dbs: AsyncSession,
+    ):
         ydl_error = ExtractorError("Something went wrong here", video_id=episode_data["source_id"])
         mocked_youtube.extract_info.side_effect = ydl_error
         episode_creator = EpisodeCreator(
