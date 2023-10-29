@@ -1,13 +1,16 @@
 import uuid
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.statuses import ResponseStatus
-from modules.auth.models import UserIP, User
+from modules.auth.models import UserIP, User, UserSession
 from modules.auth.utils import encode_jwt, TOKEN_TYPE_RESET_PASSWORD, TOKEN_TYPE_REFRESH
+from modules.media.models import File
 from modules.podcast.models import Podcast
 from tests.api.test_auth import INVALID_CHANGE_PASSWORD_DATA
 from tests.api.test_base import BaseTestAPIView
+from tests.helpers import PodcastTestClient
 
 pytestmark = pytest.mark.asyncio
 
@@ -15,7 +18,7 @@ pytestmark = pytest.mark.asyncio
 class TestProfileAPIView(BaseTestAPIView):
     url = "/api/auth/me/"
 
-    async def test_get__ok(self, client, user):
+    async def test_get__ok(self, client: PodcastTestClient, user: User):
         await client.login(user)
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
@@ -26,7 +29,7 @@ class TestProfileAPIView(BaseTestAPIView):
             "is_superuser": user.is_superuser,
         }
 
-    async def test_patch__ok(self, dbs, client, user):
+    async def test_patch__ok(self, dbs, client: PodcastTestClient, user: User):
         await client.login(user)
         response = client.patch(self.url, json={"email": "new-user@test.com"})
         response_data = self.assert_ok_response(response)
@@ -45,7 +48,12 @@ class TestChangePasswordAPIView(BaseTestAPIView):
     url = "/api/auth/change-password/"
     new_password = "new123456"
 
-    def _assert_fail_response(self, client, token: str, response_status: str = None) -> dict:
+    def _assert_fail_response(
+        self,
+        client: PodcastTestClient,
+        token: str,
+        response_status: str | None = None,
+    ) -> dict:
         request_data = {
             "token": token,
             "password_1": self.new_password,
@@ -59,7 +67,13 @@ class TestChangePasswordAPIView(BaseTestAPIView):
             assert response_data["status"] == response_status
         return response.json()["payload"]
 
-    async def test_change_password__ok(self, client, user, user_session, dbs):
+    async def test_change_password__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        user_session: UserSession,
+    ):
         token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
         request_data = {
             "token": token,
@@ -77,16 +91,21 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         assert not user_session.is_active
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_CHANGE_PASSWORD_DATA)
-    async def test_invalid_request__fail(self, client, invalid_data: dict, error_details: dict):
+    async def test_invalid_request__fail(
+        self,
+        client: PodcastTestClient,
+        invalid_data: dict,
+        error_details: dict,
+    ):
         client.logout()
         self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
 
-    async def test__token_expired__fail(self, client, user):
+    async def test__token_expired__fail(self, client: PodcastTestClient, user: User):
         token, _ = encode_jwt({"user_id": user.id}, expires_in=-10)
         response_data = self._assert_fail_response(client, token, ResponseStatus.AUTH_FAILED)
         self.assert_auth_invalid(response_data, "JWT signature has been expired for token")
 
-    async def test__token_invalid_type__fail(self, client, user):
+    async def test__token_invalid_type__fail(self, client: PodcastTestClient, user: User):
         token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_REFRESH)
         response_data = self._assert_fail_response(client, token)
         self.assert_auth_invalid(
@@ -97,13 +116,18 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         response_data = self._assert_fail_response(client, "fake-jwt")
         self.assert_auth_invalid(response_data, "Token could not be decoded: Not enough segments")
 
-    async def test_user_inactive__fail(self, client, user, dbs):
+    async def test_user_inactive__fail(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+    ):
         await user.update(dbs, is_active=False, db_commit=True)
         token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
         response_data = self._assert_fail_response(client, token)
         self.assert_auth_invalid(response_data, f"Couldn't found active user with id={user.id}.")
 
-    async def test_user_does_not_exist__fail(self, client):
+    async def test_user_does_not_exist__fail(self, client: PodcastTestClient):
         user_id = 0
         token, _ = encode_jwt({"user_id": user_id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
         response_data = self._assert_fail_response(client, token)
@@ -143,7 +167,13 @@ class TestUserIPsAPIView(BaseTestAPIView):
             is_active=True,
         )
 
-    async def test_get_list_ips(self, client, dbs, podcast, rss_file):
+    async def test_get_list_ips(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        podcast: Podcast,
+        rss_file: File,
+    ):
         user_1 = await self._create_user(dbs, email=f"test-user-1-{uuid.uuid4().hex[:10]}@test.com")
         user_2 = await self._create_user(dbs, email=f"test-user-2-{uuid.uuid4().hex[:10]}@test.com")
         await podcast.update(dbs, rss_id=rss_file.id)
@@ -185,7 +215,7 @@ class TestUserIPsAPIView(BaseTestAPIView):
             self._ip_in_list(user_1_ip_2),
         ]
 
-    async def test_delete_ips(self, client, user_data, dbs):
+    async def test_delete_ips(self, dbs: AsyncSession, client: PodcastTestClient, user_data: dict):
         user_1 = await self._create_user(dbs, email=f"test-user-1-{uuid.uuid4().hex[:10]}@test.com")
         user_2 = await self._create_user(dbs, email=f"test-user-2-{uuid.uuid4().hex[:10]}@test.com")
         await dbs.refresh(user_1)
