@@ -1,21 +1,23 @@
 import os.path
 import uuid
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 from yt_dlp.utils import DownloadError
 
 from common.exceptions import NotFoundError
 from core import settings
 from modules.media.models import File
-from modules.podcast.models import Episode, Podcast
+from modules.podcast.models import Episode, Podcast, Cookie
 from common.enums import EpisodeStatus, SourceType
 from modules.podcast.tasks import DownloadEpisodeTask, DownloadEpisodeImageTask
 from modules.podcast.tasks.base import TaskResultCode
 from modules.providers.utils import download_process_hook
 from tests.api.test_base import BaseTestCase
 from tests.helpers import get_podcast_data, create_episode
+from tests.mocks import MockYoutubeDL, MockRedisClient, MockS3Client, MockGenerateRSS
 
 pytestmark = pytest.mark.asyncio
 
@@ -31,13 +33,13 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
     async def test_downloading_ok(
         self,
-        episode,
-        mocked_youtube,
-        mocked_ffmpeg,
-        mocked_redis,
-        mocked_s3,
-        mocked_generate_rss_task,
-        dbs,
+        dbs: AsyncSession,
+        episode: Episode,
+        mocked_youtube: MockYoutubeDL,
+        mocked_ffmpeg: Mock,
+        mocked_redis: MockRedisClient,
+        mocked_s3: MockS3Client,
+        mocked_generate_rss_task: MockGenerateRSS,
     ):
         mocked_s3.get_file_size.return_value = 123
 
@@ -70,14 +72,14 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
     async def test_downloading__using_cookies__ok(
         self,
-        episode,
-        mocked_youtube,
-        mocked_ffmpeg,
-        mocked_s3,
-        mocked_redis,
-        mocked_generate_rss_task,
-        dbs,
-        cookie,
+        dbs: AsyncSession,
+        cookie: Cookie,
+        episode: Episode,
+        mocked_youtube: MockYoutubeDL,
+        mocked_ffmpeg: Mock,
+        mocked_s3: MockS3Client,
+        mocked_redis: MockRedisClient,
+        mocked_generate_rss_task: MockGenerateRSS,
     ):
         file_path = await self._source_file(dbs, episode)
         await episode.update(dbs, cookie_id=cookie.id, db_commit=True)
@@ -94,14 +96,14 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
     async def test_skip_postprocessing(
         self,
-        dbs,
-        cookie,
-        episode,
-        mocked_s3,
-        mocked_redis,
-        mocked_ffmpeg,
-        mocked_youtube,
-        mocked_generate_rss_task,
+        dbs: AsyncSession,
+        cookie: Cookie,
+        episode: Episode,
+        mocked_s3: MockS3Client,
+        mocked_redis: MockRedisClient,
+        mocked_ffmpeg: Mock,
+        mocked_youtube: MockYoutubeDL,
+        mocked_generate_rss_task: MockGenerateRSS,
         mocked_source_info_yandex,
     ):
         file_path = await self._source_file(dbs, episode)
@@ -122,14 +124,14 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
     async def test_file_correct__skip(
         self,
-        episode_data,
-        podcast_data,
-        mocked_s3,
-        mocked_redis,
-        mocked_ffmpeg,
-        mocked_youtube,
-        mocked_generate_rss_task,
-        dbs,
+        dbs: AsyncSession,
+        episode_data: dict,
+        podcast_data: dict,
+        mocked_s3: MockS3Client,
+        mocked_redis: MockRedisClient,
+        mocked_ffmpeg: Mock,
+        mocked_youtube: MockYoutubeDL,
+        mocked_generate_rss_task: MockGenerateRSS,
     ):
         podcast_1 = await Podcast.async_create(dbs, **get_podcast_data())
         podcast_2 = await Podcast.async_create(dbs, **get_podcast_data())
@@ -170,13 +172,13 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
     async def test_file_bad_size__ignore(
         self,
-        episode_data,
-        mocked_s3,
-        mocked_redis,
-        mocked_ffmpeg,
-        mocked_youtube,
-        mocked_generate_rss_task,
-        dbs,
+        dbs: AsyncSession,
+        episode_data: dict,
+        mocked_s3: MockS3Client,
+        mocked_redis: MockRedisClient,
+        mocked_ffmpeg: Mock,
+        mocked_youtube: MockYoutubeDL,
+        mocked_generate_rss_task: MockGenerateRSS,
     ):
         episode_data.update(
             {
@@ -215,13 +217,13 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
     async def test_downloading_failed__roll_back_changes__ok(
         self,
-        episode,
-        mocked_youtube,
-        mocked_ffmpeg,
-        mocked_s3,
-        mocked_generate_rss_task,
-        mocked_redis,
-        dbs,
+        dbs: AsyncSession,
+        episode: Episode,
+        mocked_youtube: MockYoutubeDL,
+        mocked_ffmpeg: Mock,
+        mocked_s3: MockS3Client,
+        mocked_generate_rss_task: MockGenerateRSS,
+        mocked_redis: MockRedisClient,
     ):
         await self._source_file(dbs, episode)
         mocked_youtube.download.side_effect = DownloadError("Video is not available")
@@ -237,7 +239,13 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.status == Episode.Status.ERROR
         assert episode.published_at is None
 
-    async def test_unexpected_error__ok(self, episode, mocked_youtube, mocked_redis, dbs):
+    async def test_unexpected_error__ok(
+        self,
+        dbs: AsyncSession,
+        episode: Episode,
+        mocked_youtube: MockYoutubeDL,
+        mocked_redis: MockRedisClient,
+    ):
         mocked_youtube.download.side_effect = RuntimeError("Oops")
         result = await DownloadEpisodeTask(db_session=dbs).run(episode.id)
         episode = await Episode.async_get(dbs, id=episode.id)
@@ -251,13 +259,13 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
     async def test_upload_to_s3_failed__fail(
         self,
-        episode,
-        mocked_youtube,
-        mocked_ffmpeg,
-        mocked_s3,
-        mocked_redis,
-        mocked_generate_rss_task,
-        dbs,
+        dbs: AsyncSession,
+        episode: Episode,
+        mocked_youtube: MockYoutubeDL,
+        mocked_ffmpeg: Mock,
+        mocked_s3: MockS3Client,
+        mocked_redis: MockRedisClient,
+        mocked_generate_rss_task: MockGenerateRSS,
     ):
         await self._source_file(dbs, episode)
 
@@ -293,11 +301,11 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
     async def test_download__cancel__check_teardown_logic(
         self,
-        mocked_youtube,
-        mocked_ffmpeg,
-        mocked_redis,
-        mocked_s3,
-        mocked_generate_rss_task,
+        mocked_youtube: MockYoutubeDL,
+        mocked_ffmpeg: Mock,
+        mocked_redis: MockRedisClient,
+        mocked_s3: MockS3Client,
+        mocked_generate_rss_task: MockGenerateRSS,
     ):
         assert True
         # TODO: implement test with real calling teardown method (and checking ffmpeg calling)
@@ -319,13 +327,13 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
     @patch("modules.podcast.tasks.download.download_content")
     async def test_image_ok(
         self,
+        dbs: AsyncSession,
+        episode: Episode,
         mocked_download_content,
-        mocked_ffmpeg,
+        mocked_ffmpeg: Mock,
         mocked_file_size,
         mocked_name,
-        episode,
-        mocked_s3,
-        dbs,
+        mocked_s3: MockS3Client,
     ):
         tmp_path = settings.TMP_IMAGE_PATH / f"{episode.source_id}.jpg"
         mocked_download_content.return_value = tmp_path
@@ -359,7 +367,12 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
         )
 
     @patch("modules.podcast.tasks.download.download_content")
-    async def test_image_not_found__use_default(self, mocked_download_content, episode, dbs):
+    async def test_image_not_found__use_default(
+        self,
+        dbs: AsyncSession,
+        episode: Episode,
+        mocked_download_content,
+    ):
         mocked_download_content.side_effect = NotFoundError()
         result = await DownloadEpisodeImageTask(db_session=dbs).run(episode.id)
         await dbs.refresh(episode)
@@ -369,7 +382,12 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
         assert episode.image_url == settings.DEFAULT_EPISODE_COVER
 
     @patch("modules.podcast.tasks.download.download_content")
-    async def test_skip_already_downloaded(self, mocked_download_content, episode, dbs):
+    async def test_skip_already_downloaded(
+        self,
+        dbs: AsyncSession,
+        episode: Episode,
+        mocked_download_content: Mock,
+    ):
         remote_path = os.path.join(
             settings.S3_BUCKET_IMAGES_PATH, "episode_{uuid.uuid4().hex}_image.png"
         )

@@ -1,7 +1,7 @@
 import logging
 import time
 import uuid
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, Mock
 
 import pytest
 
@@ -73,7 +73,7 @@ class TestRunTask:
 
 @patch("rq.job.Job.cancel")
 @patch("rq.job.Job.fetch")
-def test_cancel_task(mocked_job_fetch, mocked_job_cancel):
+def test_cancel_task(mocked_job_fetch: Mock, mocked_job_cancel: Mock):
     mocked_job_fetch.return_value = MockJob()
     job_id = TaskForTest.get_job_id(1, 2, kwarg=123)
 

@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import settings
 from modules.auth.models import User
@@ -9,6 +10,7 @@ from modules.podcast.tasks import UploadedEpisodeTask
 from modules.podcast.tasks.base import TaskResultCode
 from tests.api.test_base import BaseTestCase
 from tests.helpers import get_episode_data, get_source_id
+from tests.mocks import MockS3Client, MockRedisClient, MockGenerateRSS
 
 pytestmark = pytest.mark.asyncio
 
@@ -16,7 +18,11 @@ pytestmark = pytest.mark.asyncio
 class TestUploadedEpisodeTask(BaseTestCase):
     @staticmethod
     async def _episode(
-        dbs, podcast: Podcast, creator: User, file_size: int = 32, source_id: str = None
+        dbs: AsyncSession,
+        podcast: Podcast,
+        creator: User,
+        file_size: int = 32,
+        source_id: str | None = None,
     ) -> Episode:
         episode_data = get_episode_data(podcast=podcast, creator=creator, source_id=source_id)
         episode_data["source_type"] = SourceType.UPLOAD
@@ -37,7 +43,13 @@ class TestUploadedEpisodeTask(BaseTestCase):
         return episode
 
     async def test_run_ok(
-        self, dbs, podcast, user, mocked_s3, mocked_redis, mocked_generate_rss_task
+        self,
+        dbs: AsyncSession,
+        user: User,
+        podcast: Podcast,
+        mocked_s3: MockS3Client,
+        mocked_redis: MockRedisClient,
+        mocked_generate_rss_task: MockGenerateRSS,
     ):
         mocked_s3.get_file_size.return_value = 1024
         source_id = get_source_id(prefix="upl")
@@ -69,12 +81,12 @@ class TestUploadedEpisodeTask(BaseTestCase):
 
     async def test_file_bad_size__error(
         self,
-        dbs,
-        user,
-        podcast,
-        mocked_s3,
-        mocked_redis,
-        mocked_generate_rss_task,
+        dbs: AsyncSession,
+        user: User,
+        podcast: Podcast,
+        mocked_s3: MockS3Client,
+        mocked_redis: MockRedisClient,
+        mocked_generate_rss_task: MockGenerateRSS,
     ):
         mocked_s3.get_file_size.return_value = 32
         episode = await self._episode(dbs, podcast, user, file_size=1024)
@@ -95,7 +107,13 @@ class TestUploadedEpisodeTask(BaseTestCase):
         )
 
     async def test_move_s3_failed__error(
-        self, dbs, podcast, user, mocked_s3, mocked_redis, mocked_generate_rss_task
+        self,
+        dbs: AsyncSession,
+        podcast: Podcast,
+        user: User,
+        mocked_s3: MockS3Client,
+        mocked_redis: MockRedisClient,
+        mocked_generate_rss_task: MockGenerateRSS,
     ):
         mocked_s3.get_file_size.return_value = 1024
         mocked_s3.copy_file.side_effect = RuntimeError("Oops")

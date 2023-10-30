@@ -2,7 +2,7 @@ import os
 import subprocess
 from pathlib import Path
 from subprocess import CompletedProcess
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 import pytest
 
@@ -12,6 +12,7 @@ from modules.podcast.utils import post_processing_process_hook
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
 from modules.providers.utils import ffmpeg_preparation, audio_metadata, AudioMetaData
 from tests.api.test_base import BaseTestCase
+from tests.mocks import MockProcess
 
 
 class TestFFMPEG(BaseTestCase):
@@ -26,7 +27,10 @@ class TestFFMPEG(BaseTestCase):
             f.write(b"data")
 
     def assert_hooks_calls(
-        self, mocked_process_hook, expected_calls: list[dict] = None, finish_call: dict = None
+        self,
+        mocked_process_hook: Mock,
+        expected_calls: list[dict] | None = None,
+        finish_call: dict = None,
     ):
         expected_calls = expected_calls or [
             dict(
@@ -42,7 +46,12 @@ class TestFFMPEG(BaseTestCase):
 
     @patch("subprocess.run")
     @patch("modules.providers.utils.episode_process_hook")
-    def test_episode_prepare__ok(self, mocked_process_hook, mocked_run, mocked_process):
+    def test_episode_prepare__ok(
+        self,
+        mocked_process_hook: Mock,
+        mocked_run: Mock,
+        mocked_process: MockProcess,
+    ):
         mocked_run.return_value = CompletedProcess([], returncode=0, stdout=b"Success")
         ffmpeg_preparation(self.src_path)
         tmp_file = Path(self.tmp_filename)
@@ -87,7 +96,7 @@ class TestFFMPEG(BaseTestCase):
 
     @patch("subprocess.run")
     @patch("modules.providers.utils.episode_process_hook")
-    def test_episode_prepare__ffmpeg_error__fail(self, mocked_process_hook, mocked_run):
+    def test_episode_prepare__ffmpeg_error__fail(self, mocked_process_hook: Mock, mocked_run: Mock):
         mocked_run.side_effect = subprocess.CalledProcessError(1, "ffmpeg", stderr=b"FFMPEG oops")
         with pytest.raises(FFMPegPreparationError) as exc:
             ffmpeg_preparation(self.src_path)
@@ -106,7 +115,7 @@ class TestFFMPEG(BaseTestCase):
 
     @patch("subprocess.run")
     @patch("modules.providers.utils.episode_process_hook")
-    def test_episode_prepare__io_error__fail(self, mocked_process_hook, mocked_run):
+    def test_episode_prepare__io_error__fail(self, mocked_process_hook: Mock, mocked_run: Mock):
         mocked_run.return_value = CompletedProcess([], returncode=0, stdout=b"Success")
         os.remove(self.tmp_filename)
 
@@ -127,7 +136,11 @@ class TestFFMPEG(BaseTestCase):
     @patch("time.sleep", lambda x: None)
     @patch("modules.podcast.utils.get_file_size")
     @patch("modules.podcast.utils.episode_process_hook")
-    def test_post_processing_process_hook__ok(self, mocked_process_hook, mocked_file_size):
+    def test_post_processing_process_hook__ok(
+        self,
+        mocked_process_hook: Mock,
+        mocked_file_size: Mock,
+    ):
         mocked_file_size.return_value = 100
         # call single time
         post_processing_process_hook(self.filename, target_path=self.tmp_filename, total_bytes=100)
@@ -145,7 +158,7 @@ class TestFFMPEG(BaseTestCase):
         )
 
     @patch("subprocess.run")
-    def test_extract_metadata__ok(self, mocked_run):
+    def test_extract_metadata__ok(self, mocked_run: Mock):
         ffmpeg_stdout = """
 Input #0, mp3, from '01.AudioTrack.mp3':
   Metadata:
@@ -190,7 +203,7 @@ video:0kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing ove
         assert result.duration == 1102
 
     @patch("subprocess.run")
-    def test_extract_metadata__missed_some_data__ok(self, mocked_run):
+    def test_extract_metadata__missed_some_data__ok(self, mocked_run: Mock):
         ffmpeg_stdout = """
 Input #0, mp3, from '01.AudioTrack.mp3':
   Metadata:
@@ -209,7 +222,7 @@ Input #0, mp3, from '01.AudioTrack.mp3':
         assert result.album is None
 
     @patch("subprocess.run")
-    def test_extract_metadata__missed_metadata_at_all__ok(self, mocked_run):
+    def test_extract_metadata__missed_metadata_at_all__ok(self, mocked_run: Mock):
         ffmpeg_stdout = """
 Input #0, mp3, from '01.AudioTrack.mp3':
   Duration: 00:18:22.91, start: 0.000000, bitrate: 196 kb/s
@@ -226,7 +239,7 @@ Input #0, mp3, from '01.AudioTrack.mp3':
         assert result.album is None
 
     @patch("subprocess.run")
-    def test_extract_metadata__missed_all_data__fail(self, mocked_run):
+    def test_extract_metadata__missed_all_data__fail(self, mocked_run: Mock):
         ffmpeg_stdout = """
 Input #0, mp3, from '01.AudioTrack.mp3':
             """
@@ -238,7 +251,7 @@ Input #0, mp3, from '01.AudioTrack.mp3':
         assert "Found result" in exc.value.details
 
     @patch("subprocess.run")
-    def test_extract_metadata__ffmpeg_error__fail(self, mocked_run):
+    def test_extract_metadata__ffmpeg_error__fail(self, mocked_run: Mock):
         mocked_run.side_effect = subprocess.CalledProcessError(1, "ffmpeg", stderr=b"FFMPEG oops")
         with pytest.raises(FFMPegPreparationError) as exc:
             audio_metadata(self.src_path)
