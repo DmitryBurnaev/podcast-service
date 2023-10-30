@@ -6,13 +6,14 @@ import pytest
 
 from common.exceptions import NotFoundError
 from common.utils import download_content
+from tests.mocks import MockHTTPXClient
 
 pytestmark = pytest.mark.asyncio
 
 TEST_FILE_URL = "http://test.path-to-file.com/image.jpg"
 
 
-async def test_download_content__ok(mocked_httpx_client):
+async def test_download_content__ok(mocked_httpx_client: MockHTTPXClient):
     mocked_httpx_client.get.return_value = mocked_httpx_client.Response(
         status_code=200, data={"test": 123}
     )
@@ -26,7 +27,7 @@ async def test_download_content__ok(mocked_httpx_client):
     os.remove(result_path)
 
 
-async def test_download_content__unexpected_error(mocked_httpx_client):
+async def test_download_content__unexpected_error(mocked_httpx_client: MockHTTPXClient):
     exc = RuntimeError("Oops")
     mocked_httpx_client.get.side_effect = exc
     with patch.object(logging.Logger, "warning") as mock_logger:
@@ -37,7 +38,7 @@ async def test_download_content__unexpected_error(mocked_httpx_client):
     mock_logger.assert_called_with("Couldn't download %s! Error: %r", TEST_FILE_URL, exc)
 
 
-async def test_download_content__object_not_found(mocked_httpx_client):
+async def test_download_content__object_not_found(mocked_httpx_client: MockHTTPXClient):
     mocked_httpx_client.get.return_value = mocked_httpx_client.Response(
         status_code=404, data={"error": "NotFound"}
     )
@@ -47,7 +48,7 @@ async def test_download_content__object_not_found(mocked_httpx_client):
     mocked_exception.value.args = (f"Resource not found by URL {TEST_FILE_URL}!",)
 
 
-async def test_download_content__not_success_response(mocked_httpx_client):
+async def test_download_content__not_success_response(mocked_httpx_client: MockHTTPXClient):
     mocked_httpx_client.get.return_value = mocked_httpx_client.Response(
         status_code=400, data={"error": "Oops"}
     )
@@ -61,7 +62,7 @@ async def test_download_content__not_success_response(mocked_httpx_client):
     assert mocked_logger.call_count == 2
 
 
-async def test_download_content__missed_content(mocked_httpx_client):
+async def test_download_content__missed_content(mocked_httpx_client: MockHTTPXClient):
     mocked_httpx_client.get.return_value = mocked_httpx_client.Response(status_code=200, data=None)
     with pytest.raises(NotFoundError) as mocked_exception:
         await download_content(url=TEST_FILE_URL, file_ext="jpg", retries=1)

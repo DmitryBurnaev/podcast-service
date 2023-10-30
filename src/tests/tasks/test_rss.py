@@ -2,14 +2,17 @@ import os
 from datetime import datetime
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.enums import FileType
+from modules.auth.models import User
 from modules.media.models import File
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast
 from modules.podcast.tasks.base import TaskResultCode
 from modules.podcast.utils import get_file_size
 from tests.helpers import get_episode_data, get_podcast_data, create_episode
+from tests.mocks import MockS3Client
 
 pytestmark = pytest.mark.asyncio
 
@@ -17,7 +20,12 @@ pytestmark = pytest.mark.asyncio
 class TestGenerateRSSTask:
     """Checks RSS generation logic"""
 
-    async def test_generate__single_podcast__ok(self, user, mocked_s3, dbs):
+    async def test_generate__single_podcast__ok(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        mocked_s3: MockS3Client,
+    ):
         podcast_1: Podcast = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id))
         podcast_2: Podcast = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id))
 
@@ -64,7 +72,12 @@ class TestGenerateRSSTask:
         assert rss.path == str(expected_file_path)
         assert rss.size == get_file_size(expected_file_path)
 
-    async def test_regenerate__replace_rss(self, podcast, mocked_s3, dbs):
+    async def test_regenerate__replace_rss(
+        self,
+        dbs: AsyncSession,
+        podcast: Podcast,
+        mocked_s3: MockS3Client,
+    ):
         old_rss_id = podcast.rss_id
         expected_file_path = mocked_s3.tmp_upload_dir / f"{podcast.publish_id}.xml"
         generate_rss_task = tasks.GenerateRSSTask(db_session=dbs)
@@ -81,7 +94,12 @@ class TestGenerateRSSTask:
         assert rss.size == get_file_size(expected_file_path)
         mocked_s3.delete_files_async.assert_not_awaited()
 
-    async def test_generate__several_podcasts__ok(self, user, mocked_s3, dbs):
+    async def test_generate__several_podcasts__ok(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        mocked_s3: MockS3Client,
+    ):
         podcast_1 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id))
         podcast_2 = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id))
         await dbs.commit()
@@ -94,7 +112,12 @@ class TestGenerateRSSTask:
             expected_file_path = mocked_s3.tmp_upload_dir / f"{podcast.publish_id}.xml"
             assert os.path.exists(expected_file_path), f"File {expected_file_path} didn't uploaded"
 
-    async def test_generate__upload_failed__fail(self, podcast, mocked_s3, dbs):
+    async def test_generate__upload_failed__fail(
+        self,
+        dbs: AsyncSession,
+        podcast: Podcast,
+        mocked_s3: MockS3Client,
+    ):
         old_path = "/remote/old_path.rss"
         mocked_s3.upload_file.side_effect = lambda *_, **__: ""
         await File.async_update(

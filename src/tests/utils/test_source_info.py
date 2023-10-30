@@ -13,7 +13,7 @@ from modules.providers.utils import extract_source_info
         ("https://youtu.be/FooBar12345", SourceType.YOUTUBE, "FooBar12345"),
     ],
 )
-def test_fetch_source_type__ok(source_url, source_type, source_id):
+def test_fetch_source_type__ok(source_url: str, source_type: SourceType, source_id: str):
     source_info = extract_source_info(source_url)
     assert source_info.type == source_type
     assert source_info.url == source_url
@@ -28,7 +28,7 @@ def test_fetch_source_type__ok(source_url, source_type, source_id):
         "https://youtu.be/12",
     ],
 )
-def test_fetch_source_type__didnt_match(source_url):
+def test_fetch_source_type__didnt_match(source_url: str):
     with pytest.raises(InvalidRequestError) as e:
         extract_source_info(source_url)
 

@@ -44,7 +44,7 @@ class TestEncryptSensitiveData:
         expected_tag_b64b = base64.b64encode(ENCRYPT_TAG).decode()
         return f"AES256;{expected_nonce_b64b};{expected_encoded_message_b64b};{expected_tag_b64b}"
 
-    def test_encrypt(self, mocked_aes):
+    def test_encrypt(self, mocked_aes: MockAESResult):
         mocked_aes.cipher.encrypt_and_digest.return_value = (ENCRYPTED_SENS_DATA, ENCRYPT_TAG)
 
         encrypted = SensitiveData(ENCRYPT_KEY).encrypt(SENS_DATA)
@@ -53,7 +53,7 @@ class TestEncryptSensitiveData:
         mocked_aes.mock_new.assert_called_with(ENCRYPT_KEY, AES.MODE_EAX)
         mocked_aes.cipher.encrypt_and_digest.assert_called_with(SENS_DATA.encode())
 
-    def test_decrypt(self, mocked_aes):
+    def test_decrypt(self, mocked_aes: MockAESResult):
         mocked_aes.cipher.decrypt.return_value = SENS_DATA.encode()
 
         encrypted_data = self._encrypted_string()

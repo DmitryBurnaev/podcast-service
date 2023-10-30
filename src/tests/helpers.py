@@ -34,7 +34,8 @@ class PodcastTestClient(TestClient):
         self.headers.pop("Authorization", None)
 
 
-def mock_target_class(mock_class: Type[BaseMock], monkeypatch):
+# TODO: use new type's annotation here
+def mock_target_class(mock_class: Type[BaseMock], monkeypatch) -> BaseMock:
     """Allows to mock any classes (is used as fixture)
 
     # in conftest.py:
@@ -82,9 +83,9 @@ def get_source_id(prefix: str = "") -> str:
 
 
 def get_episode_data(
-    podcast: Podcast = None,
+    podcast: Podcast | None = None,
     status: EpisodeStatus = EpisodeStatus.NEW,
-    creator: User = None,
+    creator: User | None = None,
     source_id: str | None = None,
 ) -> dict:
     source_id = source_id or get_source_id()
@@ -129,7 +130,7 @@ async def make_db_session():
     await async_session.__aexit__(None, None, None)
 
 
-async def create_user(db_session) -> User:
+async def create_user(db_session: AsyncSession) -> User:
     email, password = get_user_data()
     return await User.async_create(db_session, db_commit=True, email=email, password=password)
 
@@ -141,7 +142,7 @@ def create_file(content: str | bytes) -> io.BytesIO:
     return io.BytesIO(content)
 
 
-async def create_user_session(db_session, user) -> UserSession:
+async def create_user_session(db_session: AsyncSession, user: User) -> UserSession:
     return await UserSession.async_create(
         db_session,
         db_commit=True,
@@ -158,15 +159,15 @@ async def create_user_session(db_session, user) -> UserSession:
 async def create_episode(
     db_session: AsyncSession,
     episode_data: dict,
-    podcast: Podcast = None,
-    status: Episode.Status = None,
+    podcast: Podcast | None = None,
+    status: EpisodeStatus | None = None,
     file_size: int = 0,
     source_id: str = None,
 ) -> Episode:
     source_id = source_id or episode_data.get("source_id") or get_source_id()
-    status = status or episode_data.get("status") or Episode.Status.NEW
+    status = status or episode_data.get("status") or EpisodeStatus.NEW
     audio_path = episode_data.pop("audio_path", "") or (
-        f"/remote/path/to/audio/{source_id}.mp3" if status == Episode.Status.PUBLISHED else ""
+        f"/remote/path/to/audio/{source_id}.mp3" if status == EpisodeStatus.PUBLISHED else ""
     )
     podcast_id = podcast.id if podcast else episode_data["podcast_id"]
     _episode_data = episode_data | {
@@ -200,7 +201,11 @@ async def create_episode(
     return episode
 
 
-def prepare_request(db_session: AsyncSession, headers: dict = None, path: str = "/") -> PRequest:
+def prepare_request(
+    db_session: AsyncSession,
+    headers: dict | None = None,
+    path: str = "/",
+) -> PRequest:
     scope = {
         "path": path,
         "type": "http",

@@ -8,6 +8,7 @@ import pytest
 from core import settings
 from common.utils import send_email
 from common.exceptions import EmailSendingError, ImproperlyConfiguredError
+from tests.mocks import MockSMTPSender
 
 pytestmark = pytest.mark.asyncio
 
@@ -18,7 +19,7 @@ CONTENT = "<head>Test Content</head>"
 
 
 @pytest.fixture
-def smtp_settings(monkeypatch):
+def smtp_settings(monkeypatch) -> None:
     monkeypatch.setattr(settings, "SMTP_HOST", "test-smtp-host.com")
     monkeypatch.setattr(settings, "SMTP_PORT", "462")
     monkeypatch.setattr(settings, "SMTP_USERNAME", "test-smtp-user")
@@ -26,7 +27,7 @@ def smtp_settings(monkeypatch):
     monkeypatch.setattr(settings, "SMTP_FROM_EMAIL", "test-from-email@test.com")
 
 
-async def test_send_email__success(mocked_smtp_sender, smtp_settings):
+async def test_send_email__success(mocked_smtp_sender: MockSMTPSender, smtp_settings: None):
     mocked_smtp_sender.send_message.return_value = ({}, "OK")
     with patch.object(logging.Logger, "info") as mock_logger:
         await send_email(recipient_email=RECIPIENT_EMAIL, subject=SUBJECT, html_content=CONTENT)
@@ -51,7 +52,7 @@ async def test_send_email__success(mocked_smtp_sender, smtp_settings):
     mock_logger.assert_called_with("Email sent to %s | subject: %s", RECIPIENT_EMAIL, SUBJECT)
 
 
-async def test_send_email__sending_problem(mocked_smtp_sender, smtp_settings):
+async def test_send_email__sending_problem(mocked_smtp_sender: MockSMTPSender, smtp_settings: None):
     mocked_smtp_sender.send_message.return_value = (
         {RECIPIENT_EMAIL: (550, "User unknown")},
         "Some problem detected",
@@ -63,7 +64,7 @@ async def test_send_email__sending_problem(mocked_smtp_sender, smtp_settings):
     assert f"{smtp_details=}" in exc.value.details
 
 
-async def test_send_email__smtp_failed(mocked_smtp_sender, smtp_settings):
+async def test_send_email__smtp_failed(mocked_smtp_sender: MockSMTPSender, smtp_settings: None):
     mocked_smtp_sender.send_message.side_effect = aiosmtplib.SMTPException("Some problem detected")
     with pytest.raises(EmailSendingError) as exc:
         await send_email(recipient_email=RECIPIENT_EMAIL, subject=SUBJECT, html_content=CONTENT)

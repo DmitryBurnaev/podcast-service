@@ -1,3 +1,5 @@
+from unittest.mock import Mock
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from yt_dlp.utils import ExtractorError
@@ -90,10 +92,10 @@ class TestEpisodeCreator(BaseTestAPIView):
 
     async def test_same_episode_in_other_podcast__ok(
         self,
+        dbs: AsyncSession,
         episode: Episode,
         user: User,
         mocked_youtube: MockYoutubeDL,
-        dbs: AsyncSession,
     ):
         mocked_youtube.extract_info.return_value = {
             "id": episode.source_id,
@@ -127,10 +129,10 @@ class TestEpisodeCreator(BaseTestAPIView):
 
     async def test_same_episode__extract_failed__ok(
         self,
-        episode,
-        user,
-        mocked_youtube,
         dbs: AsyncSession,
+        user: User,
+        episode: Episode,
+        mocked_youtube: MockYoutubeDL,
     ):
         mocked_youtube.extract_info.side_effect = ExtractorError("Something went wrong here")
         new_podcast = await Podcast.async_create(dbs, **get_podcast_data())
@@ -150,11 +152,11 @@ class TestEpisodeCreator(BaseTestAPIView):
 
     async def test_extract_failed__fail(
         self,
-        podcast,
-        episode_data,
-        user,
-        mocked_youtube,
         dbs: AsyncSession,
+        user: User,
+        podcast: Podcast,
+        episode_data: dict,
+        mocked_youtube: MockYoutubeDL,
     ):
         ydl_error = ExtractorError("Something went wrong here", video_id=episode_data["source_id"])
         mocked_youtube.extract_info.side_effect = ydl_error
@@ -189,7 +191,12 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         assert episode.cookie_id == cookie_id
 
     async def test_specific_cookie(
-        self, mocked_source_info_yandex, mocked_youtube, dbs, user, podcast
+        self,
+        dbs: AsyncSession,
+        user: User,
+        podcast: Podcast,
+        mocked_youtube: MockYoutubeDL,
+        mocked_source_info_yandex: Mock,
     ):
         cdata = self.cdata | {"owner_id": user.id}
         await Cookie.async_create(dbs, **(cdata | {"source_type": SourceType.YANDEX}))
@@ -206,7 +213,12 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         mocked_youtube.assert_called_with(cookiefile=await cookie_yandex.as_file())
 
     async def test_cookie_from_another_user(
-        self, mocked_source_info_yandex, mocked_youtube, dbs, user, podcast
+        self,
+        dbs: AsyncSession,
+        user: User,
+        podcast: Podcast,
+        mocked_youtube: MockYoutubeDL,
+        mocked_source_info_yandex: Mock,
     ):
         cdata = self.cdata | {"owner_id": user.id}
         cookie_yandex = await Cookie.async_create(dbs, **cdata)
@@ -223,7 +235,12 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         mocked_youtube.assert_called_with(cookiefile=await cookie_yandex.as_file())
 
     async def test_use_last_cookie(
-        self, mocked_source_info_yandex, mocked_youtube, dbs, user, podcast
+        self,
+        dbs: AsyncSession,
+        user: User,
+        podcast: Podcast,
+        mocked_youtube: MockYoutubeDL,
+        mocked_source_info_yandex: Mock,
     ):
         cdata = self.cdata | {"owner_id": user.id}
         await Cookie.async_create(dbs, **cdata)

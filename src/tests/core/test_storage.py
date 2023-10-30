@@ -8,6 +8,7 @@ import botocore.exceptions
 
 from core import settings
 from common.storage import StorageS3
+from tests.mocks import MockRedisClient
 
 pytestmark = pytest.mark.asyncio
 
@@ -29,7 +30,7 @@ def mock_upload_callback(*_, **__):
 
 class TestS3Storage:
     @patch("boto3.session.Session.client")
-    async def test_upload_file__ok(self, mock_boto3_session_client):
+    async def test_upload_file__ok(self, mock_boto3_session_client: Mock):
         mock_client = MockedClient()
         local_path = "/tmp/episode-sound.mp3"
         remote_dir = "/files-on-cloud/"
@@ -56,7 +57,7 @@ class TestS3Storage:
         )
 
     @patch("boto3.session.Session.client")
-    async def test_upload_file__s3_client_error__ok(self, mock_boto3_session_client):
+    async def test_upload_file__s3_client_error__ok(self, mock_boto3_session_client: Mock):
         mock_client = MockedClient()
         error = botocore.exceptions.ClientError(
             {"Error": {"Message": "Oops", "Code": "SideEffect"}}, operation_name="test error"
@@ -75,7 +76,7 @@ class TestS3Storage:
         )
 
     @patch("boto3.session.Session.client")
-    async def test_get_file_info__ok(self, mock_boto3_session_client):
+    async def test_get_file_info__ok(self, mock_boto3_session_client: Mock):
         mock_client = MockedClient()
         file_info = {"size": 123, "name": "test.mp3"}
 
@@ -93,7 +94,7 @@ class TestS3Storage:
         )
 
     @patch("boto3.session.Session.client")
-    async def test_get_file_size__ok(self, mock_boto3_session_client):
+    async def test_get_file_size__ok(self, mock_boto3_session_client: Mock):
         mock_client = MockedClient()
         test_size = 1234
         file_info = {"ResponseMetadata": {"HTTPHeaders": {"content-length": test_size}}}
@@ -109,7 +110,7 @@ class TestS3Storage:
         )
 
     @patch("boto3.session.Session.client")
-    async def test_delete_file__ok(self, mock_boto3_session_client):
+    async def test_delete_file__ok(self, mock_boto3_session_client: Mock):
         mock_client = MockedClient()
 
         mock_boto3_session_client.return_value = mock_client
@@ -123,7 +124,7 @@ class TestS3Storage:
         )
 
     @patch("boto3.session.Session.client")
-    async def test_delete_files_async__ok(self, mock_boto3_session_client):
+    async def test_delete_files_async__ok(self, mock_boto3_session_client: Mock):
         mock_client = MockedClient()
         mock_boto3_session_client.return_value = mock_client
         await StorageS3().delete_files_async(["test.mp3", "test2.mp3"], "remote-path")
@@ -136,7 +137,11 @@ class TestS3Storage:
         assert actual_calls == expected_calls
 
     @patch("boto3.session.Session.client")
-    async def test_get_presigned_url__ok(self, mock_boto3_session_client, mocked_redis):
+    async def test_get_presigned_url__ok(
+        self,
+        mock_boto3_session_client: Mock,
+        mocked_redis: MockRedisClient,
+    ):
         mock_client = MockedClient()
         presigned_url = "https://presigned.url"
 
@@ -156,7 +161,9 @@ class TestS3Storage:
 
     @patch("boto3.session.Session.client")
     async def test_get_presigned_url__cached_result__ok(
-        self, mock_boto3_session_client, mocked_redis
+        self,
+        mock_boto3_session_client: Mock,
+        mocked_redis: MockRedisClient,
     ):
         mock_client = MockedClient()
         mock_boto3_session_client.return_value = mock_client
