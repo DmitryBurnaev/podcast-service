@@ -9,6 +9,7 @@ from modules.podcast.models import Cookie, Episode
 from common.enums import SourceType
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import create_user, create_file, PodcastTestClient
+from tests.mocks import MockSensitiveData
 
 INVALID_UPDATE_DATA = [
     [
@@ -76,10 +77,21 @@ class TestCookieListCreateAPIView(BaseTestAPIView):
             _cookie(last_cookie_yandex),
         ]
 
-    async def test_create__ok(self, client: PodcastTestClient, dbs: AsyncSession, user: User):
+    async def test_create__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        mocked_sens_data: MockSensitiveData,
+    ):
         cookie_data = {"source_type": SourceType.YANDEX}
+        cookie_text = "Cookie at netscape format\n"
         await client.login(user)
-        response = client.post(self.url, data=cookie_data, files={"file": _cookie_file()})
+        response = client.post(
+            self.url,
+            data=cookie_data,
+            files={"file": _cookie_file(cookie_text)},
+        )
         response_data = self.assert_fail_response(
             response,
             status_code=201,
@@ -87,7 +99,9 @@ class TestCookieListCreateAPIView(BaseTestAPIView):
         )
         cookie = await Cookie.async_get(dbs, id=response_data["id"])
         assert cookie is not None
+        assert cookie.data == "encrypted_data"
         assert response_data == _cookie(cookie)
+        mocked_sens_data.encrypt.assert_called_with()
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_UPDATE_DATA)
     async def test_create__invalid_request__fail(
@@ -125,9 +139,11 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         self,
         dbs: AsyncSession,
         client: PodcastTestClient,
-        cookie: Cookie,
         user: User,
+        cookie: Cookie,
+        mocked_sens_data: MockSensitiveData,
     ):
+        mocked_sens_data.encrypt.return_value = "updated_encrypted_data"
         await client.login(user)
         url = self.url.format(id=cookie.id)
         data = {"source_type": SourceType.YANDEX}
@@ -135,8 +151,9 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         await dbs.refresh(cookie)
         response_data = self.assert_ok_response(response)
         assert response_data == _cookie(cookie)
-        assert cookie.data == "updated cookie data"
+        assert cookie.data == "updated_encrypted_data"
         assert cookie.updated_at > cookie.created_at
+        mocked_sens_data.encrypt.assert_called_with("updated cookie data")
 
     async def test_update__cookie_from_another_user__fail(
         self,

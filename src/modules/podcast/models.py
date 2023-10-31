@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
 from starlette.concurrency import run_in_threadpool
 
+from common.encryption import SensitiveData
 from core import settings
 from core.database import ModelBase
 from common.models import ModelMixin
@@ -186,7 +187,8 @@ class Cookie(ModelBase, ModelMixin):
             if not os.path.exists(cookies_file):
                 logger.debug("Cookie #%s: Generation cookie file [%s]", self.id, cookies_file)
                 with open(cookies_file, "wt", encoding="utf-8") as f:
-                    f.write(self.data)
+                    decr_data = SensitiveData(settings.SENS_DATA_ENCRYPT_KEY).decrypt(self.data)
+                    f.write(decr_data)
             else:
                 logger.debug("Cookie #%s: Found already generated file [%s]", self.id, cookies_file)
 

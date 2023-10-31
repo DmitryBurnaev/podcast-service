@@ -128,6 +128,7 @@ SMTP_STARTTLS = config("SMTP_STARTTLS", cast=bool, default=None)
 SMTP_USE_TLS = config("SMTP_USE_TLS", cast=bool, default=True)
 SMTP_FROM_EMAIL = config("SMTP_FROM_EMAIL", cast=str, default="").strip("'\"")
 
+SENS_DATA_ENCRYPT_KEY = config("SENS_DATA_ENCRYPT_KEY", cast=str)
 
 SENTRY_DSN = config("SENTRY_DSN", default=None)
 LOG_LEVEL = config("LOG_LEVEL", default="INFO")
