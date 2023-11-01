@@ -18,7 +18,7 @@ This project provides a backend (API service) and is positioned as an updated ve
 
 #### Target 
 This application can be used for creation your podcasts. <br/>
-If you have any sounds (or youtube videos as example) which you want to listen later, you can create podcast (via web interface) and attach your tracks to it <br/>
+If you have any sounds (or YouTube videos as example) which you want to listen later, you can create podcast (via web interface) and attach your tracks to it <br/>
 Created podcast (with prepared episodes) will have a direct link (to RSS feed), which can be used for adding your podcast to same podcast application (`Add by URL`) <br />
 Adding and downloading each new episodes will refresh RSS-feed and your APP will be able to get them.
 
@@ -36,7 +36,7 @@ Technically project contains from 3 parts:
 ##### Starlette API service (run on `APP_PORT` from your env):
   + AUTH service (JWT-based)
   + PODCAST service (CRUD API for podcasts/episodes)
-  + Some tools and engines for fetching episodes from external resources (youtube as for now) 
+  + Some tools and engines for fetching episodes from external resources (YouTube as for now) 
 
 ##### Media storage (S3):  
   + episodes
@@ -141,6 +141,7 @@ make lint
 | S3_BUCKET_AUDIO_PATH  |                S3 dir for episodes                |                            audio |
 | S3_BUCKET_IMAGES_PATH |    S3 dir for images (episode,podcast covers)     |                           images |
 | S3_BUCKET_RSS_PATH    |          S3 dir for generated RSS feeds           |                              rss |
+| SENS_DATA_ENCRYPT_KEY |            Key for sensdata encryption            |       aa&nhn-k*a*7tq6i+22ks2ya5x |
 
 ### OPTIONAL Variables
 
