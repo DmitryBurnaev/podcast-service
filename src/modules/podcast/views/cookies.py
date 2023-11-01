@@ -1,5 +1,6 @@
 import logging
 
+from starlette import status
 from sqlalchemy import exists, select
 from starlette.responses import Response
 
@@ -19,7 +20,8 @@ class BaseCookieAPIView(BaseHTTPEndpoint):
         cleaned_data = await super()._validate(request, location="form")
         file_content = await cleaned_data.pop("file").read()
         try:
-            cleaned_data["data"] = file_content.decode()
+            encrypted_data = Cookie.get_encrypted_data(file_content.decode())
+            cleaned_data["data"] = encrypted_data
         except UnicodeDecodeError as exc:
             raise InvalidRequestError({"file": f"Unexpected cookie's file content: {exc}"}) from exc
 
@@ -49,10 +51,10 @@ class CookieListCreateAPIView(BaseCookieAPIView):
     async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request)
         cookie = await Cookie.async_create(
-            db_session=request.db_session, owner_id=request.user.id, **cleaned_data
+            db_session=request.db_session,
+            owner_id=request.user.id,
+            **cleaned_data,
         )
-        from starlette import status
-
         return self._response(cookie, status_code=status.HTTP_201_CREATED)
 
 
@@ -69,19 +71,19 @@ class CookieRUDAPIView(BaseCookieAPIView):
         return self._response(cookie)
 
     async def put(self, request: PRequest) -> Response:
-        cleaned_data = await self._validate(request)
         cookie_id = int(request.path_params["cookie_id"])
         cookie = await self._get_object(cookie_id)
+        cleaned_data = await self._validate(request)
         await cookie.update(self.db_session, **cleaned_data)
         return self._response(cookie)
 
     async def delete(self, request: PRequest) -> Response:
         cookie_id = int(request.path_params["cookie_id"])
+        cookie = await self._get_object(cookie_id)
         query = Episode.prepare_query(cookie_id=cookie_id)
         (has_episodes,) = next(await self.db_session.execute(exists(query).select()))
         if has_episodes:
             raise PermissionDeniedError("There are episodes related to this cookie")
 
-        cookie = await self._get_object(cookie_id)
         await cookie.delete(self.db_session)
         return self._response()

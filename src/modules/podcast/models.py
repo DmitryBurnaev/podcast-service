@@ -195,3 +195,8 @@ class Cookie(ModelBase, ModelMixin):
             return cookies_file
 
         return await run_in_threadpool(store_tmp_file)
+
+    @classmethod
+    def get_encrypted_data(cls, data: str) -> str:
+        """Return encrypted value for provided in `data` argument"""
+        return SensitiveData(settings.SENS_DATA_ENCRYPT_KEY).encrypt(data)

@@ -92,16 +92,12 @@ class TestCookieListCreateAPIView(BaseTestAPIView):
             data=cookie_data,
             files={"file": _cookie_file(cookie_text)},
         )
-        response_data = self.assert_fail_response(
-            response,
-            status_code=201,
-            response_status=ResponseStatus.NOT_ALLOWED,
-        )
+        response_data = self.assert_ok_response(response, status_code=201)
         cookie = await Cookie.async_get(dbs, id=response_data["id"])
         assert cookie is not None
         assert cookie.data == "encrypted_data"
         assert response_data == _cookie(cookie)
-        mocked_sens_data.encrypt.assert_called_with()
+        mocked_sens_data.encrypt.assert_called_with(cookie_text)
 
     @pytest.mark.parametrize("invalid_data, error_details", INVALID_UPDATE_DATA)
     async def test_create__invalid_request__fail(
@@ -160,11 +156,13 @@ class TestCookieRUDAPIView(BaseTestAPIView):
         dbs: AsyncSession,
         client: PodcastTestClient,
         cookie: Cookie,
+        mocked_sens_data: MockSensitiveData,
     ):
         await client.login(await create_user(dbs))
         url = self.url.format(id=cookie.id)
         data = {"source_type": SourceType.YANDEX}
         self.assert_not_found(client.put(url, data=data, files={"file": _cookie_file()}), cookie)
+        mocked_sens_data.encrypt.assert_not_called()
 
     async def test_update__invalid_request__fail(
         self,
