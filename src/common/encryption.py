@@ -23,9 +23,8 @@ class SensitiveData:
     """
 
     AES256_PREFIX = "AES256"
-    KEY_LENGTH = int(256 / 8)
 
-    def __init__(self, encrypt_key: str):
+    def __init__(self, encrypt_key: bytes):
         self.encrypt_key = encrypt_key
 
     def encrypt(self, data: str) -> str:

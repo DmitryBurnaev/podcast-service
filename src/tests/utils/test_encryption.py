@@ -1,4 +1,5 @@
 import base64
+import uuid
 from typing import NamedTuple
 from unittest.mock import patch, Mock
 
@@ -7,7 +8,7 @@ from Cryptodome.Cipher import AES
 
 from common.encryption import SensitiveData
 
-ENCRYPT_KEY = "testEncryptKey"
+ENCRYPT_KEY = (f"test_encr_key_{uuid.uuid4().hex}"[: int(256 / 8)]).encode()
 SENS_DATA = "sens_data"
 ENCRYPTED_SENS_DATA = b"encrypted_sens_data"
 ENCRYPT_TAG = b"encrypt_tag"
@@ -63,3 +64,12 @@ class TestEncryptSensitiveData:
         mocked_aes.mock_new.assert_called_with(ENCRYPT_KEY, AES.MODE_EAX, nonce=ENCRYPT_NONCE)
         mocked_aes.cipher.decrypt.assert_called_with(ENCRYPTED_SENS_DATA)
         mocked_aes.cipher.verify.assert_called_with(ENCRYPT_TAG)
+
+    def test_encrypt_decrypt__no_mock(self):
+        encrypted = SensitiveData(ENCRYPT_KEY).encrypt(SENS_DATA)
+        assert SENS_DATA not in encrypted
+        assert "AES256;" in encrypted
+        assert len(encrypted.split(";")) == 4
+
+        decrypted = SensitiveData(ENCRYPT_KEY).decrypt(encrypted)
+        assert decrypted == SENS_DATA
