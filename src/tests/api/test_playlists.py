@@ -12,7 +12,7 @@ from modules.podcast.models import Cookie
 from modules.providers.utils import SourceInfo
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import create_user, PodcastTestClient
-from tests.mocks import MockYoutubeDL
+from tests.mocks import MockYoutubeDL, MockSensitiveData
 
 pytestmark = pytest.mark.asyncio
 
@@ -21,7 +21,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
     url = "/api/playlist/"
     default_fail_status_code = 400
     default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
-    cdata = {"data": "cookie in netscape format", "source_type": SourceType.YANDEX}
+    cdata = {"data": "[ENCRYPTED] cookie in netscape format", "source_type": SourceType.YANDEX}
 
     @staticmethod
     def _playlist_data(mocked_youtube: MockYoutubeDL, source_type: SourceType):
@@ -86,6 +86,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         user: User,
         mocked_source_info_yandex: Mock,
         mocked_youtube: MockYoutubeDL,
+        mocked_sens_data: MockSensitiveData,
     ):
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
         cdata = self.cdata | {"owner_id": user.id}
@@ -95,6 +96,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         response = client.get(self.url, params={"url": "http://link.to.source/"})
         self.assert_ok_response(response)
         mocked_youtube.assert_called_with(cookiefile=await cookie.as_file())
+        mocked_sens_data.decrypt.assert_called_with(self.cdata["data"])
 
     async def test_retrieve__cookies_from_another_user(
         self,
@@ -103,6 +105,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         user: User,
         mocked_source_info_yandex: Mock,
         mocked_youtube: MockYoutubeDL,
+        mocked_sens_data: MockSensitiveData,
     ):
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
 
@@ -116,6 +119,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         response = client.get(self.url, params={"url": "http://link.to.source/"})
         self.assert_ok_response(response)
         mocked_youtube.assert_called_with(cookiefile=await cookie.as_file())
+        mocked_sens_data.decrypt.assert_called_with(self.cdata["data"])
 
     async def test_retrieve__last_cookie(
         self,
@@ -124,6 +128,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         user: User,
         mocked_source_info_yandex: Mock,
         mocked_youtube: MockYoutubeDL,
+        mocked_sens_data: MockSensitiveData,
     ):
         self._playlist_data(mocked_youtube, source_type=SourceType.YANDEX)
         cdata = self.cdata | {"owner_id": user.id}
@@ -135,6 +140,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         response = client.get(self.url, params={"url": "http://link.to.source/"})
         self.assert_ok_response(response)
         mocked_youtube.assert_called_with(cookiefile=await cookie.as_file())
+        mocked_sens_data.decrypt.assert_called_with(self.cdata["data"])
 
     @patch("modules.providers.utils.extract_source_info")
     async def test_retrieve__invalid_playlist_link__fail(

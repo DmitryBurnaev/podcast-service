@@ -251,7 +251,7 @@ def episode_data(podcast: Podcast) -> dict[str, Any]:
 
 
 @pytest_asyncio.fixture
-async def podcast(podcast_data: dict, user: User, dbs: AsyncSession) -> Podcast:
+async def podcast(dbs: AsyncSession, user: User, podcast_data: dict) -> Podcast:
     podcast_data["owner_id"] = user.id
     publish_id = podcast_data["publish_id"]
     image = await File.create(
