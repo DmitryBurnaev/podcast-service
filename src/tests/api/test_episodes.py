@@ -671,10 +671,10 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
     @patch("modules.podcast.tasks.base.RQTask.cancel_task")
     async def test_delete__no_cancel_task(
         self,
+        mock_cancel_task: Mock,
         dbs: AsyncSession,
         client: PodcastTestClient,
         user: User,
-        mock_cancel_task: Mock,
         episode: Episode,
         mocked_s3: MockS3Client,
         episode_status: EpisodeStatus,
