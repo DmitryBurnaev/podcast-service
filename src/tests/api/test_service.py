@@ -13,7 +13,7 @@ class TestHealthCheckAPIView(BaseTestAPIView):
         assert response_data == {"services": {"postgres": "ok"}, "errors": []}
 
     @patch("common.models.ModelMixin.async_filter")
-    def test_health__fail(self, client: PodcastTestClient, mock_filter: Mock):
+    def test_health__fail(self, mock_filter: Mock, client: PodcastTestClient):
         mock_filter.side_effect = RuntimeError("Oops")
         response = client.get(self.url)
         response_data = self.assert_fail_response(response, status_code=503)

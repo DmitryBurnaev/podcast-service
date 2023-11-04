@@ -1,6 +1,6 @@
 import io
 import os.path
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,6 +51,12 @@ def _podcast(podcast):
         data["rss_url"] = podcast.rss.url
 
     return data
+
+
+@pytest.fixture
+def mocked_upload_file() -> Mock:
+    with patch("common.storage.StorageS3.upload_file") as mock:
+        yield mock
 
 
 class TestPodcastListCreateAPIView(BaseTestAPIView):
@@ -363,14 +369,13 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
     remote_path = "/remote/path-to-file.png"
     default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
 
-    @patch("common.storage.StorageS3.upload_file")
     async def test_upload__ok(
         self,
         dbs: AsyncSession,
         client: PodcastTestClient,
         user: User,
-        mocked_upload_file,
         mocked_s3: MockS3Client,
+        mocked_upload_file: Mock,
     ):
         podcast_data = get_podcast_data(owner_id=user.id)
         podcast = await Podcast.async_create(dbs, db_commit=True, **podcast_data)
@@ -388,15 +393,14 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
     def _file() -> io.BytesIO:
         return io.BytesIO(b"Binary image data: \x00\x01")
 
-    @patch("common.storage.StorageS3.upload_file")
     async def test_upload__replace_image__ok(
         self,
         dbs: AsyncSession,
         client: PodcastTestClient,
         user: User,
-        mocked_upload_file,
-        mocked_s3: MockS3Client,
         podcast: Podcast,
+        mocked_s3: MockS3Client,
+        mocked_upload_file: Mock,
     ):
         assert podcast.image_id is not None
         old_image_id = podcast.image_id
@@ -424,14 +428,13 @@ class TestPodcastUploadImageAPIView(BaseTestAPIView):
             [old_image_name], remote_path=settings.S3_BUCKET_PODCAST_IMAGES_PATH
         )
 
-    @patch("common.storage.StorageS3.upload_file")
     async def test_upload__upload_failed__fail(
         self,
         dbs: AsyncSession,
         client: PodcastTestClient,
         user: User,
-        mocked_upload_file,
         podcast: Podcast,
+        mocked_upload_file: Mock,
     ):
         await client.login(user)
         mocked_upload_file.side_effect = RuntimeError("Oops")
