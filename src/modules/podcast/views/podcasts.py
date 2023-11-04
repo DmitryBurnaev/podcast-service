@@ -38,7 +38,7 @@ class PodcastListCreateAPIView(BaseHTTPEndpoint):
         stmt = (
             select(Podcast, func_count)
             .outerjoin(Episode, Episode.podcast_id == Podcast.id)
-            .filter_by(owner_id=request.user.id)
+            .filter(Podcast.owner_id == request.user.id)
             .group_by(Podcast.id)
             .order_by(Podcast.id)
         )

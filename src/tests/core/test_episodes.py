@@ -12,7 +12,7 @@ from modules.podcast.episodes import EpisodeCreator
 from modules.podcast.models import Podcast, Episode, Cookie
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import get_podcast_data, create_user
-from tests.mocks import MockYoutubeDL
+from tests.mocks import MockYoutubeDL, MockSensitiveData
 
 pytestmark = pytest.mark.asyncio
 
@@ -197,6 +197,7 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         podcast: Podcast,
         mocked_youtube: MockYoutubeDL,
         mocked_source_info_yandex: Mock,
+        mocked_sens_data: MockSensitiveData,
     ):
         cdata = self.cdata | {"owner_id": user.id}
         await Cookie.async_create(dbs, **(cdata | {"source_type": SourceType.YANDEX}))
@@ -211,6 +212,7 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
 
         await self._assert_source(episode_creator, cookie_yandex.id)
         mocked_youtube.assert_called_with(cookiefile=await cookie_yandex.as_file())
+        mocked_sens_data.decrypt.assert_called_with(self.cdata["data"])
 
     async def test_cookie_from_another_user(
         self,
@@ -219,6 +221,7 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         podcast: Podcast,
         mocked_youtube: MockYoutubeDL,
         mocked_source_info_yandex: Mock,
+        mocked_sens_data: MockSensitiveData,
     ):
         cdata = self.cdata | {"owner_id": user.id}
         cookie_yandex = await Cookie.async_create(dbs, **cdata)
@@ -233,6 +236,7 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         )
         await self._assert_source(episode_creator, cookie_yandex.id)
         mocked_youtube.assert_called_with(cookiefile=await cookie_yandex.as_file())
+        mocked_sens_data.decrypt.assert_called_with(self.cdata["data"])
 
     async def test_use_last_cookie(
         self,
@@ -241,6 +245,7 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         podcast: Podcast,
         mocked_youtube: MockYoutubeDL,
         mocked_source_info_yandex: Mock,
+        mocked_sens_data: MockSensitiveData,
     ):
         cdata = self.cdata | {"owner_id": user.id}
         await Cookie.async_create(dbs, **cdata)
@@ -254,3 +259,4 @@ class TestCreateEpisodesWithCookies(BaseTestAPIView):
         )
         await self._assert_source(episode_creator, c2.id)
         mocked_youtube.assert_called_with(cookiefile=await c2.as_file())
+        mocked_sens_data.decrypt.assert_called_with(self.cdata["data"])

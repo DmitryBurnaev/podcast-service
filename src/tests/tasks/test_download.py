@@ -17,7 +17,13 @@ from modules.podcast.tasks.base import TaskResultCode
 from modules.providers.utils import download_process_hook
 from tests.api.test_base import BaseTestCase
 from tests.helpers import get_podcast_data, create_episode
-from tests.mocks import MockYoutubeDL, MockRedisClient, MockS3Client, MockGenerateRSS
+from tests.mocks import (
+    MockYoutubeDL,
+    MockRedisClient,
+    MockS3Client,
+    MockGenerateRSS,
+    MockSensitiveData,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -80,19 +86,21 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_s3: MockS3Client,
         mocked_redis: MockRedisClient,
         mocked_generate_rss_task: MockGenerateRSS,
+        mocked_sens_data: MockSensitiveData,
     ):
         file_path = await self._source_file(dbs, episode)
         await episode.update(dbs, cookie_id=cookie.id, db_commit=True)
 
         result = await DownloadEpisodeTask(db_session=dbs).run(episode.id)
-        episode = await Episode.async_get(dbs, id=episode.id)
+        assert result == TaskResultCode.SUCCESS
 
         mocked_youtube.assert_called_with(cookiefile=await cookie.as_file())
         self.assert_called_with(mocked_ffmpeg, src_path=file_path)
 
-        assert result == TaskResultCode.SUCCESS
+        episode = await Episode.async_get(dbs, id=episode.id)
         assert episode.status == Episode.Status.PUBLISHED
         assert episode.published_at == episode.created_at
+        mocked_sens_data.decrypt.assert_called_with(cookie.data)
 
     async def test_skip_postprocessing(
         self,
@@ -104,7 +112,8 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_ffmpeg: Mock,
         mocked_youtube: MockYoutubeDL,
         mocked_generate_rss_task: MockGenerateRSS,
-        mocked_source_info_yandex,
+        mocked_source_info_yandex: Mock,
+        mocked_sens_data: MockSensitiveData,
     ):
         file_path = await self._source_file(dbs, episode)
         await episode.update(
@@ -121,6 +130,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
             src_path=str(file_path),
             dst_path=settings.S3_BUCKET_AUDIO_PATH,
         )
+        mocked_sens_data.decrypt.assert_called_with(cookie.data)
 
     async def test_file_correct__skip(
         self,
@@ -327,12 +337,12 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
     @patch("modules.podcast.tasks.download.download_content")
     async def test_image_ok(
         self,
+        mocked_download_content: Mock,
+        mocked_ffmpeg: Mock,
+        mocked_file_size: Mock,
+        mocked_name: Mock,
         dbs: AsyncSession,
         episode: Episode,
-        mocked_download_content,
-        mocked_ffmpeg: Mock,
-        mocked_file_size,
-        mocked_name,
         mocked_s3: MockS3Client,
     ):
         tmp_path = settings.TMP_IMAGE_PATH / f"{episode.source_id}.jpg"
@@ -369,9 +379,9 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
     @patch("modules.podcast.tasks.download.download_content")
     async def test_image_not_found__use_default(
         self,
+        mocked_download_content: Mock,
         dbs: AsyncSession,
         episode: Episode,
-        mocked_download_content,
     ):
         mocked_download_content.side_effect = NotFoundError()
         result = await DownloadEpisodeImageTask(db_session=dbs).run(episode.id)
@@ -384,9 +394,9 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
     @patch("modules.podcast.tasks.download.download_content")
     async def test_skip_already_downloaded(
         self,
+        mocked_download_content: Mock,
         dbs: AsyncSession,
         episode: Episode,
-        mocked_download_content: Mock,
     ):
         remote_path = os.path.join(
             settings.S3_BUCKET_IMAGES_PATH, "episode_{uuid.uuid4().hex}_image.png"

@@ -58,6 +58,7 @@ def delete_file(filepath: str | Path) -> None:
 
 
 def get_file_size(file_path: str | Path) -> int:
+    """Simple tool for getting provided file's size"""
     try:
         return os.path.getsize(file_path)
     except FileNotFoundError:
@@ -216,7 +217,6 @@ def remote_copy_episode(src_path: str, dst_path: str, src_file_size: int) -> str
         status=EpisodeStatus.DL_EPISODE_UPLOADING,
         processed_bytes=0,
         total_bytes=src_file_size,
-        # task_context=task_context,
     )
     logger.debug("Remotely copying for %s started.", filename)
     remote_path = StorageS3().copy_file(src_path=str(src_path), dst_path=dst_path)
