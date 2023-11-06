@@ -11,9 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
 from starlette.concurrency import run_in_threadpool
 
-from common.encryption import SensitiveData
 from core import settings
 from core.database import ModelBase
+from common.encryption import SensitiveData
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
 from common.exceptions import UnexpectedError
