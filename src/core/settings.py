@@ -128,17 +128,7 @@ SMTP_STARTTLS = config("SMTP_STARTTLS", cast=bool, default=None)
 SMTP_USE_TLS = config("SMTP_USE_TLS", cast=bool, default=True)
 SMTP_FROM_EMAIL = config("SMTP_FROM_EMAIL", cast=str, default="").strip("'\"")
 
-
-def cast_encrypt_key(value: str) -> bytes:
-    """Simple tool for checking encrypt key by length (can cut if too long)"""
-    length = config("AES_ENCRYPT_KEY_LENGTH", cast=int, default=int(256 / 8))
-    if len(value) < length:
-        raise ValueError(f"Not enough length of value: required: {length}, actual: {len(value)}")
-
-    return value[:length].encode()
-
-
-SENS_DATA_ENCRYPT_KEY = config("SENS_DATA_ENCRYPT_KEY", cast=cast_encrypt_key)
+SENS_DATA_ENCRYPT_KEY = config("SENS_DATA_ENCRYPT_KEY", cast=str)
 
 SENTRY_DSN = config("SENTRY_DSN", default=None)
 LOG_LEVEL = config("LOG_LEVEL", default="INFO")
