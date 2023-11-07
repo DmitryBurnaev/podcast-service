@@ -4,6 +4,9 @@ from typing import NamedTuple
 
 from Cryptodome.Cipher import AES
 
+from common.exceptions import ImproperlyConfiguredError
+from core import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -23,9 +26,15 @@ class SensitiveData:
     """
 
     AES256_PREFIX = "AES256"
+    AES_KEY_LENGTH = int(256 / 8)
 
-    def __init__(self, encrypt_key: bytes):
-        self.encrypt_key = encrypt_key
+    def __init__(self) -> None:
+        if not (encrypt_key := settings.SENS_DATA_ENCRYPT_KEY):
+            raise ImproperlyConfiguredError(
+                "Missed encrypt key for encryption sensitive data (env SENS_DATA_ENCRYPT_KEY_"
+            )
+
+        self.encrypt_key = self._cast_encrypt_key(encrypt_key)
 
     def encrypt(self, data: str) -> str:
         try:
@@ -69,3 +78,12 @@ class SensitiveData:
             encoded_message=base64.b64decode(encoded_message_b64b.encode()),
             tag=base64.b64decode(tag_b64b.encode()),
         )
+
+    @classmethod
+    def _cast_encrypt_key(cls, value: str) -> bytes:
+        """Simple tool for checking encrypt key by length (can cut if too long)"""
+        length = cls.AES_KEY_LENGTH
+        if len(value) < length:
+            raise ValueError(f"Not enough length of value: required: {length}, actual: {len(value)}")
+
+        return value[:length].encode()
