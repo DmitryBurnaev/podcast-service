@@ -141,31 +141,31 @@ make lint
 | S3_BUCKET_AUDIO_PATH  |                S3 dir for episodes                |                            audio |
 | S3_BUCKET_IMAGES_PATH |    S3 dir for images (episode,podcast covers)     |                           images |
 | S3_BUCKET_RSS_PATH    |          S3 dir for generated RSS feeds           |                              rss |
-| SENS_DATA_ENCRYPT_KEY |            Key for sensdata encryption            |       aa&nhn-k*a*7tq6i+22ks2ya5x |
 
 ### OPTIONAL Variables
 
-| argument                 |                    description                    |                   default |
-|:-------------------------|:-------------------------------------------------:|--------------------------:|
-| JWT_EXPIRES_IN           |         Default time for token's lifespan         |                 300 (sec) |
-| APP_DEBUG                |               Run app in debug mode               |                     False |
-| LOG_LEVEL                |        Allows to set current logging level        |                     DEBUG |
-| SENTRY_DSN               | Sentry dsn (if not set, error logs won't be sent) |                           |
-| REDIS_HOST               |                    Redis host                     |                 localhost |
-| REDIS_PORT               |                    Redis port                     |                      6379 |
-| REDIS_DB                 |                     Redis db                      |                         0 |
-| REDIS_PROGRESS_PUBSUB_CH |    Subscribe channel name for progress events     | channel:episodes-progress |
-| DB_NAME_TEST             |         Custom name for DB name for tests         |       `DB_NAME` + `_test` |
-| SENDGRID_API_KEY         | Is needed for sending Email (invite, passw., etc) |                           |
-| DB_ECHO                  |         Sending all db queries to stdout          |                     False |
-| DB_ECHO                  |         Sending all db queries to stdout          |                     False |
-| SMTP_HOST                |            SMTP host for sending email            |                           |
-| SMTP_PORT                |            SMTP port for sending email            |                       462 |
-| SMTP_USERNAME            |         SMTP credential for sending email         |                           |
-| SMTP_PASSWORD            |         SMTP credential for sending email         |                           |
-| SMTP_STARTTLS            |               SMTP starttls config                |                           |
-| SMTP_USE_TLS             |                SMTP use tls config                |                      true |
-| SMTP_FROM_EMAIL          |             Default email for sending             |                           |
+| argument                 |                    description                    |                         default |
+|:-------------------------|:-------------------------------------------------:|--------------------------------:|
+| JWT_EXPIRES_IN           |         Default time for token's lifespan         |                       300 (sec) |
+| APP_DEBUG                |               Run app in debug mode               |                           False |
+| LOG_LEVEL                |        Allows to set current logging level        |                           DEBUG |
+| SENTRY_DSN               | Sentry dsn (if not set, error logs won't be sent) |                                 |
+| REDIS_HOST               |                    Redis host                     |                       localhost |
+| REDIS_PORT               |                    Redis port                     |                            6379 |
+| REDIS_DB                 |                     Redis db                      |                               0 |
+| REDIS_PROGRESS_PUBSUB_CH |    Subscribe channel name for progress events     |       channel:episodes-progress |
+| DB_NAME_TEST             |         Custom name for DB name for tests         |             `DB_NAME` + `_test` |
+| SENDGRID_API_KEY         | Is needed for sending Email (invite, passw., etc) |                                 |
+| DB_ECHO                  |         Sending all db queries to stdout          |                           False |
+| DB_ECHO                  |         Sending all db queries to stdout          |                           False |
+| SMTP_HOST                |            SMTP host for sending email            |                                 |
+| SMTP_PORT                |            SMTP port for sending email            |                             462 |
+| SMTP_USERNAME            |         SMTP credential for sending email         |                                 |
+| SMTP_PASSWORD            |         SMTP credential for sending email         |                                 |
+| SMTP_STARTTLS            |               SMTP starttls config                |                                 |
+| SMTP_USE_TLS             |                SMTP use tls config                |                            true |
+| SMTP_FROM_EMAIL          |             Default email for sending             |                                 |
+| SENS_DATA_ENCRYPT_KEY    |            Key for sensdata encryption            |      aa&nhn-k*a*7tq6i+22ks2ya5x |
 
 
 * * *
