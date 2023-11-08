@@ -187,7 +187,7 @@ class Cookie(ModelBase, ModelMixin):
             if not os.path.exists(cookies_file):
                 logger.debug("Cookie #%s: Generation cookie file [%s]", self.id, cookies_file)
                 with open(cookies_file, "wt", encoding="utf-8") as f:
-                    decr_data = SensitiveData(settings.SENS_DATA_ENCRYPT_KEY).decrypt(self.data)
+                    decr_data = SensitiveData().decrypt(self.data)
                     f.write(decr_data)
             else:
                 logger.debug("Cookie #%s: Found already generated file [%s]", self.id, cookies_file)
@@ -199,4 +199,4 @@ class Cookie(ModelBase, ModelMixin):
     @classmethod
     def get_encrypted_data(cls, data: str) -> str:
         """Return encrypted value for provided in `data` argument"""
-        return SensitiveData(settings.SENS_DATA_ENCRYPT_KEY).encrypt(data)
+        return SensitiveData().encrypt(data)

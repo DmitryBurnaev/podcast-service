@@ -37,6 +37,7 @@ def mocked_aes(monkeypatch) -> MockAESResult:
         yield MockAESResult(cipher=mocked_aes_object, mock_new=mock_new)
 
 
+@patch("core.settings.SENS_DATA_ENCRYPT_KEY", ENCRYPT_KEY.decode())
 class TestEncryptSensitiveData:
     @staticmethod
     def _encrypted_string() -> str:
@@ -48,7 +49,7 @@ class TestEncryptSensitiveData:
     def test_encrypt(self, mocked_aes: MockAESResult):
         mocked_aes.cipher.encrypt_and_digest.return_value = (ENCRYPTED_SENS_DATA, ENCRYPT_TAG)
 
-        encrypted = SensitiveData(ENCRYPT_KEY).encrypt(SENS_DATA)
+        encrypted = SensitiveData().encrypt(SENS_DATA)
         assert encrypted == self._encrypted_string()
 
         mocked_aes.mock_new.assert_called_with(ENCRYPT_KEY, AES.MODE_EAX)
@@ -58,7 +59,7 @@ class TestEncryptSensitiveData:
         mocked_aes.cipher.decrypt.return_value = SENS_DATA.encode()
 
         encrypted_data = self._encrypted_string()
-        decrypted = SensitiveData(ENCRYPT_KEY).decrypt(encrypted_data)
+        decrypted = SensitiveData().decrypt(encrypted_data)
         assert decrypted == SENS_DATA
 
         mocked_aes.mock_new.assert_called_with(ENCRYPT_KEY, AES.MODE_EAX, nonce=ENCRYPT_NONCE)
@@ -66,10 +67,10 @@ class TestEncryptSensitiveData:
         mocked_aes.cipher.verify.assert_called_with(ENCRYPT_TAG)
 
     def test_encrypt_decrypt__no_mock(self):
-        encrypted = SensitiveData(ENCRYPT_KEY).encrypt(SENS_DATA)
+        encrypted = SensitiveData().encrypt(SENS_DATA)
         assert SENS_DATA not in encrypted
         assert "AES256;" in encrypted
         assert len(encrypted.split(";")) == 4
 
-        decrypted = SensitiveData(ENCRYPT_KEY).decrypt(encrypted)
+        decrypted = SensitiveData().decrypt(encrypted)
         assert decrypted == SENS_DATA

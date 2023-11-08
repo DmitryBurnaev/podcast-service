@@ -84,6 +84,6 @@ class SensitiveData:
         """Simple tool for checking encrypt key by length (can cut if too long)"""
         length = cls.AES_KEY_LENGTH
         if len(value) < length:
-            raise ValueError(f"Not enough length of value: required: {length}, actual: {len(value)}")
+            raise ValueError(f"Not enough length encryption key: {length}, actual: {len(value)}")
 
         return value[:length].encode()
