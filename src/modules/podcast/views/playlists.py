@@ -32,6 +32,8 @@ class PlayListAPIView(BaseHTTPEndpoint):
         if cookie := await self._fetch_cookie(request, source_info.type):
             params["cookiefile"] = await cookie.as_file()
 
+        # TODO: use context if cookie's file exist
+
         with yt_dlp.YoutubeDL(params) as ydl:
             extract_info = partial(ydl.extract_info, playlist_url, download=False)
             try:
