@@ -196,6 +196,11 @@ class Cookie(ModelBase, ModelMixin):
 
         return await run_in_threadpool(store_tmp_file)
 
+    async def __aenter__(self):
+        # TODO: write async context for accessing to file (and removing after doing some logic)
+        ...
+
+
     @classmethod
     def get_encrypted_data(cls, data: str) -> str:
         """Return encrypted value for provided in `data` argument"""
