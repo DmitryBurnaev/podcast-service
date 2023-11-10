@@ -179,6 +179,11 @@ class Cookie(ModelBase, ModelMixin):
     def __str__(self):
         return f'<Cookie #{self.id} "{self.domain}" at {self.created_at}>'
 
+    @classmethod
+    async def with_context(cls, db_session: AsyncSession, user_id: int, source_type: SourceType):
+        """ Return async context here"""
+
+
     async def as_file(self) -> Path:
         """Library for downloading content takes only path to cookie's file (stored on the disk)"""
 
