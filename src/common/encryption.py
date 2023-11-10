@@ -29,7 +29,7 @@ class SensitiveData:
     def __init__(self) -> None:
         if not (encrypt_key := settings.SENS_DATA_ENCRYPT_KEY):
             raise ImproperlyConfiguredError(
-                "Missed encrypt key for encryption sensitive data (env SENS_DATA_ENCRYPT_KEY_"
+                "Missed encrypt key for encryption sensitive data (env 'SENS_DATA_ENCRYPT_KEY')"
             )
 
         self.encrypt_key = self._cast_encrypt_key(encrypt_key)
