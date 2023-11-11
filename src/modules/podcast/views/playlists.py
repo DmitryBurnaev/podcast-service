@@ -28,18 +28,14 @@ class PlayListAPIView(BaseHTTPEndpoint):
         playlist_url = cleaned_data.get("url")
         source_info = utils.extract_source_info(playlist_url, playlist=True)
 
-        params = {"logger": logger, "noplaylist": False}
-        if cookie := await self._fetch_cookie(request, source_info.type):
-            params["cookiefile"] = await cookie.as_file()
-
-        # TODO: use context if cookie's file exist
-
-        with yt_dlp.YoutubeDL(params) as ydl:
-            extract_info = partial(ydl.extract_info, playlist_url, download=False)
-            try:
-                source_data = await run_in_threadpool(extract_info)
-            except yt_dlp.utils.DownloadError as exc:
-                raise InvalidRequestError(f"Couldn't extract playlist: {exc}") from exc
+        async with Cookie.file_context(self.db_session, request.user.id, source_info.type) as cf:
+            params = {"logger": logger, "noplaylist": False, "cookiefile": cf}
+            with yt_dlp.YoutubeDL(params) as ydl:
+                extract_info = partial(ydl.extract_info, playlist_url, download=False)
+                try:
+                    source_data = await run_in_threadpool(extract_info)
+                except yt_dlp.utils.DownloadError as exc:
+                    raise InvalidRequestError(f"Couldn't extract playlist: {exc}") from exc
 
         yt_content_type = source_data.get("_type")
         if yt_content_type != "playlist":

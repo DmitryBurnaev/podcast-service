@@ -1,6 +1,7 @@
 import os
 import uuid
 import logging
+from contextlib import asynccontextmanager
 from hashlib import md5
 from pathlib import Path
 from datetime import datetime
@@ -21,6 +22,7 @@ from common.enums import SourceType, EpisodeStatus
 
 # pylint: disable=unused-import
 from modules.media.models import File  # noqa (need for sqlalchemy's relationships)
+from modules.podcast.utils import delete_file
 
 logger = logging.getLogger(__name__)
 
@@ -180,9 +182,18 @@ class Cookie(ModelBase, ModelMixin):
         return f'<Cookie #{self.id} "{self.domain}" at {self.created_at}>'
 
     @classmethod
-    async def with_context(cls, db_session: AsyncSession, user_id: int, source_type: SourceType):
+    async def file_context(cls, db_session: AsyncSession, user_id: int, source_type: SourceType):
         """ Return async context here"""
+        cookie: Cookie = await Cookie.async_get(db_session, source_type=source_type, owner_id=user_id)
 
+        @asynccontextmanager
+        async def file_context():
+            file_path = await cookie.as_file() if cookie else None
+            yield file_path
+            if file_path:
+                delete_file(file_path)
+
+        return file_context
 
     async def as_file(self) -> Path:
         """Library for downloading content takes only path to cookie's file (stored on the disk)"""
