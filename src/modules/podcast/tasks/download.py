@@ -18,7 +18,7 @@ from common.exceptions import (
     UserCancellationError,
 )
 from modules.media.models import File
-from modules.podcast.models import Episode, Cookie
+from modules.podcast.models import Episode, cookie_file_ctx
 from modules.podcast.tasks.base import RQTask, TaskResultCode
 from modules.podcast.tasks.rss import GenerateRSSTask
 from modules.podcast.utils import get_file_size
@@ -183,28 +183,23 @@ class DownloadEpisodeTask(RQTask):
                 message="Episode [source: UPLOAD] does not contain audio with predefined path",
             )
 
-        cookie = (
-            await Cookie.async_get(self.db_session, id=episode.cookie_id)
-            if episode.cookie_id
-            else None
-        )
-
-        try:
-            result_path = await provider_utils.download_audio(
-                episode.watch_url,
-                filename=episode.audio_filename,
-                cookie=cookie,
-            )
-        except YoutubeDLError as exc:
-            logger.exception(
-                "=== [%s] Downloading FAILED: Could not download track: %r. "
-                "All episodes will be moved to the ERROR state",
-                episode.source_id,
-                exc,
-            )
-            await self._update_episodes(episode, {"status": Episode.Status.ERROR})
-            await self._update_files(episode, {"available": False})
-            raise DownloadingInterrupted(code=TaskResultCode.ERROR) from exc
+        async with cookie_file_ctx(self.db_session, cookie_id=episode.cookie_id) as cookie:
+            try:
+                result_path = await provider_utils.download_audio(
+                    episode.watch_url,
+                    filename=episode.audio_filename,
+                    cookie_path=(cookie.file_path if cookie else None),
+                )
+            except YoutubeDLError as exc:
+                logger.exception(
+                    "=== [%s] Downloading FAILED: Could not download track: %r. "
+                    "All episodes will be moved to the ERROR state",
+                    episode.source_id,
+                    exc,
+                )
+                await self._update_episodes(episode, {"status": Episode.Status.ERROR})
+                await self._update_files(episode, {"available": False})
+                raise DownloadingInterrupted(code=TaskResultCode.ERROR) from exc
 
         logger.info("=== [%s] DOWNLOADING was done ===", episode.source_id)
         return result_path

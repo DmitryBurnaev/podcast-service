@@ -11,7 +11,7 @@ from common.views import BaseHTTPEndpoint
 from common.utils import cut_string
 from common.exceptions import InvalidRequestError
 from modules.providers import utils
-from modules.podcast.models import Cookie
+from modules.podcast.models import Cookie, cookie_file_ctx
 from modules.podcast.schemas import PlayListRequestSchema, PlayListResponseSchema
 
 logger = logging.getLogger(__name__)
@@ -28,8 +28,12 @@ class PlayListAPIView(BaseHTTPEndpoint):
         playlist_url = cleaned_data.get("url")
         source_info = utils.extract_source_info(playlist_url, playlist=True)
 
-        async with Cookie.file_context(self.db_session, request.user.id, source_info.type) as cf:
-            params = {"logger": logger, "noplaylist": False, "cookiefile": cf}
+        async with cookie_file_ctx(self.db_session, request.user.id, source_info.type) as cookie:
+            params = {
+                "logger": logger,
+                "noplaylist": False,
+                "cookiefile": (cookie.file_path if cookie else None),
+            }
             with yt_dlp.YoutubeDL(params) as ydl:
                 extract_info = partial(ydl.extract_info, playlist_url, download=False)
                 try:
@@ -41,9 +45,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
         if yt_content_type != "playlist":
             logger.warning("Unknown type of returned providers details: %s", yt_content_type)
             logger.debug("Returned info: {%s}", source_data)
-            raise InvalidRequestError(
-                details=f"It seems like incorrect playlist. {yt_content_type=}"
-            )
+            raise InvalidRequestError(details=f"It seems like incorrect {yt_content_type=}")
 
         entries = [
             {

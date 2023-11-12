@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.enums import FileType
 from modules.media.models import File
-from modules.podcast.models import Episode, Cookie
+from modules.podcast.models import Episode, cookie_file_ctx
 from modules.providers.utils import SourceInfo, SourceMediaInfo
 from modules.providers import utils as provider_utils
 from modules.providers.exceptions import SourceFetchError
@@ -79,13 +79,11 @@ class EpisodeCreator:
             logger.info("New episode for source %s will be created.", self.source_id)
             same_episode_data = {}
 
-        cookie = await Cookie.async_get(
-            self.db_session,
-            source_type=self.source_info.type,
-            owner_id=self.user_id,
-        )
-        self.source_info.cookie = cookie
-        extract_error, source_info = await provider_utils.get_source_media_info(self.source_info)
+        async with cookie_file_ctx(self.db_session, self.user_id, self.source_info.type) as cookie:
+            self.source_info.cookie_path = cookie.file_path if cookie else None
+            extract_error, source_info = await provider_utils.get_source_media_info(
+                self.source_info
+            )
 
         if source_info:
             new_episode_data = {
