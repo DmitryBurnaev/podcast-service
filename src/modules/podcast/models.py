@@ -6,6 +6,7 @@ from hashlib import md5
 from pathlib import Path
 from datetime import datetime
 from functools import cached_property
+from typing import AsyncContextManager
 
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -167,6 +168,7 @@ class Cookie(ModelBase, ModelMixin):
     """Saving cookies (in netscape format) for accessing to auth-only resources"""
 
     __tablename__ = "podcast_cookies"
+    __file_path: Path | None = None
 
     id = Column(Integer, primary_key=True)
     source_type = EnumTypeColumn(SourceType)
@@ -180,20 +182,6 @@ class Cookie(ModelBase, ModelMixin):
 
     def __str__(self):
         return f'<Cookie #{self.id} "{self.domain}" at {self.created_at}>'
-
-    @classmethod
-    async def file_context(cls, db_session: AsyncSession, user_id: int, source_type: SourceType):
-        """ Return async context here"""
-        cookie: Cookie = await Cookie.async_get(db_session, source_type=source_type, owner_id=user_id)
-
-        @asynccontextmanager
-        async def file_context():
-            file_path = await cookie.as_file() if cookie else None
-            yield file_path
-            if file_path:
-                delete_file(file_path)
-
-        return file_context
 
     async def as_file(self) -> Path:
         """Library for downloading content takes only path to cookie's file (stored on the disk)"""
@@ -212,12 +200,38 @@ class Cookie(ModelBase, ModelMixin):
 
         return await run_in_threadpool(store_tmp_file)
 
-    async def __aenter__(self):
-        # TODO: write async context for accessing to file (and removing after doing some logic)
-        ...
-
-
     @classmethod
     def get_encrypted_data(cls, data: str) -> str:
         """Return encrypted value for provided in `data` argument"""
         return SensitiveData().encrypt(data)
+
+    @property
+    def file_path(self):
+        return self.__file_path
+
+    @file_path.setter
+    def file_path(self, value):
+        self.__file_path = value
+
+
+@asynccontextmanager
+async def cookie_file_ctx(
+    db_session: AsyncSession,
+    user_id: int | None = None,
+    source_type: SourceType | None = None,
+    cookie_id: int | None = None,
+) -> AsyncContextManager[Cookie | None]:
+    if cookie_id:
+        cookie: Cookie | None = await Cookie.async_get(db_session, id=cookie_id)
+    elif user_id and source_type:
+        cookie_filter = {"source_type": source_type, "owner_id": user_id}
+        cookie: Cookie | None = await Cookie.async_get(db_session, **cookie_filter)
+    else:
+        cookie = None
+
+    if cookie:
+        cookie.file_path = await cookie.as_file()
+        yield cookie
+        delete_file(cookie.file_path)
+    # else:
+    #     yield None

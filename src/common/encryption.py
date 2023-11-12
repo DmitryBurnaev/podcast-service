@@ -21,7 +21,7 @@ class StructMessage(NamedTuple):
 
 
 class SensitiveData:
-    """ Encrypts/decrypt incoming data (using AES256 encryption) """
+    """Encrypts/decrypt incoming data (using AES256 encryption)"""
 
     AES256_PREFIX = "AES256"
     AES_KEY_LENGTH = int(256 / 8)
@@ -35,7 +35,7 @@ class SensitiveData:
         self.encrypt_key = self._cast_encrypt_key(encrypt_key)
 
     def encrypt(self, data: str) -> str:
-        """ Allows to encrypt giving data with provided settings.SENS_DATA_ENCRYPT_KEY """
+        """Allows to encrypt giving data with provided settings.SENS_DATA_ENCRYPT_KEY"""
         try:
             cipher = AES.new(self.encrypt_key, AES.MODE_EAX)
             encoded_message, tag = cipher.encrypt_and_digest(data.encode())
@@ -49,7 +49,7 @@ class SensitiveData:
         return f"{self.AES256_PREFIX};{nonce_b64b};{encoded_message_b64b};{tag_b64b}"
 
     def decrypt(self, data: str) -> str:
-        """ Allows to decrypt data with provided settings.SENS_DATA_ENCRYPT_KEY """
+        """Allows to decrypt data with provided settings.SENS_DATA_ENCRYPT_KEY"""
         struct_message = self._get_struct_message(data)
         try:
             cipher = AES.new(self.encrypt_key, AES.MODE_EAX, nonce=struct_message.nonce)
