@@ -23,6 +23,7 @@ from common.enums import SourceType, EpisodeStatus
 
 # pylint: disable=unused-import
 from modules.media.models import File  # noqa (need for sqlalchemy's relationships)
+# TODO: fix circular import
 from modules.podcast.utils import delete_file
 
 logger = logging.getLogger(__name__)
@@ -221,6 +222,16 @@ async def cookie_file_ctx(
     source_type: SourceType | None = None,
     cookie_id: int | None = None,
 ) -> AsyncContextManager[Cookie | None]:
+    """
+    Async context which allows to save tmp file (with decrypted cookie's data)
+    and remove it after using (by sec reason)
+
+    :param db_session: current SA's async session
+    :param user_id: current logged-in user (needed for searching cookie)
+    :param source_type: required source (needed for searching cookie)
+    :param cookie_id: if known - will be used for direct access
+
+    """
     if cookie_id:
         cookie: Cookie | None = await Cookie.async_get(db_session, id=cookie_id)
     elif user_id and source_type:
