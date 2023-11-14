@@ -20,11 +20,10 @@ from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
 from common.exceptions import UnexpectedError
 from common.enums import SourceType, EpisodeStatus
+from modules.podcast.utils import delete_file
 
 # pylint: disable=unused-import
 from modules.media.models import File  # noqa (need for sqlalchemy's relationships)
-# TODO: fix circular import
-from modules.podcast.utils import delete_file
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +168,7 @@ class Cookie(ModelBase, ModelMixin):
     """Saving cookies (in netscape format) for accessing to auth-only resources"""
 
     __tablename__ = "podcast_cookies"
-    __file_path: Path | None = None
+    # __file_path: Path | None = None
 
     id = Column(Integer, primary_key=True)
     source_type = EnumTypeColumn(SourceType)
@@ -180,6 +179,10 @@ class Cookie(ModelBase, ModelMixin):
 
     class Meta:
         order_by = ("-created_at",)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__file_path: Path | None = None
 
     def __str__(self):
         return f'<Cookie #{self.id} "{self.domain}" at {self.created_at}>'
@@ -244,5 +247,5 @@ async def cookie_file_ctx(
         cookie.file_path = await cookie.as_file()
         yield cookie
         delete_file(cookie.file_path)
-    # else:
-    #     yield None
+    else:
+        yield None

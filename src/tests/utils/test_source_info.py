@@ -18,7 +18,7 @@ def test_fetch_source_type__ok(source_url: str, source_type: SourceType, source_
     assert source_info.type == source_type
     assert source_info.url == source_url
     assert source_info.id == source_id
-    assert source_info.cookie is None
+    assert source_info.cookie_path is None
 
 
 @pytest.mark.parametrize(

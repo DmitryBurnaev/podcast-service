@@ -157,7 +157,7 @@ class TestPodcastListCreateAPIView(BaseTestAPIView):
         response_data = self.assert_fail_response(response, status_code=400)
         assert response_data == {
             "error": "Requested data is not valid.",
-            "details": "It seems like incorrect playlist. yt_content_type='video'",
+            "details": "It seems like incorrect URL: yt_content_type='video'",
         }
 
     @patch("modules.providers.utils.extract_source_info")
