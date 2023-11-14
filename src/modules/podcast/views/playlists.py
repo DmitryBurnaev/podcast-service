@@ -45,7 +45,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
         if yt_content_type != "playlist":
             logger.warning("Unknown type of returned providers details: %s", yt_content_type)
             logger.debug("Returned info: {%s}", source_data)
-            raise InvalidRequestError(details=f"It seems like incorrect {yt_content_type=}")
+            raise InvalidRequestError(details=f"It seems like incorrect URL: {yt_content_type=}")
 
         entries = [
             {

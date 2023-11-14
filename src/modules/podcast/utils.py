@@ -3,6 +3,7 @@ import json
 import os
 import time
 import logging
+import typing
 from pathlib import Path
 from typing import Iterable, Optional
 from functools import partial, lru_cache
@@ -16,7 +17,9 @@ from common.redis import RedisClient
 from common.storage import StorageS3
 from common.enums import EpisodeStatus
 from common.exceptions import UserCancellationError
-from modules.podcast.models import Episode
+
+if typing.TYPE_CHECKING:
+    from modules.podcast.models import Episode
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +69,7 @@ def get_file_size(file_path: str | Path) -> int:
         return 0
 
 
-async def check_state(episodes: Iterable[Episode]) -> list[dict]:
+async def check_state(episodes: Iterable["Episode"]) -> list[dict]:
     """Allows getting info about download progress for requested episodes"""
 
     redis_client = RedisClient()
