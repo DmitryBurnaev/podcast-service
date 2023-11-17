@@ -362,12 +362,12 @@ class TestUploadAudioAPIView(BaseTestAPIView):
     @pytest.mark.parametrize("metadata", ("full", "empty"))
     async def test_upload__ok(
         self,
+        metadata: str,
         client: PodcastTestClient,
         user: User,
         mocked_s3: MockS3Client,
         tmp_file: File,
         mocked_audio_metadata: Mock,
-        metadata: str,
     ):
         if metadata == "full":
             audio_metadata = {

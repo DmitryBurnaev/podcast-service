@@ -19,7 +19,7 @@ from modules.auth.models import UserInvite, User, UserSession
 from modules.media.models import File
 from modules.podcast.models import Podcast, Episode, Cookie
 from common.enums import SourceType, FileType
-from modules.providers import utils as youtube_utils
+from modules.providers import utils as provider_utils
 from modules.providers.utils import SourceInfo
 from tests.helpers import (
     PodcastTestClient,
@@ -202,7 +202,7 @@ def mocked_sens_data(monkeypatch) -> MockSensitiveData:
 @pytest.fixture
 def mocked_ffmpeg(monkeypatch) -> Mock:
     mocked_ffmpeg_function = Mock()
-    monkeypatch.setattr(youtube_utils, "ffmpeg_preparation", mocked_ffmpeg_function)
+    monkeypatch.setattr(provider_utils, "ffmpeg_preparation", mocked_ffmpeg_function)
     yield mocked_ffmpeg_function
     del mocked_ffmpeg_function
 
@@ -210,7 +210,7 @@ def mocked_ffmpeg(monkeypatch) -> Mock:
 @pytest.fixture
 def mocked_audio_metadata(monkeypatch) -> Mock:
     mocked_function = Mock()
-    monkeypatch.setattr(youtube_utils, "audio_metadata", mocked_function)
+    monkeypatch.setattr(provider_utils, "audio_metadata", mocked_function)
     yield mocked_function
     del mocked_function
 
@@ -370,7 +370,7 @@ def _mocked_source_info(monkeypatch, source_type) -> Mock:
         url="http://link.to.source/",
         type=source_type,
     )
-    monkeypatch.setattr(youtube_utils, "extract_source_info", mock)
+    monkeypatch.setattr(provider_utils, "extract_source_info", mock)
     yield mock
     del mock
 
