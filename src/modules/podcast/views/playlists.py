@@ -33,6 +33,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
                 "logger": logger,
                 "noplaylist": False,
                 "cookiefile": (cookie.file_path if cookie else None),
+                # "extract_flat": "in_playlist", TODO: can we use this mode instead?
             }
             with yt_dlp.YoutubeDL(params) as ydl:
                 extract_info = partial(ydl.extract_info, playlist_url, download=False)
@@ -53,7 +54,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
                 "title": video["title"],
                 "description": self._prepare_description(source_info.type, video),
                 "thumbnail_url": video["thumbnails"][0]["url"] if video.get("thumbnails") else "",
-                "url": video["webpage_url"],
+                "url": video.get("url") or video.get("webpage_url"),
             }
             for video in source_data["entries"]
         ]
@@ -71,7 +72,7 @@ class PlayListAPIView(BaseHTTPEndpoint):
     @staticmethod
     def _prepare_description(source_type: SourceType, data: dict) -> str:
         if source_type == SourceType.YOUTUBE:
-            return cut_string(data["description"], 200)
+            return cut_string(data.get("description") or "", 200)
         if source_type == SourceType.YANDEX:
             return (
                 f'Playlist "{data["playlist"]}" '

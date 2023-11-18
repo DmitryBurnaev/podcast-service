@@ -193,7 +193,7 @@ class Cookie(ModelBase, ModelMixin):
         def store_tmp_file():
             cookies_file = settings.TMP_COOKIES_PATH / f"cookie_{self.source_type}_{self.id}.txt"
             if not os.path.exists(cookies_file):
-                logger.debug("Cookie #%s: Generation cookie file [%s]", self.id, cookies_file)
+                logger.debug("Cookie #%s: Generation tmp cookie file [%s]", self.id, cookies_file)
                 with open(cookies_file, "wt", encoding="utf-8") as f:
                     decr_data = SensitiveData().decrypt(self.data)
                     f.write(decr_data)
@@ -235,6 +235,12 @@ async def cookie_file_ctx(
     :param cookie_id: if known - will be used for direct access
 
     """
+    logger.debug(
+        "Entering cookie's file context: user %s | source_type: %s | cookie_id: %s",
+        user_id,
+        source_type,
+        cookie_id,
+    )
     if cookie_id:
         cookie: Cookie | None = await Cookie.async_get(db_session, id=cookie_id)
     elif user_id and source_type:
