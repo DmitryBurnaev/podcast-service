@@ -1,16 +1,10 @@
-import logging
 import time
 import uuid
 from unittest.mock import patch, MagicMock, Mock
 
-import pytest
-
 from common.redis import RedisClient
 from modules.podcast.tasks import RQTask
 from modules.podcast.tasks.base import TaskResultCode
-
-pytestmark = pytest.mark.asyncio
-test_logger = logging.getLogger(__name__)
 
 
 class TaskForTest(RQTask):
@@ -47,7 +41,6 @@ class MockJob:
         self.get_status = MagicMock()
 
 
-@patch("multiprocessing.get_logger", lambda: test_logger)
 class TestRunTask:
     def test_run__ok(self):
         task = TaskForTest()
@@ -57,16 +50,16 @@ class TestRunTask:
         task = TaskForTest()
         assert task(raise_error=True) == TaskResultCode.ERROR
 
-    async def test_tasks__eq__ok(self):
+    def test_tasks__eq__ok(self):
         task_1 = TaskForTest()
         task_2 = TaskForTest()
         assert task_1 == task_2
 
-    async def test_check_name__ok(self):
+    def test_check_name__ok(self):
         task = TaskForTest()
         assert task.name == "TaskForTest"
 
-    async def test_subclass__ok(self):
+    def test_subclass__ok(self):
         task_classes = list(RQTask.get_subclasses())
         assert TaskForTest in task_classes
 
