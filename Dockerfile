@@ -3,7 +3,7 @@ FROM alpine:3.18 as download-ffmpeg
 WORKDIR /ffmpeg
 ARG FFMPEG_VERSION=4.4.1
 
-RUN apk add wget unzip grep ps \
+RUN apk add wget unzip \
     && wget "https://github.com/vot/ffbinaries-prebuilt/releases/download/v${FFMPEG_VERSION}/ffmpeg-${FFMPEG_VERSION}-linux-64.zip" -q -O /tmp/ffmpeg-linux-64.zip \
     && unzip /tmp/ffmpeg-linux-64.zip -d /ffmpeg \
     && chmod u+x /ffmpeg/ffmpeg \
@@ -43,6 +43,8 @@ RUN apt-get update \
 		gcc \
 		libpq-dev \
 		python-dev \
+        grep  \
+        procps \
 	&& pip install pipenv==2023.7.23 \
 	&& if [ "${DEV_DEPS}" = "true" ]; then \
 	     echo "=== Install DEV dependencies ===" && \
