@@ -152,7 +152,7 @@ class TestUserIPsAPIView(BaseTestAPIView):
         podcast_details = {"id": podcast.id, "name": podcast.name} if podcast else None
         return {
             "id": ip.id,
-            "ip_address": ip.ip_address,
+            "ip_address": ip.hashed_address,
             "by_rss_podcast": podcast_details,
             "created_at": ip.created_at.isoformat(),
         }

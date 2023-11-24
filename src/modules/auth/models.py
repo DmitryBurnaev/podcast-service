@@ -88,7 +88,8 @@ class UserIP(ModelBase, ModelMixin):
     __tablename__ = "auth_user_ips"
 
     id = Column(Integer, primary_key=True)
-    ip_address = Column(String(length=16), index=True, nullable=False)
+    # TODO: migration + find/replace all using ip_address
+    hashed_address = Column(String(length=16), index=True, nullable=False)
     user_id = Column(ForeignKey("auth_users.id"))
     registered_by = Column(String(length=128), index=True, nullable=False, server_default="")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -97,4 +98,4 @@ class UserIP(ModelBase, ModelMixin):
         order_by = ("-id",)
 
     def __repr__(self):
-        return f"<UserIP {self.ip_address} user: {self.user_id}>"
+        return f"<UserIP {self.hashed_address} user: {self.user_id}>"

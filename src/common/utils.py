@@ -1,3 +1,4 @@
+import hashlib
 import uuid
 import asyncio
 import logging
@@ -129,6 +130,18 @@ def cut_string(source_string: str, max_length: int, finish_seq: str = "...") -> 
         return source_string[:slice_length] + finish_seq if (slice_length > 0) else ""
 
     return source_string
+
+
+def hash_string(source_string: str) -> str:
+    """
+    Allows to limit source_string and append required sequence
+
+    >>> hash_string('Some long string' * 10)
+    '7421e493501b6a92f2a6884b93bf3f7ac7b479270753601941331d034d073d52
+    >>> hash_string('127.0.0.1')
+    '12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0'
+    """
+    return hashlib.sha256(source_string.encode()).hexdigest()
 
 
 async def download_content(
