@@ -3,7 +3,7 @@ import secrets
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Index
 
 from core.database import ModelBase
 from common.models import ModelMixin
@@ -86,10 +86,17 @@ class UserSession(ModelBase, ModelMixin):
 
 class UserIP(ModelBase, ModelMixin):
     __tablename__ = "auth_user_ips"
+    __table_args__ = (
+        Index(
+            "ix_auth_user_ips__user_id__hashed_address",
+            "user_id",
+            "hashed_address",
+        ),
+    )
 
     id = Column(Integer, primary_key=True)
     # TODO: migration + find/replace all using ip_address
-    hashed_address = Column(String(length=128), index=True, nullable=False)
+    hashed_address = Column(String(length=128), nullable=False)
     user_id = Column(ForeignKey("auth_users.id"))
     registered_by = Column(String(length=128), index=True, nullable=False, server_default="")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

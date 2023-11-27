@@ -31,13 +31,16 @@ def upgrade():
     )
     _hash_exists_addresses(connection)
     op.create_index(
-        op.f("ix_auth_user_ips_hashed_address"), "auth_user_ips", ["hashed_address"], unique=False
+        "ix_auth_user_ips__user_id__hashed_address",
+        "auth_user_ips",
+        ["user_id", "hashed_address"],
+        unique=False,
     )
 
 
 def downgrade():
     connection = op.get_bind()
-    op.drop_index(op.f("ix_auth_user_ips_hashed_address"), table_name="auth_user_ips")
+    op.drop_index(op.f("ix_auth_user_ips__user_id__hashed_address"), table_name="auth_user_ips")
     _cut_exists_addresses(connection)
     op.alter_column(
         "auth_user_ips",
@@ -54,11 +57,11 @@ def _hash_exists_addresses(connection: Connection):
     update_query = text("UPDATE auth_user_ips SET hashed_address = :hashed_address WHERE id = :id")
 
     for ip_id, ip_address in connection.execute(address_query).fetchall():
-        hashed_ip = hash_string(ip_address)
-        connection.execute(update_query, {"id": ip_id, "ip_address": hashed_ip})
+        connection.execute(update_query, {"id": ip_id, "hashed_address": hash_string(ip_address)})
 
 
 def _cut_exists_addresses(connection: Connection):
-    update_query = text("UPDATE auth_user_ips SET hashed_address = substring(hashed_address, 1, 16)")
+    update_query = text(
+        "UPDATE auth_user_ips SET hashed_address = substring(hashed_address, 1, 16)"
+    )
     connection.execute(update_query)
-

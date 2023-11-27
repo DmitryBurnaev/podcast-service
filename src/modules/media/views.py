@@ -10,6 +10,7 @@ from typing import ClassVar
 from starlette.datastructures import UploadFile
 from starlette.responses import RedirectResponse, Response
 
+from common.utils import hash_string
 from core import settings
 from common.enums import FileType
 from common.exceptions import (
@@ -80,12 +81,13 @@ class BaseFileRedirectApiView(BaseHTTPEndpoint):
         logger.debug(
             "Finding UserIP with filters: ip_address %s | user_id %s", ip_address, file.owner_id
         )
-        allowed_ips = {
-            user_ip.ip_address: user_ip
-            for user_ip in await UserIP.async_filter(self.db_session, user_id=file.owner_id)
-        }
-        if not (user_ip := allowed_ips.get(ip_address)):
-            logger.warning("Unknown user's IP: %s | allowed: %s", ip_address, allowed_ips)
+        user_ip = await UserIP.async_get(
+            self.db_session,
+            user_id=file.owner_id,
+            hashed_address=hash_string(ip_address)
+        )
+        if not user_ip:
+            logger.warning("Unknown user's IP: %s | user_id: %i", ip_address, file.owner_id)
             raise AuthenticationFailedError(f"Invalid IP address: {ip_address}")
 
         return user_ip
@@ -126,7 +128,7 @@ class RSSRedirectAPIView(BaseFileRedirectApiView):
                 user_ip = await UserIP.async_create(
                     self.db_session,
                     user_id=file.owner_id,
-                    ip_address=ip_address,
+                    hashed_address=hash_string(ip_address),
                     registered_by=file.access_token,
                 )
                 return user_ip
