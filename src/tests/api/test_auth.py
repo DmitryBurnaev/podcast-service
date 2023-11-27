@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.request import PRequest
 from common.statuses import ResponseStatus
+from common.utils import hash_string
 from core import settings
 from modules.auth.models import User, UserSession, UserInvite, UserIP
 from modules.auth.utils import (
@@ -692,6 +693,7 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
 
 class TestUserIPRegistration(BaseTestAPIView):
     IP = "172.17.0.1"
+    HASHED_IP = hash_string(IP)
 
     def _request(self, user: User, ip_address: str = IP) -> PRequest:
         dbs = self.client.db_session
@@ -703,7 +705,9 @@ class TestUserIPRegistration(BaseTestAPIView):
         self.client = client
         request = self._request(user=user)
         await register_ip(request)
-        user_ip = await UserIP.async_get(client.db_session, user_id=user.id, ip_address=self.IP)
+        user_ip = await UserIP.async_get(
+            client.db_session, user_id=user.id, hashed_address=self.HASHED_IP
+        )
         assert user_ip is not None
 
     async def test_register_ip_already_exists(
@@ -714,13 +718,13 @@ class TestUserIPRegistration(BaseTestAPIView):
     ):
         self.client = client
         old_user_ip = await UserIP.async_create(
-            dbs, user_id=user.id, ip_address=self.IP, db_commit=True
+            dbs, user_id=user.id, hashed_address=self.HASHED_IP, db_commit=True
         )
 
         request = self._request(user=user, ip_address=self.IP)
         await register_ip(request)
 
-        new_user_ip = await UserIP.async_get(dbs, user_id=user.id, ip_address=self.IP)
+        new_user_ip = await UserIP.async_get(dbs, user_id=user.id, hashed_address=self.HASHED_IP)
         assert new_user_ip is not None
         assert new_user_ip.id == old_user_ip.id
 
@@ -731,6 +735,7 @@ class TestUserIPRegistration(BaseTestAPIView):
         user_session: UserSession,
     ):
         self.client = client
+        # TODO: fix tests
         request_1 = self._request(user=user, ip_address="172.17.0.1")
         request_2 = self._request(user=user, ip_address="172.17.0.2")
         await register_ip(request_1)

@@ -115,10 +115,10 @@ class PodcastShortSchema(Schema):
 
 class UserIPsResponseSchema(Schema):
     id = fields.Int()
-    ip_address = fields.String()
+    hashed_address = fields.String()
     created_at = fields.DateTime()
     by_rss_podcast = fields.Nested(PodcastShortSchema)
 
 
 class UserIPsDeleteRequestSchema(Schema):
-    ips = fields.List(fields.String)
+    ids = fields.List(fields.Integer)

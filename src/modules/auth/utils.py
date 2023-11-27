@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import jwt
 
 from common.request import PRequest
+from common.utils import hash_string
 from core import settings
 from modules.auth.models import UserIP
 
@@ -77,10 +78,10 @@ async def register_ip(request: PRequest):
     if not (ip_address := extract_ip_address(request)):
         return
 
-    ip_data = {"user_id": request.user.id, "ip_address": ip_address}
+    user_ip_data = {"user_id": request.user.id, "hashed_address": hash_string(ip_address)}
 
-    if await UserIP.async_get(request.db_session, **ip_data):
-        logger.debug("Found UserIP record for: %s", ip_data)
+    if await UserIP.async_get(request.db_session, **user_ip_data):
+        logger.debug("Found UserIP record for: %s", user_ip_data)
     else:
-        await UserIP.async_create(request.db_session, **ip_data)
-        logger.debug("Created NEW UserIP record for: %s", ip_data)
+        await UserIP.async_create(request.db_session, **user_ip_data)
+        logger.debug("Created NEW UserIP record for: %s", user_ip_data)
