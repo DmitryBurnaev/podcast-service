@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.enums import FileType
 from common.exceptions import NotSupportedError
+from common.utils import hash_string
 from core import settings
 from modules.auth.models import UserIP, User
 from modules.media.models import File
@@ -22,6 +23,7 @@ pytestmark = pytest.mark.asyncio
 class TestMediaFileAPIView(BaseTestAPIView):
     url = "/m/{token}/"
     user_ip = "172.17.0.2"
+    hashed_user_ip = hash_string("172.17.0.2")
 
     async def test_get_media_file__ok(
         self,
@@ -34,7 +36,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
         mocked_s3.get_presigned_url.return_value = temp_link
         url = self.url.format(token=image_file.access_token)
         await client.login(user)
-        await UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip)
+        await UserIP.async_create(client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip)
         await client.db_session.commit()
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
@@ -60,7 +62,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
     ):
         url = self.url.format(token=image_file.access_token)
         await client.login(user)
-        await UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip)
+        await UserIP.async_create(client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip)
         await client.db_session.commit()
 
         response = client.head(url)
@@ -77,7 +79,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
     ):
         url = self.url.format(token="fake-token")
         await client.login(user)
-        await UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip)
+        await UserIP.async_create(client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip)
         await client.db_session.commit()
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
@@ -97,7 +99,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
         await client.login(user)
 
         await image_file.update(client.db_session, available=False)
-        await UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip)
+        await UserIP.async_create(client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip)
         await client.db_session.commit()
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
@@ -117,7 +119,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
         await client.login(user)
 
         await image_file.update(client.db_session, available=False, source_url="")
-        await UserIP.async_create(client.db_session, user_id=user.id, ip_address=self.user_ip)
+        await UserIP.async_create(client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip)
         await client.db_session.commit()
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
@@ -173,7 +175,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
         await UserIP.async_create(
             client.db_session,
             user_id=user.id,
-            ip_address=self.user_ip,
+            hashed_address=self.hashed_user_ip,
             registered_by=rss_file.access_token,
             db_commit=True,
         )
@@ -190,6 +192,7 @@ class TestMediaFileAPIView(BaseTestAPIView):
 class TestRSSFileAPIView(BaseTestAPIView):
     url = "/r/{token}/"
     user_ip = "172.17.0.2"
+    hashed_user_ip = hash_string("172.17.0.2")
     temp_link = "https://s3.storage/tmp.link"
 
     @pytest.mark.parametrize(
@@ -222,7 +225,7 @@ class TestRSSFileAPIView(BaseTestAPIView):
         assert response.headers == headers
 
         user_ip = await UserIP.async_get(
-            client.db_session, user_id=user.id, ip_address=self.user_ip
+            client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip
         )
         assert user_ip is not None
         assert user_ip.registered_by == rss_file.access_token
@@ -239,7 +242,7 @@ class TestRSSFileAPIView(BaseTestAPIView):
         await UserIP.async_create(
             client.db_session,
             user_id=user.id,
-            ip_address=self.user_ip,
+            hashed_address=self.hashed_user_ip,
             registered_by=rss_file.access_token,
             db_commit=True,
         )
@@ -266,7 +269,7 @@ class TestRSSFileAPIView(BaseTestAPIView):
         await UserIP.async_create(
             client.db_session,
             user_id=user.id,
-            ip_address=self.user_ip,
+            hashed_address=self.hashed_user_ip,
             registered_by=File.generate_token(),
             db_commit=True,
         )

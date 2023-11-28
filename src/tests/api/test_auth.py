@@ -750,5 +750,8 @@ class TestUserIPRegistration(BaseTestAPIView):
         request.scope["user"] = user
         await register_ip(request)
 
-        user_ip = await UserIP.async_get(dbs, user_id=user.id, ip_address="172.17.0.1")
+        user_ip = await UserIP.async_get(
+            dbs, user_id=user.id,
+            hashed_address=hash_string("172.17.0.1")
+        )
         assert user_ip is None
