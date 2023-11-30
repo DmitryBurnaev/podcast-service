@@ -36,7 +36,9 @@ class TestMediaFileAPIView(BaseTestAPIView):
         mocked_s3.get_presigned_url.return_value = temp_link
         url = self.url.format(token=image_file.access_token)
         await client.login(user)
-        await UserIP.async_create(client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip)
+        await UserIP.async_create(
+            client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip
+        )
         await client.db_session.commit()
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
@@ -62,7 +64,9 @@ class TestMediaFileAPIView(BaseTestAPIView):
     ):
         url = self.url.format(token=image_file.access_token)
         await client.login(user)
-        await UserIP.async_create(client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip)
+        await UserIP.async_create(
+            client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip
+        )
         await client.db_session.commit()
 
         response = client.head(url)
@@ -79,7 +83,9 @@ class TestMediaFileAPIView(BaseTestAPIView):
     ):
         url = self.url.format(token="fake-token")
         await client.login(user)
-        await UserIP.async_create(client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip)
+        await UserIP.async_create(
+            client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip
+        )
         await client.db_session.commit()
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
@@ -99,7 +105,9 @@ class TestMediaFileAPIView(BaseTestAPIView):
         await client.login(user)
 
         await image_file.update(client.db_session, available=False)
-        await UserIP.async_create(client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip)
+        await UserIP.async_create(
+            client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip
+        )
         await client.db_session.commit()
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})
@@ -119,7 +127,9 @@ class TestMediaFileAPIView(BaseTestAPIView):
         await client.login(user)
 
         await image_file.update(client.db_session, available=False, source_url="")
-        await UserIP.async_create(client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip)
+        await UserIP.async_create(
+            client.db_session, user_id=user.id, hashed_address=self.hashed_user_ip
+        )
         await client.db_session.commit()
 
         response = client.head(url, headers={"X-Real-IP": self.user_ip})

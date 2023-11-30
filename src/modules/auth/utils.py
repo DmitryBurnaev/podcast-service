@@ -81,7 +81,7 @@ async def register_ip(request: PRequest):
     user_ip_data = {"user_id": request.user.id, "hashed_address": hash_string(ip_address)}
 
     if await UserIP.async_get(request.db_session, **user_ip_data):
-        logger.debug("Found UserIP record for: %s", user_ip_data)
+        logger.debug("Found UserIP record for: %s | ip: %s", user_ip_data, ip_address)
     else:
         await UserIP.async_create(request.db_session, **user_ip_data)
-        logger.debug("Created NEW UserIP record for: %s", user_ip_data)
+        logger.debug("Created NEW UserIP record for: %s | ip: %s", user_ip_data, ip_address)

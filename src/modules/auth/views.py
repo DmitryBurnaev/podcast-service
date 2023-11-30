@@ -428,6 +428,8 @@ class UserIPsDeleteAPIView(BaseHTTPEndpoint):
     async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request)
         await UserIP.async_delete(
-            self.db_session, user_id=request.user.id, id__in=cleaned_data["ids"],
+            self.db_session,
+            user_id=request.user.id,
+            id__in=cleaned_data["ids"],
         )
         return self._response()

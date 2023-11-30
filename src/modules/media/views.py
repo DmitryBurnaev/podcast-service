@@ -82,9 +82,7 @@ class BaseFileRedirectApiView(BaseHTTPEndpoint):
             "Finding UserIP with filters: ip_address %s | user_id %s", ip_address, file.owner_id
         )
         user_ip = await UserIP.async_get(
-            self.db_session,
-            user_id=file.owner_id,
-            hashed_address=hash_string(ip_address)
+            self.db_session, user_id=file.owner_id, hashed_address=hash_string(ip_address)
         )
         if not user_ip:
             logger.warning("Unknown user's IP: %s | user_id: %i", ip_address, file.owner_id)

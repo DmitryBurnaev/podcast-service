@@ -95,7 +95,6 @@ class UserIP(ModelBase, ModelMixin):
     )
 
     id = Column(Integer, primary_key=True)
-    # TODO: migration + find/replace all using ip_address
     hashed_address = Column(String(length=128), nullable=False)
     user_id = Column(ForeignKey("auth_users.id"))
     registered_by = Column(String(length=128), index=True, nullable=False, server_default="")
