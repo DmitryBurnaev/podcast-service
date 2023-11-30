@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.statuses import ResponseStatus
+from common.utils import hash_string
 from modules.auth.models import UserIP, User, UserSession
 from modules.auth.utils import encode_jwt, TOKEN_TYPE_RESET_PASSWORD, TOKEN_TYPE_REFRESH
 from modules.media.models import File
@@ -141,7 +142,7 @@ class TestUserIPsAPIView(BaseTestAPIView):
     @staticmethod
     async def _user_ip(dbs, user: User, address: str, registered_by: str = "") -> UserIP:
         ip_data = {
-            "ip_address": address,
+            "hashed_address": hash_string(address),
             "user_id": user.id,
             "registered_by": registered_by,
         }
@@ -152,7 +153,7 @@ class TestUserIPsAPIView(BaseTestAPIView):
         podcast_details = {"id": podcast.id, "name": podcast.name} if podcast else None
         return {
             "id": ip.id,
-            "ip_address": ip.hashed_address,
+            "hashed_address": ip.hashed_address,
             "by_rss_podcast": podcast_details,
             "created_at": ip.created_at.isoformat(),
         }
@@ -221,20 +222,13 @@ class TestUserIPsAPIView(BaseTestAPIView):
         await dbs.refresh(user_1)
         await dbs.refresh(user_2)
 
-        await self._user_ip(dbs, user_1, "127.0.0.1")
-        await self._user_ip(dbs, user_1, "192.168.1.10")
-        await self._user_ip(dbs, user_2, "192.168.1.10")
+        user_ip_1 = await self._user_ip(dbs, user_1, "127.0.0.1")
+        user_ip_2 = await self._user_ip(dbs, user_1, "192.168.1.10")
+        user_ip_3 = await self._user_ip(dbs, user_2, "192.168.1.10")
         await dbs.commit()
 
         await client.login(user_1)
-        response = client.post(self.url_delete, json={"ips": ["127.0.0.1", "192.168.1.10"]})
+        response = client.post(self.url_delete, json={"ids": [user_ip_1.id, user_ip_2.id]})
         self.assert_ok_response(response)
 
-        expected_remaining_ips = [(user_2.id, "192.168.1.10")]
-        actual_remaining_ips = [
-            (ip.user_id, ip.ip_address)
-            for ip in await UserIP.async_filter(
-                client.db_session, user_id__in=(user_1.id, user_2.id)
-            )
-        ]
-        assert expected_remaining_ips == actual_remaining_ips
+        assert await UserIP.async_get(dbs, id=user_ip_3.id) is not None

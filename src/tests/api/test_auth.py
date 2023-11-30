@@ -742,8 +742,8 @@ class TestUserIPRegistration(BaseTestAPIView):
         await register_ip(request_2)
 
         user_ips = await UserIP.async_filter(client.db_session, user_id=user.id)
-        actual_ips = [user_ip.ip_address for user_ip in user_ips]
-        assert actual_ips == ["172.17.0.2", "172.17.0.1"]
+        actual_ips = [user_ip.hashed_address for user_ip in user_ips]
+        assert actual_ips == [hash_string("172.17.0.2"), hash_string("172.17.0.1")]
 
     async def test_register_missed_ip_header(self, dbs: AsyncSession, user: User):
         request = prepare_request(dbs, headers={"WRONG-X-Real-IP": "172.17.0.1"})
@@ -751,7 +751,6 @@ class TestUserIPRegistration(BaseTestAPIView):
         await register_ip(request)
 
         user_ip = await UserIP.async_get(
-            dbs, user_id=user.id,
-            hashed_address=hash_string("172.17.0.1")
+            dbs, user_id=user.id, hashed_address=hash_string("172.17.0.1")
         )
         assert user_ip is None
