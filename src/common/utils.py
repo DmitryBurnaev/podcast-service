@@ -109,7 +109,7 @@ def custom_exception_handler(_, exc):
         payload["details"] = error_details
 
     response_data = {"status": response_status, "payload": payload}
-    log_level = logging.ERROR if httpx.codes.is_error(status_code) else logging.WARNING
+    log_level = logging.ERROR if httpx.codes.is_server_error(status_code) else logging.WARNING
     log_message(exc, response_data["payload"], log_level)
     return JSONResponse(response_data, status_code=status_code)
 
