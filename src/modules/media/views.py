@@ -10,8 +10,8 @@ from typing import ClassVar
 from starlette.datastructures import UploadFile
 from starlette.responses import RedirectResponse, Response
 
-from common.utils import hash_string
 from core import settings
+from common.utils import hash_string
 from common.enums import FileType
 from common.exceptions import (
     NotFoundError,
