@@ -27,7 +27,7 @@ COPY .pylintrc .
 
 
 # build running version
-FROM python:3.11-slim-buster as runtime
+FROM python:3.12-slim-buster as runtime
 ARG DEV_DEPS
 WORKDIR /podcast
 
@@ -45,7 +45,7 @@ RUN apt-get update \
 		python-dev \
         grep  \
         procps \
-	&& pip install pipenv==2023.7.23 \
+	&& pip install pipenv==2023.11.15 \
 	&& if [ "${DEV_DEPS}" = "true" ]; then \
 	     echo "=== Install DEV dependencies ===" && \
 	     pipenv install --dev --system; \
