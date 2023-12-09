@@ -4,7 +4,6 @@ import logging
 from contextlib import asynccontextmanager
 from hashlib import md5
 from pathlib import Path
-from datetime import datetime
 from functools import cached_property
 from typing import AsyncContextManager
 
@@ -15,9 +14,10 @@ from starlette.concurrency import run_in_threadpool
 
 from core import settings
 from core.database import ModelBase
-from common.encryption import SensitiveData
+from common.utils import utcnow
 from common.models import ModelMixin
 from common.db_utils import EnumTypeColumn
+from common.encryption import SensitiveData
 from common.exceptions import UnexpectedError
 from common.enums import SourceType, EpisodeStatus
 from modules.podcast.utils import delete_file
@@ -37,8 +37,8 @@ class Podcast(ModelBase, ModelMixin):
     publish_id = Column(String(length=32), unique=True, nullable=False)
     name = Column(String(length=256), nullable=False)
     description = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, nullable=False)
     download_automatically = Column(Boolean, default=True)
 
     rss_id = Column(ForeignKey("media_files.id", ondelete="SET NULL"))
@@ -101,7 +101,7 @@ class Episode(ModelBase, ModelMixin):
     description = Column(String)
     author = Column(String(length=256))
     status = EnumTypeColumn(EpisodeStatus, default=EpisodeStatus.NEW)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     published_at = Column(DateTime)
 
     # relations
@@ -173,8 +173,8 @@ class Cookie(ModelBase, ModelMixin):
     id = Column(Integer, primary_key=True)
     source_type = EnumTypeColumn(SourceType)
     data = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, nullable=False)
     owner_id = Column(ForeignKey("auth_users.id"))
 
     class Meta:

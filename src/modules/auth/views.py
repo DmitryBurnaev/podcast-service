@@ -4,7 +4,7 @@ import base64
 import logging
 from typing import Generator, Iterable
 from uuid import UUID
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from starlette import status
 from starlette.responses import Response
@@ -15,7 +15,7 @@ from core import settings
 from common.request import PRequest
 from common.views import BaseHTTPEndpoint
 from common.statuses import ResponseStatus
-from common.utils import send_email
+from common.utils import send_email, utcnow
 from common.exceptions import AuthenticationFailedError, InvalidRequestError
 from modules.auth.models import User, UserSession, UserInvite, UserIP
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
@@ -90,7 +90,7 @@ class JWTSessionMixin:
             self.db_session,
             refresh_token=token_collection.refresh_token,
             expired_at=token_collection.refresh_token_expired_at,
-            refreshed_at=datetime.utcnow(),
+            refreshed_at=utcnow(),
             is_active=True,
         )
         return token_collection
@@ -158,7 +158,7 @@ class SignUpAPIView(JWTSessionMixin, BaseHTTPEndpoint):
             self.db_session,
             token=cleaned_data["invite_token"],
             is_applied__is=False,
-            expired_at__gt=datetime.utcnow(),
+            expired_at__gt=utcnow(),
         )
         if not user_invite:
             details = "Invitation link is expired or unavailable"
@@ -243,7 +243,7 @@ class InviteUserAPIView(BaseHTTPEndpoint):
         cleaned_data = await self._validate(request)
         email = cleaned_data["email"]
         token = UserInvite.generate_token()
-        expired_at = datetime.utcnow() + timedelta(seconds=settings.INVITE_LINK_EXPIRES_IN)
+        expired_at = utcnow() + timedelta(seconds=settings.INVITE_LINK_EXPIRES_IN)
 
         if user_invite := await UserInvite.async_get(self.db_session, email=email):
             logger.info("INVITE: update for %s (expired %s) token [%s]", email, expired_at, token)

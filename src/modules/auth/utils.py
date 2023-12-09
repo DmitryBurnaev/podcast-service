@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import jwt
 
 from common.request import PRequest
-from common.utils import hash_string
+from common.utils import hash_string, utcnow
 from core import settings
 from modules.auth.models import UserIP
 
@@ -36,7 +36,7 @@ def encode_jwt(
     else:
         expires_in = expires_in or settings.JWT_EXPIRES_IN
 
-    expired_at = datetime.utcnow() + timedelta(seconds=expires_in)
+    expired_at = utcnow() + timedelta(seconds=expires_in)
     payload["exp"] = expired_at
     payload["exp_iso"] = expired_at.isoformat()
     payload["token_type"] = token_type
