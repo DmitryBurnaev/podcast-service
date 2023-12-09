@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.request import PRequest
 from common.statuses import ResponseStatus
-from common.utils import hash_string
+from common.utils import hash_string, utcnow
 from core import settings
 from modules.auth.models import User, UserSession, UserInvite, UserIP
 from modules.auth.utils import (
@@ -104,13 +104,13 @@ def assert_tokens(response_data: dict, user: User, session_id: str = None):
 
     decoded_access_token = decode_jwt(access_token)
     access_exp_dt = datetime.fromisoformat(decoded_access_token.pop("exp_iso"))
-    assert access_exp_dt > datetime.utcnow()
+    assert access_exp_dt > utcnow()
     assert decoded_access_token.get("user_id") == user.id, decoded_access_token
     assert decoded_access_token.get("token_type") == "access", decoded_access_token
 
     decoded_refresh_token = decode_jwt(refresh_token)
     refresh_exp_dt = datetime.fromisoformat(decoded_refresh_token.pop("exp_iso"))
-    assert refresh_exp_dt > datetime.utcnow()
+    assert refresh_exp_dt > utcnow()
     assert decoded_refresh_token.get("user_id") == user.id, decoded_refresh_token
     assert decoded_refresh_token.get("token_type") == "refresh", decoded_refresh_token
     assert refresh_exp_dt > access_exp_dt
@@ -296,7 +296,7 @@ class TestAuthSignUPAPIView(BaseTestAPIView):
         "token_update_data",
         [
             {"token": f"outdated-token-{uuid.uuid4().hex[:10]}"},
-            {"expired_at": datetime.utcnow() - timedelta(hours=1)},
+            {"expired_at": utcnow() - timedelta(hours=1)},
             {"is_applied": True},
         ],
     )
@@ -449,7 +449,7 @@ class TestUserInviteApiView(BaseTestAPIView):
         mocked_auth_send: AsyncMock,
     ):
         old_token = UserInvite.generate_token()
-        old_expired_at = datetime.utcnow()
+        old_expired_at = utcnow()
         user_invite = await UserInvite.async_create(
             dbs,
             email=self.email,
@@ -583,7 +583,7 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
             is_active=is_active,
             public_id=session_id,
             refresh_token=refresh_token,
-            expired_at=datetime.utcnow(),
+            expired_at=utcnow(),
         )
         return user_session
 

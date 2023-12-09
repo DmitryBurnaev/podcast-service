@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import uuid
 import asyncio
@@ -211,3 +212,8 @@ def create_task(
     task = asyncio.create_task(coroutine)
     task.add_done_callback(handle_task_result)
     return task
+
+
+def utcnow() -> datetime.datetime:
+    """Just simple wrapper for deprecated datetime.utcnow"""
+    return datetime.datetime.now(datetime.UTC)

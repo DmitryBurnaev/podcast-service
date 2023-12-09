@@ -2,7 +2,7 @@ import asyncio
 import uuid
 import logging
 import tempfile
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 from unittest.mock import Mock, patch, AsyncMock
 
@@ -14,6 +14,7 @@ from sqlalchemy.util import concurrency
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import ProgrammingError, OperationalError
 
+from common.utils import utcnow
 from core import settings, database
 from modules.auth.models import UserInvite, User, UserSession
 from modules.media.models import File
@@ -347,7 +348,7 @@ async def user_invite(user: User, dbs: AsyncSession) -> UserInvite:
         db_commit=True,
         email=f"user_{uuid.uuid4().hex[:10]}@test.com",
         token=f"{uuid.uuid4().hex}",
-        expired_at=datetime.utcnow() + timedelta(days=1),
+        expired_at=utcnow() + timedelta(days=1),
         owner_id=user.id,
     )
 

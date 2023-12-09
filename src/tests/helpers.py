@@ -6,7 +6,7 @@ from typing import Type
 from unittest import mock
 from hashlib import blake2b
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.testclient import TestClient
@@ -14,6 +14,7 @@ from starlette.testclient import TestClient
 from common.db_utils import make_session_maker
 from common.enums import SourceType, FileType, EpisodeStatus
 from common.request import PRequest
+from common.utils import utcnow
 from modules.auth.utils import encode_jwt
 from modules.auth.models import User, UserSession
 from modules.media.models import File
@@ -45,6 +46,7 @@ def mock_target_class(mock_class: Type[BaseMock], monkeypatch) -> BaseMock:
     >>>     yield from mock_target_class(MockBicycle, monkeypatch) # noqa
 
     # in test.py:
+    >>> # noinspection PyUnresolvedReferences
     >>> def test_something(mocked_sender):
     >>>     mocked_bicycle.run.assert_called
     >>>     mocked_bicycle.target_class.__init__.assert_called
@@ -143,6 +145,7 @@ def create_file(content: str | bytes) -> io.BytesIO:
 
 
 async def create_user_session(db_session: AsyncSession, user: User) -> UserSession:
+    now_time = utcnow()
     return await UserSession.async_create(
         db_session,
         db_commit=True,
@@ -150,9 +153,9 @@ async def create_user_session(db_session: AsyncSession, user: User) -> UserSessi
         public_id=str(uuid.uuid4()),
         refresh_token="refresh-token",
         is_active=True,
-        expired_at=datetime.utcnow() + timedelta(seconds=120),
-        created_at=datetime.utcnow(),
-        refreshed_at=datetime.utcnow(),
+        expired_at=now_time + timedelta(seconds=120),
+        created_at=now_time,
+        refreshed_at=now_time,
     )
 
 

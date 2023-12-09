@@ -1,4 +1,3 @@
-import datetime
 from typing import TypeVar, Self
 
 from sqlalchemy import and_, select, update, delete
@@ -6,6 +5,7 @@ from sqlalchemy.engine import ScalarResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
+from common.utils import utcnow
 from common.exceptions import DBError
 
 
@@ -96,7 +96,7 @@ class ModelMixin:
 
     async def update(self, db_session: AsyncSession, db_commit: bool = False, **update_data):
         if hasattr(self, "updated_at"):
-            update_data["updated_at"] = datetime.datetime.utcnow()
+            update_data["updated_at"] = utcnow()
 
         await self.async_update(
             db_session, filter_kwargs={"id": self.id}, update_data=update_data, db_commit=db_commit

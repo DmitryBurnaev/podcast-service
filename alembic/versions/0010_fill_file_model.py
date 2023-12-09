@@ -72,7 +72,7 @@ def _fill_media(conn: Connection, _table, items: list[dict]):
                 "available": True,
                 "access_token": File.generate_token(),
                 "owner_id": item["owner_id"],
-                "created_at": datetime.datetime.utcnow(),
+                "created_at": datetime.datetime.now(datetime.UTC),
                 "source_url": item["watch_url"],
             }
             _files_map[audio["access_token"]] = item["id"]
@@ -94,7 +94,7 @@ def _fill_media(conn: Connection, _table, items: list[dict]):
                 "available": True,
                 "access_token": File.generate_token(),
                 "owner_id": item["owner_id"],
-                "created_at": datetime.datetime.utcnow(),
+                "created_at": datetime.datetime.now(datetime.UTC),
             }
             _files_map[image["access_token"]] = item["id"]
             files_data.append(image)
