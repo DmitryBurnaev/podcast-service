@@ -37,8 +37,8 @@ class Podcast(ModelBase, ModelMixin):
     publish_id = Column(String(length=32), unique=True, nullable=False)
     name = Column(String(length=256), nullable=False)
     description = Column(String)
-    created_at = Column(DateTime, default=utcnow, nullable=False)
-    updated_at = Column(DateTime, default=utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     download_automatically = Column(Boolean, default=True)
 
     rss_id = Column(ForeignKey("media_files.id", ondelete="SET NULL"))
@@ -101,8 +101,8 @@ class Episode(ModelBase, ModelMixin):
     description = Column(String)
     author = Column(String(length=256))
     status = EnumTypeColumn(EpisodeStatus, default=EpisodeStatus.NEW)
-    created_at = Column(DateTime, default=utcnow)
-    published_at = Column(DateTime)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+    published_at = Column(DateTime(timezone=True))
 
     # relations
     podcast = relationship("Podcast", lazy="subquery", backref="episodes")
@@ -173,8 +173,8 @@ class Cookie(ModelBase, ModelMixin):
     id = Column(Integer, primary_key=True)
     source_type = EnumTypeColumn(SourceType)
     data = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=utcnow, nullable=False)
-    updated_at = Column(DateTime, default=utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     owner_id = Column(ForeignKey("auth_users.id"))
 
     class Meta:

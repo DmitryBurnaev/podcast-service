@@ -56,8 +56,8 @@ class UserInvite(ModelBase, ModelMixin):
     email = Column(String(length=128), unique=True)
     token = Column(String(length=32), unique=True, nullable=False, index=True)
     is_applied = Column(Boolean, default=False, nullable=False)
-    expired_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=utcnow, nullable=False)
+    expired_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     owner_id = Column(ForeignKey("auth_users.id"), nullable=False)
 
     def __repr__(self):
@@ -76,9 +76,9 @@ class UserSession(ModelBase, ModelMixin):
     user_id = Column(ForeignKey("auth_users.id"))
     refresh_token = Column(String(length=512))
     is_active = Column(Boolean, default=True, nullable=False)
-    expired_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=utcnow, nullable=False)
-    refreshed_at = Column(DateTime, default=utcnow, nullable=False)
+    expired_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    refreshed_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     def __repr__(self):
         return f"<UserSession #{self.id} {self.user_id}>"
@@ -98,7 +98,7 @@ class UserIP(ModelBase, ModelMixin):
     hashed_address = Column(String(length=128), nullable=False)
     user_id = Column(ForeignKey("auth_users.id"))
     registered_by = Column(String(length=128), index=True, nullable=False, server_default="")
-    created_at = Column(DateTime, default=utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     class Meta:
         order_by = ("-id",)

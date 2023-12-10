@@ -41,7 +41,7 @@ class File(ModelBase, ModelMixin):
     available = Column(Boolean, nullable=False, default=False)
     access_token = Column(String(length=64), nullable=False, index=True, unique=True)
     owner_id = Column(ForeignKey("auth_users.id"), nullable=False, index=True)
-    created_at = Column(DateTime, default=utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     public = Column(Boolean, nullable=False, server_default=expression.false(), default=False)
     meta = Column(JSONB(none_as_null=True))
     hash = Column(String(length=32), nullable=False, server_default="")
