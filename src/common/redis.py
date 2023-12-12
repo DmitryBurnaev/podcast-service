@@ -76,7 +76,8 @@ class RedisClient:
         :return: dict with keys (given from stored records by `pkey`)
 
         input from redis: ['{"event_key": "episode-1", "data": {"key": 1}}', ...]
-        >>> await RedisClient().async_get_many(["episode-1"], pkey="event_key")
+        >>> async def get_items_from_redis():
+        ...    return await RedisClient().async_get_many(["episode-1"], pkey="event_key")
         {"episode-1": {"event_key": "episode-1", "data": {"key": 1}}, ...}
 
         """
