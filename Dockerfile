@@ -27,7 +27,7 @@ COPY .pylintrc .
 
 
 # build running version
-FROM python:3.12-slim-buster as runtime
+FROM python:3.12-slim-bookworm as runtime
 ARG DEV_DEPS
 WORKDIR /podcast
 
