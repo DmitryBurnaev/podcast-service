@@ -42,7 +42,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
 		gcc \
 		libpq-dev \
-		python-dev \
+		python3-dev \
         grep  \
         procps \
 	&& pip install pipenv==2023.11.15 \
