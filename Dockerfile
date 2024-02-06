@@ -24,7 +24,7 @@ COPY pytest.ini .
 COPY alembic.ini .
 COPY .coveragerc .
 COPY .pylintrc .
-
+COPY .env .
 
 # build running version
 FROM python:3.12-slim-bookworm as runtime
