@@ -10,7 +10,8 @@ SETTINGS_PATH = Path(os.path.dirname(os.path.abspath(__file__)))
 BASE_DIR = Path(os.path.dirname(SETTINGS_PATH))
 PROJECT_ROOT_DIR = Path(os.path.dirname(BASE_DIR))
 
-config = Config(PROJECT_ROOT_DIR / ".env")
+env_file_path = PROJECT_ROOT_DIR / ".env"
+config = Config(env_file=(env_file_path if env_file_path.is_file() else None))
 
 APP_HOST = config("APP_HOST", default="0.0.0.0")
 APP_PORT = config("APP_PORT", default="8000")
