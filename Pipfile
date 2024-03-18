@@ -4,15 +4,15 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-starlette = "==0.36.2"
+starlette = "==0.37.2"
 webargs-starlette = "==2.1.0"
 python-multipart = "==0.0.7" # required by starlette dependencies
-uvicorn = "==0.27.0"
+uvicorn = "==0.28.0"
 rq = "==1.15.1"
 
 asyncpg = "==0.29.0"
 psycopg2-binary = "==2.9.9" # for alembic only
-sqlalchemy = "==2.0.25"
+sqlalchemy = "==2.0.28"
 alembic = "==1.13.1"
 greenlet = "==3.0.3" # optional dependency for sqlalchemy
 
