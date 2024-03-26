@@ -341,6 +341,11 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
     )
 
 
+def get_file_hash(file_path: Path) -> str:
+    file_content = file_path.read_bytes()
+    return hashlib.sha256(file_content).hexdigest()[:32]
+
+
 def audio_cover(audio_file_path: Path) -> CoverMetaData | None:
     """Extracts cover from audio file (if exists)"""
 
@@ -363,8 +368,7 @@ def audio_cover(audio_file_path: Path) -> CoverMetaData | None:
         logger.warning("Couldn't extract cover from audio file: %r", exc)
         return None
 
-    cover_file_content = cover_path.read_bytes()
-    cover_hash = hashlib.sha256(cover_file_content).hexdigest()[:32]
+    cover_hash = get_file_hash(cover_path)
     new_cover_path = settings.TMP_IMAGE_PATH / f"cover_{cover_hash}.jpg"
     os.rename(cover_path, new_cover_path)
     return CoverMetaData(path=new_cover_path, hash=cover_hash, size=get_file_size(new_cover_path))

@@ -25,12 +25,30 @@ from common.views import BaseHTTPEndpoint
 from modules.media.models import File
 from modules.auth.models import UserIP
 from modules.auth.utils import extract_ip_address
-from modules.media.schemas import AudioFileUploadSchema, AudioFileResponseSchema
+from modules.media.schemas import AudioFileUploadSchema, AudioFileResponseSchema, CoverSchema
 from modules.podcast.utils import save_uploaded_file, get_file_size
 from modules.providers import utils as provider_utils
-from modules.providers.utils import AudioMetaData
+from modules.providers.utils import AudioMetaData, get_file_hash
 
 logger = logging.getLogger(__name__)
+
+
+@dataclasses.dataclass
+class UploadedAudioFileData:
+    filename: str
+    filesize: int
+    metadata: AudioMetaData
+
+    @property
+    def hash_str(self):
+        data = self.__dict__ | self.metadata._asdict()  # noqa
+        del data["metadata"]
+        return md5(str(data).encode()).hexdigest()
+
+    @property
+    def tmp_filename(self):
+        file_ext = os.path.splitext(self.filename)[-1]
+        return f"uploaded_audio_{self.hash_str}{file_ext}"
 
 
 class BaseFileRedirectApiView(BaseHTTPEndpoint):
@@ -134,27 +152,49 @@ class RSSRedirectAPIView(BaseFileRedirectApiView):
             raise exc
 
 
-class AudioFileUploadAPIView(BaseHTTPEndpoint):
+class BaseUploadAPIView(BaseHTTPEndpoint):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.storage = StorageS3()
+
+    async def _upload_file(
+        self, local_path: Path, remote_path: str, uploaded_file: UploadedAudioFileData | None = None
+    ) -> str:
+        tmp_filename = os.path.basename(local_path)
+
+        if remote_file_size := await self.storage.get_file_size_async(
+            filename=tmp_filename, remote_path=remote_path
+        ):
+            if remote_file_size == get_file_size(local_path):
+                logger.info(
+                    "SKIP uploading: file already uploaded to s3 and have correct size: "
+                    "tmp_filename: %s | remote_file_size: %i | uploaded_file: %s |",
+                    tmp_filename,
+                    remote_file_size,
+                    uploaded_file,
+                )
+                return os.path.join(remote_path, tmp_filename)
+
+            logger.warning(
+                'File "%s" already uploaded to s3, but size not equal (will be rewritten): '
+                "remote_file_size: %i | uploaded_file: %s |",
+                tmp_filename,
+                remote_file_size,
+                uploaded_file,
+            )
+
+        remote_path = await self.storage.upload_file_async(local_path, remote_path)
+        if not remote_path:
+            raise S3UploadingError("Couldn't upload audio file")
+
+        return remote_path
+
+
+class AudioFileUploadAPIView(BaseUploadAPIView):
     schema_request = AudioFileUploadSchema
     schema_response = AudioFileResponseSchema
     max_title_length = 256
-
-    @dataclasses.dataclass
-    class UploadedFileData:
-        filename: str
-        filesize: int
-        metadata: AudioMetaData
-
-        @property
-        def hash_str(self):
-            data = self.__dict__ | self.metadata._asdict()  # noqa
-            del data["metadata"]
-            return md5(str(data).encode()).hexdigest()
-
-        @property
-        def tmp_filename(self):
-            file_ext = os.path.splitext(self.filename)[-1]
-            return f"uploaded_audio_{self.hash_str}{file_ext}"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -163,7 +203,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
     async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request, location="form")
         tmp_path, filename = await self._save_audio(cleaned_data["file"])
-        uploaded_file = self.UploadedFileData(
+        uploaded_file = UploadedAudioFileData(
             filename=filename,
             filesize=get_file_size(tmp_path),
             metadata=provider_utils.audio_metadata(tmp_path),
@@ -171,7 +211,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         new_tmp_path = settings.TMP_AUDIO_PATH / uploaded_file.tmp_filename
         os.rename(tmp_path, new_tmp_path)
 
-        cover_data = await self._audio_cover(new_tmp_path)
+        cover_data = await self._get_cover_data(new_tmp_path)
         remote_audio_path = await self._upload_file(
             local_path=new_tmp_path,
             remote_path=settings.S3_BUCKET_TMP_AUDIO_PATH,
@@ -192,7 +232,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
         )
 
     async def _upload_file(
-        self, local_path: Path, remote_path: str, uploaded_file: UploadedFileData | None = None
+        self, local_path: Path, remote_path: str, uploaded_file: UploadedAudioFileData | None = None
     ) -> str:
         tmp_filename = os.path.basename(local_path)
 
@@ -237,7 +277,7 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
 
         return tmp_path, upload_file.filename
 
-    async def _audio_cover(self, audio_path: Path) -> dict | None:
+    async def _get_cover_data(self, audio_path: Path) -> dict | None:
         if not (cover := provider_utils.audio_cover(audio_path)):
             return None
 
@@ -252,3 +292,50 @@ class AudioFileUploadAPIView(BaseHTTPEndpoint):
             "preview_url": await self.storage.get_presigned_url(remote_cover_path),
         }
         return cover_data
+
+
+class CoverUploadAPIView(BaseUploadAPIView):
+    """Upload image as episode's cover"""
+
+    schema_response = CoverSchema
+
+    async def post(self, request: PRequest) -> dict:
+        cleaned_data = await self._validate(request, location="form")
+        tmp_path, filename = await self._save_image(cleaned_data["file"])
+        cover_data = await self._upload_cover(tmp_path)
+        return cover_data
+
+    @staticmethod
+    async def _save_image(upload_file: UploadFile) -> tuple[Path, str]:
+        try:
+            tmp_path = await save_uploaded_file(
+                uploaded_file=upload_file,
+                prefix=f"episode_cover_{uuid.uuid4().hex}",
+                max_file_size=settings.MAX_UPLOAD_IMAGE_FILESIZE,
+                tmp_path=settings.TMP_IMAGE_PATH,
+            )
+        except ValueError as exc:
+            raise InvalidRequestError(details={"file": str(exc)}) from exc
+
+        return tmp_path, upload_file.filename
+
+    async def _validate(self, request: PRequest, *_) -> dict:
+        form = await request.form()
+        if not (image := form.get("image")):
+            raise InvalidRequestError(details="Image is required field")
+
+        return {"image": image}
+
+    async def _upload_cover(self, cover_tmp_path: Path) -> dict:
+        logger.info("Uploading cover to S3", cover_tmp_path.name)
+
+        remote_cover_path = await self._upload_file(
+            local_path=cover_tmp_path,
+            remote_path=settings.S3_BUCKET_IMAGES_PATH,
+        )
+        return {
+            "hash": get_file_hash(cover_tmp_path),
+            "size": get_file_size(cover_tmp_path),
+            "path": remote_cover_path,
+            "preview_url": await self.storage.get_presigned_url(remote_cover_path),
+        }
