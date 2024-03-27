@@ -5,7 +5,7 @@ __all__ = [
     "AudioFileUploadSchema",
     "AudioFileResponseSchema",
     "MetaDataSchema",
-    "CoverSchema",
+    "ImageUploadedSchema",
 ]
 
 
@@ -21,7 +21,7 @@ class AudioFileUploadSchema(Schema):
         return data
 
 
-class CoverSchema(Schema):
+class ImageUploadedSchema(Schema):
     path = fields.Str()
     hash = fields.Str()
     size = fields.Int()
@@ -45,4 +45,4 @@ class AudioFileResponseSchema(Schema):
     size = fields.Int(required=True)
     meta = fields.Nested(MetaDataSchema)
     hash = fields.Str(required=True)
-    cover = fields.Nested(CoverSchema)
+    cover = fields.Nested(ImageUploadedSchema)

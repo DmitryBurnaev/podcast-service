@@ -8,4 +8,5 @@ routes = [
 
 api_routes = [
     Route("/media/upload/audio/", views.AudioFileUploadAPIView),
+    Route("/media/upload/image/", views.ImageFileUploadAPIView),
 ]
