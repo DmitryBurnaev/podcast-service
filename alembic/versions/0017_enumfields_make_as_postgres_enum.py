@@ -5,6 +5,7 @@ Revises: 0016
 Create Date: 2023-01-24 09:21:16.226588
 
 """
+
 from alembic import op
 from sqlalchemy import text
 from sqlalchemy.dialects import postgresql
@@ -118,6 +119,6 @@ def downgrade():
     convert_to_varchar(table="media_files", column="type")
 
     bind = op.get_bind()
-    bind.execute(f"DROP TYPE IF EXISTS episode_status")
-    bind.execute(f"DROP TYPE IF EXISTS source_type")
-    bind.execute(f"DROP TYPE IF EXISTS media_type")
+    bind.execute(text("DROP TYPE IF EXISTS episode_status"))
+    bind.execute(text("DROP TYPE IF EXISTS source_type"))
+    bind.execute(text("DROP TYPE IF EXISTS media_type"))

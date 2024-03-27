@@ -25,7 +25,7 @@ from common.views import BaseHTTPEndpoint
 from modules.media.models import File
 from modules.auth.models import UserIP
 from modules.auth.utils import extract_ip_address
-from modules.media.schemas import AudioFileUploadSchema, AudioFileResponseSchema, CoverSchema
+from modules.media.schemas import AudioFileUploadSchema, AudioFileResponseSchema, ImageUploadedSchema
 from modules.podcast.utils import save_uploaded_file, get_file_size
 from modules.providers import utils as provider_utils
 from modules.providers.utils import AudioMetaData, get_file_hash
@@ -159,7 +159,10 @@ class BaseUploadAPIView(BaseHTTPEndpoint):
         self.storage = StorageS3()
 
     async def _upload_file(
-        self, local_path: Path, remote_path: str, uploaded_file: UploadedAudioFileData | None = None
+        self,
+        local_path: Path,
+        remote_path: str,
+        uploaded_file: UploadedAudioFileData | None = None,
     ) -> str:
         tmp_filename = os.path.basename(local_path)
 
@@ -294,16 +297,16 @@ class AudioFileUploadAPIView(BaseUploadAPIView):
         return cover_data
 
 
-class CoverUploadAPIView(BaseUploadAPIView):
-    """Upload image as episode's cover"""
+class ImageFileUploadAPIView(BaseUploadAPIView):
+    """Upload image, save to s3 (can be useful for manual changing episode's cover)"""
 
-    schema_response = CoverSchema
+    schema_response = ImageUploadedSchema
 
     async def post(self, request: PRequest) -> dict:
         cleaned_data = await self._validate(request, location="form")
         tmp_path, filename = await self._save_image(cleaned_data["file"])
-        cover_data = await self._upload_cover(tmp_path)
-        return cover_data
+        image_upload_data = await self._upload_s3(tmp_path)
+        return image_upload_data
 
     @staticmethod
     async def _save_image(upload_file: UploadFile) -> tuple[Path, str]:
@@ -326,7 +329,7 @@ class CoverUploadAPIView(BaseUploadAPIView):
 
         return {"image": image}
 
-    async def _upload_cover(self, cover_tmp_path: Path) -> dict:
+    async def _upload_s3(self, cover_tmp_path: Path) -> dict:
         logger.info("Uploading cover to S3", cover_tmp_path.name)
 
         remote_cover_path = await self._upload_file(

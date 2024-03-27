@@ -5,6 +5,7 @@ Revises: 0005
 Create Date: 2021-10-17 18:51:29.927189
 
 """
+
 import sqlalchemy as sa
 from sqlalchemy.sql import table, column
 from sqlalchemy import String

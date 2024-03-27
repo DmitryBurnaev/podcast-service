@@ -47,8 +47,7 @@ class BaseMock:
     def get_mocks(self):
         return [attr for attr, val in self.__dict__.items() if callable(val)]
 
-    def mock_init(self, *args, **kwargs):
-        ...
+    def mock_init(self, *args, **kwargs): ...
 
 
 class BaseMockWithContextManager(BaseMock, ABC):

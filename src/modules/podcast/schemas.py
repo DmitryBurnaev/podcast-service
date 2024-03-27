@@ -5,7 +5,7 @@ from marshmallow import Schema, validates, ValidationError
 from core import settings
 from common.schemas import WSRequestAuthSchema
 from common.enums import SourceType, EpisodeStatus
-from modules.media.schemas import MetaDataSchema, CoverSchema
+from modules.media.schemas import MetaDataSchema, ImageUploadedSchema
 
 __all__ = [
     "PodcastDetailsSchema",
@@ -80,7 +80,7 @@ class EpisodeUploadedSchema(Schema):
     size = fields.Int(required=True)
     hash = fields.Str(required=True, validate=validate.Length(max=32))
     meta = fields.Nested(MetaDataSchema)
-    cover = fields.Nested(CoverSchema, allow_none=True)
+    cover = fields.Nested(ImageUploadedSchema, allow_none=True)
 
 
 class EpisodeListSchema(Schema):

@@ -24,8 +24,7 @@ class MockedClient:
         self.generate_presigned_url = self.MyMock()
 
 
-def mock_upload_callback(*_, **__):
-    ...
+def mock_upload_callback(*_, **__): ...
 
 
 class TestS3Storage:
