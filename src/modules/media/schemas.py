@@ -21,6 +21,18 @@ class AudioFileUploadSchema(Schema):
         return data
 
 
+class ImageFileUploadSchema(Schema):
+    file = fields.Raw(required=True)
+
+    @post_load
+    def validate_file(self, data, **_) -> dict:
+        content_type = data["file"].content_type
+        if not content_type.startswith("image/"):
+            raise ValidationError(f"File must be image, not {content_type}", field_name="file")
+
+        return data
+
+
 class ImageUploadedSchema(Schema):
     path = fields.Str()
     hash = fields.Str()

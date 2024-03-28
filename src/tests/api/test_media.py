@@ -1,3 +1,4 @@
+import hashlib
 import os
 import uuid
 from hashlib import md5
@@ -12,7 +13,7 @@ from common.utils import hash_string
 from core import settings
 from modules.auth.models import UserIP, User
 from modules.media.models import File
-from modules.providers.utils import AudioMetaData
+from modules.providers.utils import AudioMetaData, get_file_hash
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import create_file, PodcastTestClient
 from tests.mocks import MockS3Client
@@ -494,6 +495,94 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         file = ("test-audio.mp3", create_file(b"test-data"), "image/jpeg")
         response = client.post(self.url, files={"file": file})
         self.assert_bad_request(response, {"file": "File must be audio, not image/jpeg"})
+
+    async def test_upload__missed_file__fail(self, client: PodcastTestClient, user: User):
+        await client.login(user)
+        response = client.post(self.url, files={"fake": create_file(b"")})
+        self.assert_bad_request(
+            response, {"file": "Missing data for required field.", "fake": "Unknown field."}
+        )
+
+
+class TestUploadImageAPIView(BaseTestAPIView):
+    url = "/api/media/upload/image/"
+
+    @staticmethod
+    def _file_hash(file: File) -> str:
+        return hashlib.sha256(file.content).hexdigest()[:32]
+
+    async def test_upload__ok(
+        self,
+        client: PodcastTestClient,
+        user: User,
+        mocked_s3: MockS3Client,
+        tmp_file: File,
+    ):
+
+        remote_tmp_path = f"remote/tmp/{uuid.uuid4().hex}.png"
+        presigned_url = f"https://s3.storage/link/{remote_tmp_path}/presigned_link/"
+        mocked_s3.upload_file_async.return_value = remote_tmp_path
+        mocked_s3.get_presigned_url.return_value = presigned_url
+
+        await client.login(user)
+        file = (os.path.basename(tmp_file.name), tmp_file, "image/png")
+        response = client.post(self.url, files={"file": file})
+        response_data = self.assert_ok_response(response)
+        assert response_data == {
+            "path": remote_tmp_path,
+            "hash": self._file_hash(tmp_file),
+            "size": tmp_file.size,
+            "preview_url": presigned_url,
+        }
+
+    async def test_upload__duplicate_uploaded_file__ok(
+        self,
+        user: User,
+        client: PodcastTestClient,
+        tmp_file: File,
+        mocked_s3: MockS3Client,
+    ):
+        remote_tmp_path = f"remote/tmp/{uuid.uuid4().hex}.png"
+        presigned_url = f"https://s3.storage/link/{remote_tmp_path}/presigned_link/"
+        mocked_s3.upload_file_async.return_value = remote_tmp_path
+        mocked_s3.get_presigned_url.return_value = presigned_url
+
+        mocked_s3.get_file_size_async.return_value = tmp_file.size
+
+        await client.login(user)
+        file = (os.path.basename(tmp_file.name), tmp_file, "image/png")
+        response = client.post(self.url, files={"file": file})
+        response_data = self.assert_ok_response(response)
+        # TODO: fix logic for not-uploading already uploaded file!
+        remote_path = f"uploaded_image_{result_hash}"
+
+        assert response_data["path"] == os.path.join(settings.S3_BUCKET_TMP_AUDIO_PATH, remote_path)
+        assert response_data["size"] == tmp_file.size
+        assert response_data["hash"] == self._file_hash(tmp_file)
+
+        mocked_s3.upload_file_async.assert_not_awaited()
+
+    async def test_upload__empty_file__fail(self, client: PodcastTestClient, user: User):
+        await client.login(user)
+        file = ("test-image.png", create_file(b""), "image/png")
+        response = client.post(self.url, files={"file": file})
+        self.assert_bad_request(response, {"file": "result file-size is less than allowed"})
+
+    async def test_upload__too_big_file__fail(self, client: PodcastTestClient, user: User):
+        await client.login(user)
+        file = ("test-image.png", create_file(b"test-data-too-big" * 10), "image/png")
+        response = client.post(self.url, files={"file": file})
+        self.assert_bad_request(response, {"file": "result file-size is more than allowed"})
+
+    async def test_upload__incorrect_content_type__fail(
+        self,
+        client: PodcastTestClient,
+        user: User,
+    ):
+        await client.login(user)
+        file = ("test-image.png", create_file(b""), "audio/mpeg")
+        response = client.post(self.url, files={"file": file})
+        self.assert_bad_request(response, {"file": "File must be image, not audio/mpeg"})
 
     async def test_upload__missed_file__fail(self, client: PodcastTestClient, user: User):
         await client.login(user)
