@@ -1,7 +1,7 @@
 import os
 import uuid
 import logging
-import dataclasses
+from dataclasses import dataclass, asdict
 from contextlib import suppress
 from hashlib import md5
 from pathlib import Path
@@ -25,25 +25,31 @@ from common.views import BaseHTTPEndpoint
 from modules.media.models import File
 from modules.auth.models import UserIP
 from modules.auth.utils import extract_ip_address
-from modules.media.schemas import AudioFileUploadSchema, AudioFileResponseSchema, \
-    ImageUploadedSchema, ImageFileUploadSchema
+from modules.media.schemas import (
+    AudioFileUploadSchema,
+    AudioFileResponseSchema,
+    ImageUploadedSchema,
+    ImageFileUploadSchema,
+)
 from modules.podcast.utils import save_uploaded_file, get_file_size
 from modules.providers import utils as provider_utils
-from modules.providers.utils import AudioMetaData, get_file_hash
+from modules.providers.utils import AudioMetaData
 
 logger = logging.getLogger(__name__)
 
 
-@dataclasses.dataclass
-class UploadedAudioFileData:
+@dataclass
+class UploadedFileData:
     filename: str
     filesize: int
-    metadata: AudioMetaData
+    metadata: AudioMetaData | None = None
 
     @property
     def hash_str(self):
-        data = self.__dict__ | self.metadata._asdict()  # noqa
-        del data["metadata"]
+        data = {key: value for key, value in asdict(self).items() if key != "metadata"}
+        if self.metadata:
+            data |= self.metadata._as_dict()  # noqa
+
         return md5(str(data).encode()).hexdigest()
 
     @property
@@ -163,7 +169,7 @@ class BaseUploadAPIView(BaseHTTPEndpoint):
         self,
         local_path: Path,
         remote_path: str,
-        uploaded_file: UploadedAudioFileData | None = None,
+        uploaded_file: UploadedFileData | None = None,
     ) -> str:
         tmp_filename = os.path.basename(local_path)
 
@@ -207,7 +213,7 @@ class AudioFileUploadAPIView(BaseUploadAPIView):
     async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request, location="form")
         tmp_path, filename = await self._save_audio(cleaned_data["file"])
-        uploaded_file = UploadedAudioFileData(
+        uploaded_file = UploadedFileData(
             filename=filename,
             filesize=get_file_size(tmp_path),
             metadata=provider_utils.audio_metadata(tmp_path),
@@ -236,7 +242,7 @@ class AudioFileUploadAPIView(BaseUploadAPIView):
         )
 
     async def _upload_file(
-        self, local_path: Path, remote_path: str, uploaded_file: UploadedAudioFileData | None = None
+        self, local_path: Path, remote_path: str, uploaded_file: UploadedFileData | None = None
     ) -> str:
         tmp_filename = os.path.basename(local_path)
 
@@ -307,8 +313,26 @@ class ImageFileUploadAPIView(BaseUploadAPIView):
     async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request, location="form")
         tmp_path, filename = await self._save_image(cleaned_data["file"])
-        image_upload_data = await self._upload_s3(tmp_path)
-        return self._response(image_upload_data)
+        uploaded_file = UploadedFileData(filename=filename, filesize=get_file_size(tmp_path))
+        new_tmp_path = settings.TMP_AUDIO_PATH / uploaded_file.tmp_filename
+        os.rename(tmp_path, new_tmp_path)
+        remote_image_path = await self._upload_file(
+            local_path=new_tmp_path,
+            remote_path=settings.S3_BUCKET_TMP_AUDIO_PATH,
+            uploaded_file=uploaded_file,
+        )
+        with suppress(FileNotFoundError, TypeError):
+            os.remove(new_tmp_path)
+
+        return self._response(
+            {
+                "name": filename,
+                "path": remote_image_path,
+                "size": uploaded_file.filesize,
+                "hash": uploaded_file.hash_str,
+                "preview_url": await self.storage.get_presigned_url(remote_image_path),
+            }
+        )
 
     @staticmethod
     async def _save_image(upload_file: UploadFile) -> tuple[Path, str]:
@@ -324,16 +348,16 @@ class ImageFileUploadAPIView(BaseUploadAPIView):
 
         return tmp_path, upload_file.filename
 
-    async def _upload_s3(self, cover_tmp_path: Path) -> dict:
-        logger.info("Uploading cover to S3: %s", cover_tmp_path.name)
-
-        remote_cover_path = await self._upload_file(
-            local_path=cover_tmp_path,
-            remote_path=settings.S3_BUCKET_IMAGES_PATH,
-        )
-        return {
-            "hash": get_file_hash(cover_tmp_path),
-            "size": get_file_size(cover_tmp_path),
-            "path": remote_cover_path,
-            "preview_url": await self.storage.get_presigned_url(remote_cover_path),
-        }
+    # async def _upload_s3(self, cover_tmp_path: Path) -> dict:
+    #     logger.info("Uploading cover to S3: %s", cover_tmp_path.name)
+    #
+    #     remote_cover_path = await self._upload_file(
+    #         local_path=cover_tmp_path,
+    #         remote_path=settings.S3_BUCKET_IMAGES_PATH,
+    #     )
+    #     return {
+    #         "hash": get_file_hash(cover_tmp_path),
+    #         "size": get_file_size(cover_tmp_path),
+    #         "path": remote_cover_path,
+    #         "preview_url": await self.storage.get_presigned_url(remote_cover_path),
+    #     }
