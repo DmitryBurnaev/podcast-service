@@ -45,7 +45,7 @@ class UploadedFileData:
     _local_path: Path
     filesize: int = 0
     local_path: Path | None = None
-    remote_path: str | None = None
+    remote_file_path: str | None = None
     metadata: AudioMetaData | None = None
 
     def __post_init__(self):
@@ -56,7 +56,10 @@ class UploadedFileData:
 
     @cached_property
     def hash_str(self):
-        data = {key: value for key, value in asdict(self).items() if key != "metadata"}
+        data = {
+            "filename": self.filename,
+            "filesize": self.filesize,
+        }
         if self.metadata:
             data |= self.metadata._as_dict()  # noqa
 
@@ -176,41 +179,10 @@ class BaseUploadAPIView(BaseHTTPEndpoint):
         super().__init__(*args, **kwargs)
         self.storage = StorageS3()
 
-    # async def _upload_file(self, uploaded_file: UploadedFileData) -> str:
-    #     local_path = uploaded_file.tmp_local_path
-    #     tmp_filename = os.path.basename(local_path)
-    #
-    #     if remote_file_size := await self.storage.get_file_size_async(
-    #         filename=tmp_filename, remote_path=self.remote_path
-    #     ):
-    #         if remote_file_size == get_file_size(local_path):
-    #             logger.info(
-    #                 "SKIP uploading: file already uploaded to s3 and have correct size: "
-    #                 "tmp_filename: %s | remote_file_size: %i | uploaded_file: %s |",
-    #                 tmp_filename,
-    #                 remote_file_size,
-    #                 uploaded_file,
-    #             )
-    #             return os.path.join(self.remote_path, tmp_filename)
-    #
-    #         logger.warning(
-    #             'File "%s" already uploaded to s3, but size not equal (will be rewritten): '
-    #             "remote_file_size: %i | uploaded_file: %s |",
-    #             tmp_filename,
-    #             remote_file_size,
-    #             uploaded_file,
-    #         )
-    #
-    #     remote_path = await self.storage.upload_file_async(local_path, self.remote_path)
-    #     if not remote_path:
-    #         raise S3UploadingError("Couldn't upload audio file")
-    #
-    #     return remote_path
-
     async def _upload_file(self, file_path: Path, filename: str, remote_path: str | None = None) -> UploadedFileData:
         remote_path = remote_path or self.remote_path
         uploaded_file = UploadedFileData(filename=filename, _local_path=file_path)
-        uploaded_file.remote_path = await self._perform_file_uploading(
+        uploaded_file.remote_file_path = await self._perform_file_uploading(
             uploaded_file=uploaded_file, remote_path=remote_path
         )
         return uploaded_file
@@ -256,6 +228,7 @@ class AudioFileUploadAPIView(BaseUploadAPIView):
     schema_request = AudioFileUploadSchema
     schema_response = AudioFileResponseSchema
     max_title_length = 256
+    remote_path = settings.S3_BUCKET_TMP_AUDIO_PATH
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -265,16 +238,17 @@ class AudioFileUploadAPIView(BaseUploadAPIView):
         cleaned_data = await self._validate(request, location="form")
         tmp_path, filename = await self._save_audio(cleaned_data["file"])
         uploaded_file = await self._upload_file(tmp_path, filename)
-        cover_data = await self._get_cover_data(uploaded_file.local_path)
+        # cover_data = await self._get_cover_data(uploaded_file.local_path)
         self._clean(uploaded_file)
         return self._response(
             {
                 "name": filename,
-                "path": uploaded_file.remote_path,
+                "path": uploaded_file.remote_file_path,
                 "meta": uploaded_file.metadata,
                 "size": uploaded_file.filesize,
                 "hash": uploaded_file.hash_str,
-                "cover": cover_data,
+                # "cover": cover_data,
+                "cover": None,
             }
         )
 
@@ -305,8 +279,8 @@ class AudioFileUploadAPIView(BaseUploadAPIView):
         cover_data = {
             "hash": cover.hash,
             "size": cover.size,
-            "path": uploaded_file.remote_path,
-            "preview_url": await self.storage.get_presigned_url(uploaded_file.remote_path),
+            "path": uploaded_file.remote_file_path,
+            "preview_url": await self.storage.get_presigned_url(uploaded_file.remote_file_path),
         }
         return cover_data
 
@@ -316,6 +290,7 @@ class ImageFileUploadAPIView(BaseUploadAPIView):
 
     schema_request = ImageFileUploadSchema
     schema_response = ImageUploadedSchema
+    remote_path = settings.S3_BUCKET_TMP_IMAGES_PATH
 
     async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request, location="form")
@@ -325,10 +300,10 @@ class ImageFileUploadAPIView(BaseUploadAPIView):
         return self._response(
             {
                 "name": filename,
-                "path": uploaded_file.remote_path,
+                "path": uploaded_file.remote_file_path,
                 "size": uploaded_file.filesize,
                 "hash": uploaded_file.hash_str,
-                "preview_url": await self.storage.get_presigned_url(uploaded_file.remote_path),
+                "preview_url": await self.storage.get_presigned_url(uploaded_file.remote_file_path),
             }
         )
 
