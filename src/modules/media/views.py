@@ -1,7 +1,7 @@
 import os
 import uuid
 import logging
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from contextlib import suppress
 from functools import cached_property
 from hashlib import md5
@@ -179,7 +179,12 @@ class BaseUploadAPIView(BaseHTTPEndpoint):
         super().__init__(*args, **kwargs)
         self.storage = StorageS3()
 
-    async def _upload_file(self, file_path: Path, filename: str, remote_path: str | None = None) -> UploadedFileData:
+    async def _upload_file(
+        self,
+        file_path: Path,
+        filename: str,
+        remote_path: str | None = None,
+    ) -> UploadedFileData:
         remote_path = remote_path or self.remote_path
         uploaded_file = UploadedFileData(filename=filename, _local_path=file_path)
         uploaded_file.remote_file_path = await self._perform_file_uploading(
@@ -187,7 +192,11 @@ class BaseUploadAPIView(BaseHTTPEndpoint):
         )
         return uploaded_file
 
-    async def _perform_file_uploading(self, uploaded_file: UploadedFileData, remote_path: str,) -> str:
+    async def _perform_file_uploading(
+        self,
+        uploaded_file: UploadedFileData,
+        remote_path: str,
+    ) -> str:
         local_path = uploaded_file.local_path
         uploaded_filename = uploaded_file.uploaded_name
 
@@ -230,15 +239,11 @@ class AudioFileUploadAPIView(BaseUploadAPIView):
     max_title_length = 256
     remote_path = settings.S3_BUCKET_TMP_AUDIO_PATH
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.storage = StorageS3()
-
     async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request, location="form")
         tmp_path, filename = await self._save_audio(cleaned_data["file"])
         uploaded_file = await self._upload_file(tmp_path, filename)
-        # cover_data = await self._get_cover_data(uploaded_file.local_path)
+        cover_data = await self._get_cover_data(uploaded_file.local_path)
         self._clean(uploaded_file)
         return self._response(
             {
@@ -247,8 +252,7 @@ class AudioFileUploadAPIView(BaseUploadAPIView):
                 "meta": uploaded_file.metadata,
                 "size": uploaded_file.filesize,
                 "hash": uploaded_file.hash_str,
-                # "cover": cover_data,
-                "cover": None,
+                "cover": cover_data,
             }
         )
 
@@ -270,9 +274,8 @@ class AudioFileUploadAPIView(BaseUploadAPIView):
         if not (cover := provider_utils.audio_cover(audio_path)):
             return None
 
-        # TODO: recheck this logic too
         uploaded_file = await self._upload_file(
-            local_path=cover.path,
+            file_path=cover.path,
             filename=cover.path.name,
             remote_path=settings.S3_BUCKET_IMAGES_PATH,
         )

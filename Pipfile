@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 starlette = "==0.37.2"
 webargs-starlette = "==2.1.0"
-python-multipart = "==0.0.7" # required by starlette dependencies
+python-multipart = "==0.0.9" # required by starlette dependencies
 uvicorn = "==0.28.0"
 rq = "==1.15.1"
 
