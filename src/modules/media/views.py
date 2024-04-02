@@ -48,12 +48,15 @@ class UploadedFileData:
     metadata: AudioMetaData | None = None
 
     def __post_init__(self):
+        self.filesize = get_file_size(self.local_path)
+        print(self.local_path, get_file_size(self.local_path))
         new_path = settings.TMP_AUDIO_PATH / self.uploaded_name
         os.rename(self.local_path, new_path)
         self.local_path = new_path
-        self.filesize = get_file_size(self.local_path)
+        print(self.local_path, get_file_size(self.local_path))
 
-    @cached_property
+    # @cached_property
+    @property
     def hash_str(self):
         data = {
             "filename": self.filename,
@@ -61,7 +64,7 @@ class UploadedFileData:
         }
         if self.metadata:
             data |= self.metadata._asdict()  # noqa
-
+        print(data)
         return md5(str(data).encode()).hexdigest()
 
     @cached_property
@@ -223,17 +226,16 @@ class BaseUploadAPIView(BaseHTTPEndpoint):
 class AudioFileUploadAPIView(BaseUploadAPIView):
     schema_request = AudioFileUploadSchema
     schema_response = AudioFileResponseSchema
-    max_title_length = 256
     remote_path = settings.S3_BUCKET_TMP_AUDIO_PATH
 
     async def post(self, request: PRequest) -> Response:
         cleaned_data = await self._validate(request, location="form")
-        tmp_path, filename = await self._save_audio(cleaned_data["file"])
+        local_path, filename = await self._save_audio(cleaned_data["file"])
         uploaded_file = UploadedFileData(
             filename=filename,
-            local_path=tmp_path,
+            local_path=local_path,
             remote_path=settings.S3_BUCKET_TMP_AUDIO_PATH,
-            metadata=provider_utils.audio_metadata(tmp_path),
+            metadata=provider_utils.audio_metadata(local_path),
         )
         remote_file_path = await self._upload_file(uploaded_file)
         cover_data = await self._get_cover_data(uploaded_file.local_path)
@@ -252,16 +254,16 @@ class AudioFileUploadAPIView(BaseUploadAPIView):
     @staticmethod
     async def _save_audio(upload_file: UploadFile) -> tuple[Path, str]:
         try:
-            tmp_path = await save_uploaded_file(
+            local_path = await save_uploaded_file(
                 uploaded_file=upload_file,
-                prefix=f"uploaded_episode_{uuid.uuid4().hex}",
+                prefix=f"uploaded_{uuid.uuid4().hex}",
                 max_file_size=settings.MAX_UPLOAD_AUDIO_FILESIZE,
                 tmp_path=settings.TMP_AUDIO_PATH,
             )
         except ValueError as exc:
             raise InvalidRequestError(details={"file": str(exc)}) from exc
 
-        return tmp_path, upload_file.filename
+        return local_path, upload_file.filename
 
     async def _get_cover_data(self, audio_path: Path) -> dict | None:
         if not (cover := provider_utils.audio_cover(audio_path)):

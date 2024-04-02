@@ -1,4 +1,3 @@
-import hashlib
 import os
 import uuid
 from hashlib import md5
@@ -13,7 +12,7 @@ from common.utils import hash_string
 from core import settings
 from modules.auth.models import UserIP, User
 from modules.media.models import File
-from modules.providers.utils import AudioMetaData, get_file_hash
+from modules.providers.utils import AudioMetaData
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import create_file, PodcastTestClient
 from tests.mocks import MockS3Client
@@ -463,7 +462,7 @@ class TestUploadAudioAPIView(BaseTestAPIView):
         file = (os.path.basename(tmp_file.name), tmp_file, "audio/mpeg")
         response = client.post(self.url, files={"file": file})
         response_data = self.assert_ok_response(response)
-        remote_path = f"uploaded_audio_{result_hash}"
+        remote_path = f"uploaded_{result_hash}"
 
         assert response_data["name"] == os.path.basename(tmp_file.name)
         assert response_data["meta"] == audio_metadata
@@ -509,7 +508,14 @@ class TestUploadImageAPIView(BaseTestAPIView):
 
     @staticmethod
     def _file_hash(file: File) -> str:
-        return hashlib.sha256(file.content).hexdigest()[:32]
+        return md5(
+            str(
+                {
+                    "filename": os.path.basename(file.name),
+                    "filesize": file.size,
+                }
+            ).encode()
+        ).hexdigest()
 
     async def test_upload__ok(
         self,
@@ -529,6 +535,7 @@ class TestUploadImageAPIView(BaseTestAPIView):
         response = client.post(self.url, files={"file": file})
         response_data = self.assert_ok_response(response)
         assert response_data == {
+            "name": os.path.basename(tmp_file.name),
             "path": remote_tmp_path,
             "hash": self._file_hash(tmp_file),
             "size": tmp_file.size,
@@ -542,23 +549,19 @@ class TestUploadImageAPIView(BaseTestAPIView):
         tmp_file: File,
         mocked_s3: MockS3Client,
     ):
-        remote_tmp_path = f"remote/tmp/{uuid.uuid4().hex}.png"
-        presigned_url = f"https://s3.storage/link/{remote_tmp_path}/presigned_link/"
-        mocked_s3.upload_file_async.return_value = remote_tmp_path
-        mocked_s3.get_presigned_url.return_value = presigned_url
-
+        result_hash = self._file_hash(tmp_file)
         mocked_s3.get_file_size_async.return_value = tmp_file.size
 
         await client.login(user)
         file = (os.path.basename(tmp_file.name), tmp_file, "image/png")
         response = client.post(self.url, files={"file": file})
         response_data = self.assert_ok_response(response)
-        # TODO: fix logic for not-uploading already uploaded file!
-        remote_path = f"uploaded_image_{result_hash}"
+        remote_path = f"uploaded_{result_hash}"
 
+        assert response_data["name"] == os.path.basename(tmp_file.name)
         assert response_data["path"] == os.path.join(settings.S3_BUCKET_TMP_AUDIO_PATH, remote_path)
         assert response_data["size"] == tmp_file.size
-        assert response_data["hash"] == self._file_hash(tmp_file)
+        assert response_data["hash"] == result_hash
 
         mocked_s3.upload_file_async.assert_not_awaited()
 

@@ -34,6 +34,7 @@ class ImageFileUploadSchema(Schema):
 
 
 class ImageUploadedSchema(Schema):
+    name = fields.Str()
     path = fields.Str()
     hash = fields.Str()
     size = fields.Int()

@@ -54,6 +54,7 @@ def test_settings():
     settings.APP_DEBUG = True
     settings.MAX_UPLOAD_ATTEMPT = 1
     settings.MAX_UPLOAD_AUDIO_FILESIZE = 32
+    settings.MAX_UPLOAD_IMAGE_FILESIZE = 32
     settings.RETRY_UPLOAD_TIMEOUT = 0
 
 
