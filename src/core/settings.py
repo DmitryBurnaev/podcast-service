@@ -96,8 +96,6 @@ S3_LINK_CACHE_EXPIRES_IN = config("S3_LINK_CACHE_EXPIRES_IN", default=120, cast=
 DEFAULT_EPISODE_COVER = config("DEFAULT_EPISODE_COVER", default="episode-default.jpg")
 DEFAULT_PODCAST_COVER = config("DEFAULT_PODCAST_COVER", default="podcast-default.jpg")
 
-SENDGRID_API_KEY = config("SENDGRID_API_KEY")
-SENDGRID_API_VERSION = "v3"
 EMAIL_FROM = config("EMAIL_FROM", default="").strip("'\"")
 INVITE_LINK_EXPIRES_IN = 3 * 24 * 3600  # 3 day
 RESET_PASSWORD_LINK_EXPIRES_IN = 3 * 3600  # 3 hours
