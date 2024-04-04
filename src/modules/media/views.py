@@ -49,26 +49,23 @@ class UploadedFileData:
 
     def __post_init__(self):
         self.filesize = get_file_size(self.local_path)
-        print(self.local_path, get_file_size(self.local_path))
         new_path = settings.TMP_AUDIO_PATH / self.uploaded_name
         os.rename(self.local_path, new_path)
         self.local_path = new_path
-        print(self.local_path, get_file_size(self.local_path))
 
-    # @cached_property
     @property
-    def hash_str(self):
+    def hash_str(self) -> str:
         data = {
             "filename": self.filename,
             "filesize": self.filesize,
         }
         if self.metadata:
             data |= self.metadata._asdict()  # noqa
-        print(data)
+
         return md5(str(data).encode()).hexdigest()
 
     @cached_property
-    def uploaded_name(self):
+    def uploaded_name(self) -> str:
         file_ext = os.path.splitext(self.filename)[-1]
         return f"uploaded_{self.hash_str}{file_ext}"
 
