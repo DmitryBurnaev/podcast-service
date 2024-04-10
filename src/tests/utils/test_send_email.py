@@ -12,7 +12,6 @@ from tests.mocks import MockSMTPSender
 
 pytestmark = pytest.mark.asyncio
 
-SENDGRID_URL = f"https://api.sendgrid.com/{settings.SENDGRID_API_VERSION}/mail/send"
 RECIPIENT_EMAIL = "test@test.com"
 SUBJECT = "Test Email"
 CONTENT = "<head>Test Content</head>"
