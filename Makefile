@@ -4,17 +4,17 @@ run_web:
 run_rq:
 	cd src && pipenv run python -m worker youtube_downloads
 
-migrations_upgrade:
+migrate:
 	. ./.env && echo "Upgrade migrations for: $$DB_NAME" && \
 	PIPENV_DONT_LOAD_ENV=1 DATABASE_NAME=$$DB_NAME \
 	pipenv run alembic upgrade head
 
-migrations_downgrade:
+downgrade:
 	. ./.env && echo "Downgrade migration for: $$DB_NAME" && \
 	PIPENV_DONT_LOAD_ENV=1 DATABASE_NAME=$$DB_NAME \
 	pipenv run alembic downgrade "${revision}"
 
-migrations_history:
+migrations:
 	pipenv run alembic history
 
 migrations_create_auto:
