@@ -105,3 +105,19 @@ class UserIP(ModelBase, ModelMixin):
 
     def __repr__(self):
         return f"<UserIP {self.hashed_address} user: {self.user_id}>"
+
+
+class UserAccessToken(ModelBase, ModelMixin):
+    __tablename__ = "auth_user_access_tokens"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(ForeignKey("auth_users.id"), nullable=False)
+    access_token = Column(String(length=512), unique=True, nullable=False)
+    expired_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    class Meta:
+        order_by = ("-id",)
+
+    def __repr__(self):
+        return f"<UserAccessToken {self.access_token} user: {self.user_id}>"

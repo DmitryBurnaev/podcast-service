@@ -73,7 +73,7 @@ PGPASSWORD=${DATABASE_PASSWORD} psql -U${DATABASE_USER} -h${DATABASE_HOST} -p${D
 
 #### Apply migrations
 ```shell script
-cd "<PATH_TO_PROJECT>" && make migrations_upgrade
+cd "<PATH_TO_PROJECT>" && make migrate
 ```
 
 
@@ -100,9 +100,9 @@ make run_rq
 ```shell script
 make migrations_create_auto   # auto-creation
 make migrations_create_manual # manual-creation
-make migrations_upgrade       # apply all migrations
-make migrations_downgrade     # unapply with param `revision=1231`
-make migrations_history       # show applied migrations
+make migrate       # apply all migrations
+make downgrade     # unapply with param `revision=1231`
+make migrations    # show applied migrations
 
 ```
 
