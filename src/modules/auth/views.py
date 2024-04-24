@@ -40,7 +40,7 @@ from modules.auth.schemas import (
     ResetPasswordResponseSchema,
     UserPatchRequestSchema,
     UserIPsResponseSchema,
-    UserIPsDeleteRequestSchema,
+    UserIPsDeleteRequestSchema, UserAccessTokenResponseSchema,
 )
 from modules.media.models import File
 from modules.podcast.models import Podcast
@@ -432,4 +432,12 @@ class UserIPsDeleteAPIView(BaseHTTPEndpoint):
             user_id=request.user.id,
             id__in=cleaned_data["ids"],
         )
+        return self._response()
+
+
+class UserAccessTokensAPIView(BaseHTTPEndpoint):
+    schema_request = UserAccessTokenResponseSchema
+
+    async def get(self, request: PRequest) -> Response:
+        # TODO: implement list's logic
         return self._response()
