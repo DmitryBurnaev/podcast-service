@@ -122,3 +122,9 @@ class UserIPsResponseSchema(Schema):
 
 class UserIPsDeleteRequestSchema(Schema):
     ids = fields.List(fields.Integer)
+
+
+class UserAccessTokenResponseSchema(Schema):
+    token = fields.String()
+    created_at = fields.DateTime()
+    expired_at = fields.DateTime()
