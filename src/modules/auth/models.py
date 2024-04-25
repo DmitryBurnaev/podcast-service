@@ -114,7 +114,7 @@ class UserAccessToken(ModelBase, ModelMixin):
     user_id = Column(ForeignKey("auth_users.id"), nullable=False)
     access_token = Column(String(length=256), unique=True, nullable=False)
     enabled = Column(Boolean, default=True, nullable=False)
-    expired_at = Column(DateTime(timezone=True), nullable=False)
+    expires_in = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     class Meta:

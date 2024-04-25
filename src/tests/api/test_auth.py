@@ -754,3 +754,21 @@ class TestUserIPRegistration(BaseTestAPIView):
             dbs, user_id=user.id, hashed_address=hash_string("172.17.0.1")
         )
         assert user_ip is None
+
+
+class TestUserAccessToken(BaseTestAPIView):
+    url = "/api/auth/access-token/"
+
+    def test_create_token(
+        self,
+        client: PodcastTestClient,
+        user: User,
+        user_session: UserSession,
+    ):
+        self.client = client
+        token_data = {
+            "days": 180
+        }
+        response = client.post(self.url, json=token_data)
+        response_data = self.assert_ok_response(response)
+        assert response_data["access_token"] == "my-token"
