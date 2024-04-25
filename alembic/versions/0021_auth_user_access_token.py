@@ -25,7 +25,7 @@ def upgrade():
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("access_token", sa.String(length=256), nullable=False),
         sa.Column("enabled", sa.Boolean(), nullable=False, default=True),
-        sa.Column("expired_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("expires_in", sa.DateTime(timezone=True), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(
             ["user_id"],
