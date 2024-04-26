@@ -112,7 +112,7 @@ class UserAccessToken(ModelBase, ModelMixin):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(ForeignKey("auth_users.id"), nullable=False)
-    access_token = Column(String(length=256), unique=True, nullable=False)
+    token = Column(String(length=256), unique=True, nullable=False)
     enabled = Column(Boolean, default=True, nullable=False)
     expires_in = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
@@ -121,4 +121,4 @@ class UserAccessToken(ModelBase, ModelMixin):
         order_by = ("-id",)
 
     def __repr__(self):
-        return f"<UserAccessToken {self.access_token} user: {self.user_id}>"
+        return f"<UserAccessToken {self.token} user: {self.user_id}>"

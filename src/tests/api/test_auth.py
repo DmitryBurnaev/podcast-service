@@ -11,7 +11,7 @@ from common.request import PRequest
 from common.statuses import ResponseStatus
 from common.utils import hash_string, utcnow
 from core import settings
-from modules.auth.models import User, UserSession, UserInvite, UserIP
+from modules.auth.models import User, UserSession, UserInvite, UserIP, UserAccessToken
 from modules.auth.utils import (
     decode_jwt,
     encode_jwt,
@@ -755,11 +755,13 @@ class TestUserIPRegistration(BaseTestAPIView):
         )
         assert user_ip is None
 
+@pytest.fi
+
 
 class TestUserAccessToken(BaseTestAPIView):
     url = "/api/auth/access-token/"
 
-    def test_create_token(
+    async def test_create_token(
         self,
         client: PodcastTestClient,
         user: User,
@@ -771,4 +773,31 @@ class TestUserAccessToken(BaseTestAPIView):
         }
         response = client.post(self.url, json=token_data)
         response_data = self.assert_ok_response(response)
-        assert response_data["access_token"] == "my-token"
+        access_token: UserAccessToken = await UserAccessToken.async_get(id=response_data["id"])
+        response_token = response_data["token"]
+
+        assert access_token is not None
+        assert access_token.user_id == user.id
+        assert access_token.token == hash_string(response_token)
+
+        assert response_data["id"] == access_token.id
+        assert response_data["expires_in"] == access_token.expires_in.isoformat()
+        assert response_data["enabled"] is True
+
+    async def test_list_tokens(
+        self,
+        client: PodcastTestClient,
+        user: User,
+        user_session: UserSession,
+        user_access_token: UserAccessToken,
+    ):
+        response = client.get(self.url)
+        response_data = self.assert_ok_response(response)
+        assert response_data["items"] == [
+            {
+                "id": str(user_access_token.id),
+                "enabled": True,
+                "expires_in": user_access_token.expires_in.isoformat(),
+                "token": None
+            }
+        ]
