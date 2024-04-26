@@ -16,7 +16,7 @@ from sqlalchemy.exc import ProgrammingError, OperationalError
 
 from common.utils import utcnow
 from core import settings, database
-from modules.auth.models import UserInvite, User, UserSession
+from modules.auth.models import UserInvite, User, UserSession, UserAccessToken
 from modules.media.models import File
 from modules.podcast.models import Podcast, Episode, Cookie
 from common.enums import SourceType, FileType
@@ -351,6 +351,17 @@ async def user_invite(user: User, dbs: AsyncSession) -> UserInvite:
         token=f"{uuid.uuid4().hex}",
         expired_at=utcnow() + timedelta(days=1),
         owner_id=user.id,
+    )
+
+
+@pytest_asyncio.fixture
+async def user_access_token(user: User, dbs: AsyncSession) -> UserAccessToken:
+    return await UserAccessToken.async_create(
+        dbs,
+        db_commit=True,
+        token=f"{uuid.uuid4().hex}",
+        expires_at=utcnow() + timedelta(days=1),
+        user_id=user.id,
     )
 
 
