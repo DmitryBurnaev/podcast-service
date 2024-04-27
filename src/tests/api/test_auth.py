@@ -735,7 +735,7 @@ class TestUserIPRegistration(BaseTestAPIView):
         user_session: UserSession,
     ):
         self.client = client
-        # TODO: fix tests
+
         request_1 = self._request(user=user, ip_address="172.17.0.1")
         request_2 = self._request(user=user, ip_address="172.17.0.2")
         await register_ip(request_1)
@@ -755,11 +755,11 @@ class TestUserIPRegistration(BaseTestAPIView):
         )
         assert user_ip is None
 
-@pytest.fi
-
 
 class TestUserAccessToken(BaseTestAPIView):
     url = "/api/auth/access-token/"
+    url_details = "/api/auth/access-token/{id}/"
+    url_disable = "/api/auth/access-token/{id}/disable/"
 
     async def test_create_token(
         self,
@@ -785,6 +785,42 @@ class TestUserAccessToken(BaseTestAPIView):
         assert response_data["enabled"] is True
 
     async def test_list_tokens(
+        self,
+        client: PodcastTestClient,
+        user: User,
+        user_session: UserSession,
+        user_access_token: UserAccessToken,
+    ):
+        response = client.get(self.url)
+        response_data = self.assert_ok_response(response)
+        assert response_data["items"] == [
+            {
+                "id": str(user_access_token.id),
+                "enabled": True,
+                "expires_in": user_access_token.expires_in.isoformat(),
+                "token": None
+            }
+        ]
+
+    async def test_deactivate_tokens(
+        self,
+        client: PodcastTestClient,
+        user: User,
+        user_session: UserSession,
+        user_access_token: UserAccessToken,
+    ):
+        response = client.get(self.url_details)
+        response_data = self.assert_ok_response(response)
+        assert response_data["items"] == [
+            {
+                "id": str(user_access_token.id),
+                "enabled": True,
+                "expires_in": user_access_token.expires_in.isoformat(),
+                "token": None
+            }
+        ]
+
+    async def test_list_tokens__with_inactive(
         self,
         client: PodcastTestClient,
         user: User,
