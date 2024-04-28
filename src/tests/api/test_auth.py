@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 
 from common.request import PRequest
 from common.statuses import ResponseStatus
@@ -22,7 +23,7 @@ from modules.auth.utils import (
 )
 from modules.podcast.models import Podcast
 from tests.api.test_base import BaseTestAPIView
-from tests.helpers import prepare_request, PodcastTestClient
+from tests.helpers import prepare_request, PodcastTestClient, create_user
 
 INVALID_SIGN_IN_DATA = [
     [{"email": "fake-email"}, {"email": "Not a valid email address."}],
@@ -757,83 +758,152 @@ class TestUserIPRegistration(BaseTestAPIView):
 
 
 class TestUserAccessToken(BaseTestAPIView):
-    url = "/api/auth/access-token/"
-    url_details = "/api/auth/access-token/{id}/"
-    url_disable = "/api/auth/access-token/{id}/disable/"
+    url = "/api/auth/access-tokens/"
+    url_details = "/api/auth/access-tokens/{id}/"
+
+    @staticmethod
+    def _token_in_response(a_token: UserAccessToken, ) -> dict:
+        return {
+            "id": str(a_token.id),
+            "enabled": a_token.enabled,
+            "expires_in": a_token.expires_in.isoformat(),
+            "token": None
+        }
+
+    @staticmethod
+    async def _access_token(dbs: AsyncSession, user: User) -> UserAccessToken:
+        return await UserAccessToken.async_create(
+            dbs,
+            db_commit=True,
+            token=f"{uuid.uuid4().hex}",
+            expires_in=utcnow() + timedelta(days=1),
+            user_id=user.id,
+        )
 
     async def test_create_token(
         self,
         client: PodcastTestClient,
         user: User,
-        user_session: UserSession,
+        dbs: AsyncSession,
     ):
-        self.client = client
-        token_data = {
-            "days": 180
-        }
-        response = client.post(self.url, json=token_data)
+        await client.login(user)
+        response = client.post(self.url, json={"days": 180})
         response_data = self.assert_ok_response(response)
-        access_token: UserAccessToken = await UserAccessToken.async_get(id=response_data["id"])
+
+        a_token: UserAccessToken = await UserAccessToken.async_get(dbs, id=response_data["id"])
         response_token = response_data["token"]
 
-        assert access_token is not None
-        assert access_token.user_id == user.id
-        assert access_token.token == hash_string(response_token)
+        assert a_token is not None
+        assert a_token.user_id == user.id
+        assert a_token.token == hash_string(response_token)
 
-        assert response_data["id"] == access_token.id
-        assert response_data["expires_in"] == access_token.expires_in.isoformat()
-        assert response_data["enabled"] is True
+        expected_data: dict = self._token_in_response(a_token) | {"token": response_token}
+        assert response_data == expected_data
 
     async def test_list_tokens(
         self,
+        dbs: AsyncSession,
         client: PodcastTestClient,
         user: User,
-        user_session: UserSession,
         user_access_token: UserAccessToken,
     ):
+        await client.login(user)
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
         assert response_data["items"] == [
-            {
-                "id": str(user_access_token.id),
-                "enabled": True,
-                "expires_in": user_access_token.expires_in.isoformat(),
-                "token": None
-            }
+            self._token_in_response(user_access_token)
         ]
 
-    async def test_deactivate_tokens(
+    async def test_list_tokens__filter_by_current_user(
         self,
+        dbs: AsyncSession,
         client: PodcastTestClient,
         user: User,
-        user_session: UserSession,
         user_access_token: UserAccessToken,
     ):
-        response = client.get(self.url_details)
+        another_user: User = await create_user(dbs)
+        await self._access_token(another_user)
+
+        await client.login(user)
+        response = client.get(self.url)
         response_data = self.assert_ok_response(response)
         assert response_data["items"] == [
-            {
-                "id": str(user_access_token.id),
-                "enabled": True,
-                "expires_in": user_access_token.expires_in.isoformat(),
-                "token": None
-            }
+            self._token_in_response(user_access_token)
         ]
+
+    async def test_delete_token(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        user_access_token: UserAccessToken,
+    ):
+        await client.login(user)
+        url = self.url_details.format(id=user_access_token.id)
+        response = client.delete(url)
+        self.assert_ok_response(response)
+        a_token: UserAccessToken = await UserAccessToken.async_get(dbs, id=user_access_token.id)
+        assert a_token is None
+
+    async def test_delete_token__forbidden_for_another_user(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+    ):
+        await client.login(user)
+        another_user = await create_user(dbs)
+        another_user_a_token: UserAccessToken = await self._access_token(another_user)
+
+        url = self.url_details.format(id=another_user_a_token.id)
+        response = client.delete(url)
+        self.assert_fail_response(response, status_code=status.HTTP_403_FORBIDDEN)
+        a_token: UserAccessToken = await UserAccessToken.async_get(dbs, id=another_user_a_token.id)
+        assert a_token is not None  # nothing changed
+
+    async def test_disable_tokens(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        user_access_token: UserAccessToken,
+    ):
+        await client.login(user)
+        url = self.url_details.format(id=user_access_token.id)
+        response = client.patch(url, json={"enabled": False})
+        response_data = self.assert_ok_response(response)
+        a_token: UserAccessToken = await UserAccessToken.async_get(dbs, id=response_data["id"])
+
+        assert response_data == [self._token_in_response(user_access_token) | {"enabled": False}]
+        assert a_token.enabled is False
+
+    async def test_disable_tokens__forbidden_for_another_user(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        user_access_token: UserAccessToken,
+    ):
+        another_user = await create_user(dbs)
+        another_user_a_token: UserAccessToken = await self._access_token(another_user)
+
+        await client.login(user)
+        url = self.url_details.format(id=another_user_a_token)
+
+        response = client.patch(url, json={"enabled": False})
+        response_data = self.assert_fail_response(response, status_code=status.HTTP_403_FORBIDDEN)
+
+        a_token: UserAccessToken = await UserAccessToken.async_get(dbs, id=response_data["id"])
+        assert a_token.enabled is True  # nothing changed
 
     async def test_list_tokens__with_inactive(
         self,
+        dbs: AsyncSession,
         client: PodcastTestClient,
         user: User,
-        user_session: UserSession,
         user_access_token: UserAccessToken,
     ):
+        await user_access_token.update(dbs, enabled=False)
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
-        assert response_data["items"] == [
-            {
-                "id": str(user_access_token.id),
-                "enabled": True,
-                "expires_in": user_access_token.expires_in.isoformat(),
-                "token": None
-            }
-        ]
+        assert response_data == [self._token_in_response(user_access_token) | {"enabled": False}]

@@ -1,5 +1,5 @@
 import typing
-from marshmallow import Schema, ValidationError
+from marshmallow import Schema, ValidationError, post_dump
 from webargs import fields, validate
 
 
@@ -124,7 +124,20 @@ class UserIPsDeleteRequestSchema(Schema):
     ids = fields.List(fields.Integer)
 
 
+class UserAccessTokenRequestSchema(Schema):
+    expires_days = fields.Int(validate=validate.Range(min=1, max=365))
+
+
 class UserAccessTokenResponseSchema(Schema):
-    token = fields.String()
+    id = fields.Int()
+    token = fields.String(allow_none=True)
     created_at = fields.DateTime()
-    expired_at = fields.DateTime()
+    expires_in = fields.DateTime()
+    enabled = fields.Bool()
+
+    @post_dump
+    def skip_token(self, data, **_) -> dict:
+        if not self.context.get("created"):
+            data["token"] = None
+
+        return data
