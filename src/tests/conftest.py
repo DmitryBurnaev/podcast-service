@@ -360,7 +360,7 @@ async def user_access_token(user: User, dbs: AsyncSession) -> UserAccessToken:
         dbs,
         db_commit=True,
         token=f"{uuid.uuid4().hex}",
-        expires_at=utcnow() + timedelta(days=1),
+        expires_in=utcnow() + timedelta(days=1),
         user_id=user.id,
     )
 

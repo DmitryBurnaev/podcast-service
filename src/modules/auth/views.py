@@ -17,7 +17,7 @@ from common.views import BaseHTTPEndpoint
 from common.statuses import ResponseStatus
 from common.utils import send_email, utcnow
 from common.exceptions import AuthenticationFailedError, InvalidRequestError
-from modules.auth.models import User, UserSession, UserInvite, UserIP
+from modules.auth.models import User, UserSession, UserInvite, UserIP, UserAccessToken
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
 from modules.auth.backend import AdminRequiredAuthBackend, LoginRequiredAuthBackend
 from modules.auth.utils import (
@@ -40,7 +40,7 @@ from modules.auth.schemas import (
     ResetPasswordResponseSchema,
     UserPatchRequestSchema,
     UserIPsResponseSchema,
-    UserIPsDeleteRequestSchema, UserAccessTokenResponseSchema,
+    UserIPsDeleteRequestSchema, UserAccessTokenResponseSchema, UserAccessTokenRequestSchema,
 )
 from modules.media.models import File
 from modules.podcast.models import Podcast
@@ -435,9 +435,46 @@ class UserIPsDeleteAPIView(BaseHTTPEndpoint):
         return self._response()
 
 
-class UserAccessTokensAPIView(BaseHTTPEndpoint):
-    schema_request = UserAccessTokenResponseSchema
+class UserAccessTokensLiceCreateAPIView(BaseHTTPEndpoint):
+    schema_request = UserAccessTokenRequestSchema
+    schema_response = UserAccessTokenResponseSchema
 
     async def get(self, request: PRequest) -> Response:
-        # TODO: implement list's logic
-        return self._response()
+        """
+        Returns list of access token for current user (hashed token will be skipped in response)
+        """
+        user_id = request.user.id
+        user_access_tokens = await UserAccessToken.async_filter(self.db_session, user_id=user_id)
+        return self._response(user_access_tokens)
+
+    async def post(self, request: PRequest) -> Response:
+        """
+        Creates new access token for current user (hashed token will be shown in response)
+        """
+        user_id = request.user.id
+        cleaned_data = await self._validate(request)
+        access_token = await UserAccessToken.async_create(
+            self.db_session,
+            user_id=user_id,
+
+        )
+
+
+        if not (podcast_id := request.path_params.get("podcast_id")):
+            raise MethodNotAllowedError("Couldn't create episode without provided podcast_id")
+
+        podcast = await self._get_object(podcast_id, db_model=Podcast)
+        cleaned_data = await self._validate(request)
+        episode_creator = EpisodeCreator(
+            self.db_session,
+            podcast_id=podcast_id,
+            source_url=cleaned_data["source_url"],
+            user_id=request.user.id,
+        )
+        episode = await episode_creator.create()
+        if podcast.download_automatically:
+            await episode.update(self.db_session, status=Episode.Status.DOWNLOADING)
+            await self._run_task(tasks.DownloadEpisodeTask, episode_id=episode.id)
+
+        await self._run_task(tasks.DownloadEpisodeImageTask, episode_id=episode.id)
+        return self._response(episode, status_code=status.HTTP_201_CREATED)

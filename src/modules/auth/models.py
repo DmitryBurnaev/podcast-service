@@ -122,3 +122,7 @@ class UserAccessToken(ModelBase, ModelMixin):
 
     def __repr__(self):
         return f"<UserAccessToken {self.token} user: {self.user_id}>"
+
+    @classmethod
+    def generate_token(cls) -> str:
+        return secrets.token_urlsafe()
