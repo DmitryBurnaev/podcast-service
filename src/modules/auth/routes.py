@@ -15,6 +15,8 @@ routes = [
             Route("/invite-user/", views.InviteUserAPIView),
             Route("/reset-password/", views.ResetPasswordAPIView),
             Route("/change-password/", views.ChangePasswordAPIView),
+            Route("/access-tokens/", views.UserAccessTokensLiceCreateAPIView),
+            Route("/access-tokens/{token_id:int}/", views.UserAccessTokensDetailsAPIView),
         ],
     )
 ]

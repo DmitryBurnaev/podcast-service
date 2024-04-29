@@ -141,13 +141,15 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         data: Any = None,
         status_code: int = status.HTTP_200_OK,
         response_status: ResponseStatus = ResponseStatus.OK,
+        schema_kwargs: dict | None = None,
     ) -> Response:
         """Returns JSON-Response (with single instance or list of them) or empty Response"""
 
         response_instance = instance if (instance is not None) else data
         payload = {}
+        schema_kwargs = schema_kwargs or {}
+
         if response_instance is not None:
-            schema_kwargs = {}
             if isinstance(response_instance, Iterable) and not isinstance(response_instance, dict):
                 schema_kwargs["many"] = True
 
