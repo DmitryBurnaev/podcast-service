@@ -2,6 +2,7 @@ import json
 import uuid
 import base64
 from datetime import datetime, timedelta
+from http import HTTPStatus
 from unittest.mock import AsyncMock
 
 import pytest
@@ -831,6 +832,18 @@ class TestUserAccessToken(BaseTestAPIView):
             self._token_in_response(user_access_token)
         ]
 
+    async def test_list_tokens__with_inactive(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        user_access_token: UserAccessToken,
+    ):
+        await user_access_token.update(dbs, enabled=False)
+        response = client.get(self.url)
+        response_data = self.assert_ok_response(response)
+        assert response_data == [self._token_in_response(user_access_token) | {"enabled": False}]
+
     async def test_delete_token(
         self,
         dbs: AsyncSession,
@@ -844,6 +857,16 @@ class TestUserAccessToken(BaseTestAPIView):
         self.assert_ok_response(response)
         a_token: UserAccessToken = await UserAccessToken.async_get(dbs, id=user_access_token.id)
         assert a_token is None
+
+    async def test_delete_token__not_found(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+    ):
+        await client.login(user)
+        response = client.delete(self.url_details.format(id=0))
+        self.assert_fail_response(response, status_code=HTTPStatus.NOT_FOUND)
 
     async def test_delete_token__forbidden_for_another_user(
         self,
@@ -877,6 +900,16 @@ class TestUserAccessToken(BaseTestAPIView):
         assert response_data == [self._token_in_response(user_access_token) | {"enabled": False}]
         assert a_token.enabled is False
 
+    async def test_disable_tokens__not_found(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+    ):
+        await client.login(user)
+        response = client.post(self.url_details.format(id=0), json={"enabled": False})
+        self.assert_fail_response(response, status_code=HTTPStatus.NOT_FOUND)
+
     async def test_disable_tokens__forbidden_for_another_user(
         self,
         dbs: AsyncSession,
@@ -896,14 +929,13 @@ class TestUserAccessToken(BaseTestAPIView):
         a_token: UserAccessToken = await UserAccessToken.async_get(dbs, id=response_data["id"])
         assert a_token.enabled is True  # nothing changed
 
-    async def test_list_tokens__with_inactive(
+    async def test_details_token__not_allowed(
         self,
         dbs: AsyncSession,
         client: PodcastTestClient,
         user: User,
         user_access_token: UserAccessToken,
     ):
-        await user_access_token.update(dbs, enabled=False)
-        response = client.get(self.url)
-        response_data = self.assert_ok_response(response)
-        assert response_data == [self._token_in_response(user_access_token) | {"enabled": False}]
+        await client.login(user)
+        response = client.get(url=self.url_details.format(id=user_access_token.id))
+        self.assert_fail_response(response, status_code=status.HTTP_405_METHOD_NOT_ALLOWED)

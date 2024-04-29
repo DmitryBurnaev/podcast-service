@@ -41,6 +41,7 @@ from modules.auth.schemas import (
     UserPatchRequestSchema,
     UserIPsResponseSchema,
     UserIPsDeleteRequestSchema, UserAccessTokenResponseSchema, UserAccessTokenRequestSchema,
+    UserAccessTokenPatchSchema,
 )
 from modules.media.models import File
 from modules.podcast.models import Podcast
@@ -456,25 +457,40 @@ class UserAccessTokensLiceCreateAPIView(BaseHTTPEndpoint):
         access_token = await UserAccessToken.async_create(
             self.db_session,
             user_id=user_id,
+            token=UserAccessToken.generate_token(),
+            expires_in=utcnow() + timedelta(days=cleaned_data["expires_in_days"]),
+        )
 
+        return self._response(
+            access_token,
+            schema_kwargs={"context": {"created": True}},
+            status_code=status.HTTP_201_CREATED
         )
 
 
-        if not (podcast_id := request.path_params.get("podcast_id")):
-            raise MethodNotAllowedError("Couldn't create episode without provided podcast_id")
+class UserAccessTokensDetailsAPIView(BaseHTTPEndpoint):
+    schema_request = UserAccessTokenPatchSchema
+    schema_response = UserAccessTokenResponseSchema
 
-        podcast = await self._get_object(podcast_id, db_model=Podcast)
+    async def patch(self, request: PRequest) -> Response:
+        """
+        Updates specific access token for current user
+        Note: enabled/disabled allowed only (see `UserAccessTokenPatchSchema` for allowed params)
+        """
+        token_id = request.path_params["token_id"]
         cleaned_data = await self._validate(request)
-        episode_creator = EpisodeCreator(
-            self.db_session,
-            podcast_id=podcast_id,
-            source_url=cleaned_data["source_url"],
-            user_id=request.user.id,
-        )
-        episode = await episode_creator.create()
-        if podcast.download_automatically:
-            await episode.update(self.db_session, status=Episode.Status.DOWNLOADING)
-            await self._run_task(tasks.DownloadEpisodeTask, episode_id=episode.id)
+        access_token = await UserAccessToken.async_get(self.db_session, id=token_id)
+        await access_token.update(self.db_session, enabled=cleaned_data["enabled"])
+        await self.db_session.refresh(access_token)
 
-        await self._run_task(tasks.DownloadEpisodeImageTask, episode_id=episode.id)
-        return self._response(episode, status_code=status.HTTP_201_CREATED)
+        return self._response(access_token)
+
+    async def delete(self, request: PRequest) -> Response:
+        """
+        Deletes specific access token for current user
+        """
+        token_id = request.path_params["token_id"]
+        access_token = await UserAccessToken.async_get(self.db_session, id=token_id)
+        await access_token.delete(self.db_session)
+
+        return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
