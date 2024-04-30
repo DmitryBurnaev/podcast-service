@@ -2,12 +2,13 @@ import json
 import uuid
 import base64
 import logging
-from typing import Generator, Iterable
+from typing import Generator, Iterable, Type
 from uuid import UUID
 from datetime import timedelta
 
+from marshmallow import Schema
 from starlette import status
-from starlette.responses import Response
+from starlette.responses import Response, JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +16,7 @@ from core import settings
 from common.request import PRequest
 from common.views import BaseHTTPEndpoint
 from common.statuses import ResponseStatus
-from common.utils import send_email, utcnow
+from common.utils import send_email, utcnow, hash_string
 from common.exceptions import AuthenticationFailedError, InvalidRequestError
 from modules.auth.models import User, UserSession, UserInvite, UserIP, UserAccessToken
 from modules.auth.hasher import PBKDF2PasswordHasher, get_salt
@@ -40,7 +41,9 @@ from modules.auth.schemas import (
     ResetPasswordResponseSchema,
     UserPatchRequestSchema,
     UserIPsResponseSchema,
-    UserIPsDeleteRequestSchema, UserAccessTokenResponseSchema, UserAccessTokenRequestSchema,
+    UserIPsDeleteRequestSchema,
+    UserAccessTokenResponseSchema,
+    UserAccessTokenCreateSchema,
     UserAccessTokenPatchSchema,
 )
 from modules.media.models import File
@@ -437,16 +440,24 @@ class UserIPsDeleteAPIView(BaseHTTPEndpoint):
 
 
 class UserAccessTokensLiceCreateAPIView(BaseHTTPEndpoint):
-    schema_request = UserAccessTokenRequestSchema
     schema_response = UserAccessTokenResponseSchema
+
+    @property
+    def schema_request(self) -> Type[Schema]:
+        schema_map = {"get": BaseLimitOffsetSchema, "post": UserAccessTokenCreateSchema}
+        return schema_map.get(self.request.method.lower())
 
     async def get(self, request: PRequest) -> Response:
         """
         Returns list of access token for current user (hashed token will be skipped in response)
         """
-        user_id = request.user.id
-        user_access_tokens = await UserAccessToken.async_filter(self.db_session, user_id=user_id)
-        return self._response(user_access_tokens)
+        cleaned_data = await self._validate(request)
+        return await self._paginated_response(
+            query=UserAccessToken.prepare_query(user_id=request.user.id),
+            limit=cleaned_data["limit"],
+            offset=cleaned_data["offset"],
+            return_scalar=True,
+        )
 
     async def post(self, request: PRequest) -> Response:
         """
@@ -454,32 +465,37 @@ class UserAccessTokensLiceCreateAPIView(BaseHTTPEndpoint):
         """
         user_id = request.user.id
         cleaned_data = await self._validate(request)
+        token = UserAccessToken.generate_token()
         access_token = await UserAccessToken.async_create(
             self.db_session,
             user_id=user_id,
-            token=UserAccessToken.generate_token(),
+            token=hash_string(token),
             expires_in=utcnow() + timedelta(days=cleaned_data["expires_in_days"]),
+            db_commit=True,
         )
 
-        return self._response(
-            access_token,
-            schema_kwargs={"context": {"created": True}},
-            status_code=status.HTTP_201_CREATED
+        payload = self.schema_response().dump(access_token) | {"token": token}
+        return JSONResponse(
+            {"status": ResponseStatus.OK, "payload": payload},
+            status_code=status.HTTP_201_CREATED,
         )
 
 
 class UserAccessTokensDetailsAPIView(BaseHTTPEndpoint):
     schema_request = UserAccessTokenPatchSchema
     schema_response = UserAccessTokenResponseSchema
+    db_model = UserAccessToken
 
     async def patch(self, request: PRequest) -> Response:
         """
         Updates specific access token for current user
         Note: enabled/disabled allowed only (see `UserAccessTokenPatchSchema` for allowed params)
         """
-        token_id = request.path_params["token_id"]
         cleaned_data = await self._validate(request)
-        access_token = await UserAccessToken.async_get(self.db_session, id=token_id)
+        access_token = await self._get_object(
+            request.path_params["token_id"],
+            filter_by_owner=False,
+        )
         await access_token.update(self.db_session, enabled=cleaned_data["enabled"])
         await self.db_session.refresh(access_token)
 
@@ -489,8 +505,10 @@ class UserAccessTokensDetailsAPIView(BaseHTTPEndpoint):
         """
         Deletes specific access token for current user
         """
-        token_id = request.path_params["token_id"]
-        access_token = await UserAccessToken.async_get(self.db_session, id=token_id)
+        access_token = await self._get_object(
+            request.path_params["token_id"],
+            filter_by_owner=False,
+        )
         await access_token.delete(self.db_session)
 
         return self._response(None, status_code=status.HTTP_204_NO_CONTENT)

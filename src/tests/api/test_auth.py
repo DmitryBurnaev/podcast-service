@@ -763,12 +763,14 @@ class TestUserAccessToken(BaseTestAPIView):
     url_details = "/api/auth/access-tokens/{id}/"
 
     @staticmethod
-    def _token_in_response(a_token: UserAccessToken, ) -> dict:
+    def _token_in_response(
+        a_token: UserAccessToken,
+    ) -> dict:
         return {
-            "id": str(a_token.id),
+            "id": a_token.id,
             "enabled": a_token.enabled,
             "expires_in": a_token.expires_in.isoformat(),
-            "token": None
+            "created_at": a_token.created_at.isoformat(),
         }
 
     @staticmethod
@@ -788,8 +790,8 @@ class TestUserAccessToken(BaseTestAPIView):
         dbs: AsyncSession,
     ):
         await client.login(user)
-        response = client.post(self.url, json={"days": 180})
-        response_data = self.assert_ok_response(response)
+        response = client.post(self.url, json={"expires_in_days": 180})
+        response_data = self.assert_ok_response(response, status_code=status.HTTP_201_CREATED)
 
         a_token: UserAccessToken = await UserAccessToken.async_get(dbs, id=response_data["id"])
         response_token = response_data["token"]
@@ -797,6 +799,7 @@ class TestUserAccessToken(BaseTestAPIView):
         assert a_token is not None
         assert a_token.user_id == user.id
         assert a_token.token == hash_string(response_token)
+        assert (a_token.expires_in - utcnow()).days == 179
 
         expected_data: dict = self._token_in_response(a_token) | {"token": response_token}
         assert response_data == expected_data
@@ -811,9 +814,7 @@ class TestUserAccessToken(BaseTestAPIView):
         await client.login(user)
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
-        assert response_data["items"] == [
-            self._token_in_response(user_access_token)
-        ]
+        assert response_data["items"] == [self._token_in_response(user_access_token)]
 
     async def test_list_tokens__filter_by_current_user(
         self,
@@ -823,14 +824,12 @@ class TestUserAccessToken(BaseTestAPIView):
         user_access_token: UserAccessToken,
     ):
         another_user: User = await create_user(dbs)
-        await self._access_token(another_user)
+        await self._access_token(dbs, another_user)
 
         await client.login(user)
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
-        assert response_data["items"] == [
-            self._token_in_response(user_access_token)
-        ]
+        assert response_data["items"] == [self._token_in_response(user_access_token)]
 
     async def test_list_tokens__with_inactive(
         self,
@@ -839,10 +838,14 @@ class TestUserAccessToken(BaseTestAPIView):
         user: User,
         user_access_token: UserAccessToken,
     ):
-        await user_access_token.update(dbs, enabled=False)
+        await user_access_token.update(dbs, enabled=False, db_commit=True)
+        await client.login(user)
+
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
-        assert response_data == [self._token_in_response(user_access_token) | {"enabled": False}]
+        assert response_data["items"] == [
+            self._token_in_response(user_access_token) | {"enabled": False}
+        ]
 
     async def test_delete_token(
         self,
@@ -854,7 +857,7 @@ class TestUserAccessToken(BaseTestAPIView):
         await client.login(user)
         url = self.url_details.format(id=user_access_token.id)
         response = client.delete(url)
-        self.assert_ok_response(response)
+        self.assert_ok_response(response, status_code=status.HTTP_204_NO_CONTENT)
         a_token: UserAccessToken = await UserAccessToken.async_get(dbs, id=user_access_token.id)
         assert a_token is None
 
@@ -866,7 +869,14 @@ class TestUserAccessToken(BaseTestAPIView):
     ):
         await client.login(user)
         response = client.delete(self.url_details.format(id=0))
-        self.assert_fail_response(response, status_code=HTTPStatus.NOT_FOUND)
+        response_data = self.assert_fail_response(
+            response,
+            status_code=status.HTTP_404_NOT_FOUND,
+            response_status=ResponseStatus.NOT_FOUND,
+        )
+        assert response_data["details"] == (
+            "UserAccessToken #0 does not exist or belongs to another user"
+        )
 
     async def test_delete_token__forbidden_for_another_user(
         self,
@@ -876,11 +886,15 @@ class TestUserAccessToken(BaseTestAPIView):
     ):
         await client.login(user)
         another_user = await create_user(dbs)
-        another_user_a_token: UserAccessToken = await self._access_token(another_user)
+        another_user_a_token: UserAccessToken = await self._access_token(dbs, another_user)
 
         url = self.url_details.format(id=another_user_a_token.id)
         response = client.delete(url)
-        self.assert_fail_response(response, status_code=status.HTTP_403_FORBIDDEN)
+        self.assert_fail_response(
+            response,
+            status_code=status.HTTP_404_NOT_FOUND,
+            response_status=ResponseStatus.NOT_FOUND,
+        )
         a_token: UserAccessToken = await UserAccessToken.async_get(dbs, id=another_user_a_token.id)
         assert a_token is not None  # nothing changed
 
@@ -918,7 +932,7 @@ class TestUserAccessToken(BaseTestAPIView):
         user_access_token: UserAccessToken,
     ):
         another_user = await create_user(dbs)
-        another_user_a_token: UserAccessToken = await self._access_token(another_user)
+        another_user_a_token: UserAccessToken = await self._access_token(dbs, another_user)
 
         await client.login(user)
         url = self.url_details.format(id=another_user_a_token)

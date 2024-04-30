@@ -96,14 +96,18 @@ class BaseHTTPEndpoint(HTTPEndpoint):
         await response(self.scope, self.receive, self.send)
 
     async def _get_object(
-        self, instance_id, db_model: Type[DBModel] = None, **filter_kwargs
+        self,
+        instance_id: int,
+        db_model: Type[DBModel] = None,
+        filter_by_owner: bool = True,
+        **filter_kwargs,
     ) -> DBModel:
         """
         Returns current object (only for logged-in or admin user) for CRUD API
         """
 
         db_model = db_model or self.db_model
-        if not self.request.user.is_superuser:
+        if filter_by_owner and not self.request.user.is_superuser:
             filter_kwargs["owner_id"] = self.request.user.id
 
         instance = await db_model.async_get(self.db_session, id=instance_id, **filter_kwargs)
