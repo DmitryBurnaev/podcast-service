@@ -32,7 +32,7 @@ def upgrade():
             ["auth_users.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("access_token"),
+        sa.UniqueConstraint("token"),
     )
     # ### end Alembic commands ###
 
