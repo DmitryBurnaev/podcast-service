@@ -2,12 +2,12 @@ import json
 import uuid
 import base64
 from datetime import datetime, timedelta
-from http import HTTPStatus
 from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+from starlette.responses import Response
 
 from common.request import PRequest
 from common.statuses import ResponseStatus
@@ -783,6 +783,17 @@ class TestUserAccessToken(BaseTestAPIView):
             user_id=user.id,
         )
 
+    def assert_token_not_found(self, response: Response, expected_id: int = 0) -> dict:
+        response_data = self.assert_fail_response(
+            response,
+            status_code=status.HTTP_404_NOT_FOUND,
+            response_status=ResponseStatus.NOT_FOUND,
+        )
+        assert response_data["details"] == (
+            f"UserAccessToken #{expected_id} does not exist or belongs to another user"
+        )
+        return response_data
+
     async def test_create_token(
         self,
         client: PodcastTestClient,
@@ -869,14 +880,7 @@ class TestUserAccessToken(BaseTestAPIView):
     ):
         await client.login(user)
         response = client.delete(self.url_details.format(id=0))
-        response_data = self.assert_fail_response(
-            response,
-            status_code=status.HTTP_404_NOT_FOUND,
-            response_status=ResponseStatus.NOT_FOUND,
-        )
-        assert response_data["details"] == (
-            "UserAccessToken #0 does not exist or belongs to another user"
-        )
+        self.assert_token_not_found(response)
 
     async def test_delete_token__forbidden_for_another_user(
         self,
@@ -890,13 +894,10 @@ class TestUserAccessToken(BaseTestAPIView):
 
         url = self.url_details.format(id=another_user_a_token.id)
         response = client.delete(url)
-        self.assert_fail_response(
-            response,
-            status_code=status.HTTP_404_NOT_FOUND,
-            response_status=ResponseStatus.NOT_FOUND,
-        )
-        a_token: UserAccessToken = await UserAccessToken.async_get(dbs, id=another_user_a_token.id)
-        assert a_token is not None  # nothing changed
+        self.assert_token_not_found(response, expected_id=another_user_a_token.id)
+
+        await dbs.refresh(another_user_a_token)
+        assert another_user_a_token is not None  # nothing changed
 
     async def test_disable_tokens(
         self,
@@ -909,10 +910,10 @@ class TestUserAccessToken(BaseTestAPIView):
         url = self.url_details.format(id=user_access_token.id)
         response = client.patch(url, json={"enabled": False})
         response_data = self.assert_ok_response(response)
-        a_token: UserAccessToken = await UserAccessToken.async_get(dbs, id=response_data["id"])
+        assert response_data == self._token_in_response(user_access_token) | {"enabled": False}
 
-        assert response_data == [self._token_in_response(user_access_token) | {"enabled": False}]
-        assert a_token.enabled is False
+        await dbs.refresh(user_access_token)
+        assert user_access_token.enabled is False
 
     async def test_disable_tokens__not_found(
         self,
@@ -921,8 +922,8 @@ class TestUserAccessToken(BaseTestAPIView):
         user: User,
     ):
         await client.login(user)
-        response = client.post(self.url_details.format(id=0), json={"enabled": False})
-        self.assert_fail_response(response, status_code=HTTPStatus.NOT_FOUND)
+        response = client.patch(self.url_details.format(id=0), json={"enabled": False})
+        self.assert_token_not_found(response)
 
     async def test_disable_tokens__forbidden_for_another_user(
         self,
@@ -935,13 +936,13 @@ class TestUserAccessToken(BaseTestAPIView):
         another_user_a_token: UserAccessToken = await self._access_token(dbs, another_user)
 
         await client.login(user)
-        url = self.url_details.format(id=another_user_a_token)
+        url = self.url_details.format(id=another_user_a_token.id)
 
         response = client.patch(url, json={"enabled": False})
-        response_data = self.assert_fail_response(response, status_code=status.HTTP_403_FORBIDDEN)
+        self.assert_token_not_found(response, expected_id=another_user_a_token.id)
 
-        a_token: UserAccessToken = await UserAccessToken.async_get(dbs, id=response_data["id"])
-        assert a_token.enabled is True  # nothing changed
+        await dbs.refresh(another_user_a_token)
+        assert another_user_a_token.enabled is True  # nothing changed
 
     async def test_details_token__not_allowed(
         self,
@@ -952,4 +953,4 @@ class TestUserAccessToken(BaseTestAPIView):
     ):
         await client.login(user)
         response = client.get(url=self.url_details.format(id=user_access_token.id))
-        self.assert_fail_response(response, status_code=status.HTTP_405_METHOD_NOT_ALLOWED)
+        assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED

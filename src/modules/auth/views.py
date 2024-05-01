@@ -495,6 +495,7 @@ class UserAccessTokensDetailsAPIView(BaseHTTPEndpoint):
         access_token = await self._get_object(
             request.path_params["token_id"],
             filter_by_owner=False,
+            user_id=request.user.id,
         )
         await access_token.update(self.db_session, enabled=cleaned_data["enabled"])
         await self.db_session.refresh(access_token)
@@ -508,6 +509,7 @@ class UserAccessTokensDetailsAPIView(BaseHTTPEndpoint):
         access_token = await self._get_object(
             request.path_params["token_id"],
             filter_by_owner=False,
+            user_id=request.user.id,
         )
         await access_token.delete(self.db_session)
 
