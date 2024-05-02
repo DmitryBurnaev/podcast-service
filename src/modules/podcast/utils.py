@@ -110,7 +110,7 @@ async def check_state(episodes: Iterable["Episode"]) -> list[dict]:
     return result
 
 
-def upload_process_hook(filename: str, chunk: int):
+def upload_process_hook(filename: str, chunk: int) -> None:
     """
     Allows handling uploading to S3 storage and update redis state (for user's progress).
     It is called by `s3.upload_file` (`podcast.utils.upload_episode`)
@@ -123,7 +123,7 @@ def post_processing_process_hook(
     target_path: str,
     total_bytes: int,
     src_file_path: str | Path = "",
-):
+) -> None:
     """
     Allows handling progress for ffmpeg file's preparations
     """
@@ -147,7 +147,7 @@ def episode_process_hook(
     processed_bytes: int = None,
     chunk: int = 0,
     processing_filepath: str | Path | None = None,
-):
+) -> None:
     """Allows handling processes of performing episode's file."""
     redis_client = RedisClient()
     filename = os.path.basename(filename)

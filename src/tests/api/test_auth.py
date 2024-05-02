@@ -758,7 +758,7 @@ class TestUserIPRegistration(BaseTestAPIView):
         assert user_ip is None
 
 
-class TestUserAccessToken(BaseTestAPIView):
+class TestUserAccessTokenAPIView(BaseTestAPIView):
     url = "/api/auth/access-tokens/"
     url_details = "/api/auth/access-tokens/{id}/"
 
@@ -954,3 +954,63 @@ class TestUserAccessToken(BaseTestAPIView):
         await client.login(user)
         response = client.get(url=self.url_details.format(id=user_access_token.id))
         assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+
+class TestUserAccessTokenAuthentication(BaseTestAPIView):
+    url = "/api/auth/me/"
+    default_fail_response_status = ResponseStatus.AUTH_FAILED
+
+    @staticmethod
+    async def _access_token(dbs: AsyncSession, user: User, token: str, expired: bool = False, enabled: bool = True) -> UserAccessToken:
+        expires_in = utcnow()
+        if not expired:
+            expires_in += timedelta(days=1)
+
+        return await UserAccessToken.async_create(
+            dbs,
+            db_commit=True,
+            token=hash_string(token),
+            expires_in=utcnow() + timedelta(days=1),
+            user_id=user.id,
+            enabled=enabled,
+        )
+
+    async def test_no_auth(self, user: User):
+        response = client.get(url=self.url)
+        self.assert_fail_response(response, status_code=status.HTTP_401_UNAUTHORIZED)
+
+    async def test_auth_with_correct_token__ok(self, dbs: AsyncSession, user: User, client: PodcastTestClient):
+        token = UserAccessToken.generate_token()
+        await self._access_token(dbs, user, token)
+
+        client.headers["Authorization"] = f"Bearer {token}"
+        response = client.get(self.url)
+        response_data = self.assert_ok_response(response)
+        assert response_data["id"] == str(user.id)
+
+    async def test_auth_with_bad_token__fail(self, dbs: AsyncSession, user: User, client: PodcastTestClient):
+        token = UserAccessToken.generate_token()
+        await self._access_token(dbs, user, token)
+
+        client.headers["Authorization"] = f"Bearer {uuid.uuid4().hex}"
+        response = client.get(self.url)
+        response_data = self.assert_fail_response(response)
+        assert response_data["detail"] == "Token not found"
+
+    async def test_auth_with_expired_token__fail(self, dbs: AsyncSession, user: User, client: PodcastTestClient):
+        token = UserAccessToken.generate_token()
+        await self._access_token(dbs, user, token, expired=True)
+
+        client.headers["Authorization"] = f"Bearer {uuid.uuid4().hex}"
+        response = client.get(self.url)
+        response_data = self.assert_fail_response(response)
+        assert response_data["detail"] == "Token expired"
+
+    async def test_auth_with_inactive_token__fail(self, dbs: AsyncSession, user: User, client: PodcastTestClient):
+        token = UserAccessToken.generate_token()
+        await self._access_token(dbs, user, token, enabled=False)
+
+        client.headers["Authorization"] = f"Bearer {uuid.uuid4().hex}"
+        response = client.get(self.url)
+        response_data = self.assert_fail_response(response)
+        assert response_data["detail"] == "Token is not active"
