@@ -15,7 +15,7 @@ from modules.auth.utils import decode_jwt, TOKEN_TYPE_ACCESS, TOKEN_TYPE_RESET_P
 logger = logging.getLogger(__name__)
 
 
-class BaseAuthJWTBackend:
+class BaseAuthBackend:
     """Core of authenticate system, based on JWT auth approach"""
 
     keyword = "Bearer"
@@ -94,12 +94,17 @@ class BaseAuthJWTBackend:
 
         return user, jwt_payload, session_id
 
+    # async def authenticate_access_token(self, token: str) -> tuple[User, dict, str | None]:
 
-class LoginRequiredAuthBackend(BaseAuthJWTBackend):
+
+
+
+
+class LoginRequiredAuthBackend(BaseAuthBackend):
     """Each request must have filled `user` attribute"""
 
 
-class AdminRequiredAuthBackend(BaseAuthJWTBackend):
+class AdminRequiredAuthBackend(BaseAuthBackend):
     """Login-ed used must have `is_superuser` attribute"""
 
     async def authenticate_user(

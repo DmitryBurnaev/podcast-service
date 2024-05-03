@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 import jwt
+from jwt import InvalidTokenError
 
 from common.request import PRequest
 from common.utils import hash_string, utcnow
@@ -46,6 +47,9 @@ def encode_jwt(
 
 def decode_jwt(encoded_jwt: str) -> dict:
     """Allows to decode received JWT token to payload"""
+    parts_count = len(encoded_jwt.split("."))
+    if parts_count != 3:
+        raise InvalidTokenError("Invalid JWT provided: not enough parts")
 
     return jwt.decode(encoded_jwt, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
 

@@ -975,9 +975,13 @@ class TestUserAccessTokenAuthentication(BaseTestAPIView):
             enabled=enabled,
         )
 
-    async def test_no_auth(self, user: User):
+    async def test_no_auth(self, user: User, client: PodcastTestClient):
         response = client.get(url=self.url)
-        self.assert_fail_response(response, status_code=status.HTTP_401_UNAUTHORIZED)
+        self.assert_fail_response(
+            response,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            response_status=ResponseStatus.MISSED_CREDENTIALS,
+        )
 
     async def test_auth_with_correct_token__ok(self, dbs: AsyncSession, user: User, client: PodcastTestClient):
         token = UserAccessToken.generate_token()
