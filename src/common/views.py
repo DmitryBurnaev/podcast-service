@@ -34,7 +34,7 @@ from modules.auth.models import User
 from modules.podcast.models import Podcast
 from modules.podcast.tasks.base import RQTask
 from modules.auth.utils import TokenCollection
-from modules.auth.backend import LoginRequiredAuthBackend, BaseAuthJWTBackend
+from modules.auth.backend import LoginRequiredAuthBackend, BaseAuthBackend
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class BaseHTTPEndpoint(HTTPEndpoint):
     db_session: AsyncSession
     schema_request: ClassVar[Type[Schema]]
     schema_response: ClassVar[Type[Schema]]
-    auth_backend: ClassVar[Type[BaseAuthJWTBackend] | None] = LoginRequiredAuthBackend
+    auth_backend: ClassVar[Type[BaseAuthBackend] | None] = LoginRequiredAuthBackend
 
     async def dispatch(self) -> None:
         """
@@ -275,7 +275,7 @@ class WSRequest:
 
 
 class BaseWSEndpoint(WebSocketEndpoint):
-    auth_backend: ClassVar[Type[BaseAuthJWTBackend]] = LoginRequiredAuthBackend
+    auth_backend: ClassVar[Type[BaseAuthBackend]] = LoginRequiredAuthBackend
     request_schema: ClassVar[Type[Schema]] = WSRequestAuthSchema
     user: User
     request: WSRequest

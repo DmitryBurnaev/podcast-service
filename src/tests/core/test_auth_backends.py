@@ -7,7 +7,7 @@ from common.exceptions import (
     AuthenticationFailedError,
     PermissionDeniedError,
 )
-from modules.auth.backend import BaseAuthJWTBackend, AdminRequiredAuthBackend
+from modules.auth.backend import BaseAuthBackend, AdminRequiredAuthBackend
 from modules.auth.models import User, UserSession
 from modules.auth.utils import encode_jwt, TOKEN_TYPE_RESET_PASSWORD, TOKEN_TYPE_REFRESH
 from tests.helpers import prepare_request
@@ -23,7 +23,7 @@ class TestBackendAuth:
 
     async def test_check_auth__ok(self, dbs: AsyncSession, user: User, user_session: UserSession):
         request = self._prepare_request(dbs, user, user_session)
-        authenticated_user, _ = await BaseAuthJWTBackend(request).authenticate()
+        authenticated_user, _ = await BaseAuthBackend(request).authenticate()
         assert authenticated_user.id == user.id
 
     @pytest.mark.parametrize(
@@ -61,7 +61,7 @@ class TestBackendAuth:
         request = Request(scope={"type": "http", "headers": [auth_header]})
         request.db_session = dbs
         with pytest.raises(auth_exception) as exc:
-            await BaseAuthJWTBackend(request).authenticate()
+            await BaseAuthBackend(request).authenticate()
 
         assert exc.value.details == err_details
 
@@ -74,7 +74,7 @@ class TestBackendAuth:
         await user.update(dbs, is_active=False, db_commit=True)
         request = self._prepare_request(dbs, user, user_session)
         with pytest.raises(AuthenticationFailedError) as exc:
-            await BaseAuthJWTBackend(request).authenticate()
+            await BaseAuthBackend(request).authenticate()
 
         assert exc.value.details == f"Couldn't found active user with id={user.id}."
 
@@ -87,7 +87,7 @@ class TestBackendAuth:
         await user_session.update(dbs, is_active=False, db_commit=True)
         request = self._prepare_request(dbs, user, user_session)
         with pytest.raises(AuthenticationFailedError) as exc:
-            await BaseAuthJWTBackend(request).authenticate()
+            await BaseAuthBackend(request).authenticate()
 
         assert exc.value.details == (
             f"Couldn't found active session: user_id={user.id} | "
@@ -106,7 +106,7 @@ class TestBackendAuth:
         token, _ = encode_jwt({"user_id": user.id}, token_type=token_type)
         request = self._prepare_request(dbs, user, user_session)
         with pytest.raises(AuthenticationFailedError) as exc:
-            await BaseAuthJWTBackend(request).authenticate_user(token, token_type="access")
+            await BaseAuthBackend(request).authenticate_user(token, token_type="access")
 
         assert exc.value.details == f"Token type 'access' expected, got '{token_type}' instead."
 
