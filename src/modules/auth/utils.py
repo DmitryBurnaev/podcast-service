@@ -1,3 +1,4 @@
+import enum
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -10,11 +11,14 @@ from common.utils import hash_string, utcnow
 from core import settings
 from modules.auth.models import UserIP
 
-TOKEN_TYPE_ACCESS = "access"
-TOKEN_TYPE_REFRESH = "refresh"
-TOKEN_TYPE_RESET_PASSWORD = "reset_password"
-
 logger = logging.getLogger(__name__)
+
+
+class AuthTokenType(enum.StrEnum):
+    ACCESS = "ACCESS"
+    REFRESH = "REFRESH"
+    RESET_PASSWORD = "RESET_PASSWORD"
+    USER_ACCESS = "USER_ACCESS"
 
 
 @dataclass
@@ -27,12 +31,12 @@ class TokenCollection:
 
 def encode_jwt(
     payload: dict,
-    token_type: str = TOKEN_TYPE_ACCESS,
+    token_type: AuthTokenType = AuthTokenType.ACCESS,
     expires_in: int = None,
 ) -> tuple[str, datetime]:
     """Allows to prepare JWT for auth engine"""
 
-    if token_type == TOKEN_TYPE_REFRESH:
+    if token_type == AuthTokenType.REFRESH:
         expires_in = settings.JWT_REFRESH_EXPIRES_IN
     else:
         expires_in = expires_in or settings.JWT_EXPIRES_IN
@@ -40,7 +44,7 @@ def encode_jwt(
     expired_at = utcnow() + timedelta(seconds=expires_in)
     payload["exp"] = expired_at
     payload["exp_iso"] = expired_at.isoformat()
-    payload["token_type"] = token_type
+    payload["token_type"] = str(token_type).lower()
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     return token, expired_at
 
