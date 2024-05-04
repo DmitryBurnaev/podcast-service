@@ -9,7 +9,7 @@ from common.exceptions import (
 )
 from modules.auth.backend import BaseAuthBackend, AdminRequiredAuthBackend
 from modules.auth.models import User, UserSession
-from modules.auth.utils import encode_jwt, TOKEN_TYPE_RESET_PASSWORD, TOKEN_TYPE_REFRESH
+from modules.auth.utils import encode_jwt, AuthTokenType
 from tests.helpers import prepare_request
 
 pytestmark = pytest.mark.asyncio
@@ -94,7 +94,7 @@ class TestBackendAuth:
             f"session_id='{user_session.public_id}'."
         )
 
-    @pytest.mark.parametrize("token_type", [TOKEN_TYPE_REFRESH, TOKEN_TYPE_RESET_PASSWORD])
+    @pytest.mark.parametrize("token_type", [AuthTokenType.REFRESH, AuthTokenType.RESET_PASSWORD])
     async def test_check_auth__token_t_mismatch__fail(
         self,
         dbs: AsyncSession,
@@ -106,7 +106,7 @@ class TestBackendAuth:
         token, _ = encode_jwt({"user_id": user.id}, token_type=token_type)
         request = self._prepare_request(dbs, user, user_session)
         with pytest.raises(AuthenticationFailedError) as exc:
-            await BaseAuthBackend(request).authenticate_user(token, token_type="access")
+            await BaseAuthBackend(request).authenticate_user(token, token_type=AuthTokenType.ACCESS)
 
         assert exc.value.details == f"Token type 'access' expected, got '{token_type}' instead."
 

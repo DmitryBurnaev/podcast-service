@@ -25,8 +25,7 @@ from modules.auth.utils import (
     encode_jwt,
     register_ip,
     TokenCollection,
-    TOKEN_TYPE_REFRESH,
-    TOKEN_TYPE_RESET_PASSWORD,
+    AuthTokenType,
 )
 from modules.auth.schemas import (
     SignInSchema,
@@ -65,7 +64,7 @@ class JWTSessionMixin:
         access_token, access_token_expired_at = encode_jwt(token_payload)
         refresh_token, refresh_token_expired_at = encode_jwt(
             token_payload,
-            token_type=TOKEN_TYPE_REFRESH,
+            token_type=AuthTokenType.REFRESH,
         )
         return TokenCollection(
             refresh_token=refresh_token,
@@ -232,7 +231,8 @@ class RefreshTokenAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         cleaned_data = await super()._validate(request)
         refresh_token = cleaned_data["refresh_token"]
         user, jwt_payload, _ = await LoginRequiredAuthBackend(request).authenticate_user(
-            refresh_token, token_type=TOKEN_TYPE_REFRESH
+            refresh_token,
+            token_type=AuthTokenType.REFRESH,
         )
         return user, refresh_token, jwt_payload.get("session_id")
 
@@ -336,7 +336,7 @@ class ResetPasswordAPIView(BaseHTTPEndpoint):
         }
         token, _ = encode_jwt(
             payload,
-            token_type=TOKEN_TYPE_RESET_PASSWORD,
+            token_type=AuthTokenType.RESET_PASSWORD,
             expires_in=settings.RESET_PASSWORD_LINK_EXPIRES_IN,
         )
         return token
@@ -353,7 +353,7 @@ class ChangePasswordAPIView(JWTSessionMixin, BaseHTTPEndpoint):
         cleaned_data = await self._validate(request)
         user, *_ = await LoginRequiredAuthBackend(request).authenticate_user(
             jwt_token=cleaned_data["token"],
-            token_type=TOKEN_TYPE_RESET_PASSWORD,
+            token_type=AuthTokenType.RESET_PASSWORD,
         )
         new_password = User.make_password(cleaned_data["password_1"])
         await user.update(self.db_session, password=new_password)

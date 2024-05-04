@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from common.statuses import ResponseStatus
 from common.utils import hash_string
 from modules.auth.models import UserIP, User, UserSession
-from modules.auth.utils import encode_jwt, TOKEN_TYPE_RESET_PASSWORD, TOKEN_TYPE_REFRESH
+from modules.auth.utils import encode_jwt, AuthTokenType
 from modules.media.models import File
 from modules.podcast.models import Podcast
 from tests.api.test_auth import INVALID_CHANGE_PASSWORD_DATA
@@ -75,7 +75,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         user: User,
         user_session: UserSession,
     ):
-        token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
+        token, _ = encode_jwt({"user_id": user.id}, token_type=AuthTokenType.RESET_PASSWORD)
         request_data = {
             "token": token,
             "password_1": self.new_password,
@@ -107,7 +107,7 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         self.assert_auth_invalid(response_data, "JWT signature has been expired for token")
 
     async def test__token_invalid_type__fail(self, client: PodcastTestClient, user: User):
-        token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_REFRESH)
+        token, _ = encode_jwt({"user_id": user.id}, token_type=AuthTokenType.REFRESH)
         response_data = self._assert_fail_response(client, token)
         self.assert_auth_invalid(
             response_data, "Token type 'reset_password' expected, got 'refresh' instead."
@@ -124,13 +124,13 @@ class TestChangePasswordAPIView(BaseTestAPIView):
         user: User,
     ):
         await user.update(dbs, is_active=False, db_commit=True)
-        token, _ = encode_jwt({"user_id": user.id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
+        token, _ = encode_jwt({"user_id": user.id}, token_type=AuthTokenType.RESET_PASSWORD)
         response_data = self._assert_fail_response(client, token)
         self.assert_auth_invalid(response_data, f"Couldn't found active user with id={user.id}.")
 
     async def test_user_does_not_exist__fail(self, client: PodcastTestClient):
         user_id = 0
-        token, _ = encode_jwt({"user_id": user_id}, token_type=TOKEN_TYPE_RESET_PASSWORD)
+        token, _ = encode_jwt({"user_id": user_id}, token_type=AuthTokenType.RESET_PASSWORD)
         response_data = self._assert_fail_response(client, token)
         self.assert_auth_invalid(response_data, f"Couldn't found active user with id={user_id}.")
 

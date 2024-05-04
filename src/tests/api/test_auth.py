@@ -14,14 +14,7 @@ from common.statuses import ResponseStatus
 from common.utils import hash_string, utcnow
 from core import settings
 from modules.auth.models import User, UserSession, UserInvite, UserIP, UserAccessToken
-from modules.auth.utils import (
-    decode_jwt,
-    encode_jwt,
-    TOKEN_TYPE_RESET_PASSWORD,
-    TOKEN_TYPE_REFRESH,
-    TOKEN_TYPE_ACCESS,
-    register_ip,
-)
+from modules.auth.utils import decode_jwt, encode_jwt, register_ip, AuthTokenType
 from modules.podcast.models import Podcast
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import prepare_request, PodcastTestClient, create_user
@@ -573,7 +566,7 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         is_active: bool = True,
         refresh: bool = True,
     ) -> UserSession:
-        token_type = TOKEN_TYPE_REFRESH if refresh else TOKEN_TYPE_ACCESS
+        token_type = AuthTokenType.REFRESH if refresh else AuthTokenType.ACCESS
         session_id = str(uuid.uuid4())
         refresh_token, _ = encode_jwt(
             {"user_id": user.id, "session_id": session_id}, token_type=token_type
@@ -646,12 +639,12 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         )
         self.assert_auth_invalid(response, expected_msg)
 
-    @pytest.mark.parametrize("token_type", [TOKEN_TYPE_ACCESS, TOKEN_TYPE_RESET_PASSWORD])
+    @pytest.mark.parametrize("token_type", [AuthTokenType.ACCESS, AuthTokenType.REFRESH])
     async def test_refresh_token__token_not_refresh__fail(
         self,
         client: PodcastTestClient,
         user: User,
-        token_type: str,
+        token_type: AuthTokenType,
     ):
         refresh_token, _ = encode_jwt({"user_id": user.id}, token_type=token_type)
         response = client.post(self.url, json={"refresh_token": refresh_token})
@@ -961,7 +954,9 @@ class TestUserAccessTokenAuthentication(BaseTestAPIView):
     default_fail_response_status = ResponseStatus.AUTH_FAILED
 
     @staticmethod
-    async def _access_token(dbs: AsyncSession, user: User, token: str, expired: bool = False, enabled: bool = True) -> UserAccessToken:
+    async def _access_token(
+        dbs: AsyncSession, user: User, token: str, expired: bool = False, enabled: bool = True
+    ) -> UserAccessToken:
         expires_in = utcnow()
         if not expired:
             expires_in += timedelta(days=1)
@@ -983,7 +978,9 @@ class TestUserAccessTokenAuthentication(BaseTestAPIView):
             response_status=ResponseStatus.MISSED_CREDENTIALS,
         )
 
-    async def test_auth_with_correct_token__ok(self, dbs: AsyncSession, user: User, client: PodcastTestClient):
+    async def test_auth_with_correct_token__ok(
+        self, dbs: AsyncSession, user: User, client: PodcastTestClient
+    ):
         token = UserAccessToken.generate_token()
         await self._access_token(dbs, user, token)
 
@@ -992,7 +989,9 @@ class TestUserAccessTokenAuthentication(BaseTestAPIView):
         response_data = self.assert_ok_response(response)
         assert response_data["id"] == str(user.id)
 
-    async def test_auth_with_bad_token__fail(self, dbs: AsyncSession, user: User, client: PodcastTestClient):
+    async def test_auth_with_bad_token__fail(
+        self, dbs: AsyncSession, user: User, client: PodcastTestClient
+    ):
         token = UserAccessToken.generate_token()
         await self._access_token(dbs, user, token)
 
@@ -1001,7 +1000,9 @@ class TestUserAccessTokenAuthentication(BaseTestAPIView):
         response_data = self.assert_fail_response(response)
         assert response_data["detail"] == "Token not found"
 
-    async def test_auth_with_expired_token__fail(self, dbs: AsyncSession, user: User, client: PodcastTestClient):
+    async def test_auth_with_expired_token__fail(
+        self, dbs: AsyncSession, user: User, client: PodcastTestClient
+    ):
         token = UserAccessToken.generate_token()
         await self._access_token(dbs, user, token, expired=True)
 
@@ -1010,7 +1011,9 @@ class TestUserAccessTokenAuthentication(BaseTestAPIView):
         response_data = self.assert_fail_response(response)
         assert response_data["detail"] == "Token expired"
 
-    async def test_auth_with_inactive_token__fail(self, dbs: AsyncSession, user: User, client: PodcastTestClient):
+    async def test_auth_with_inactive_token__fail(
+        self, dbs: AsyncSession, user: User, client: PodcastTestClient
+    ):
         token = UserAccessToken.generate_token()
         await self._access_token(dbs, user, token, enabled=False)
 

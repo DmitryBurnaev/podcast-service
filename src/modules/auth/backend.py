@@ -1,4 +1,5 @@
 import logging
+from typing import NamedTuple
 
 from jwt import InvalidTokenError, ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,10 +10,18 @@ from common.exceptions import (
     PermissionDeniedError,
     SignatureExpiredError,
 )
-from modules.auth.models import User, UserSession
-from modules.auth.utils import decode_jwt, TOKEN_TYPE_ACCESS, TOKEN_TYPE_RESET_PASSWORD
+from common.utils import hash_string
+from modules.auth.models import User, UserSession, UserAccessToken
+from modules.auth.utils import decode_jwt, AuthTokenType
 
 logger = logging.getLogger(__name__)
+
+
+class ByTokenData(NamedTuple):
+    user_id: int
+    token_type: AuthTokenType
+    session_id: str = ""
+    payload: dict | None = None
 
 
 class BaseAuthBackend:
@@ -44,18 +53,53 @@ class BaseAuthBackend:
     async def authenticate_user(
         self,
         jwt_token: str,
-        token_type: str = TOKEN_TYPE_ACCESS,
+        token_type: AuthTokenType = AuthTokenType.ACCESS,
     ) -> tuple[User, dict, str | None]:
         """Allows to find active user by jwt_token"""
 
-        logger.debug("Logging via JWT auth. Got token: %s", jwt_token)
+        if len(jwt_token.split(".")) == 1:
+            by_token_data = await self._encode_user_access_token(jwt_token)
+            token_type = AuthTokenType.USER_ACCESS
+        else:
+            by_token_data = self._encode_jwt(jwt_token, token_type)
+
+        if not by_token_data:
+            raise AuthenticationRequiredError("Token should be User's Access Token or JWT.")
+
+        user_id = by_token_data.user_id
+        user = await User.get_active(self.db_session, user_id)
+        if not user:
+            msg = "Couldn't found active user with id=%s."
+            logger.warning(msg, user_id)
+            raise AuthenticationFailedError(details=(msg % (user_id,)))
+
+        if token_type in (AuthTokenType.RESET_PASSWORD, AuthTokenType.USER_ACCESS):
+            return user, by_token_data.payload, None
+
+        session_id = by_token_data.session_id
+        if not session_id:
+            raise AuthenticationFailedError("Incorrect data in JWT: session_id is missed")
+
+        user_session = await UserSession.async_get(
+            self.db_session, public_id=session_id, is_active=True
+        )
+        if not user_session:
+            raise AuthenticationFailedError(
+                f"Couldn't found active session: {user_id=} | {session_id=}."
+            )
+
+        return user, by_token_data.payload, session_id
+
+    @staticmethod
+    def _encode_jwt(token: str, token_type: AuthTokenType) -> ByTokenData:
+        logger.debug("Logging via JWT auth. Got token: %s", token)
         try:
-            jwt_payload = decode_jwt(jwt_token)
+            jwt_payload = decode_jwt(token)
         except ExpiredSignatureError as exc:
             logger.debug("JWT signature has been expired for %s token", token_type)
             exception_class = (
                 SignatureExpiredError
-                if token_type == TOKEN_TYPE_ACCESS
+                if token_type == AuthTokenType.ACCESS
                 else AuthenticationFailedError
             )
             raise exception_class("JWT signature has been expired for token") from exc
@@ -70,34 +114,22 @@ class BaseAuthBackend:
                 f"Token type '{token_type}' expected, got '{jwt_payload['token_type']}' instead."
             )
 
-        user_id = jwt_payload.get("user_id")
-        user = await User.get_active(self.db_session, user_id)
-        if not user:
-            msg = "Couldn't found active user with id=%s."
-            logger.warning(msg, user_id)
-            raise AuthenticationFailedError(details=(msg % (user_id,)))
-
-        if token_type == TOKEN_TYPE_RESET_PASSWORD:
-            return user, jwt_payload, None
-
-        session_id = jwt_payload.get("session_id")
-        if not session_id:
-            raise AuthenticationFailedError("Incorrect data in JWT: session_id is missed")
-
-        user_session = await UserSession.async_get(
-            self.db_session, public_id=session_id, is_active=True
+        return ByTokenData(
+            user_id=jwt_payload["user_id"],
+            token_type=token_type,
+            payload=jwt_payload,
+            session_id=jwt_payload["session_id"],
         )
-        if not user_session:
-            raise AuthenticationFailedError(
-                f"Couldn't found active session: {user_id=} | {session_id=}."
-            )
 
-        return user, jwt_payload, session_id
+    @staticmethod
+    async def _encode_user_access_token(token: str) -> ByTokenData | None:
+        logger.debug("Logging via UserAccess token. Got token: %s", token)
+        user_access_token = await UserAccessToken.async_get(token=hash_string(token))
+        if not user_access_token:
+            return None
 
-    # async def authenticate_access_token(self, token: str) -> tuple[User, dict, str | None]:
-
-
-
+        logger.debug("UserAccess token has been decoded: %r", user_access_token)
+        # TODO: implement checking here
 
 
 class LoginRequiredAuthBackend(BaseAuthBackend):
@@ -108,8 +140,16 @@ class AdminRequiredAuthBackend(BaseAuthBackend):
     """Login-ed used must have `is_superuser` attribute"""
 
     async def authenticate_user(
-        self, jwt_token: str, token_type: str = TOKEN_TYPE_ACCESS
+        self,
+        jwt_token: str,
+        token_type: AuthTokenType = AuthTokenType.ACCESS,
     ) -> tuple[User, dict, str]:
+        """
+        Authenticate user by jwt_token and check that current user is superuser
+
+        :param jwt_token: Currently detected JWT token
+        :param token_type: expected token's type (access or refresh)
+        """
         user, jwt_payload, session_id = await super().authenticate_user(jwt_token)
         if not user.is_superuser:
             raise PermissionDeniedError("You don't have an admin privileges.")
