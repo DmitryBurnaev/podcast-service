@@ -10,7 +10,7 @@ from common.exceptions import (
     PermissionDeniedError,
     SignatureExpiredError,
 )
-from common.utils import hash_string
+from common.utils import hash_string, utcnow
 from modules.auth.models import User, UserSession, UserAccessToken
 from modules.auth.utils import decode_jwt, AuthTokenType
 
@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 class ByTokenData(NamedTuple):
     user_id: int
-    token_type: AuthTokenType
     session_id: str = ""
     payload: dict | None = None
 
@@ -63,9 +62,6 @@ class BaseAuthBackend:
         else:
             by_token_data = self._encode_jwt(jwt_token, token_type)
 
-        if not by_token_data:
-            raise AuthenticationRequiredError("Token should be User's Access Token or JWT.")
-
         user_id = by_token_data.user_id
         user = await User.get_active(self.db_session, user_id)
         if not user:
@@ -92,6 +88,12 @@ class BaseAuthBackend:
 
     @staticmethod
     def _encode_jwt(token: str, token_type: AuthTokenType) -> ByTokenData:
+        """
+        Encodes given JWT token and extract stored data in a JWT payload
+
+        :param token: JWT token
+        :return: ByTokenData instance (stores token-specific info)
+        """
         logger.debug("Logging via JWT auth. Got token: %s", token)
         try:
             jwt_payload = decode_jwt(token)
@@ -116,20 +118,28 @@ class BaseAuthBackend:
 
         return ByTokenData(
             user_id=jwt_payload["user_id"],
-            token_type=token_type,
             payload=jwt_payload,
             session_id=jwt_payload["session_id"],
         )
 
     @staticmethod
-    async def _encode_user_access_token(token: str) -> ByTokenData | None:
+    async def _encode_user_access_token(token: str) -> ByTokenData:
+        """
+        Finds active UserAccessToken instance by provided token
+
+        :param token: access token (will be hashed for finding stored in DB)
+        :return: ByTokenData instance (stores token-specific info)
+        """
         logger.debug("Logging via UserAccess token. Got token: %s", token)
         user_access_token = await UserAccessToken.async_get(token=hash_string(token))
         if not user_access_token:
-            return None
+            raise AuthenticationFailedError("Provided access token is unknown.")
 
         logger.debug("UserAccess token has been decoded: %r", user_access_token)
-        # TODO: implement checking here
+        if not user_access_token.enabled or user_access_token.expires_in < utcnow():
+            raise AuthenticationFailedError("Provided access token is disabled or expired.")
+
+        return ByTokenData(user_id=user_access_token.user_id)
 
 
 class LoginRequiredAuthBackend(BaseAuthBackend):
