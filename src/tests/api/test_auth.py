@@ -965,7 +965,7 @@ class TestUserAccessTokenAuthentication(BaseTestAPIView):
             dbs,
             db_commit=True,
             token=hash_string(token),
-            expires_in=utcnow() + timedelta(days=1),
+            expires_in=expires_in,
             user_id=user.id,
             enabled=enabled,
         )
@@ -987,7 +987,7 @@ class TestUserAccessTokenAuthentication(BaseTestAPIView):
         client.headers["Authorization"] = f"Bearer {token}"
         response = client.get(self.url)
         response_data = self.assert_ok_response(response)
-        assert response_data["id"] == str(user.id)
+        assert response_data["id"] == user.id
 
     async def test_auth_with_bad_token__fail(
         self, dbs: AsyncSession, user: User, client: PodcastTestClient
@@ -997,8 +997,11 @@ class TestUserAccessTokenAuthentication(BaseTestAPIView):
 
         client.headers["Authorization"] = f"Bearer {uuid.uuid4().hex}"
         response = client.get(self.url)
-        response_data = self.assert_fail_response(response)
-        assert response_data["detail"] == "Token not found"
+        response_data = self.assert_fail_response(
+            response,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+        assert response_data["details"] == "Provided access token is unknown."
 
     async def test_auth_with_expired_token__fail(
         self, dbs: AsyncSession, user: User, client: PodcastTestClient
@@ -1006,10 +1009,13 @@ class TestUserAccessTokenAuthentication(BaseTestAPIView):
         token = UserAccessToken.generate_token()
         await self._access_token(dbs, user, token, expired=True)
 
-        client.headers["Authorization"] = f"Bearer {uuid.uuid4().hex}"
+        client.headers["Authorization"] = f"Bearer {token}"
         response = client.get(self.url)
-        response_data = self.assert_fail_response(response)
-        assert response_data["detail"] == "Token expired"
+        response_data = self.assert_fail_response(
+            response,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+        assert response_data["details"] == "Provided access token is disabled or expired."
 
     async def test_auth_with_inactive_token__fail(
         self, dbs: AsyncSession, user: User, client: PodcastTestClient
@@ -1017,7 +1023,10 @@ class TestUserAccessTokenAuthentication(BaseTestAPIView):
         token = UserAccessToken.generate_token()
         await self._access_token(dbs, user, token, enabled=False)
 
-        client.headers["Authorization"] = f"Bearer {uuid.uuid4().hex}"
+        client.headers["Authorization"] = f"Bearer {token}"
         response = client.get(self.url)
-        response_data = self.assert_fail_response(response)
-        assert response_data["detail"] == "Token is not active"
+        response_data = self.assert_fail_response(
+            response,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+        assert response_data["details"] == "Provided access token is disabled or expired."
