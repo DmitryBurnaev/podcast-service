@@ -111,7 +111,7 @@ class BaseAuthBackend:
             logger.exception(msg, exc)
             raise AuthenticationFailedError(msg % (exc,)) from exc
 
-        if jwt_payload["token_type"] != token_type:
+        if jwt_payload["token_type"] != str(token_type).lower():
             raise AuthenticationFailedError(
                 f"Token type '{token_type}' expected, got '{jwt_payload['token_type']}' instead."
             )
@@ -122,8 +122,7 @@ class BaseAuthBackend:
             session_id=jwt_payload["session_id"],
         )
 
-    @staticmethod
-    async def _encode_user_access_token(token: str) -> ByTokenData:
+    async def _encode_user_access_token(self, token: str) -> ByTokenData:
         """
         Finds active UserAccessToken instance by provided token
 
@@ -131,7 +130,10 @@ class BaseAuthBackend:
         :return: ByTokenData instance (stores token-specific info)
         """
         logger.debug("Logging via UserAccess token. Got token: %s", token)
-        user_access_token = await UserAccessToken.async_get(token=hash_string(token))
+        user_access_token: UserAccessToken = await UserAccessToken.async_get(
+            self.db_session,
+            token=hash_string(token),
+        )
         if not user_access_token:
             raise AuthenticationFailedError("Provided access token is unknown.")
 
