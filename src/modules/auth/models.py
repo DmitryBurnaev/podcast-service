@@ -112,6 +112,7 @@ class UserAccessToken(ModelBase, ModelMixin):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(ForeignKey("auth_users.id"), nullable=False)
+    name = Column(String(length=256), nullable=False)
     token = Column(String(length=256), unique=True, nullable=False)
     enabled = Column(Boolean, default=True, nullable=False)
     expires_in = Column(DateTime(timezone=True), nullable=False)

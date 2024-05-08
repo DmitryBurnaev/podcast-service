@@ -24,6 +24,7 @@ def upgrade():
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("token", sa.String(length=256), nullable=False),
+        sa.Column("name", sa.String(length=256), nullable=False),
         sa.Column("enabled", sa.Boolean(), nullable=False, default=True),
         sa.Column("expires_in", sa.DateTime(timezone=True), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
