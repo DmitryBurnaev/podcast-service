@@ -126,6 +126,7 @@ class UserIPsDeleteRequestSchema(Schema):
 
 class UserAccessTokenCreateSchema(Schema):
     expires_in_days = fields.Int(validate=validate.Range(min=1, max=365))
+    name = fields.String()
 
 
 class UserAccessTokenResponseSchema(Schema):
@@ -133,7 +134,9 @@ class UserAccessTokenResponseSchema(Schema):
     created_at = fields.DateTime()
     expires_in = fields.DateTime()
     enabled = fields.Bool()
+    name = fields.String()
 
 
 class UserAccessTokenPatchSchema(Schema):
     enabled = fields.Bool()
+    name = fields.String()

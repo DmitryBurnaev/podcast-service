@@ -470,6 +470,7 @@ class UserAccessTokensLiceCreateAPIView(BaseHTTPEndpoint):
             self.db_session,
             user_id=user_id,
             token=hash_string(token),
+            name=cleaned_data["name"],
             expires_in=utcnow() + timedelta(days=cleaned_data["expires_in_days"]),
             db_commit=True,
         )
@@ -497,7 +498,13 @@ class UserAccessTokensDetailsAPIView(BaseHTTPEndpoint):
             filter_by_owner=False,
             user_id=request.user.id,
         )
-        await access_token.update(self.db_session, enabled=cleaned_data["enabled"])
+        update_data = {}
+        if "enabled" in cleaned_data:
+            update_data["enabled"] = cleaned_data["enabled"]
+        if "name" in cleaned_data:
+            update_data["name"] = cleaned_data["name"]
+
+        await access_token.update(self.db_session, **update_data)
         await self.db_session.refresh(access_token)
 
         return self._response(access_token)

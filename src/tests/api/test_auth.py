@@ -762,17 +762,20 @@ class TestUserAccessTokenAPIView(BaseTestAPIView):
         return {
             "id": a_token.id,
             "enabled": a_token.enabled,
+            "name": a_token.name,
             "expires_in": a_token.expires_in.isoformat(),
             "created_at": a_token.created_at.isoformat(),
         }
 
     @staticmethod
-    async def _access_token(dbs: AsyncSession, user: User) -> UserAccessToken:
+    async def _access_token(dbs: AsyncSession, user: User, enabled: bool = True) -> UserAccessToken:
         return await UserAccessToken.async_create(
             dbs,
             db_commit=True,
             token=f"{uuid.uuid4().hex}",
+            name="Test Token",
             expires_in=utcnow() + timedelta(days=1),
+            enabled=enabled,
             user_id=user.id,
         )
 
@@ -794,7 +797,7 @@ class TestUserAccessTokenAPIView(BaseTestAPIView):
         dbs: AsyncSession,
     ):
         await client.login(user)
-        response = client.post(self.url, json={"expires_in_days": 180})
+        response = client.post(self.url, json={"name": "My Token", "expires_in_days": 180})
         response_data = self.assert_ok_response(response, status_code=status.HTTP_201_CREATED)
 
         a_token: UserAccessToken = await UserAccessToken.async_get(dbs, id=response_data["id"])
@@ -803,6 +806,7 @@ class TestUserAccessTokenAPIView(BaseTestAPIView):
         assert a_token is not None
         assert a_token.user_id == user.id
         assert a_token.token == hash_string(response_token)
+        assert a_token.name == "My Token"
         assert (a_token.expires_in - utcnow()).days == 179
 
         expected_data: dict = self._token_in_response(a_token) | {"token": response_token}
@@ -892,7 +896,7 @@ class TestUserAccessTokenAPIView(BaseTestAPIView):
         await dbs.refresh(another_user_a_token)
         assert another_user_a_token is not None  # nothing changed
 
-    async def test_disable_tokens(
+    async def test_disable_token__ok(
         self,
         dbs: AsyncSession,
         client: PodcastTestClient,
@@ -908,7 +912,25 @@ class TestUserAccessTokenAPIView(BaseTestAPIView):
         await dbs.refresh(user_access_token)
         assert user_access_token.enabled is False
 
-    async def test_disable_tokens__not_found(
+    async def test_enable_token__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+    ):
+        user_access_token = await self._access_token(dbs, user, enabled=False)
+        assert user_access_token.enabled is False
+
+        await client.login(user)
+        url = self.url_details.format(id=user_access_token.id)
+        response = client.patch(url, json={"enabled": True})
+        response_data = self.assert_ok_response(response)
+        assert response_data == self._token_in_response(user_access_token) | {"enabled": True}
+
+        await dbs.refresh(user_access_token)
+        assert user_access_token.enabled is True
+
+    async def test_disable_token__not_found(
         self,
         dbs: AsyncSession,
         client: PodcastTestClient,
@@ -918,7 +940,7 @@ class TestUserAccessTokenAPIView(BaseTestAPIView):
         response = client.patch(self.url_details.format(id=0), json={"enabled": False})
         self.assert_token_not_found(response)
 
-    async def test_disable_tokens__forbidden_for_another_user(
+    async def test_disable_token__forbidden_for_another_user(
         self,
         dbs: AsyncSession,
         client: PodcastTestClient,
@@ -936,6 +958,23 @@ class TestUserAccessTokenAPIView(BaseTestAPIView):
 
         await dbs.refresh(another_user_a_token)
         assert another_user_a_token.enabled is True  # nothing changed
+
+    async def test_patch_token(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        user: User,
+        user_access_token: UserAccessToken,
+    ):
+        await client.login(user)
+        url = self.url_details.format(id=user_access_token.id)
+        response = client.patch(url, json={"name": "New Token"})
+        response_data = self.assert_ok_response(response)
+        assert response_data == self._token_in_response(user_access_token) | {"name": "New Token"}
+
+        await dbs.refresh(user_access_token)
+        assert user_access_token.name == "New Token"
+        assert user_access_token.enabled is True
 
     async def test_details_token__not_allowed(
         self,
