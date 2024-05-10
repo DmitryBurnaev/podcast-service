@@ -19,6 +19,8 @@ from modules.podcast.models import Podcast
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import prepare_request, PodcastTestClient, create_user
 
+pytestmark = pytest.mark.asyncio
+
 INVALID_SIGN_IN_DATA = [
     [{"email": "fake-email"}, {"email": "Not a valid email address."}],
     [{"password": ""}, {"password": "Length must be between 2 and 32."}],
@@ -30,7 +32,6 @@ INVALID_SIGN_IN_DATA = [
         },
     ],
 ]
-
 INVALID_SIGN_UP_DATA = [
     [
         {},
@@ -86,7 +87,21 @@ INVALID_CHANGE_PASSWORD_DATA = [
         {"token": "Shorter than minimum length 1."},
     ],
 ]
-pytestmark = pytest.mark.asyncio
+INVALID_CREATE_ACCESS_TOKEN_DATA = [
+    [
+        {},
+        {
+            "name": "Missing data for required field.",
+            "expires_in_days": "Missing data for required field.",
+        },
+    ],
+    [{"name": ""}, {"name": "Length must be between 1 and 256."}],
+    [{"name": "name" * 100}, {"name": "Length must be between 1 and 256."}],
+    [
+        {"name": "name", "expires_in_days": 0},
+        {"expires_in_days": "Must be greater than or equal to 1 and less than or equal to 365."},
+    ],
+]
 
 
 def assert_tokens(response_data: dict, user: User, session_id: str = None):
@@ -811,6 +826,18 @@ class TestUserAccessTokenAPIView(BaseTestAPIView):
 
         expected_data: dict = self._token_in_response(a_token) | {"token": response_token}
         assert response_data == expected_data
+
+    @pytest.mark.parametrize("invalid_data, error_details", INVALID_CREATE_ACCESS_TOKEN_DATA)
+    async def test_create_token__invalid_request__fail(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        client: PodcastTestClient,
+        invalid_data: dict,
+        error_details: dict,
+    ):
+        await client.login(user)
+        self.assert_bad_request(client.post(self.url, json=invalid_data), error_details)
 
     async def test_list_tokens(
         self,
