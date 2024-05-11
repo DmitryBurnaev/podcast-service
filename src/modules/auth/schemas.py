@@ -131,10 +131,11 @@ class UserAccessTokenCreateSchema(Schema):
 
 class UserAccessTokenResponseSchema(Schema):
     id = fields.Int()
+    name = fields.String()
     created_at = fields.DateTime()
     expires_in = fields.DateTime()
     enabled = fields.Bool()
-    name = fields.String()
+    active = fields.Bool()
 
 
 class UserAccessTokenPatchSchema(Schema):

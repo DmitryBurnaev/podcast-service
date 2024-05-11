@@ -127,3 +127,7 @@ class UserAccessToken(ModelBase, ModelMixin):
     @classmethod
     def generate_token(cls) -> str:
         return secrets.token_urlsafe()
+
+    @property
+    def active(self) -> bool:
+        return self.enabled and self.expires_in >= utcnow()

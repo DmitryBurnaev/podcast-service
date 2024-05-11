@@ -780,6 +780,7 @@ class TestUserAccessTokenAPIView(BaseTestAPIView):
             "name": a_token.name,
             "expires_in": a_token.expires_in.isoformat(),
             "created_at": a_token.created_at.isoformat(),
+            "active": a_token.enabled and a_token.expires_in >= utcnow(),
         }
 
     @staticmethod
@@ -934,7 +935,10 @@ class TestUserAccessTokenAPIView(BaseTestAPIView):
         url = self.url_details.format(id=user_access_token.id)
         response = client.patch(url, json={"enabled": False})
         response_data = self.assert_ok_response(response)
-        assert response_data == self._token_in_response(user_access_token) | {"enabled": False}
+        assert response_data == self._token_in_response(user_access_token) | {
+            "enabled": False,
+            "active": False,
+        }
 
         await dbs.refresh(user_access_token)
         assert user_access_token.enabled is False
@@ -952,7 +956,10 @@ class TestUserAccessTokenAPIView(BaseTestAPIView):
         url = self.url_details.format(id=user_access_token.id)
         response = client.patch(url, json={"enabled": True})
         response_data = self.assert_ok_response(response)
-        assert response_data == self._token_in_response(user_access_token) | {"enabled": True}
+        assert response_data == self._token_in_response(user_access_token) | {
+            "enabled": True,
+            "active": True,
+        }
 
         await dbs.refresh(user_access_token)
         assert user_access_token.enabled is True
