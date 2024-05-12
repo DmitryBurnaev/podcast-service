@@ -1,4 +1,3 @@
-import enum
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -6,19 +5,13 @@ from datetime import datetime, timedelta
 import jwt
 from jwt import InvalidTokenError
 
+from core import settings
 from common.request import PRequest
 from common.utils import hash_string, utcnow
-from core import settings
 from modules.auth.models import UserIP
+from modules.auth.constants import AuthTokenType
 
 logger = logging.getLogger(__name__)
-
-
-class AuthTokenType(enum.StrEnum):
-    ACCESS = "ACCESS"
-    REFRESH = "REFRESH"
-    RESET_PASSWORD = "RESET_PASSWORD"
-    USER_ACCESS = "USER_ACCESS"
 
 
 @dataclass
@@ -53,7 +46,7 @@ def decode_jwt(encoded_jwt: str) -> dict:
     """Allows to decode received JWT token to payload"""
     parts_count = len(encoded_jwt.split("."))
     if parts_count != 3:
-        raise InvalidTokenError("Invalid JWT provided: not enough parts")
+        raise InvalidTokenError("Not enough segments")
 
     return jwt.decode(encoded_jwt, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
 

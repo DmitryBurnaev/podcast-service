@@ -9,7 +9,8 @@ from common.exceptions import (
 )
 from modules.auth.backend import BaseAuthBackend, AdminRequiredAuthBackend
 from modules.auth.models import User, UserSession
-from modules.auth.utils import encode_jwt, AuthTokenType
+from modules.auth.utils import encode_jwt
+from modules.auth.constants import AuthTokenType
 from tests.helpers import prepare_request
 
 pytestmark = pytest.mark.asyncio
@@ -108,7 +109,9 @@ class TestBackendAuth:
         with pytest.raises(AuthenticationFailedError) as exc:
             await BaseAuthBackend(request).authenticate_user(token, token_type=AuthTokenType.ACCESS)
 
-        assert exc.value.details == f"Token type 'access' expected, got '{token_type}' instead."
+        assert exc.value.details == (
+            f"Token type 'access' expected, got '{token_type.lower()}' instead."
+        )
 
     async def test_check_auth__admin_required__ok(
         self,

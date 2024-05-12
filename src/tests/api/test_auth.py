@@ -14,7 +14,8 @@ from common.statuses import ResponseStatus
 from common.utils import hash_string, utcnow
 from core import settings
 from modules.auth.models import User, UserSession, UserInvite, UserIP, UserAccessToken
-from modules.auth.utils import decode_jwt, encode_jwt, register_ip, AuthTokenType
+from modules.auth.utils import decode_jwt, encode_jwt, register_ip
+from modules.auth.constants import AuthTokenType, LENGTH_USER_ACCESS_TOKEN
 from modules.podcast.models import Podcast
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import prepare_request, PodcastTestClient, create_user
@@ -654,7 +655,7 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         )
         self.assert_auth_invalid(response, expected_msg)
 
-    @pytest.mark.parametrize("token_type", [AuthTokenType.ACCESS, AuthTokenType.REFRESH])
+    @pytest.mark.parametrize("token_type", [AuthTokenType.ACCESS, AuthTokenType.RESET_PASSWORD])
     async def test_refresh_token__token_not_refresh__fail(
         self,
         client: PodcastTestClient,
@@ -668,7 +669,7 @@ class TestRefreshTokenAPIView(BaseTestAPIView):
         )
         assert response_data == {
             "error": "Authentication credentials are invalid.",
-            "details": f"Token type 'refresh' expected, got '{token_type}' instead.",
+            "details": f"Token type 'refresh' expected, got '{token_type.lower()}' instead.",
         }
 
     async def test_refresh_token__token_mismatch__fail(
@@ -1037,6 +1038,7 @@ class TestUserAccessTokenAuthentication(BaseTestAPIView):
         return await UserAccessToken.async_create(
             dbs,
             db_commit=True,
+            name=f"TestAccessToken-{utcnow().isoformat()}",
             token=hash_string(token),
             expires_in=expires_in,
             user_id=user.id,
@@ -1044,6 +1046,7 @@ class TestUserAccessTokenAuthentication(BaseTestAPIView):
         )
 
     async def test_no_auth(self, user: User, client: PodcastTestClient):
+        client.logout()
         response = client.get(url=self.url)
         self.assert_fail_response(
             response,
@@ -1068,7 +1071,9 @@ class TestUserAccessTokenAuthentication(BaseTestAPIView):
         token = UserAccessToken.generate_token()
         await self._access_token(dbs, user, token)
 
-        client.headers["Authorization"] = f"Bearer {uuid.uuid4().hex}"
+        bad_token = (uuid.uuid4().hex * 10)[:LENGTH_USER_ACCESS_TOKEN]
+
+        client.headers["Authorization"] = f"Bearer {bad_token}"
         response = client.get(self.url)
         response_data = self.assert_fail_response(
             response,

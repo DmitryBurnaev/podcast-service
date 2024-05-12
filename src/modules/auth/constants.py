@@ -1,0 +1,10 @@
+import enum
+
+LENGTH_USER_ACCESS_TOKEN = 64
+
+
+class AuthTokenType(enum.StrEnum):
+    ACCESS = "ACCESS"
+    REFRESH = "REFRESH"
+    RESET_PASSWORD = "RESET_PASSWORD"
+    USER_ACCESS = "USER_ACCESS"

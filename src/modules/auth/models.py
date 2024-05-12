@@ -8,6 +8,7 @@ from common.utils import utcnow
 from common.models import ModelMixin
 from core.database import ModelBase
 from modules.auth.hasher import PBKDF2PasswordHasher
+from modules.auth.constants import LENGTH_USER_ACCESS_TOKEN
 
 logger = logging.getLogger(__name__)
 
@@ -125,8 +126,8 @@ class UserAccessToken(ModelBase, ModelMixin):
         return f"<UserAccessToken {self.token} user: {self.user_id}>"
 
     @classmethod
-    def generate_token(cls) -> str:
-        return secrets.token_urlsafe()
+    def generate_token(cls, length: int = LENGTH_USER_ACCESS_TOKEN) -> str:
+        return secrets.token_urlsafe(nbytes=length)[:LENGTH_USER_ACCESS_TOKEN]
 
     @property
     def active(self) -> bool:

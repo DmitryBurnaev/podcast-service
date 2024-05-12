@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from common.statuses import ResponseStatus
 from common.utils import hash_string
 from modules.auth.models import UserIP, User, UserSession
-from modules.auth.utils import encode_jwt, AuthTokenType
+from modules.auth.utils import encode_jwt
+from modules.auth.constants import AuthTokenType
 from modules.media.models import File
 from modules.podcast.models import Podcast
 from tests.api.test_auth import INVALID_CHANGE_PASSWORD_DATA
