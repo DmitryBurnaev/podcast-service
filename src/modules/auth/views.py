@@ -25,8 +25,8 @@ from modules.auth.utils import (
     encode_jwt,
     register_ip,
     TokenCollection,
-    AuthTokenType,
 )
+from modules.auth.constants import AuthTokenType
 from modules.auth.schemas import (
     SignInSchema,
     SignUpSchema,

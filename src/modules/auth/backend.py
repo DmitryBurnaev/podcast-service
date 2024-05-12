@@ -12,7 +12,8 @@ from common.exceptions import (
 )
 from common.utils import hash_string, utcnow
 from modules.auth.models import User, UserSession, UserAccessToken
-from modules.auth.utils import decode_jwt, AuthTokenType
+from modules.auth.utils import decode_jwt
+from modules.auth.constants import LENGTH_USER_ACCESS_TOKEN, AuthTokenType
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ class BaseAuthBackend:
     ) -> tuple[User, dict, str | None]:
         """Allows to find active user by jwt_token"""
 
-        if len(jwt_token.split(".")) == 1:
+        if self._seems_like_user_access_token(jwt_token):
             by_token_data = await self._encode_user_access_token(jwt_token)
             token_type = AuthTokenType.USER_ACCESS
         else:
@@ -111,15 +112,17 @@ class BaseAuthBackend:
             logger.exception(msg, exc)
             raise AuthenticationFailedError(msg % (exc,)) from exc
 
-        if jwt_payload["token_type"] != str(token_type).lower():
+        expected_token_type = str(token_type).lower()
+        if jwt_payload["token_type"].lower() != expected_token_type:
             raise AuthenticationFailedError(
-                f"Token type '{token_type}' expected, got '{jwt_payload['token_type']}' instead."
+                f"Token type '{expected_token_type}' expected, "
+                f"got '{jwt_payload['token_type'].lower()}' instead."
             )
 
         return ByTokenData(
             user_id=jwt_payload["user_id"],
             payload=jwt_payload,
-            session_id=jwt_payload["session_id"],
+            session_id=jwt_payload.get("session_id"),
         )
 
     async def _encode_user_access_token(self, token: str) -> ByTokenData:
@@ -142,6 +145,10 @@ class BaseAuthBackend:
             raise AuthenticationFailedError("Provided access token is disabled or expired.")
 
         return ByTokenData(user_id=user_access_token.user_id)
+
+    @staticmethod
+    def _seems_like_user_access_token(token: str) -> bool:
+        return len(token) == LENGTH_USER_ACCESS_TOKEN and len(token.split(".")) == 1
 
 
 class LoginRequiredAuthBackend(BaseAuthBackend):
