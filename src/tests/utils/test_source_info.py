@@ -10,6 +10,7 @@ from modules.providers.utils import extract_source_info
     [
         ("https://music.yandex.ru/album/1/track/2/", SourceType.YANDEX, "2"),
         ("https://www.youtube.com/watch?v=FooBar_1234", SourceType.YOUTUBE, "FooBar_1234"),
+        ("https://www.youtube.com/live/FooBar-1234?si=some-vQ8", SourceType.YOUTUBE, "FooBar-1234"),
         ("https://youtu.be/FooBar12345", SourceType.YOUTUBE, "FooBar12345"),
     ],
 )

@@ -63,7 +63,7 @@ SOURCE_CFG_MAP = {
         type=SourceType.YOUTUBE,
         regexp=(
             r"^https://(?:www\.)?"
-            r"[(?:youtube\.com)|(?:youtu\.be)]+[/watch\?v=|\/]+"
+            r"[(?:youtube\.com)|(?:youtu\.be)]+[(/watch\?v=|\/)|(/live/)]+"
             r"(?P<source_id>[0-9a-zA-Z-_]{11})"
         ),
         regexp_playlist=(
