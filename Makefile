@@ -32,8 +32,11 @@ clean-pyc:
 	find . -name '.coverage' -exec rm -fr {} +
 
 lint:
-	pipenv run black . --exclude migrations --line-length 100
+	pipenv run black --check --diff . --exclude migrations --line-length 100
 	PYTHONPATH=./src pipenv run pylint src/
+
+format:
+	pipenv run black . --exclude migrations --line-length 100
 	make clean-pyc
 
 test:
