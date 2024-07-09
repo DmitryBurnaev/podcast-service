@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "ae71384efbc3fa9fd8f401d3e4042ac8ea5865dec9204b1e160fce4b48c628a7"
+            "sha256": "4d926eec40276f5e62e2e112d4cd2f3ead1e87f50965785ffb11e5ef6c8b2830"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -97,11 +97,11 @@
         },
         "botocore": {
             "hashes": [
-                "sha256:84e96a954c39a6f09cae4ea95b2ae582b5ae01b5040c92507b60509c9be5377a",
-                "sha256:f558bbea96c4a4abbaeeedc477dabb00902311ba1ca6327974a6819b9f384920"
+                "sha256:0e661a452c0489b6d62a9c91fed3320d5690a524489a7e50afc8efadb994dba8",
+                "sha256:d2815c09037039a287461eddc07af895d798bc897e6ba4b08f5a12eaa9886ff1"
             ],
             "markers": "python_version >= '3.8'",
-            "version": "==1.34.138"
+            "version": "==1.34.141"
         },
         "brotli": {
             "hashes": [
@@ -939,12 +939,11 @@
         },
         "yt-dlp": {
             "hashes": [
-                "sha256:2a0f89423d25d47db949925db5bd2c6f651960ae93dbbf5b3ed61cf3a4078ce5",
-                "sha256:2e90abeadc0199c787b1b4a3e0a1c8ed9d7c9f824f58da88467a1b30ed745e07"
+                "sha256:b50a595abde523b5cc84d788f97e69c642503bd673ba740f709ebf65b5ec6592",
+                "sha256:e19f00f9e55e90bca1c94bcaf809aa33e51634be9f0de2df84a72d3206934f94"
             ],
             "index": "pypi",
-            "markers": "python_version >= '3.8'",
-            "version": "==2024.7.7"
+            "version": "==2024.7.9"
         }
     },
     "develop": {
