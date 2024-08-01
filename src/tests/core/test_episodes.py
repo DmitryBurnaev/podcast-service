@@ -9,7 +9,7 @@ from modules.auth.models import User
 from modules.media.models import File
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast.episodes import EpisodeCreator
-from modules.podcast.models import Podcast, Episode, Cookie
+from modules.podcast.models import Podcast, Episode, Cookie, EpisodeChapter
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import get_podcast_data, create_user
 from tests.mocks import MockYoutubeDL, MockSensitiveData
@@ -36,12 +36,12 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert image.source_url == new_image.source_url
         assert image.available == new_image.available
 
-    async def test_ok(
+    async def test_episodes_created__ok(
         self,
         dbs: AsyncSession,
         user: User,
         podcast: Podcast,
-        mocked_youtube,
+        mocked_youtube: MockYoutubeDL,
     ):
         source_id = mocked_youtube.source_id
         watch_url = f"https://www.youtube.com/watch?v={source_id}"
@@ -70,6 +70,40 @@ class TestEpisodeCreator(BaseTestAPIView):
         assert image.path == ""
         assert image.available is False
         assert image.public is True
+
+    async def test_episodes_created__chapters_extracted__ok(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        podcast: Podcast,
+        mocked_youtube: MockYoutubeDL,
+    ):
+
+        mocked_episode_data = mocked_youtube.episode_info(source_type=SourceType.YOUTUBE) | {
+            "chapters": [
+                {"end_time": 19.0, "start_time": 0.0, "title": "Intro"},
+                {"end_time": 110.0, "start_time": 19.0, "title": "Main Chapter"},
+            ]
+        }
+        mocked_youtube.extract_info.return_value = mocked_episode_data
+
+        source_id = mocked_youtube.source_id
+        episode_creator = EpisodeCreator(
+            dbs,
+            podcast_id=podcast.id,
+            source_url=f"https://www.youtube.com/watch?v={source_id}",
+            user_id=user.id,
+        )
+        episode = await episode_creator.create()
+        assert episode is not None
+        assert episode.chapters == [
+            {'title': "Intro", 'start': "00:00:00", 'end': "00:00:19"},
+            {'title': "Main Chapter", 'start': "00:00:19", 'end': "00:01:50"},
+        ]
+        assert episode.list_chapters == [
+            EpisodeChapter(title="Intro", start="00:00:00", end="00:00:19"),
+            EpisodeChapter(title="Main Chapter", start="00:00:19", end="00:01:50"),
+        ]
 
     async def test_same_episode_in_podcast__ok(
         self,

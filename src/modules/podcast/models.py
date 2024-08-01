@@ -5,8 +5,9 @@ from contextlib import asynccontextmanager
 from hashlib import md5
 from pathlib import Path
 from functools import cached_property
-from typing import AsyncContextManager
+from typing import AsyncContextManager, TypedDict
 
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
@@ -78,6 +79,13 @@ class Podcast(ModelBase, ModelMixin):
         return f"{self.publish_id}_{uuid.uuid4().hex}.png"
 
 
+class EpisodeChapter(TypedDict):
+    """ Base structure for each element of episode.chapters """
+    title: str
+    start: str  # ex.: 0:45:05
+    end: str  # ex.: 1:15:00
+
+
 class Episode(ModelBase, ModelMixin):
     """SQLAlchemy schema for episode instances"""
 
@@ -99,6 +107,7 @@ class Episode(ModelBase, ModelMixin):
     watch_url = Column(String(length=128))
     length = Column(Integer, default=0)
     description = Column(String)
+    chapters = Column(JSONB(none_as_null=True), nullable=True)  # JSON list of `EpisodeChapter`
     author = Column(String(length=256))
     status = EnumTypeColumn(EpisodeStatus, default=EpisodeStatus.NEW)
     created_at = Column(DateTime(timezone=True), default=utcnow)
@@ -135,6 +144,10 @@ class Episode(ModelBase, ModelMixin):
                 "Can't retrieve audio_url for published episode without available audio file"
             )
         return url or settings.DEFAULT_EPISODE_COVER
+
+    @property
+    def list_chapters(self) -> list[EpisodeChapter]:
+        return [EpisodeChapter(**chapter) for chapter in self.chapters if self.chapters]
 
     @cached_property
     def audio_filename(self) -> str:
@@ -185,7 +198,7 @@ class Cookie(ModelBase, ModelMixin):
         self.__file_path: Path | None = None
 
     def __str__(self):
-        return f'<Cookie #{self.id} "{self.domain}" at {self.created_at}>'
+        return f'<Cookie #{self.id} "{self.source_type}" at {self.created_at}>'
 
     async def as_file(self) -> Path:
         """Library for downloading content takes only path to cookie's file (stored on the disk)"""

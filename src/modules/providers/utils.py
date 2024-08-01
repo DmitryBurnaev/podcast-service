@@ -1,3 +1,4 @@
+import datetime
 import os
 import re
 import uuid
@@ -20,6 +21,7 @@ from core import settings
 from common.enums import SourceType, EpisodeStatus
 from common.exceptions import InvalidRequestError, UserCancellationError
 from modules.auth.hasher import get_random_hash
+from modules.podcast.models import EpisodeChapter
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
 from modules.podcast.utils import (
     get_file_size,
@@ -40,6 +42,7 @@ class SourceMediaInfo(NamedTuple):
     title: str
     author: str
     length: int
+    chapters: list[EpisodeChapter]
 
 
 class SourceConfig(NamedTuple):
@@ -173,8 +176,49 @@ async def get_source_media_info(source_info: SourceInfo) -> tuple[str, SourceMed
         thumbnail_url=source_details["thumbnail"],
         author=source_details.get("uploader") or source_details.get("artist"),
         length=source_details["duration"],
+        chapters=chapters_processing(source_details.get("chapters", [])),
     )
     return "OK", youtube_info
+
+
+def chapters_processing(input_chapters: list[dict]) -> list[EpisodeChapter]:
+    """
+    Allows to process input chapters data and adapt to internal chapter's format
+    (for saving in DB and using in RSS generation)
+
+    input:
+        [{'end_time': 68.0, 'start_time': 15.0, 'title': 'Start application'}, ...]
+    output:
+        [EpisodeChapter(title='Start application', start='00:00:15', end='00:01:08'), ...]
+
+    :param input_chapters: list of chapters data
+    :return: list of chapters items
+    """
+
+    def ftime(sec: str) -> str:
+        result = str(datetime.timedelta(seconds=int(sec)))
+        if not result.startswith("0"):
+            result = f"0{result}"
+
+        return result
+
+    result_chapters: list[EpisodeChapter] = []
+
+    for input_chapter in input_chapters:
+        try:
+            chapter = EpisodeChapter(
+                title=input_chapter["title"],
+                start=ftime(input_chapter["start_time"]),
+                end=ftime(input_chapter["end_time"]),
+            )
+
+        except (KeyError, ValueError) as exc:
+            logger.error("Couldn't prepare episode's chapter: %s | err: %r", input_chapter, exc)
+
+        else:
+            result_chapters.append(chapter)
+
+    return result_chapters
 
 
 def ffmpeg_preparation(
