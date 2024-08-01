@@ -94,6 +94,7 @@ class EpisodeCreator:
                 "description": self._replace_special_symbols(source_info.description),
                 "author": source_info.author,
                 "length": source_info.length,
+                "chapters": source_info.chapters or None,
             }
 
         elif same_episode:

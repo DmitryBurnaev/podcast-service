@@ -108,6 +108,7 @@ class MockYoutubeDL(BaseMock):
                     "thumbnails": [{"url": self.thumbnail_url}],
                     "uploader": "Test author",
                     "duration": 110,
+                    "chapters": []
                 }
             case SourceType.YANDEX:
                 return {
