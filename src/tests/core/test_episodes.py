@@ -97,8 +97,8 @@ class TestEpisodeCreator(BaseTestAPIView):
         episode = await episode_creator.create()
         assert episode is not None
         assert episode.chapters == [
-            {'title': "Intro", 'start': "00:00:00", 'end': "00:00:19"},
-            {'title': "Main Chapter", 'start': "00:00:19", 'end': "00:01:50"},
+            {"title": "Intro", "start": "00:00:00", "end": "00:00:19"},
+            {"title": "Main Chapter", "start": "00:00:19", "end": "00:01:50"},
         ]
         assert episode.list_chapters == [
             EpisodeChapter(title="Intro", start="00:00:00", end="00:00:19"),
