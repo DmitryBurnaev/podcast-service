@@ -196,11 +196,10 @@ def chapters_processing(input_chapters: list[dict]) -> list[EpisodeChapter]:
     """
 
     def ftime(sec: str) -> str:
-        result = str(datetime.timedelta(seconds=int(sec)))
-        if not result.startswith("0"):
-            result = f"0{result}"
-
-        return result
+        result_delta: datetime.timedelta = datetime.timedelta(seconds=int(sec))
+        mm, ss = divmod(result_delta.total_seconds(), 60)
+        hh, mm = divmod(mm, 60)
+        return f"{int(hh):02d}:{int(mm):02d}:{int(ss):02d}"  # 123sec -> '00:02:03'
 
     result_chapters: list[EpisodeChapter] = []
 

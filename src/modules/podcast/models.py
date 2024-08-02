@@ -80,7 +80,8 @@ class Podcast(ModelBase, ModelMixin):
 
 
 class EpisodeChapter(TypedDict):
-    """ Base structure for each element of episode.chapters """
+    """Base structure for each element of episode.chapters"""
+
     title: str
     start: str  # ex.: 0:45:05
     end: str  # ex.: 1:15:00
@@ -147,7 +148,7 @@ class Episode(ModelBase, ModelMixin):
 
     @property
     def list_chapters(self) -> list[EpisodeChapter]:
-        return [EpisodeChapter(**chapter) for chapter in self.chapters if self.chapters]
+        return [EpisodeChapter(**chapter) for chapter in self.chapters] if self.chapters else []
 
     @cached_property
     def audio_filename(self) -> str:

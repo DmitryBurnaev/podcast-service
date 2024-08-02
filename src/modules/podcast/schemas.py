@@ -98,6 +98,12 @@ class PodcastInEpisodeSchema(Schema):
     image_url = fields.URL()
 
 
+class EpisodeChapterSchema(Schema):
+    title = fields.Str()
+    start = fields.Str()
+    end = fields.Str()
+
+
 class EpisodeDetailsSchema(Schema):
     id = fields.Int(required=True)
     title = fields.Str(required=True)
@@ -114,6 +120,7 @@ class EpisodeDetailsSchema(Schema):
     created_at = fields.DateTime(required=True)
     published_at = fields.DateTime(required=True, allow_none=True)
     podcast = fields.Nested(PodcastInEpisodeSchema)
+    chapters = fields.Nested(EpisodeChapterSchema, many=True, attribute="list_chapters")
 
 
 class PlayListRequestSchema(Schema):
