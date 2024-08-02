@@ -11,7 +11,7 @@ from common.statuses import ResponseStatus
 from core import settings
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks
-from modules.podcast.models import Episode, Podcast
+from modules.podcast.models import Episode, Podcast, EpisodeChapter
 from modules.auth.models import User
 from modules.podcast.tasks import DownloadEpisodeTask, UploadedEpisodeTask, DownloadEpisodeImageTask
 from tests.api.test_base import BaseTestAPIView
@@ -76,6 +76,10 @@ def _episode_details(episode: Episode, status: EpisodeStatus | None = None):
             "image_url": episode.podcast.image_url,
             "name": episode.podcast.name,
         },
+        "chapters": [
+            {"title": chapter["title"], "start": chapter["start"], "end": chapter["end"]}
+            for chapter in episode.list_chapters
+        ],
     }
 
 
@@ -509,6 +513,28 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
 
     async def test_get_details__ok(self, client: PodcastTestClient, episode: Episode, user: User):
         await client.login(user)
+        url = self.url.format(id=episode.id)
+        response = client.get(url)
+        response_data = self.assert_ok_response(response)
+        assert response_data == _episode_details(episode)
+
+    async def test_get_details__episode_with_chapters__ok(
+        self,
+        dbs: AsyncSession,
+        client: PodcastTestClient,
+        episode: Episode,
+        user: User,
+    ):
+        await client.login(user)
+        await episode.update(
+            dbs,
+            db_commit=True,
+            chapters=[
+                EpisodeChapter(title="Chapter 1", start="00:00:00", end="01:00:00"),
+                EpisodeChapter(title="Chapter 2", start="01:00:00", end="01:10:00"),
+            ],
+        )
+        episode = await Episode.async_get(dbs, id=episode.id)
         url = self.url.format(id=episode.id)
         response = client.get(url)
         response_data = self.assert_ok_response(response)
