@@ -79,7 +79,7 @@ class GenerateRSSTask(RQTask):
         context = {"episodes": episodes, "settings": settings}
         rss_path = settings.TEMPLATE_PATH / "rss" / "feed_template.xml"
         with open(rss_path, encoding="utf-8") as f:
-            template = Template(f.read())
+            template = Template(f.read(), trim_blocks=True)
 
         rss_filename = os.path.join(settings.TMP_RSS_PATH, f"{podcast.publish_id}.xml")
         logger.info("Podcast #%i: Generation new file rss [%s]", podcast.id, rss_filename)
