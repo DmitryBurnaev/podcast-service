@@ -38,6 +38,7 @@ class TestGenerateRSSTask:
         ep_data = get_episode_data(podcast_1, creator=user)
         ep_data["published_at"] = datetime.now()
         ep_published = await create_episode(dbs, ep_data, status=Episode.Status.PUBLISHED)
+        await ep_published.update(dbs, chapters=[{"title": "Chapter1", "start": "00:00:01"}])
 
         ep_data = get_episode_data(podcast_2, creator=user)
         ep_podcast_2 = await create_episode(dbs, ep_data, status=Episode.Status.PUBLISHED)
@@ -58,6 +59,7 @@ class TestGenerateRSSTask:
         assert ep_published.watch_url in generated_rss_content
         audio: File = await File.async_get(dbs, id=ep_published.audio_id)
         assert audio.url in generated_rss_content
+        assert "Chapter1" in generated_rss_content
 
         for episode in [ep_new, ep_downloading, ep_podcast_2]:
             audio: File = await File.async_get(dbs, id=episode.audio_id)
