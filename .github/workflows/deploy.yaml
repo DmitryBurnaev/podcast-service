@@ -32,10 +32,10 @@ jobs:
           env >> .env
 
       - name: Build image
-        run: docker-compose build test
+        run: docker compose build test
 
       - name: Run tests
-        run: docker-compose up --exit-code-from test test
+        run: docker compose up --exit-code-from test test
 
   build-and-deploy:
     needs: [test]
