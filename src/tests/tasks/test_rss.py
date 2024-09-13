@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.enums import FileType
+from core import settings
 from modules.auth.models import User
 from modules.media.models import File
 from modules.podcast import tasks
@@ -20,12 +21,19 @@ pytestmark = pytest.mark.asyncio
 class TestGenerateRSSTask:
     """Checks RSS generation logic"""
 
+    @pytest.mark.parametrize(
+        "render_chapters",
+        (True, False),
+    )
     async def test_generate__single_podcast__ok(
         self,
         dbs: AsyncSession,
         user: User,
         mocked_s3: MockS3Client,
+        render_chapters: bool,
+        monkeypatch,
     ):
+        monkeypatch.setattr(settings, "RENDER_CHAPTERS", render_chapters)
         podcast_1: Podcast = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id))
         podcast_2: Podcast = await Podcast.async_create(dbs, **get_podcast_data(owner_id=user.id))
 
@@ -59,7 +67,10 @@ class TestGenerateRSSTask:
         assert ep_published.watch_url in generated_rss_content
         audio: File = await File.async_get(dbs, id=ep_published.audio_id)
         assert audio.url in generated_rss_content
-        assert "Chapter1" in generated_rss_content
+        if render_chapters:
+            assert "Chapter1" in generated_rss_content
+        else:
+            assert "Chapter1" not in generated_rss_content
 
         for episode in [ep_new, ep_downloading, ep_podcast_2]:
             audio: File = await File.async_get(dbs, id=episode.audio_id)

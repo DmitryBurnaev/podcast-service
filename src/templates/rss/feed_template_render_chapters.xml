@@ -20,14 +20,41 @@
             <item>
                 <title>{{ episode.title }}</title>
                 <description>
-                    <p>{{ episode.description }}</p>
-                    <p>SourceLink: {{ episode.watch_url }}</p>
+                    <![CDATA[
+                        <p><img src="{{ episode.image_url }}" alt=""/></p>
+                        <p>{{ episode.description }}</p>
+                        <p>SourceLink: {{ episode.watch_url }}</p>
+                        {% if episode.chapters %}
+                            <p><em>Chapters</em>
+                            <ul>
+                                {% for chapter in episode.list_chapters %}
+                                    <li>{{ chapter.title}} - <em>{{ chapter.start }}</em>.</li>
+                                {% endfor %}
+                            </ul>
+                            </p>
+                        {% endif %}
+                    ]]>
                 </description>
                 <link>{{ episode.watch_url }}</link>
                 <guid>{{ episode.watch_url }}</guid>
                 <pubDate>{{ episode.published_at.strftime('%a, %d %b %Y %H:%M:%S UTC') }}</pubDate>
                 <itunes:author>{{ podcast.name }}</itunes:author>
-                <itunes:summary><![CDATA[<p><img src="{{ episode.image_url }}" alt=""></p><p>{{ episode.description }}</p>]]></itunes:summary>
+                <itunes:summary>
+                    <![CDATA[
+                        <p><img src="{{ episode.image_url }}" alt=""/></p>
+                        <p>{{ episode.description }}</p>
+                        <p>SourceLink: {{ episode.watch_url }}</p>
+                        {% if episode.chapters %}
+                            <p><em>Chapters</em>
+                            <ul>
+                                {% for chapter in episode.list_chapters %}
+                                    <li>{{ chapter.title}} - <em>{{ chapter.start }}</em>.</li>
+                                {% endfor %}
+                            </ul>
+                            </p>
+                        {% endif %}
+                    ]]>
+                </itunes:summary>
                 <itunes:image href="{{ episode.image_url }}" />
                 <enclosure url="{{ episode.audio_url }}" type="{{ episode.audio.content_type }}" length="{{ episode.audio.size }}"/>
                 <author>{{ episode.author }}</author>
