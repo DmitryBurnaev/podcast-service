@@ -1,3 +1,6 @@
+install:
+	pipenv install
+
 run_web:
 	cd src && pipenv run uvicorn asgi:app --host dev.podcast --port 8001 --reload --reload-dir .
 
