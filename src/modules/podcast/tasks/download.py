@@ -24,7 +24,7 @@ from modules.podcast.tasks.rss import GenerateRSSTask
 from modules.podcast.utils import get_file_size
 from modules.providers import utils as provider_utils
 from modules.podcast import utils as podcast_utils
-from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP
+from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP, SourceConfig
 
 __all__ = [
     "DownloadEpisodeTask",
@@ -173,8 +173,8 @@ class DownloadEpisodeTask(RQTask):
 
     async def _download_episode(self, episode: Episode) -> Path:
         """Fetching info from external resource and extract audio from target source"""
-
-        if not SOURCE_CFG_MAP[episode.source_type].need_downloading:
+        source_config: SourceConfig = SOURCE_CFG_MAP[episode.source_type]
+        if not source_config.need_downloading:
             if result_path := episode.audio.path:
                 return Path(result_path)
 
@@ -185,10 +185,12 @@ class DownloadEpisodeTask(RQTask):
 
         async with cookie_file_ctx(self.db_session, cookie_id=episode.cookie_id) as cookie:
             try:
+                print(f"{source_config.proxy_url=}")
                 result_path = await provider_utils.download_audio(
                     episode.watch_url,
                     filename=episode.audio_filename,
                     cookie_path=(cookie.file_path if cookie else None),
+                    proxy_url=source_config.proxy_url,
                 )
             except YoutubeDLError as exc:
                 logger.exception(
@@ -223,7 +225,7 @@ class DownloadEpisodeTask(RQTask):
     @staticmethod
     async def _process_file(episode: Episode, tmp_audio_path: Path) -> None:
         """Postprocessing for downloaded audio file"""
-        source_config = SOURCE_CFG_MAP[episode.source_type]
+        source_config: SourceConfig = SOURCE_CFG_MAP[episode.source_type]
         if source_config.need_postprocessing:
             logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
             provider_utils.ffmpeg_preparation(src_path=tmp_audio_path)
