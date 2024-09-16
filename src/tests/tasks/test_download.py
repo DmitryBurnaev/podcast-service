@@ -102,6 +102,30 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.published_at == episode.created_at
         mocked_sens_data.decrypt.assert_called_with(cookie.data)
 
+    @patch("core.settings.PROXY_YOUTUBE", "socks5://socks5user:pass@socks5host:2080")
+    async def test_downloading__using_proxy__ok(
+        self,
+        dbs: AsyncSession,
+        episode: Episode,
+        mocked_youtube: MockYoutubeDL,
+        mocked_ffmpeg: Mock,
+        mocked_s3: MockS3Client,
+        mocked_redis: MockRedisClient,
+        mocked_generate_rss_task: MockGenerateRSS,
+        mocked_sens_data: MockSensitiveData,
+    ):
+        file_path = await self._source_file(dbs, episode)
+
+        result = await DownloadEpisodeTask(db_session=dbs).run(episode.id)
+        assert result == TaskResultCode.SUCCESS
+
+        mocked_youtube.assert_called_with(proxy="socks5://socks5user:pass@socks5host:2080")
+        self.assert_called_with(mocked_ffmpeg, src_path=file_path)
+
+        episode = await Episode.async_get(dbs, id=episode.id)
+        assert episode.status == Episode.Status.PUBLISHED
+        assert episode.published_at == episode.created_at
+
     async def test_skip_postprocessing(
         self,
         dbs: AsyncSession,
