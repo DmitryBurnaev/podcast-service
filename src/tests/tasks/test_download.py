@@ -1,5 +1,6 @@
-import os.path
 import uuid
+import os.path
+from typing import TYPE_CHECKING
 from pathlib import Path
 from unittest.mock import patch, Mock
 
@@ -14,7 +15,7 @@ from modules.podcast.models import Episode, Podcast, Cookie
 from common.enums import EpisodeStatus, SourceType
 from modules.podcast.tasks import DownloadEpisodeTask, DownloadEpisodeImageTask
 from modules.podcast.tasks.base import TaskResultCode
-from modules.providers.utils import download_process_hook
+from modules.providers.utils import download_process_hook, SOURCE_CFG_MAP
 from tests.api.test_base import BaseTestCase
 from tests.helpers import get_podcast_data, create_episode
 from tests.mocks import (
@@ -24,6 +25,9 @@ from tests.mocks import (
     MockGenerateRSS,
     MockSensitiveData,
 )
+
+if TYPE_CHECKING:
+    from _pytest.monkeypatch import MonkeyPatch
 
 pytestmark = pytest.mark.asyncio
 
@@ -102,7 +106,6 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert episode.published_at == episode.created_at
         mocked_sens_data.decrypt.assert_called_with(cookie.data)
 
-    @patch("core.settings.PROXY_YOUTUBE", "socks5://socks5user:pass@socks5host:2080")
     async def test_downloading__using_proxy__ok(
         self,
         dbs: AsyncSession,
@@ -113,7 +116,10 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_redis: MockRedisClient,
         mocked_generate_rss_task: MockGenerateRSS,
         mocked_sens_data: MockSensitiveData,
+        monkeypatch: "MonkeyPatch",
     ):
+        proxy_url = "socks5://socks5user:pass@socks5host:2080"
+        monkeypatch.setattr(SOURCE_CFG_MAP[SourceType.YOUTUBE], "proxy_url", proxy_url)
         file_path = await self._source_file(dbs, episode)
 
         result = await DownloadEpisodeTask(db_session=dbs).run(episode.id)

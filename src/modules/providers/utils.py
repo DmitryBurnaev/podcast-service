@@ -45,7 +45,8 @@ class SourceMediaInfo(NamedTuple):
     chapters: list[EpisodeChapter]
 
 
-class SourceConfig(NamedTuple):
+@dataclasses.dataclass
+class SourceConfig:
     type: SourceType
     regexp: str | None = None
     regexp_playlist: str | None = None
