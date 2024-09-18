@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from common.enums import FileType
 from modules.media.models import File
 from modules.podcast.models import Episode, cookie_file_ctx
-from modules.providers.utils import SourceInfo, SourceMediaInfo
+from modules.providers.utils import SourceInfo, SourceMediaInfo, SourceConfig, SOURCE_CFG_MAP
 from modules.providers import utils as provider_utils
 from modules.providers.exceptions import SourceFetchError
 
@@ -80,7 +80,9 @@ class EpisodeCreator:
             same_episode_data = {}
 
         async with cookie_file_ctx(self.db_session, self.user_id, self.source_info.type) as cookie:
+            source_config: SourceConfig = SOURCE_CFG_MAP[self.source_info.type]
             self.source_info.cookie_path = cookie.file_path if cookie else None
+            self.source_info.proxy_url = source_config.proxy_url
             extract_error, source_info = await provider_utils.get_source_media_info(
                 self.source_info
             )
