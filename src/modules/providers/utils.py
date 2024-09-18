@@ -61,6 +61,7 @@ class SourceInfo:
     type: SourceType
     url: str | None = None
     cookie_path: Path | None = None
+    proxy_url: str | None = None
 
 
 SOURCE_CFG_MAP = {
@@ -161,11 +162,14 @@ async def download_audio(
     return result_path
 
 
-async def get_source_media_info(source_info: SourceInfo) -> tuple[str, SourceMediaInfo | None]:
+async def get_source_media_info(source_info: SourceInfo, ) -> tuple[str, SourceMediaInfo | None]:
     """Allows extract info about providers video from Source (powered by yt_dlp)"""
 
     logger.info("Started fetching data for %s", source_info.url)
     params = {"logger": logger, "noplaylist": True, "cookiefile": source_info.cookie_path}
+    if source_info.proxy_url:
+        params["proxy"] = source_info.proxy_url
+        logger.info("YoutubeDL: Using proxy: %s", source_info.proxy_url)
 
     try:
         with yt_dlp.YoutubeDL(params) as ydl:

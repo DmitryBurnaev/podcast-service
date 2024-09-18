@@ -185,7 +185,6 @@ class DownloadEpisodeTask(RQTask):
 
         async with cookie_file_ctx(self.db_session, cookie_id=episode.cookie_id) as cookie:
             try:
-                print(f"{source_config.proxy_url=}")
                 result_path = await provider_utils.download_audio(
                     episode.watch_url,
                     filename=episode.audio_filename,
