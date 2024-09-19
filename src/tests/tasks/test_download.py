@@ -125,7 +125,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         result = await DownloadEpisodeTask(db_session=dbs).run(episode.id)
         assert result == TaskResultCode.SUCCESS
 
-        mocked_youtube.assert_called_with(proxy="socks5://socks5user:pass@socks5host:2080")
+        mocked_youtube.assert_called_with(proxy=proxy_url)
         self.assert_called_with(mocked_ffmpeg, src_path=file_path)
 
         episode = await Episode.async_get(dbs, id=episode.id)

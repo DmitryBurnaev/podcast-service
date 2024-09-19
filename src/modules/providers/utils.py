@@ -162,7 +162,7 @@ async def download_audio(
     return result_path
 
 
-async def get_source_media_info(source_info: SourceInfo, ) -> tuple[str, SourceMediaInfo | None]:
+async def get_source_media_info(source_info: SourceInfo) -> tuple[str, SourceMediaInfo | None]:
     """Allows extract info about providers video from Source (powered by yt_dlp)"""
 
     logger.info("Started fetching data for %s", source_info.url)

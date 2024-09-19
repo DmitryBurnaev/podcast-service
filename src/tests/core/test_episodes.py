@@ -1,4 +1,5 @@
 from unittest.mock import Mock
+from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,9 +11,13 @@ from modules.media.models import File
 from modules.providers.exceptions import SourceFetchError
 from modules.podcast.episodes import EpisodeCreator
 from modules.podcast.models import Podcast, Episode, Cookie, EpisodeChapter
+from modules.providers.utils import SOURCE_CFG_MAP
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import get_podcast_data, create_user
 from tests.mocks import MockYoutubeDL, MockSensitiveData
+
+if TYPE_CHECKING:
+    from _pytest.monkeypatch import MonkeyPatch
 
 pytestmark = pytest.mark.asyncio
 
@@ -204,6 +209,29 @@ class TestEpisodeCreator(BaseTestAPIView):
             await episode_creator.create()
 
         assert exc.value.details == f"Extracting data for new Episode failed: {ydl_error}"
+
+    async def test_episodes_created__using_proxy__ok(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        podcast: Podcast,
+        mocked_youtube: MockYoutubeDL,
+        monkeypatch: "MonkeyPatch",
+    ):
+        proxy_url = "socks5://socks5user:pass@socks5host:2080"
+        monkeypatch.setattr(SOURCE_CFG_MAP[SourceType.YOUTUBE], "proxy_url", proxy_url)
+
+        source_id = mocked_youtube.source_id
+        watch_url = f"https://www.youtube.com/watch?v={source_id}"
+        episode_creator = EpisodeCreator(
+            dbs,
+            podcast_id=podcast.id,
+            source_url=watch_url,
+            user_id=user.id,
+        )
+        episode = await episode_creator.create()
+        assert episode is not None
+        mocked_youtube.assert_called_with(proxy=proxy_url)
 
 
 class TestCreateEpisodesWithCookies(BaseTestAPIView):
