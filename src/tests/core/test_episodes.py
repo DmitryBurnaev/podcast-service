@@ -110,6 +110,31 @@ class TestEpisodeCreator(BaseTestAPIView):
             EpisodeChapter(title="Main Chapter", start="00:00:19", end="00:01:50"),
         ]
 
+    async def test_episodes_created__skip_chapters_extracted__ok(
+        self,
+        dbs: AsyncSession,
+        user: User,
+        podcast: Podcast,
+        mocked_youtube: MockYoutubeDL,
+    ):
+
+        mocked_episode_data = mocked_youtube.episode_info(source_type=SourceType.YOUTUBE) | {
+            "chapters": None
+        }
+        mocked_youtube.extract_info.return_value = mocked_episode_data
+
+        source_id = mocked_youtube.source_id
+        episode_creator = EpisodeCreator(
+            dbs,
+            podcast_id=podcast.id,
+            source_url=f"https://www.youtube.com/watch?v={source_id}",
+            user_id=user.id,
+        )
+        episode = await episode_creator.create()
+        assert episode is not None
+        assert episode.chapters is None
+        assert episode.list_chapters == []
+
     async def test_same_episode_in_podcast__ok(
         self,
         dbs: AsyncSession,
