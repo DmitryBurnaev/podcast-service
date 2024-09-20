@@ -188,12 +188,12 @@ async def get_source_media_info(source_info: SourceInfo) -> tuple[str, SourceMed
         thumbnail_url=source_details["thumbnail"],
         author=source_details.get("uploader") or source_details.get("artist"),
         length=source_details["duration"],
-        chapters=chapters_processing(source_details.get("chapters", [])),
+        chapters=chapters_processing(source_details.get("chapters")),
     )
     return "OK", youtube_info
 
 
-def chapters_processing(input_chapters: list[dict]) -> list[EpisodeChapter]:
+def chapters_processing(input_chapters: list[dict] | None) -> list[EpisodeChapter]:
     """
     Allows to process input chapters data and adapt to internal chapter's format
     (for saving in DB and using in RSS generation)
@@ -206,14 +206,15 @@ def chapters_processing(input_chapters: list[dict]) -> list[EpisodeChapter]:
     :param input_chapters: list of chapters data
     :return: list of chapters items
     """
+    result_chapters: list[EpisodeChapter] = []
+    if not input_chapters:
+        return []
 
     def ftime(sec: str) -> str:
         result_delta: datetime.timedelta = datetime.timedelta(seconds=int(sec))
         mm, ss = divmod(result_delta.total_seconds(), 60)
         hh, mm = divmod(mm, 60)
         return f"{int(hh):02d}:{int(mm):02d}:{int(ss):02d}"  # 123sec -> '00:02:03'
-
-    result_chapters: list[EpisodeChapter] = []
 
     for input_chapter in input_chapters:
         try:
