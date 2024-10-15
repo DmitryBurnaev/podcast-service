@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-starlette = "==0.38.5"
+starlette = "==0.40.0"
 webargs-starlette = "==2.1.0"
 python-multipart = "==0.0.9" # required by starlette dependencies
 uvicorn = "==0.30.3"
