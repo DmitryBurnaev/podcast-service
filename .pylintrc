@@ -16,6 +16,7 @@ disable=missing-module-docstring,
 
 max-line-length=100
 max-args = 6
+max-positional-arguments = 6
 
 [BASIC]
 
