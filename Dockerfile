@@ -1,5 +1,5 @@
 # download and extract ffmpeg
-FROM alpine:3.18 as download-ffmpeg
+FROM alpine:3.20 as download-ffmpeg
 WORKDIR /ffmpeg
 ARG FFMPEG_VERSION=4.4.1
 
@@ -12,7 +12,7 @@ RUN apk add wget unzip \
 
 
 # copy source code
-FROM alpine:3.18 as code-layer
+FROM alpine:3.20 as code-layer
 WORKDIR /podcast
 
 COPY src ./src
@@ -26,7 +26,7 @@ COPY .coveragerc .
 COPY .pylintrc .
 
 # build running version
-FROM python:3.12-slim-bookworm as runtime
+FROM python:3.13-slim-bookworm as runtime
 ARG DEV_DEPS
 WORKDIR /podcast
 
@@ -44,7 +44,7 @@ RUN apt-get update \
 		python3-dev \
         grep  \
         procps \
-	&& pip install pipenv==2023.11.15 \
+	&& pip install pipenv==2024.4.0 \
 	&& if [ "${DEV_DEPS}" = "true" ]; then \
 	     echo "=== Install DEV dependencies ===" && \
 	     pipenv install --dev --system; \

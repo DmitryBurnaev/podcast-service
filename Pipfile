@@ -35,6 +35,6 @@ black = "~=24.10.0"
 pylint = "~=3.3.1"
 
 [requires]
-python_version = "3.12"
+python_version = "3.13"
 # sudo apt install ffmpeg
 # export LDFLAGS=$(pg_config --ldflags)
