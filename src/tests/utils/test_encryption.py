@@ -4,7 +4,7 @@ from typing import NamedTuple
 from unittest.mock import patch, Mock
 
 import pytest
-from Cryptodome.Cipher import AES
+from Crypto.Cipher import AES
 
 from common.encryption import SensitiveData
 
@@ -32,7 +32,7 @@ class MockAESResult(NamedTuple):
 def mocked_aes(monkeypatch) -> MockAESResult:
     mocked_aes_object = MockedCipherAES()
 
-    with patch("Cryptodome.Cipher.AES.new") as mock_new:
+    with patch("Crypto.Cipher.AES.new") as mock_new:
         mock_new.return_value = mocked_aes_object
         yield MockAESResult(cipher=mocked_aes_object, mock_new=mock_new)
 

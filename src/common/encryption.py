@@ -2,7 +2,7 @@ import base64
 import logging
 from typing import NamedTuple
 
-from Cryptodome.Cipher import AES
+from Crypto.Cipher import AES
 
 from common.exceptions import ImproperlyConfiguredError
 from core import settings

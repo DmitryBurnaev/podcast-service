@@ -23,7 +23,7 @@ Created podcast (with prepared episodes) will have a direct link (to RSS feed), 
 Adding and downloading each new episodes will refresh RSS-feed and your APP will be able to get them.
 
 #### Tech Stack
-+ python 3.12
++ python 3.13
 + [Starlette](https://www.starlette.io/) 
 + RQ (background tasks)
 + yt-dlp (download audio tracks from external media platforms)
