@@ -2,8 +2,9 @@ import asyncio
 import uuid
 import logging
 import tempfile
+from asyncio import AbstractEventLoop
 from datetime import timedelta
-from typing import Any
+from typing import Any, Generator
 from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
@@ -66,10 +67,12 @@ def cap_log(caplog):
 
 
 @pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    return loop
+def event_loop() -> Generator[AbstractEventLoop, None, None]:
+    """Make the loop session scope to use session async fixtures."""
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
+    yield loop
+    loop.close()
 
 
 @pytest_asyncio.fixture(autouse=True, scope="session")

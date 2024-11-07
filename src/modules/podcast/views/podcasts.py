@@ -3,6 +3,7 @@ import asyncio
 import logging
 from pathlib import Path
 
+import anyio.to_thread
 from sqlalchemy import select, func
 from starlette import status
 from starlette.concurrency import run_in_threadpool
@@ -188,6 +189,4 @@ class PodcastGenerateRSSAPIView(BaseHTTPEndpoint):
         podcast_id = request.path_params["podcast_id"]
         podcast = await self._get_object(podcast_id)
         await self._run_task(GenerateRSSTask, podcast.id)
-        await asyncio.sleep(2)
-        GenerateRSSTask.cancel_task(podcast.id)
         return self._response(status_code=status.HTTP_202_ACCEPTED)

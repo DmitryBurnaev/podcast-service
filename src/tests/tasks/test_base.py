@@ -1,3 +1,4 @@
+import asyncio
 import time
 import uuid
 from unittest.mock import patch, MagicMock, Mock
@@ -13,6 +14,11 @@ class TaskForTest(RQTask):
             raise RuntimeError("Oops")
 
         return TaskResultCode.SUCCESS
+
+    def __call__(self, *args, **kwargs) -> TaskResultCode:
+        loop = asyncio.get_event_loop()
+        finish_code = loop.run_until_complete(self._perform_and_run(*args, **kwargs))
+        return finish_code
 
 
 class TaskForSubprocessCallTesting(RQTask):
