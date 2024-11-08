@@ -3,7 +3,6 @@ import asyncio
 import logging
 from pathlib import Path
 
-import anyio.to_thread
 from sqlalchemy import select, func
 from starlette import status
 from starlette.concurrency import run_in_threadpool
