@@ -4,10 +4,10 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-starlette = "==0.41.2"
+starlette = "==0.41.3"
 webargs-starlette = "==2.1.0"
 python-multipart = "==0.0.17" # required by starlette dependencies
-uvicorn = "==0.32.0"
+uvicorn = "==0.32.1"
 rq = "==1.16.2"
 
 asyncpg = "==0.30.0"
@@ -16,11 +16,11 @@ sqlalchemy = "==2.0.36"
 alembic = "==1.14.0"
 greenlet = "==3.1.1" # optional dependency for sqlalchemy
 
-PyJWT = "==2.9.0"
+PyJWT = "==2.10.0"
 httpx = "==0.27.2"
 redis = "==5.2.0"
-boto3 = "==1.35.54"
-yt-dlp = "==2024.11.4"
+boto3 = "==1.35.66"
+yt-dlp = "==2024.11.18"
 sentry-sdk = "==2.18.0"
 python-dotenv = "==1.0.1"
 Jinja2 = "==3.1.4" # rss-file rendering
@@ -30,7 +30,7 @@ pycryptodome = "==3.21.0"
 [dev-packages]
 pytest = "~=8.3.3"
 pytest-asyncio = "~=0.24.0"
-coverage = "~=7.6.4"
+coverage = "~=7.6.7"
 black = "~=24.10.0"
 pylint = "~=3.3.1"
 
