@@ -26,7 +26,7 @@ COPY .coveragerc .
 COPY .pylintrc .
 
 # build running version
-FROM python:3.13-slim-bookworm as runtime
+FROM python:3.13-slim-bookworm AS runtime
 ARG DEV_DEPS
 WORKDIR /podcast
 
@@ -39,10 +39,10 @@ COPY Pipfile.lock /podcast
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-    build-essential \
-		gcc \
 		libpq-dev \
+    build-essential \
 		python3-dev \
+    python3-psycopg2 \
         grep  \
         procps \
 	&& pip install pipenv==2024.4.0 \
@@ -55,7 +55,7 @@ RUN apt-get update \
        fi \
     && pip uninstall -y pipenv \
     && pip cache remove "*" \
-	&& apt-get purge -y --auto-remove gcc libpq-dev python-dev \
+	&& apt-get purge -y --auto-remove libpq-dev python3-dev build-essential \
 	&& apt-get -y autoremove \
 	&& apt-get clean \
 	&& rm -rf /var/lib/apt/lists/*

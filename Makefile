@@ -48,3 +48,9 @@ test:
 
 docker-build:
 	docker build . -t podcast-service
+
+docker-test:
+	docker compose up test --build
+
+docker-run:
+	docker compose up web rq --build
