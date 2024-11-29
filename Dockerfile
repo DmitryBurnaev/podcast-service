@@ -1,5 +1,5 @@
 # download and extract ffmpeg
-FROM alpine:3.20 as download-ffmpeg
+FROM alpine:3.20 AS download-ffmpeg
 WORKDIR /ffmpeg
 ARG FFMPEG_VERSION=4.4.1
 
@@ -12,7 +12,7 @@ RUN apk add wget unzip \
 
 
 # copy source code
-FROM alpine:3.20 as code-layer
+FROM alpine:3.20 AS code-layer
 WORKDIR /podcast
 
 COPY src ./src
@@ -39,6 +39,7 @@ COPY Pipfile.lock /podcast
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+    build-essential \
 		gcc \
 		libpq-dev \
 		python3-dev \

@@ -45,3 +45,6 @@ format:
 test:
 	PYTHONPATH=./src pipenv run coverage run -m pytest && \
 	PYTHONPATH=./src pipenv run coverage report
+
+docker-build:
+	docker build . -t podcast-service
