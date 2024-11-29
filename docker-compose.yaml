@@ -1,4 +1,3 @@
-version: '3'
 services:
   web:
     image:
@@ -24,7 +23,7 @@ services:
 
   test:
     image:
-      podcast-service
+      podcast-service:dev
     build:
       context: .
       args:
