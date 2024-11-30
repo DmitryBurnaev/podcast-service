@@ -1,7 +1,7 @@
 # download and extract ffmpeg
 FROM alpine:3.20 AS download-ffmpeg
 WORKDIR /ffmpeg
-ARG FFMPEG_VERSION=4.4.1
+ARG FFMPEG_VERSION=6.1
 
 RUN apk add wget unzip \
     && wget "https://github.com/vot/ffbinaries-prebuilt/releases/download/v${FFMPEG_VERSION}/ffmpeg-${FFMPEG_VERSION}-linux-64.zip" -q -O /tmp/ffmpeg-linux-64.zip \
