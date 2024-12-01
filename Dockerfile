@@ -4,7 +4,7 @@ WORKDIR /ffmpeg
 ARG FFMPEG_VERSION=6.1
 
 RUN apk add wget unzip \
-    && wget "https://github.com/vot/ffbinaries-prebuilt/releases/download/v${FFMPEG_VERSION}/ffmpeg-${FFMPEG_VERSION}-linux-64.zip" -q -O /tmp/ffmpeg-linux-64.zip \
+    && wget "https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v${FFMPEG_VERSION}/ffmpeg-${FFMPEG_VERSION}-linux-64.zip" -q -O /tmp/ffmpeg-linux-64.zip \
     && unzip /tmp/ffmpeg-linux-64.zip -d /ffmpeg \
     && chmod u+x /ffmpeg/ffmpeg \
     && rm /tmp/ffmpeg-linux-64.zip \
