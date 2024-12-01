@@ -7,8 +7,9 @@ name = "pypi"
 starlette = "==0.41.3"
 webargs-starlette = "==2.1.0"
 python-multipart = "==0.0.17" # required by starlette dependencies
-uvicorn = "==0.32.1"
+uvicorn = {version = "==0.32.1", extras = ["standard"]}
 rq = "==1.16.2"
+
 
 asyncpg = "==0.30.0"
 psycopg2-binary = "==2.9.10" # for alembic only
