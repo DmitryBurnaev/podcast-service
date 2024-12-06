@@ -1,6 +1,6 @@
 import re
 import logging
-from collections.abc import Iterable
+from typing import Iterable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
