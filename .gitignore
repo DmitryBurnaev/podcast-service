@@ -10,3 +10,4 @@
 .log
 *.sarif
 *.http
+.DS_Store
