@@ -20,7 +20,7 @@ PyJWT = "==2.10.1"
 httpx = "==0.27.2"
 redis = "==5.2.0"
 boto3 = "==1.35.66"
-yt-dlp = "==2024.11.18"
+yt-dlp = "==2024.12.06"
 sentry-sdk = "==2.18.0"
 python-dotenv = "==1.0.1"
 Jinja2 = "==3.1.4" # rss-file rendering
