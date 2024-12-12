@@ -5,6 +5,7 @@ from typing import Iterable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.enums import FileType
+from core.settings import RENDER_LINKS
 from modules.media.models import File
 from modules.podcast.models import Episode, cookie_file_ctx
 from modules.providers.utils import SourceInfo, SourceMediaInfo, SourceConfig, SOURCE_CFG_MAP
@@ -60,6 +61,10 @@ class EpisodeCreator:
         return episode
 
     def _replace_special_symbols(self, value):
+        if RENDER_LINKS:
+            # skip links masking for showing links in description
+            return value
+
         res = self.http_link_regex.sub("[LINK]", value)
         return self.symbols_regex.sub("", res)
 
