@@ -159,3 +159,4 @@ LOGGING = {
 
 RENDER_CHAPTERS = config("RENDER_CHAPTERS", cast=bool, default=False)
 PROXY_YOUTUBE = config("PROXY_YOUTUBE", cast=str, default="")
+RENDER_LINKS = config("RENDER_LINKS", cast=bool, default=False)
