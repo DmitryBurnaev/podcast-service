@@ -27,7 +27,7 @@
                 <guid>{{ episode.watch_url }}</guid>
                 <pubDate>{{ episode.published_at.strftime('%a, %d %b %Y %H:%M:%S UTC') }}</pubDate>
                 <itunes:author>{{ podcast.name }}</itunes:author>
-                <itunes:summary><![CDATA[<p><img src="{{ episode.image_url }}" alt=""></p><p>{{ episode.description }}</p>]]></itunes:summary>
+                <itunes:summary><![CDATA[<p><img src="{{ episode.image_url }}" alt=""></p><p>{{ episode.rss_description }}</p>]]></itunes:summary>
                 <itunes:image href="{{ episode.image_url }}" />
                 <enclosure url="{{ episode.audio_url }}" type="{{ episode.audio.content_type }}" length="{{ episode.audio.size }}"/>
                 <author>{{ episode.author }}</author>

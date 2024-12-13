@@ -22,7 +22,7 @@
                 <description>
                     <![CDATA[
                         <p><img src="{{ episode.image_url }}" alt=""/></p>
-                        <p>{{ episode.description }}</p>
+                        <p>{{ episode.rss_description }}</p>
                         <p>SourceLink: {{ episode.watch_url }}</p>
                         {% if episode.chapters %}
                             <p><em>Chapters</em>
@@ -42,7 +42,7 @@
                 <itunes:summary>
                     <![CDATA[
                         <p><img src="{{ episode.image_url }}" alt=""/></p>
-                        <p>{{ episode.description }}</p>
+                        <p>{{ episode.rss_description }}</p>
                         <p>SourceLink: {{ episode.watch_url }}</p>
                         {% if episode.chapters %}
                             <p><em>Chapters</em>

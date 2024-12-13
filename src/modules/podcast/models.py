@@ -150,6 +150,10 @@ class Episode(ModelBase, ModelMixin):
     def list_chapters(self) -> list[EpisodeChapter]:
         return [EpisodeChapter(**chapter) for chapter in self.chapters] if self.chapters else []
 
+    @property
+    def rss_description(self) -> str:
+        return self.description.replace("\n", r"<br\>")
+
     @cached_property
     def audio_filename(self) -> str:
         filename = self.audio.name
