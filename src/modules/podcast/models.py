@@ -152,7 +152,13 @@ class Episode(ModelBase, ModelMixin):
 
     @property
     def rss_description(self) -> str:
-        return self.description.replace("\n", r"<br\>")
+        cleared_description = self.description.replace("[LINK]", "")
+        paragraphs = cleared_description.split("\n")
+        result = ""
+        for paragraph in paragraphs:
+            if paragraph:
+                result += f"<p>{paragraph}</p>"
+        return result
 
     @cached_property
     def audio_filename(self) -> str:
