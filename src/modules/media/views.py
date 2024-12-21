@@ -34,7 +34,7 @@ from modules.media.schemas import (
 )
 from modules.podcast.utils import save_uploaded_file, get_file_size
 from modules.providers import utils as provider_utils
-from modules.providers.utils import AudioMetaData
+from modules.providers.ffmpeg import AudioMetaData
 
 logger = logging.getLogger(__name__)
 
@@ -232,7 +232,7 @@ class AudioFileUploadAPIView(BaseUploadAPIView):
             filename=filename,
             local_path=local_path,
             remote_path=settings.S3_BUCKET_TMP_AUDIO_PATH,
-            metadata=provider_utils.audio_metadata(local_path),
+            metadata=modules.providers.ffmpeg.audio_metadata(local_path),
         )
         remote_file_path = await self._upload_file(uploaded_file)
         cover_data = await self._get_cover_data(uploaded_file.local_path)
@@ -263,7 +263,7 @@ class AudioFileUploadAPIView(BaseUploadAPIView):
         return local_path, upload_file.filename
 
     async def _get_cover_data(self, audio_path: Path) -> dict | None:
-        if not (cover := provider_utils.audio_cover(audio_path)):
+        if not (cover := modules.providers.ffmpeg.audio_cover(audio_path)):
             return None
 
         uploaded_file = UploadedFileData(

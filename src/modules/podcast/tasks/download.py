@@ -24,7 +24,8 @@ from modules.podcast.tasks.rss import GenerateRSSTask
 from modules.podcast.utils import get_file_size
 from modules.providers import utils as provider_utils
 from modules.podcast import utils as podcast_utils
-from modules.providers.utils import ffmpeg_preparation, SOURCE_CFG_MAP, SourceConfig
+from modules.providers.utils import SOURCE_CFG_MAP, SourceConfig
+from modules.providers import ffmpeg
 
 __all__ = [
     "DownloadEpisodeTask",
@@ -227,7 +228,7 @@ class DownloadEpisodeTask(RQTask):
         source_config: SourceConfig = SOURCE_CFG_MAP[episode.source_type]
         if source_config.need_postprocessing:
             logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
-            provider_utils.ffmpeg_preparation(src_path=tmp_audio_path)
+            ffmpeg.ffmpeg_preparation(src_path=tmp_audio_path)
             logger.info("=== [%s] POST PROCESSING was done === ", episode.source_id)
         else:
             logger.info("=== [%s] POST PROCESSING SKIP === ", episode.source_id)

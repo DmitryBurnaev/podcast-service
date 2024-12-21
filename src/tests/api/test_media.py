@@ -12,7 +12,7 @@ from common.utils import hash_string
 from core import settings
 from modules.auth.models import UserIP, User
 from modules.media.models import File
-from modules.providers.utils import AudioMetaData
+from modules.providers.ffmpeg import AudioMetaData
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import create_file, PodcastTestClient
 from tests.mocks import MockS3Client

@@ -10,7 +10,7 @@ from core import settings
 from common.enums import EpisodeStatus
 from modules.podcast.utils import post_processing_process_hook
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
-from modules.providers.utils import ffmpeg_preparation, audio_metadata, AudioMetaData
+from modules.providers.ffmpeg import ffmpeg_preparation, AudioMetaData, audio_metadata
 from tests.api.test_base import BaseTestCase
 from tests.mocks import MockProcess
 
