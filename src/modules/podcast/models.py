@@ -81,7 +81,7 @@ class Podcast(ModelBase, ModelMixin):
 
 class EpisodeChapter(TypedDict):
     """Base structure for each element of episode.chapters"""
-
+    # TODO: convert to dataclass + property, which can calculate start/end in seconds format (int)
     title: str
     start: str  # ex.: 0:45:05
     end: str  # ex.: 1:15:00

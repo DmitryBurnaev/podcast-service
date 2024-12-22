@@ -147,51 +147,99 @@ def execute_ffmpeg(command: list[str]) -> str:
     return completed_proc.stdout.decode()
 
 
-def audio_set_chapters(
+def audio_set_metadata(
     src_path: str | Path,
+    episode_title: str,
     episode_chapters: list[EpisodeChapter]
 ) -> None:
-    chapters_tpl = """
-;FFMETADATA1
-title=bike\\shed
-;this is a comment
-artist=FFmpeg troll team
+    """ 
+    Generates text-like metadata and apply to the target audio (placed on src_path
+    
+    chapters_tpl =
+    # ;FFMETADATA1
+    # title=bike\\shed
+    # ;this is a comment
+    # artist=FFmpeg troll team
 
+    # [CHAPTER]
+    # TIMEBASE=1/1000
+    # START=0
+    # #chapter ends at 0:01:00
+    # END=60000
+    # title=chapter #1
+
+    # Chapter #0:0: start 0.000000, end 440.000000
+    #   Metadata:
+    #     title           : chapter-1
+    # Chapter #0:1: start 440.000000, end 4306.000000
+    #   Metadata:
+    #     title           : chapter-2
+    # Chapter #0:2: start 4306.000000, end 6195.000000
+    #   Metadata:
+    #     title           : chapter-3
+    # Chapter #0:3: start 6195.000000, end 7264.000000
+    #   Metadata:
+    #     title           : chapter-4
+    # Chapter #0:4: start 7264.000000, end 8661.000000
+    #   Metadata:
+    #     title           : chapter-5
+    # Chapter #0:5: start 8661.000000, end 11628.000000
+    #   Metadata:
+    #     title           : finish-chapter-6
+    #
+    # Stream #0:0: Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, stereo, fltp, 128 kb/s    
+    """
+    chapter_tpl = """
 [CHAPTER]
 TIMEBASE=1/1000
-START=0
-#chapter ends at 0:01:00
-END=60000
-title=chapter \#1    
-    
+START={start}
+END={end}
+title={title}
     """
+    metadata_tpl = """
+;FFMETADATA1
+title={title}
 
-
-    chapters_info = """
-    Chapter #0:0: start 0.000000, end 440.000000
-      Metadata:
-        title           : chapter-1
-    Chapter #0:1: start 440.000000, end 4306.000000
-      Metadata:
-        title           : chapter-2
-    Chapter #0:2: start 4306.000000, end 6195.000000
-      Metadata:
-        title           : chapter-3
-    Chapter #0:3: start 6195.000000, end 7264.000000
-      Metadata:
-        title           : chapter-4
-    Chapter #0:4: start 7264.000000, end 8661.000000
-      Metadata:
-        title           : chapter-5
-    Chapter #0:5: start 8661.000000, end 11628.000000
-      Metadata:
-        title           : finish-chapter-6   
-    
+{chapters_rendered}
     """
+    logger.info("Start setting metadata for the file %s | chapers: %i", src_path, len(episode_chapters))
 
+    chapters_rendered = ""
+    for chapter in episode_chapters:
+        start_time = chapter["start"] * 1000
+        end_time = chapter["end"] * 1000
+        chapters_rendered += chapter_tpl.format(
+            start=start_time, end=end_time, title=chapter["title"]
+        )
 
+    result_metadata = metadata_tpl.format(
+        title=episode_title,
+        chapters_rendered=chapters_rendered
+    )
 
-    raise NotImplementedError
+    logger.debug("Generated metadata for the file %s:\n%s", src_path, result_metadata)
+
+    with tempfile.NamedTemporaryFile() as tmp_metadata_file:
+        tmp_metadata_file.write(result_metadata.encode())
+        tmp_metadata_file.flush()
+
+        execute_ffmpeg(
+            command=[
+                "ffmpeg",
+                "-y",
+                "-i",
+                src_path,
+                "-i",
+                tmp_metadata_file.name,
+                "-map_metadata",
+                "1",
+                "-codec",
+                "copy",
+                src_path,
+            ]
+        )
+
+    logger.info("Metadata was set for the file %s", src_path)
 
 
 def audio_metadata(file_path: Path | str) -> AudioMetaData:
