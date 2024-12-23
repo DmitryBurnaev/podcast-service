@@ -229,6 +229,11 @@ class DownloadEpisodeTask(RQTask):
         if source_config.need_postprocessing:
             logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
             ffmpeg.ffmpeg_preparation(src_path=tmp_audio_path)
+            ffmpeg.audio_set_metadata(
+                src_path=tmp_audio_path,
+                episode_title=episode.title,
+                episode_chapters=episode.list_chapters,
+            )
             logger.info("=== [%s] POST PROCESSING was done === ", episode.source_id)
         else:
             logger.info("=== [%s] POST PROCESSING SKIP === ", episode.source_id)
@@ -442,7 +447,7 @@ class DownloadEpisodeImageTask(RQTask):
         except NotFoundError:
             return None
 
-        ffmpeg_preparation(src_path=tmp_path, ffmpeg_params=["-vf", "scale=600:-1"])
+        ffmpeg.ffmpeg_preparation(src_path=tmp_path, ffmpeg_params=["-vf", "scale=600:-1"])
         return tmp_path
 
     async def _upload_cover(self, episode: Episode, tmp_path: Path) -> str:
