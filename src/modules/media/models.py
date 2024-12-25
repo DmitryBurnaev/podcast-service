@@ -128,7 +128,7 @@ class File(ModelBase, ModelMixin):
         available: bool = True,
         **file_kwargs,
     ) -> "File":
-        file_kwargs = file_kwargs | {
+        file_kwargs |= {
             "available": available,
             "access_token": File.generate_token(),
             "type": file_type,

@@ -45,7 +45,7 @@ class TestFFMPEG(BaseTestCase):
         assert actual_process_hook_calls == expected_calls
 
     @patch("subprocess.run")
-    @patch("modules.providers.utils.episode_process_hook")
+    @patch("modules.podcast.utils.episode_process_hook")
     def test_episode_prepare__ok(
         self,
         mocked_process_hook: Mock,
@@ -95,7 +95,7 @@ class TestFFMPEG(BaseTestCase):
         )
 
     @patch("subprocess.run")
-    @patch("modules.providers.utils.episode_process_hook")
+    @patch("modules.podcast.utils.episode_process_hook")
     def test_episode_prepare__ffmpeg_error__fail(self, mocked_process_hook: Mock, mocked_run: Mock):
         mocked_run.side_effect = subprocess.CalledProcessError(1, "ffmpeg", stderr=b"FFMPEG oops")
         with pytest.raises(FFMPegPreparationError) as exc:
@@ -114,7 +114,7 @@ class TestFFMPEG(BaseTestCase):
         )
 
     @patch("subprocess.run")
-    @patch("modules.providers.utils.episode_process_hook")
+    @patch("modules.podcast.utils.episode_process_hook")
     def test_episode_prepare__io_error__fail(self, mocked_process_hook: Mock, mocked_run: Mock):
         mocked_run.return_value = CompletedProcess([], returncode=0, stdout=b"Success")
         os.remove(self.tmp_filename)

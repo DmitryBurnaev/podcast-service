@@ -77,7 +77,7 @@ def _episode_details(episode: Episode, status: EpisodeStatus | None = None):
             "name": episode.podcast.name,
         },
         "chapters": [
-            {"title": chapter["title"], "start": chapter["start"], "end": chapter["end"]}
+            {"title": chapter.title, "start": chapter.start_str, "end": chapter.end_str}
             for chapter in episode.list_chapters
         ],
     }
@@ -355,7 +355,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
             "size": 50,
         }
         response = client.post(url, json=data)
-        response_data = self.assert_ok_response(response, status_code=200)
+        response_data = self.assert_ok_response(response)
 
         assert episode.id == response_data["id"]
 
@@ -383,7 +383,7 @@ class TestUploadedEpisodesAPIView(BaseTestAPIView):
         await client.login(user)
         url = self.url_fetch_exists.format(id=podcast.id, hash=audio_hash)
         response = client.get(url)
-        response_data = self.assert_ok_response(response, status_code=200)
+        response_data = self.assert_ok_response(response)
 
         assert episode.id == response_data["id"]
         episode = await Episode.async_get(dbs, id=response_data["id"])
@@ -530,8 +530,8 @@ class TestEpisodeRUDAPIView(BaseTestAPIView):
             dbs,
             db_commit=True,
             chapters=[
-                EpisodeChapter(title="Chapter 1", start="00:00:00", end="01:00:00"),
-                EpisodeChapter(title="Chapter 2", start="01:00:00", end="01:10:00"),
+                EpisodeChapter(title="Chapter 1", start=0, end=3600).as_dict,
+                EpisodeChapter(title="Chapter 2", start=3601, end=4200).as_dict,
             ],
         )
         episode = await Episode.async_get(dbs, id=episode.id)
@@ -824,7 +824,7 @@ class TestEpisodeFlatListAPIView(BaseTestAPIView):
         podcast_3_from_user_2 = await Podcast.async_create(
             dbs, **get_podcast_data(owner_id=self.user_2.id)
         )
-        episode_data = episode_data | {"owner_id": user.id}
+        episode_data |= {"owner_id": user.id}
         self.episode_1 = await create_episode(dbs, episode_data, podcast_1)
         self.episode_2 = await create_episode(dbs, episode_data, podcast_2)
 

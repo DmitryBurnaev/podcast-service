@@ -22,6 +22,7 @@ from modules.media.models import File
 from modules.podcast.models import Podcast, Episode, Cookie
 from common.enums import SourceType, FileType
 from modules.providers import utils as provider_utils
+from modules.providers import ffmpeg as ffmpeg_utils
 from modules.providers.utils import SourceInfo
 from tests.helpers import (
     PodcastTestClient,
@@ -207,7 +208,15 @@ def mocked_sens_data(monkeypatch) -> MockSensitiveData:
 @pytest.fixture
 def mocked_ffmpeg(monkeypatch) -> Mock:
     mocked_ffmpeg_function = Mock()
-    monkeypatch.setattr(provider_utils, "ffmpeg_preparation", mocked_ffmpeg_function)
+    monkeypatch.setattr(ffmpeg_utils, "ffmpeg_preparation", mocked_ffmpeg_function)
+    yield mocked_ffmpeg_function
+    del mocked_ffmpeg_function
+
+
+@pytest.fixture
+def mocked_ffmpeg_set_meta(monkeypatch) -> Mock:
+    mocked_ffmpeg_function = Mock()
+    monkeypatch.setattr(ffmpeg_utils, "ffmpeg_set_metadata", mocked_ffmpeg_function)
     yield mocked_ffmpeg_function
     del mocked_ffmpeg_function
 
@@ -215,7 +224,7 @@ def mocked_ffmpeg(monkeypatch) -> Mock:
 @pytest.fixture
 def mocked_audio_metadata(monkeypatch) -> Mock:
     mocked_function = Mock()
-    monkeypatch.setattr(provider_utils, "audio_metadata", mocked_function)
+    monkeypatch.setattr(ffmpeg_utils, "audio_metadata", mocked_function)
     yield mocked_function
     del mocked_function
 
@@ -264,7 +273,6 @@ async def podcast(dbs: AsyncSession, user: User, podcast_data: dict) -> Podcast:
         FileType.IMAGE,
         owner_id=user.id,
         path=f"/remote/path/to/audio/podcast_{publish_id}_image.png",
-        available=True,
         public=True,
     )
     rss = await File.create(
@@ -272,7 +280,6 @@ async def podcast(dbs: AsyncSession, user: User, podcast_data: dict) -> Podcast:
         FileType.RSS,
         owner_id=user.id,
         path=f"/remote/path/to/rss/podcast_{publish_id}_rss.xml",
-        available=True,
     )
     podcast_data["image_id"] = image.id
     podcast_data["rss_id"] = rss.id
@@ -322,7 +329,6 @@ async def episode(podcast: Podcast, user: User, dbs: AsyncSession) -> Episode:
         FileType.AUDIO,
         owner_id=user.id,
         path=f"/remote/path/to/audio/episode_{source_id}_audio.mp3",
-        available=True,
         size=1024,
     )
 
@@ -332,7 +338,6 @@ async def episode(podcast: Podcast, user: User, dbs: AsyncSession) -> Episode:
         owner_id=user.id,
         source_url=f"http://link.to.source-image/{source_id}.png",
         path=f"/remote/path/to/images/episode_{source_id}_image.png",
-        available=True,
     )
 
     episode_data["audio_id"] = audio.id

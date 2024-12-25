@@ -47,6 +47,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode: Episode,
         mocked_youtube: MockYoutubeDL,
         mocked_ffmpeg: Mock,
+        mocked_ffmpeg_set_meta: Mock,
         mocked_redis: MockRedisClient,
         mocked_s3: MockS3Client,
         mocked_generate_rss_task: MockGenerateRSS,
@@ -58,7 +59,12 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode = await Episode.async_get(dbs, id=episode.id)
 
         mocked_youtube.download.assert_called_with([episode.watch_url])
-        self.assert_called_with(mocked_ffmpeg, src_path=file_path)
+        mocked_ffmpeg.assert_called_with(src_path=file_path)
+        mocked_ffmpeg_set_meta.assert_called_with(
+            src_path=file_path,
+            episode_title=episode.title,
+            episode_chapters=episode.chapters or [],
+        )
         self.assert_called_with(
             mocked_s3.upload_file,
             src_path=str(file_path),
@@ -87,6 +93,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode: Episode,
         mocked_youtube: MockYoutubeDL,
         mocked_ffmpeg: Mock,
+        mocked_ffmpeg_set_meta: Mock,
         mocked_s3: MockS3Client,
         mocked_redis: MockRedisClient,
         mocked_generate_rss_task: MockGenerateRSS,
@@ -99,7 +106,12 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert result == TaskResultCode.SUCCESS
 
         mocked_youtube.assert_called_with(cookiefile=await cookie.as_file())
-        self.assert_called_with(mocked_ffmpeg, src_path=file_path)
+        mocked_ffmpeg.assert_called_with(src_path=file_path)
+        mocked_ffmpeg_set_meta.assert_called_with(
+            src_path=file_path,
+            episode_title=episode.title,
+            episode_chapters=episode.chapters or [],
+        )
 
         episode = await Episode.async_get(dbs, id=episode.id)
         assert episode.status == Episode.Status.PUBLISHED
@@ -112,6 +124,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         episode: Episode,
         mocked_youtube: MockYoutubeDL,
         mocked_ffmpeg: Mock,
+        mocked_ffmpeg_set_meta: Mock,
         mocked_s3: MockS3Client,
         mocked_redis: MockRedisClient,
         mocked_generate_rss_task: MockGenerateRSS,
@@ -126,7 +139,12 @@ class TestDownloadEpisodeTask(BaseTestCase):
         assert result == TaskResultCode.SUCCESS
 
         mocked_youtube.assert_called_with(proxy=proxy_url)
-        self.assert_called_with(mocked_ffmpeg, src_path=file_path)
+        mocked_ffmpeg.assert_called_with(src_path=file_path)
+        mocked_ffmpeg_set_meta.assert_called_with(
+            src_path=file_path,
+            episode_title=episode.title,
+            episode_chapters=episode.chapters or [],
+        )
 
         episode = await Episode.async_get(dbs, id=episode.id)
         assert episode.status == Episode.Status.PUBLISHED
@@ -217,6 +235,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_s3: MockS3Client,
         mocked_redis: MockRedisClient,
         mocked_ffmpeg: Mock,
+        mocked_ffmpeg_set_meta: Mock,
         mocked_youtube: MockYoutubeDL,
         mocked_generate_rss_task: MockGenerateRSS,
     ):
@@ -238,7 +257,12 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
         await dbs.refresh(episode)
         mocked_youtube.download.assert_called_with([episode.watch_url])
-        self.assert_called_with(mocked_ffmpeg, src_path=file_path)
+        mocked_ffmpeg.assert_called_with(src_path=file_path)
+        mocked_ffmpeg_set_meta.assert_called_with(
+            src_path=file_path,
+            episode_title=episode.title,
+            episode_chapters=episode.chapters or [],
+        )
         self.assert_called_with(
             mocked_s3.upload_file,
             src_path=str(file_path),
@@ -363,19 +387,18 @@ class TestDownloadEpisodeTask(BaseTestCase):
 class TestDownloadEpisodeImageTask(BaseTestCase):
     @patch("modules.podcast.models.Episode.generate_image_name")
     @patch("modules.podcast.tasks.download.get_file_size")
-    @patch("modules.podcast.tasks.download.ffmpeg_preparation")
     @patch("modules.podcast.tasks.download.download_content")
     async def test_image_ok(
         self,
         mocked_download_content: Mock,
-        mocked_ffmpeg: Mock,
         mocked_file_size: Mock,
         mocked_name: Mock,
         dbs: AsyncSession,
         episode: Episode,
         mocked_s3: MockS3Client,
+        mocked_ffmpeg: Mock,
     ):
-        tmp_path = settings.TMP_IMAGE_PATH / f"{episode.source_id}.jpg"
+        tmp_path: Path = settings.TMP_IMAGE_PATH / f"{episode.source_id}.jpg"
         mocked_download_content.return_value = tmp_path
         mocked_file_size.return_value = 25
 

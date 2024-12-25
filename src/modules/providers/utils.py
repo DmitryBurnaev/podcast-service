@@ -1,4 +1,3 @@
-import datetime
 import re
 import logging
 import dataclasses
@@ -15,9 +14,7 @@ from common.enums import SourceType, EpisodeStatus
 from common.exceptions import InvalidRequestError
 from modules.auth.hasher import get_random_hash
 from modules.podcast.models import EpisodeChapter
-from modules.podcast.utils import (
-    episode_process_hook,
-)
+from modules.podcast.utils import episode_process_hook
 
 logger = logging.getLogger(__name__)
 
@@ -198,18 +195,12 @@ def chapters_processing(input_chapters: list[dict] | None) -> list[EpisodeChapte
     if not input_chapters:
         return []
 
-    def ftime(sec: str) -> str:
-        result_delta: datetime.timedelta = datetime.timedelta(seconds=int(sec))
-        mm, ss = divmod(result_delta.total_seconds(), 60)
-        hh, mm = divmod(mm, 60)
-        return f"{int(hh):02d}:{int(mm):02d}:{int(ss):02d}"  # 123sec -> '00:02:03'
-
     for input_chapter in input_chapters:
         try:
             chapter = EpisodeChapter(
                 title=input_chapter["title"],
-                start=ftime(input_chapter["start_time"]),
-                end=ftime(input_chapter["end_time"]),
+                start=input_chapter["start_time"],
+                end=input_chapter["end_time"],
             )
 
         except (KeyError, ValueError) as exc:

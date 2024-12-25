@@ -1,11 +1,13 @@
+import datetime
 import os
 import uuid
 import logging
+from dataclasses import dataclass, asdict
 from contextlib import asynccontextmanager
 from hashlib import md5
 from pathlib import Path
 from functools import cached_property
-from typing import AsyncContextManager, TypedDict
+from typing import AsyncContextManager
 
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -73,18 +75,38 @@ class Podcast(ModelBase, ModelMixin):
 
     @classmethod
     def generate_publish_id(cls) -> str:
-        return md5(uuid.uuid4().hex.encode("utf-8")).hexdigest()[::2]
+        return md5(uuid.uuid4().hex.encode()).hexdigest()[::2]
 
     def generate_image_name(self) -> str:
         return f"{self.publish_id}_{uuid.uuid4().hex}.png"
 
 
-class EpisodeChapter(TypedDict):
-    """Base structure for each element of episode.chapters"""
-    # TODO: convert to dataclass + property, which can calculate start/end in seconds format (int)
+@dataclass
+class EpisodeChapter:
+    """Base info about episode's chapter"""
+
     title: str
-    start: str  # ex.: 0:45:05
-    end: str  # ex.: 1:15:00
+    start: int
+    end: int
+
+    @property
+    def as_dict(self) -> dict:
+        return asdict(self)  # noqa
+
+    @property
+    def start_str(self) -> str:  # ex.: 0:45:05
+        return self._ftime(self.start)
+
+    @property
+    def end_str(self) -> str:  # ex.: 0:45:05
+        return self._ftime(self.end)
+
+    @staticmethod
+    def _ftime(sec: int) -> str:
+        result_delta: datetime.timedelta = datetime.timedelta(seconds=sec)
+        mm, ss = divmod(result_delta.total_seconds(), 60)
+        hh, mm = divmod(mm, 60)
+        return f"{int(hh):02d}:{int(mm):02d}:{int(ss):02d}"  # 123sec -> '00:02:03'
 
 
 class Episode(ModelBase, ModelMixin):
@@ -134,21 +156,49 @@ class Episode(ModelBase, ModelMixin):
 
     @property
     def image_url(self) -> str:
+        """Provides saved or the default one of episode's cover image"""
         url = self.image.url if self.image else None
         return url or settings.DEFAULT_EPISODE_COVER
 
     @property
     def audio_url(self) -> str:
+        """Recheck and returns episode's audio url"""
+
         url = self.audio.url if self.audio else None
         if not url and self.status == EpisodeStatus.PUBLISHED:
             raise UnexpectedError(
                 "Can't retrieve audio_url for published episode without available audio file"
             )
-        return url or settings.DEFAULT_EPISODE_COVER
+
+        return url
 
     @property
     def list_chapters(self) -> list[EpisodeChapter]:
-        return [EpisodeChapter(**chapter) for chapter in self.chapters] if self.chapters else []
+        """Converts currently saved chapters in DB to the list of chapter's objects"""
+
+        def _ts(ts_as_str: str | int | float) -> int:
+            if isinstance(ts_as_str, (float, int)):
+                return int(ts_as_str)
+
+            if not ts_as_str:
+                return 0
+
+            try:
+                hours, minutes, seconds = map(int, ts_as_str.split(":"))
+                return (hours * 3600) + (minutes * 60) + seconds
+
+            except ValueError:
+                return 0
+
+        if not self.chapters:
+            return []
+
+        return [
+            EpisodeChapter(
+                title=chapter["title"], start=_ts(chapter["start"]), end=_ts(chapter["end"])
+            )
+            for chapter in self.chapters
+        ]
 
     @property
     def rss_description(self) -> str:
@@ -158,6 +208,7 @@ class Episode(ModelBase, ModelMixin):
         for paragraph in paragraphs:
             if paragraph:
                 result += f"<p>{paragraph}</p>"
+
         return result
 
     @cached_property
