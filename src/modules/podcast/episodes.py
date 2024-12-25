@@ -93,6 +93,10 @@ class EpisodeCreator:
             )
 
         if source_info:
+            chapters = None
+            if source_info.chapters:
+                chapters = [chapter.as_dict for chapter in source_info.chapters]
+
             new_episode_data = {
                 "source_id": self.source_id,
                 "source_type": self.source_info.type,
@@ -101,7 +105,7 @@ class EpisodeCreator:
                 "description": self._replace_special_symbols(source_info.description),
                 "author": source_info.author,
                 "length": source_info.length,
-                "chapters": source_info.chapters or None,
+                "chapters": chapters,
             }
 
         elif same_episode:

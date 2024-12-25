@@ -100,8 +100,8 @@ class PodcastInEpisodeSchema(Schema):
 
 class EpisodeChapterSchema(Schema):
     title = fields.Str()
-    start = fields.Str()
-    end = fields.Str()
+    start = fields.Str(attribute="start_str")
+    end = fields.Str(attribute="end_str")
 
 
 class EpisodeDetailsSchema(Schema):

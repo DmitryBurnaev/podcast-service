@@ -6,6 +6,7 @@ __all__ = [
     "AudioFileResponseSchema",
     "MetaDataSchema",
     "ImageUploadedSchema",
+    "ImageFileUploadSchema",
 ]
 
 

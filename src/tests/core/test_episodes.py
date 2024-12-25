@@ -87,7 +87,7 @@ class TestEpisodeCreator(BaseTestAPIView):
         mocked_episode_data = mocked_youtube.episode_info(source_type=SourceType.YOUTUBE) | {
             "chapters": [
                 {"end_time": 19.0, "start_time": 0.0, "title": "Intro"},
-                {"end_time": 110.0, "start_time": 19.0, "title": "Main Chapter"},
+                {"end_time": 110.0, "start_time": 20.0, "title": "Main Chapter"},
             ]
         }
         mocked_youtube.extract_info.return_value = mocked_episode_data
@@ -102,12 +102,12 @@ class TestEpisodeCreator(BaseTestAPIView):
         episode = await episode_creator.create()
         assert episode is not None
         assert episode.chapters == [
-            {"title": "Intro", "start": "00:00:00", "end": "00:00:19"},
-            {"title": "Main Chapter", "start": "00:00:19", "end": "00:01:50"},
+            {"title": "Intro", "start": 0, "end": 19},
+            {"title": "Main Chapter", "start": 20, "end": 110},
         ]
         assert episode.list_chapters == [
-            EpisodeChapter(title="Intro", start="00:00:00", end="00:00:19"),
-            EpisodeChapter(title="Main Chapter", start="00:00:19", end="00:01:50"),
+            EpisodeChapter(title="Intro", start=0, end=19),
+            EpisodeChapter(title="Main Chapter", start=20, end=110),
         ]
 
     async def test_episodes_created__skip_chapters_extracted__ok(

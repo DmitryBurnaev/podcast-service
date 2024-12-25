@@ -229,10 +229,10 @@ class DownloadEpisodeTask(RQTask):
         if source_config.need_postprocessing:
             logger.info("=== [%s] POST PROCESSING === ", episode.source_id)
             ffmpeg.ffmpeg_preparation(src_path=tmp_audio_path)
-            ffmpeg.audio_set_metadata(
+            ffmpeg.ffmpeg_set_metadata(
                 src_path=tmp_audio_path,
                 episode_title=episode.title,
-                episode_chapters=episode.list_chapters,
+                episode_chapters=episode.list_chapters or [],
             )
             logger.info("=== [%s] POST PROCESSING was done === ", episode.source_id)
         else:

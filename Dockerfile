@@ -10,7 +10,6 @@ RUN apk add wget unzip \
     && rm /tmp/ffmpeg-linux-64.zip \
     && rm -rf /var/cache/apk/*
 
-
 # copy source code
 FROM alpine:3.20 AS code-layer
 WORKDIR /podcast

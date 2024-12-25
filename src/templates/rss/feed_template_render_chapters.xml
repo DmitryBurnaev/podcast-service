@@ -28,7 +28,7 @@
                             <p><em>Chapters</em>
                             <ul>
                                 {% for chapter in episode.list_chapters %}
-                                    <li>{{ chapter.title}} - <em>{{ chapter.start }}</em>.</li>
+                                    <li>{{ chapter.title}} - <em>{{ chapter.start_str }}</em>.</li>
                                 {% endfor %}
                             </ul>
                             </p>
@@ -48,7 +48,7 @@
                             <p><em>Chapters</em>
                             <ul>
                                 {% for chapter in episode.list_chapters %}
-                                    <li>{{ chapter.title}} - <em>{{ chapter.start }}</em>.</li>
+                                    <li>{{ chapter.title}} - <em>{{ chapter.start_str }}</em>.</li>
                                 {% endfor %}
                             </ul>
                             </p>

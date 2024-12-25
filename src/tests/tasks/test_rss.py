@@ -46,7 +46,7 @@ class TestGenerateRSSTask:
         ep_data = get_episode_data(podcast_1, creator=user)
         ep_data["published_at"] = datetime.now()
         ep_published = await create_episode(dbs, ep_data, status=Episode.Status.PUBLISHED)
-        await ep_published.update(dbs, chapters=[{"title": "Chapter1", "start": "00:00:01"}])
+        await ep_published.update(dbs, chapters=[{"title": "Chapter1", "start": 1, "end": 10}])
 
         ep_data = get_episode_data(podcast_2, creator=user)
         ep_podcast_2 = await create_episode(dbs, ep_data, status=Episode.Status.PUBLISHED)
@@ -121,8 +121,8 @@ class TestGenerateRSSTask:
         result_code = await generate_rss_task.run(podcast_1.id, podcast_2.id)
         assert result_code == TaskResultCode.SUCCESS
 
-        for podcast in [podcast_1, podcast_2]:
-            expected_file_path = mocked_s3.tmp_upload_dir / f"{podcast.publish_id}.xml"
+        for podcast_ in [podcast_1, podcast_2]:
+            expected_file_path = mocked_s3.tmp_upload_dir / f"{podcast_.publish_id}.xml"
             assert os.path.exists(expected_file_path), f"File {expected_file_path} didn't uploaded"
 
     async def test_generate__upload_failed__fail(
