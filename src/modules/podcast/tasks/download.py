@@ -1,4 +1,3 @@
-import asyncio
 import os.path
 import logging
 from pathlib import Path
@@ -9,11 +8,8 @@ from core import settings
 from common.redis import RedisClient
 from common.storage import StorageS3
 from common.enums import EpisodeStatus
-from common.utils import download_content
 from common.db_utils import make_session_maker
 from common.exceptions import (
-    NotFoundError,
-    MaxAttemptsReached,
     DownloadingInterrupted,
     UserCancellationError,
 )
@@ -21,17 +17,11 @@ from modules.media.models import File
 from modules.podcast.models import Episode, cookie_file_ctx
 from modules.podcast.tasks.base import RQTask, TaskResultCode
 from modules.podcast.tasks.rss import GenerateRSSTask
-from modules.podcast.utils import get_file_size
 from modules.providers import utils as provider_utils
 from modules.podcast import utils as podcast_utils
 from modules.providers.utils import SOURCE_CFG_MAP, SourceConfig
 from modules.providers import ffmpeg
 
-__all__ = [
-    "DownloadEpisodeTask",
-    "UploadedEpisodeTask",
-    "DownloadEpisodeImageTask",
-]
 log_levels = {
     TaskResultCode.SUCCESS: logging.INFO,
     TaskResultCode.SKIP: logging.INFO,
@@ -39,6 +29,10 @@ log_levels = {
     TaskResultCode.CANCEL: logging.WARNING,
 }
 logger = logging.getLogger(__name__)
+__all__ = [
+    "DownloadEpisodeTask",
+    "UploadedEpisodeTask",
+]
 
 
 async def _async_episode_update(episode_id: int, new_status: Episode.Status):
@@ -384,83 +378,3 @@ class UploadedEpisodeTask(DownloadEpisodeTask):
         logger.debug("Removing old file %s...", old_file_path)
         self.storage.delete_file(dst_path=old_file_path)
         logger.debug("Removing done for old file %s.", old_file_path)
-
-
-class DownloadEpisodeImageTask(RQTask):
-    """Allows fetching episodes image (cover), prepare them and upload to S3"""
-
-    storage: StorageS3
-    MAX_UPLOAD_ATTEMPT = 5
-
-    # pylint: disable=arguments-differ
-    async def run(self, episode_id: int | None = None) -> TaskResultCode:
-        self.storage = StorageS3()
-        try:
-            code = await self.perform_run(episode_id)
-        except Exception as exc:
-            logger.exception(
-                "Unable to upload episode's image: episode %s | error: %r",
-                episode_id,
-                exc,
-            )
-            return TaskResultCode.ERROR
-
-        return code
-
-    async def perform_run(self, episode_id: int | None) -> TaskResultCode:
-        filter_kwargs = {}
-        if episode_id:
-            filter_kwargs["id"] = int(episode_id)
-
-        episodes = list(await Episode.async_filter(self.db_session, **filter_kwargs))
-        episodes_count = len(episodes)
-
-        for index, episode in enumerate(episodes, start=1):
-            logger.info("=== Episode %i from %i ===", index, episodes_count)
-            image: File = episode.image
-            if image.path.startswith(settings.S3_BUCKET_IMAGES_PATH):
-                logger.info("Skip episode %i | image URL: %s", episode.id, episode.image_url)
-                continue
-
-            if tmp_path := await self._download_and_crop_image(episode):
-                remote_path = await self._upload_cover(episode, tmp_path)
-                available = True
-                size = get_file_size(tmp_path)
-            else:
-                remote_path, available, size = "", False, None
-
-            logger.info("Saving new image URL: episode %s | remote %s", episode.id, remote_path)
-            await image.update(
-                self.db_session,
-                path=remote_path,
-                available=available,
-                public=False,
-                size=size,
-            )
-
-        return TaskResultCode.SUCCESS
-
-    @staticmethod
-    async def _download_and_crop_image(episode: Episode) -> Path | None:
-        try:
-            tmp_path = await download_content(episode.image.source_url, file_ext="jpg")
-        except NotFoundError:
-            return None
-
-        ffmpeg.ffmpeg_preparation(src_path=tmp_path, ffmpeg_params=["-vf", "scale=600:-1"])
-        return tmp_path
-
-    async def _upload_cover(self, episode: Episode, tmp_path: Path) -> str:
-        attempt = 1
-        while attempt <= self.MAX_UPLOAD_ATTEMPT:
-            if remote_path := self.storage.upload_file(
-                src_path=str(tmp_path),
-                dst_path=settings.S3_BUCKET_EPISODE_IMAGES_PATH,
-                filename=Episode.generate_image_name(episode.source_id),
-            ):
-                return remote_path
-
-            attempt += 1
-            await asyncio.sleep(attempt)
-
-        raise MaxAttemptsReached("Couldn't upload cover for episode")

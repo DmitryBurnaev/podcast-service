@@ -91,6 +91,26 @@ class StorageS3:
         logger.info("File %s successful uploaded. Remote path: %s", filename, dst_path)
         return dst_path
 
+    def download_file(self, src_path: str | Path, dst_path: str | Path) -> str | None:
+        """
+        Download file from S3 storage
+
+        # Download s3://bucket/key to /tmp/myfile
+        client.download_file('bucket', 'key', '/tmp/myfile')
+        """
+        code, _ = self.__async_call(
+            self.s3.download_file,
+            Filename=str(src_path),
+            Bucket=settings.S3_BUCKET_NAME,
+            Key=dst_path,
+            DestinationPath=dst_path,
+        )
+        if code != self.CODE_OK:
+            return None
+
+        logger.info("File %s successful downloaded. Local path: %s", dst_path, dst_path)
+        return dst_path
+
     def copy_file(self, src_path: str, dst_path: str) -> str | None:
         """Upload file to S3 storage"""
         code, _ = self.__call(
