@@ -13,7 +13,8 @@ from core import settings
 from modules.media.models import File
 from modules.podcast.models import Episode, Podcast, Cookie
 from common.enums import EpisodeStatus, SourceType
-from modules.podcast.tasks import DownloadEpisodeTask, DownloadEpisodeImageTask
+from modules.podcast.tasks import DownloadEpisodeTask
+from modules.podcast.tasks.process import DownloadEpisodeImageTask
 from modules.podcast.tasks.base import TaskResultCode
 from modules.providers.utils import download_process_hook, SOURCE_CFG_MAP
 from tests.api.test_base import BaseTestCase

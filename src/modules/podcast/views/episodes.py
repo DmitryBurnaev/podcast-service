@@ -178,7 +178,6 @@ class UploadedEpisodesAPIView(BaseHTTPEndpoint):
                 image_file = await File.create(
                     self.db_session,
                     FileType.IMAGE,
-                    available=True,
                     owner_id=self.request.user.id,
                     path=cover["path"],
                     size=cover["size"],
@@ -245,7 +244,7 @@ class EpisodeRUDAPIView(BaseHTTPEndpoint):
             raise InvalidRequestError(f"Can't remove episode in '{episode.status}' status")
 
         await episode.delete(self.db_session)
-        return self._response(None, status_code=status.HTTP_204_NO_CONTENT)
+        return self._response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 class EpisodeDownloadAPIView(BaseHTTPEndpoint):

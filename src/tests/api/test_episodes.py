@@ -13,7 +13,11 @@ from modules.providers.exceptions import SourceFetchError
 from modules.podcast import tasks
 from modules.podcast.models import Episode, Podcast, EpisodeChapter
 from modules.auth.models import User
-from modules.podcast.tasks import DownloadEpisodeTask, UploadedEpisodeTask, DownloadEpisodeImageTask
+from modules.podcast.tasks import (
+    DownloadEpisodeTask,
+    UploadedEpisodeTask,
+    DownloadEpisodeImageTask,
+)
 from tests.api.test_base import BaseTestAPIView
 from tests.helpers import (
     get_source_id,
@@ -176,7 +180,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
         )
         mocked_episode_creator.create.assert_called_once()
         mocked_rq_queue.enqueue.assert_called_with(
-            tasks.DownloadEpisodeImageTask(),
+            DownloadEpisodeImageTask(),
             episode_id=episode.id,
             job_id=DownloadEpisodeImageTask.get_job_id(episode_id=episode.id),
         )
@@ -205,7 +209,7 @@ class TestEpisodeListCreateAPIView(BaseTestAPIView):
                 "kwargs": {"episode_id": episode.id, "job_id": job_download_id},
             },
             {
-                "args": (tasks.DownloadEpisodeImageTask(),),
+                "args": (DownloadEpisodeImageTask(),),
                 "kwargs": {"episode_id": episode.id, "job_id": job_download_image_id},
             },
         ]
