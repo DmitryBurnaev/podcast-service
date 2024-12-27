@@ -153,12 +153,15 @@ def ffmpeg_set_metadata(
     """
     Generates text-like metadata and apply to the target audio, placed on src_path
 
-    chapters_tpl =
+    # =====
+    # Example input metadata
+        (set via `ffmpeg -i file.mp3 -i metadata.txt -map_metadata 1 -codec copy output.mp3`)
+    # =====
+
     # ;FFMETADATA1
     # title=bike\\shed
     # ;this is a comment
     # artist=FFmpeg troll team
-
     # [CHAPTER]
     # TIMEBASE=1/1000
     # START=0
@@ -166,6 +169,9 @@ def ffmpeg_set_metadata(
     # END=60000
     # title=chapter #1
 
+    # =====
+    # Example metadata (got via ffmpeg -i file.mp3 -ffmetadata):
+    # =====
     # Chapter #0:0: start 0.000000, end 440.000000
     #   Metadata:
     #     title           : chapter-1
