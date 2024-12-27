@@ -26,11 +26,7 @@ class BaseEpisodePostProcessTask(RQTask):
         try:
             code = await self.perform_run(episode_id)
         except Exception as exc:
-            logger.exception(
-                "Unable to upload episode's image: episode %s | error: %r",
-                episode_id,
-                exc,
-            )
+            logger.exception("Unable to process episode: episode %s | error: %r", episode_id, exc)
             return TaskResultCode.ERROR
 
         return code
@@ -105,7 +101,7 @@ class ApplyMetadataEpisodeTask(BaseEpisodePostProcessTask):
 
     async def perform_run(self, episode_id: int) -> TaskResultCode:
         # getting episode from DB
-        episode: Episode = await Episode.async_get(self.db_session, episode_id=episode_id)
+        episode: Episode = await Episode.async_get(self.db_session, id=int(episode_id))
         if not episode:
             logger.error("EpisodeMetaData %s: unable to find episode", episode_id)
             return TaskResultCode.ERROR

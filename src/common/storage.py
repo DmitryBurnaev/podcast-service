@@ -98,12 +98,11 @@ class StorageS3:
         # Download s3://bucket/key to /tmp/myfile
         client.download_file('bucket', 'key', '/tmp/myfile')
         """
-        code, _ = self.__async_call(
+        code, _ = self.__call(
             self.s3.download_file,
-            Filename=str(src_path),
+            Filename=dst_path,
             Bucket=settings.S3_BUCKET_NAME,
-            Key=dst_path,
-            DestinationPath=dst_path,
+            Key=str(src_path),
         )
         if code != self.CODE_OK:
             return None
