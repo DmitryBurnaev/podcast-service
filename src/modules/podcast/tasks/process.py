@@ -136,7 +136,8 @@ class ApplyMetadataEpisodeTask(BaseEpisodePostProcessTask):
 
     async def _download_episode(self, episode: Episode) -> Path:
         """Download episode from S3 with our client and returns path to tmp file with it"""
-        tmp_path = settings.TMP_AUDIO_PATH / f"tmp_episode_{episode.source_id}.mp3"
+        # tmp_path = settings.TMP_AUDIO_PATH / f"tmp_episode_{episode.source_id}.mp3"
+        tmp_path = Path(".misc") / "audio" / f"tmp_episode_{episode.source_id}.mp3"
         result_path = self.storage.download_file(
             src_path=str(episode.audio.path),
             dst_path=str(tmp_path),

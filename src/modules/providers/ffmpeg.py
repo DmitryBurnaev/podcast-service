@@ -223,6 +223,8 @@ title={title}
     with tempfile.NamedTemporaryFile() as tmp_metadata_file:
         tmp_metadata_file.write(result_metadata.encode())
         tmp_metadata_file.flush()
+        print(tmp_metadata_file.name)
+        print(tmp_metadata_file.read())
 
         execute_ffmpeg(
             command=[
