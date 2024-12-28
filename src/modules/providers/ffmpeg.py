@@ -220,25 +220,26 @@ title={title}
 
     logger.debug("Generated metadata for the file %s:\n%s", src_path, result_metadata)
 
-    with tempfile.NamedTemporaryFile() as tmp_metadata_file:
-        tmp_metadata_file.write(result_metadata.encode())
+    with tempfile.NamedTemporaryFile("wt") as tmp_metadata_file:
+        tmp_metadata_file.write(result_metadata)
         tmp_metadata_file.flush()
+        tmp_metadata_file.seek(0)
         print(tmp_metadata_file.name)
         print(tmp_metadata_file.read())
-
+        tmp_metadata_file.seek(0)
         execute_ffmpeg(
             command=[
                 "ffmpeg",
                 "-y",
                 "-i",
-                src_path,
+                str(src_path),
                 "-i",
                 tmp_metadata_file.name,
                 "-map_metadata",
                 "1",
                 "-codec",
                 "copy",
-                src_path,
+                str(src_path),
             ]
         )
 
