@@ -110,20 +110,21 @@ class ApplyMetadataEpisodeTask(BaseEpisodePostProcessTask):
             logger.error("EpisodeMetaData %r: unable to find episode chapters (skipping)", episode)
             return TaskResultCode.SKIP
 
-        logger.info(f"Applying metadata for episode %s", episode_id)
-        logger.debug(f"EpisodeMetaData: %r | got chapters: %s", episode, episode.list_chapters)
+        logger.info("Applying metadata for episode %s", episode_id)
+        logger.debug("EpisodeMetaData: %r | got chapters: %s", episode, episode.list_chapters)
 
         # downloading already exists file from S3 storage
         local_file_path = await self._download_episode(episode)
-        logger.debug(f"EpisodeMetaData: %r | episode downloaded: %r", episode, local_file_path)
+        logger.debug("EpisodeMetaData: %r | episode downloaded: %r", episode, local_file_path)
 
-        # apply prepared metadata to the downloaded fiel
+        # apply prepared metadata to the downloaded file
         ffmpeg.ffmpeg_set_metadata(
             src_path=local_file_path,
+            episode_id=episode_id,
             episode_title=episode.title,
             episode_chapters=episode.list_chapters,
         )
-        logger.debug("EpisodeMetaData: %r | applied metadata %s", episode, episode.list_chapters)
+        logger.info("EpisodeMetaData: %r | applied metadata %s", episode, episode.list_chapters)
 
         # upload file back to S3
         remote_path = await self._upload_episode(episode=episode, tmp_path=local_file_path)
@@ -136,13 +137,14 @@ class ApplyMetadataEpisodeTask(BaseEpisodePostProcessTask):
 
     async def _download_episode(self, episode: Episode) -> Path:
         """Download episode from S3 with our client and returns path to tmp file with it"""
-        # tmp_path = settings.TMP_AUDIO_PATH / f"tmp_episode_{episode.source_id}.mp3"
-        tmp_path = Path(".misc") / "audio" / f"tmp_episode_{episode.source_id}.mp3"
-        result_path = tmp_path
-        # result_path = self.storage.download_file(
-        #     src_path=str(episode.audio.path),
-        #     dst_path=str(tmp_path),
-        # )
+        # TODO: remove debug instructions
+        tmp_path = settings.TMP_AUDIO_PATH / f"tmp_episode_{episode.source_id}.mp3"
+        # tmp_path = Path(".misc") / "audio" / f"tmp_episode_{episode.source_id}.mp3"
+        # result_path = tmp_path
+        result_path = self.storage.download_file(
+            src_path=str(episode.audio.path),
+            dst_path=str(tmp_path),
+        )
         if result_path is None:
             raise FileNotFoundError(f"Episode {episode.id} could not be downloaded")
 

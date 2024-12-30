@@ -225,6 +225,7 @@ class DownloadEpisodeTask(RQTask):
             ffmpeg.ffmpeg_preparation(src_path=tmp_audio_path)
             ffmpeg.ffmpeg_set_metadata(
                 src_path=tmp_audio_path,
+                episode_id=episode.id,
                 episode_title=episode.title,
                 episode_chapters=episode.list_chapters or [],
             )
