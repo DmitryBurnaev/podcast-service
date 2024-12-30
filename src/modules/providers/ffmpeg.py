@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import shutil
 import uuid
 import hashlib
 import tempfile
@@ -148,7 +149,10 @@ def execute_ffmpeg(command: list[str]) -> str:
 
 
 def ffmpeg_set_metadata(
-    src_path: str | Path, episode_title: str, episode_chapters: list[EpisodeChapter]
+    src_path: str | Path,
+    episode_id: int,
+    episode_title: str,
+    episode_chapters: list[EpisodeChapter],
 ) -> None:
     """
     Generates text-like metadata and apply to the target audio, placed on src_path
@@ -157,41 +161,40 @@ def ffmpeg_set_metadata(
     # Example input metadata
         (set via `ffmpeg -i file.mp3 -i metadata.txt -map_metadata 1 -codec copy output.mp3`)
     # =====
+    ;FFMETADATA1
+    title=bike\\shed
+    artist=FFmpeg troll team
 
-    # ;FFMETADATA1
-    # title=bike\\shed
-    # ;this is a comment
-    # artist=FFmpeg troll team
-    # [CHAPTER]
-    # TIMEBASE=1/1000
-    # START=0
-    # #chapter ends at 0:01:00
-    # END=60000
-    # title=chapter #1
+    [CHAPTER]
+    TIMEBASE=1/1000
+    START=0
+    #chapter ends at 0:01:00
+    END=60000
+    title=chapter #1
 
     # =====
     # Example metadata (got via ffmpeg -i file.mp3 -ffmetadata):
     # =====
-    # Chapter #0:0: start 0.000000, end 440.000000
-    #   Metadata:
-    #     title           : chapter-1
-    # Chapter #0:1: start 440.000000, end 4306.000000
-    #   Metadata:
-    #     title           : chapter-2
-    # Chapter #0:2: start 4306.000000, end 6195.000000
-    #   Metadata:
-    #     title           : chapter-3
-    # Chapter #0:3: start 6195.000000, end 7264.000000
-    #   Metadata:
-    #     title           : chapter-4
-    # Chapter #0:4: start 7264.000000, end 8661.000000
-    #   Metadata:
-    #     title           : chapter-5
-    # Chapter #0:5: start 8661.000000, end 11628.000000
-    #   Metadata:
-    #     title           : finish-chapter-6
-    #
-    # Stream #0:0: Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, stereo, fltp, 128 kb/s
+    Chapter #0:0: start 0.000000, end 440.000000
+      Metadata:
+        title           : chapter-1
+    Chapter #0:1: start 440.000000, end 4306.000000
+      Metadata:
+        title           : chapter-2
+    Chapter #0:2: start 4306.000000, end 6195.000000
+      Metadata:
+        title           : chapter-3
+    Chapter #0:3: start 6195.000000, end 7264.000000
+      Metadata:
+        title           : chapter-4
+    Chapter #0:4: start 7264.000000, end 8661.000000
+      Metadata:
+        title           : chapter-5
+    Chapter #0:5: start 8661.000000, end 11628.000000
+      Metadata:
+        title           : finish-chapter-6
+
+    Stream #0:0: Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, stereo, fltp, 128 kb/s
     """
     chapter_tpl = """
 [CHAPTER]
@@ -203,46 +206,51 @@ title={title}
     metadata_tpl = """
 ;FFMETADATA1
 title={title}
-
 {chapters_rendered}
-    """
+    """.lstrip()
     logger.info(
         "Start setting metadata for the file %s | chapters: %i", src_path, len(episode_chapters)
     )
-
+    tmp_audio_file = settings.TMP_AUDIO_PATH / f"tmp_{src_path.name}"
     chapters_rendered = ""
     for chapter in episode_chapters:
-        chapters_rendered += chapter_tpl.format(
+        chapters_rendered += chapter_tpl.rstrip().format(
             start=chapter.start * 1000, end=chapter.end * 1000, title=chapter.title
         )
 
     result_metadata = metadata_tpl.format(title=episode_title, chapters_rendered=chapters_rendered)
 
     logger.debug("Generated metadata for the file %s:\n%s", src_path, result_metadata)
+    metadata_file_path = settings.TMP_META_PATH / f"episode_{episode_id}.txt"
+    metadata_file_path.write_text(result_metadata)
+    metadata_str = execute_ffmpeg(
+        command=[
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(src_path),
+            "-i",
+            metadata_file_path.absolute(),
+            "-map_metadata",
+            "1",
+            "-codec",
+            "copy",
+            str(tmp_audio_file),
+        ]
+    )
+    logger.debug("Generated metadata for the file %s:\n%s", src_path, metadata_str)
+    if episode_title not in metadata_str:
+        raise RuntimeError(f"Episode title '{episode_title}' not found in metadata")
 
-    with tempfile.NamedTemporaryFile("wt") as tmp_metadata_file:
-        tmp_metadata_file.write(result_metadata)
-        tmp_metadata_file.flush()
-        tmp_metadata_file.seek(0)
-        print(tmp_metadata_file.name)
-        print(tmp_metadata_file.read())
-        tmp_metadata_file.seek(0)
-        execute_ffmpeg(
-            command=[
-                "ffmpeg",
-                "-y",
-                "-i",
-                str(src_path),
-                "-i",
-                tmp_metadata_file.name,
-                "-map_metadata",
-                "1",
-                "-codec",
-                "copy",
-                str(src_path),
-            ]
-        )
+    logger.info("Finished setting metadata for the file %s", tmp_audio_file)
+    # TODO: remove debug instruction before
+    shutil.copy(tmp_audio_file, settings.PROJECT_ROOT_DIR / ".misc" / tmp_audio_file.name)
+    shutil.copy(metadata_file_path, settings.PROJECT_ROOT_DIR / ".misc" / metadata_file_path.name)
+    # metadata_file_path.unlink()
 
+    logger.debug("Moving updated file: %s -> %s", src_path, tmp_audio_file)
+    podcast_utils.delete_file(src_path)
+    shutil.copy(tmp_audio_file, src_path)
     logger.info("Metadata was set for the file %s", src_path)
 
 
@@ -270,9 +278,6 @@ def audio_metadata(file_path: Path | str) -> AudioMetaData:
     find_results = find_results.groupdict()
     duration = _human_time_to_sec(find_results.get("duration", "").replace("Duration:", ""))
     metadata = _raw_meta_to_dict((find_results.get("meta") or "").replace("Metadata:\n", ""))
-    import json
-
-    print(json.dumps(metadata, indent=4))
 
     logger.debug(
         "FFMPEG success done extracting duration from the file %s:\nmeta: %s\nduration: %s",
@@ -363,174 +368,3 @@ def _human_time_to_sec(time_str: str) -> int:
         res_time += round(float(time_item), 0) * pow(60, index)
 
     return int(res_time)
-
-
-# ;FFMETADATA1
-#     Writing frontend=StaxRip v1.7.0.6
-#     encoder=Lavf59.27.100
-#     [CHAPTER]
-#     TIMEBASE=1/1000000000
-#     START=0
-#     END=921712455555
-#     title=Opening Credits/Christmas Eve
-#     [CHAPTER]
-#     TIMEBASE=1/1000000000
-#     START=921712455555
-#     END=1228518955555
-#     title="One More Sleep Till Christmas"
-#     [CHAPTER]
-#     TIMEBASE=1/1000000000
-#     START=1228518955555
-#     END=1771227788888
-#     title="Marley & Marley"
-#     [CHAPTER]
-#     TIMEBASE=1/1000000000
-#     START=1771227788888
-#     END=2633422455555
-#     title=The Ghost of Christmas Past
-#     [CHAPTER]
-#     TIMEBASE=1/1000000000
-#     START=2633422455555
-#     END=2910115533333
-#     title=A Sad Goodbye
-#     [CHAPTER]
-#     TIMEBASE=1/1000000000
-#     START=2910115533333
-#     END=3068398666666
-#     title=The Ghost of Christmas Present
-#     [CHAPTER]
-#     TIMEBASE=1/1000000000
-#     START=3068398666666
-#     END=3397519122222
-#     title="It Feels Like Christmas"
-#     [CHAPTER]
-#     TIMEBASE=1/1000000000
-#     START=3397519122222
-#     END=3924378788888
-#     title=Christmas at the Cratchits'
-#     [CHAPTER]
-#     TIMEBASE=1/1000000000
-#     START=3924378788888
-#     END=4485105622222
-#     title=The Ghost of Christmas Yet to Come
-#     [CHAPTER]
-#     TIMEBASE=1/1000000000
-#     START=4485105622222
-#     END=5339042000000
-#     title=A New Man/End Credits
-
-
-# {
-#         "chapters": [
-#             {
-#                 "id": 2759040398,
-#                 "time_base": "1/1000000000",
-#                 "start": 0,
-#                 "start_time": "0.000000",
-#                 "end": 921712455555,
-#                 "end_time": "921.712456",
-#                 "tags": {
-#                     "title": "Opening Credits/Christmas Eve"
-#                 }
-#             },
-#             {
-#                 "id": 2861267123,
-#                 "time_base": "1/1000000000",
-#                 "start": 921712455555,
-#                 "start_time": "921.712456",
-#                 "end": 1228518955555,
-#                 "end_time": "1228.518956",
-#                 "tags": {
-#                     "title": "\"One More Sleep Till Christmas\""
-#                 }
-#             },
-#             {
-#                 "id": 664919191,
-#                 "time_base": "1/1000000000",
-#                 "start": 1228518955555,
-#                 "start_time": "1228.518956",
-#                 "end": 1771227788888,
-#                 "end_time": "1771.227789",
-#                 "tags": {
-#                     "title": "\"Marley & Marley\""
-#                 }
-#             },
-#             {
-#                 "id": 1926087814,
-#                 "time_base": "1/1000000000",
-#                 "start": 1771227788888,
-#                 "start_time": "1771.227789",
-#                 "end": 2633422455555,
-#                 "end_time": "2633.422456",
-#                 "tags": {
-#                     "title": "The Ghost of Christmas Past"
-#                 }
-#             },
-#             {
-#                 "id": 826733475,
-#                 "time_base": "1/1000000000",
-#                 "start": 2633422455555,
-#                 "start_time": "2633.422456",
-#                 "end": 2910115533333,
-#                 "end_time": "2910.115533",
-#                 "tags": {
-#                     "title": "A Sad Goodbye"
-#                 }
-#             },
-#             {
-#                 "id": 2854997915,
-#                 "time_base": "1/1000000000",
-#                 "start": 2910115533333,
-#                 "start_time": "2910.115533",
-#                 "end": 3068398666666,
-#                 "end_time": "3068.398667",
-#                 "tags": {
-#                     "title": "The Ghost of Christmas Present"
-#                 }
-#             },
-#             {
-#                 "id": 2195307441,
-#                 "time_base": "1/1000000000",
-#                 "start": 3068398666666,
-#                 "start_time": "3068.398667",
-#                 "end": 3397519122222,
-#                 "end_time": "3397.519122",
-#                 "tags": {
-#                     "title": "\"It Feels Like Christmas\""
-#                 }
-#             },
-#             {
-#                 "id": 3135875226,
-#                 "time_base": "1/1000000000",
-#                 "start": 3397519122222,
-#                 "start_time": "3397.519122",
-#                 "end": 3924378788888,
-#                 "end_time": "3924.378789",
-#                 "tags": {
-#                     "title": "Christmas at the Cratchits'"
-#                 }
-#             },
-#             {
-#                 "id": 1030909628,
-#                 "time_base": "1/1000000000",
-#                 "start": 3924378788888,
-#                 "start_time": "3924.378789",
-#                 "end": 4485105622222,
-#                 "end_time": "4485.105622",
-#                 "tags": {
-#                     "title": "The Ghost of Christmas Yet to Come"
-#                 }
-#             },
-#             {
-#                 "id": 1941534124,
-#                 "time_base": "1/1000000000",
-#                 "start": 4485105622222,
-#                 "start_time": "4485.105622",
-#                 "end": 5339042000000,
-#                 "end_time": "5339.042000",
-#                 "tags": {
-#                     "title": "A New Man/End Credits"
-#                 }
-#             }
-#         ]
-#     }
