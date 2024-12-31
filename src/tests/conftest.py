@@ -8,6 +8,7 @@ from typing import Any, Generator
 from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
+import pytest_asyncio
 import sqlalchemy
 from sqlalchemy.engine import URL
 from sqlalchemy.util import concurrency
@@ -85,7 +86,7 @@ async def client() -> PodcastTestClient:
             yield client
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def dbs() -> AsyncSession:
     async with make_db_session() as db_session:
         yield db_session
@@ -131,7 +132,7 @@ def db_prep():
     conn.close()
 
 
-@pytest.fixture(autouse=True, scope="session")
+@pytest_asyncio.fixture(autouse=True, scope="session")
 async def db_migration():
     def create_tables():
         db_prep()
@@ -139,7 +140,6 @@ async def db_migration():
         engine = sqlalchemy.create_engine(settings.DATABASE_DSN)
         database.ModelBase.metadata.create_all(engine)
 
-    create_tables()
     await concurrency.greenlet_spawn(create_tables)
     print("DB and tables were successful created.")
 
@@ -243,12 +243,12 @@ def user_data() -> tuple[str, str]:
     return get_user_data()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def user(dbs) -> User:
     return await create_user(dbs)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def user_session(user: User, dbs: AsyncSession) -> UserSession:
     return await create_user_session(dbs, user)
 
@@ -263,7 +263,7 @@ def episode_data(podcast: Podcast) -> dict[str, Any]:
     return get_episode_data(podcast=podcast)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def podcast(dbs: AsyncSession, user: User, podcast_data: dict) -> Podcast:
     podcast_data["owner_id"] = user.id
     publish_id = podcast_data["publish_id"]
@@ -288,7 +288,7 @@ async def podcast(dbs: AsyncSession, user: User, podcast_data: dict) -> Podcast:
     return podcast
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def cookie(user: User, dbs: AsyncSession) -> Cookie:
     cookie_data = {
         "source_type": SourceType.YANDEX,
@@ -300,7 +300,7 @@ async def cookie(user: User, dbs: AsyncSession) -> Cookie:
     return cookie
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def image_file(user: User, dbs: AsyncSession) -> File:
     return await File.create(
         dbs,
@@ -312,14 +312,14 @@ async def image_file(user: User, dbs: AsyncSession) -> File:
     )
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def rss_file(user: User, dbs: AsyncSession) -> File:
     return await File.create(
         dbs, FileType.RSS, owner_id=user.id, path="/remote/path/to/rss_file.xml", db_commit=True
     )
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def episode(podcast: Podcast, user: User, dbs: AsyncSession) -> Episode:
     episode_data = get_episode_data(podcast=podcast, creator=user)
     source_id = get_source_id()
@@ -349,7 +349,7 @@ async def episode(podcast: Podcast, user: User, dbs: AsyncSession) -> Episode:
     return episode
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def user_invite(user: User, dbs: AsyncSession) -> UserInvite:
     return await UserInvite.async_create(
         dbs,
@@ -361,7 +361,7 @@ async def user_invite(user: User, dbs: AsyncSession) -> UserInvite:
     )
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def user_access_token(user: User, dbs: AsyncSession) -> UserAccessToken:
     return await UserAccessToken.async_create(
         dbs,

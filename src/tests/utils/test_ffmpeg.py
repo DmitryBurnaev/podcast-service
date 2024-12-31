@@ -5,12 +5,19 @@ from subprocess import CompletedProcess
 from unittest.mock import patch, Mock
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import settings
 from common.enums import EpisodeStatus
+from modules.podcast.models import Episode
 from modules.podcast.utils import post_processing_process_hook
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
-from modules.providers.ffmpeg import ffmpeg_preparation, AudioMetaData, audio_metadata
+from modules.providers.ffmpeg import (
+    ffmpeg_preparation,
+    AudioMetaData,
+    audio_metadata,
+    ffmpeg_set_metadata,
+)
 from tests.api.test_base import BaseTestCase
 from tests.mocks import MockProcess
 
@@ -259,3 +266,47 @@ Input #0, mp3, from '01.AudioTrack.mp3':
         assert exc.value.details == (
             "FFMPEG failed with errors: " "Command 'ffmpeg' returned non-zero exit status 1."
         )
+
+    @pytest.mark.asyncio
+    @patch("subprocess.run")
+    async def test_set_metadata__ffmpeg__ok(
+        self,
+        mocked_run: Mock,
+        dbs: AsyncSession,
+        episode: Episode,
+    ):
+        mocked_run.return_value = CompletedProcess([], returncode=0, stdout=b"Success")
+
+        await episode.update(
+            dbs,
+            title="Episode with chapters",
+            chapters=[{"title": "Chapter1", "start": 1, "end": 10}],
+        )
+        await dbs.refresh(episode)
+        ffmpeg_set_metadata(
+            self.src_path,
+            episode_id=episode.id,
+            episode_title=episode.title,
+            episode_chapters=episode.chapters,
+        )
+        metadata_file_path = settings.TMP_META_PATH / f"episode_{episode.id}.txt"
+        self.assert_called_with(
+            mocked_run,
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                self.src_path,
+                "-i",
+                metadata_file_path.absolute(),
+                "-map_metadata",
+                "1",
+                "-codec",
+                "copy",
+                self.tmp_filename,
+            ],
+            check=True,
+            timeout=settings.FFMPEG_TIMEOUT,
+        )
+
+        assert not os.path.exists(self.tmp_filename), f"File wasn't removed: {self.tmp_filename}"
