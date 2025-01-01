@@ -14,7 +14,7 @@ from common.exceptions import (
     UserCancellationError,
 )
 from modules.media.models import File
-from modules.podcast.models import Episode, cookie_file_ctx
+from modules.podcast.models import Episode, cookie_file_ctx, Podcast
 from modules.podcast.tasks.base import RQTask, TaskResultCode
 from modules.podcast.tasks.rss import GenerateRSSTask
 from modules.providers import utils as provider_utils
@@ -100,7 +100,7 @@ class DownloadEpisodeTask(RQTask):
         """
 
         episode: Episode = await Episode.async_get(self.db_session, id=episode_id)
-
+        podcast: Podcast = await Podcast.async_get(self.db_session, id=episode.podcast_id)
         logger.info(
             "=== [%s] START downloading process URL: %s ===",
             episode.source_id,
@@ -113,7 +113,7 @@ class DownloadEpisodeTask(RQTask):
         await self._update_episodes(episode, update_data={"status": Episode.Status.DOWNLOADING})
         self.tmp_audio_path = await self._download_episode(episode)
 
-        await self._process_file(episode, self.tmp_audio_path)
+        await self._process_file(podcast, episode, self.tmp_audio_path)
         remote_file_size = await self._upload_file(episode, self.tmp_audio_path)
         await self._update_episodes(
             episode,
@@ -217,7 +217,7 @@ class DownloadEpisodeTask(RQTask):
             self.storage.delete_file(audio_path)
 
     @staticmethod
-    async def _process_file(episode: Episode, tmp_audio_path: Path) -> None:
+    async def _process_file(podcast: Podcast, episode: Episode, tmp_audio_path: Path) -> None:
         """Postprocessing for downloaded audio file"""
         source_config: SourceConfig = SOURCE_CFG_MAP[episode.source_type]
         if source_config.need_postprocessing:
@@ -225,6 +225,7 @@ class DownloadEpisodeTask(RQTask):
             ffmpeg.ffmpeg_preparation(src_path=tmp_audio_path)
             ffmpeg.ffmpeg_set_metadata(
                 src_path=tmp_audio_path,
+                podcast_name=podcast.name,
                 episode_id=episode.id,
                 episode_title=episode.title,
                 episode_chapters=episode.list_chapters or [],

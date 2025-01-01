@@ -149,7 +149,8 @@ def execute_ffmpeg(command: list[str]) -> str:
 
 
 def ffmpeg_set_metadata(
-    src_path: str | Path,
+    src_path: Path,
+    podcast_name: str,
     episode_id: int,
     episode_title: str,
     episode_chapters: list[EpisodeChapter],
@@ -205,7 +206,9 @@ title={title}
     """
     metadata_tpl = """
 ;FFMETADATA1
-title={title}
+genre=Podcast
+album={podcast_name}
+title={episode_title}
 {chapters_rendered}
     """.lstrip()
     logger.info(
@@ -218,7 +221,11 @@ title={title}
             start=chapter.start * 1000, end=chapter.end * 1000, title=chapter.title
         )
 
-    result_metadata = metadata_tpl.format(title=episode_title, chapters_rendered=chapters_rendered)
+    result_metadata = metadata_tpl.format(
+        podcast_name=podcast_name,
+        episode_title=episode_title,
+        chapters_rendered=chapters_rendered,
+    )
 
     logger.debug("Generated metadata for the file %s:\n%s", src_path, result_metadata)
     metadata_file_path = settings.TMP_META_PATH / f"episode_{episode_id}.txt"
@@ -243,10 +250,12 @@ title={title}
         raise RuntimeError(f"Episode title '{episode_title}' not found in metadata")
 
     logger.info("Finished setting metadata for the file %s", tmp_audio_file)
+
     # TODO: remove debug instruction before
     shutil.copy(tmp_audio_file, settings.PROJECT_ROOT_DIR / ".misc" / tmp_audio_file.name)
     shutil.copy(metadata_file_path, settings.PROJECT_ROOT_DIR / ".misc" / metadata_file_path.name)
-    # metadata_file_path.unlink()
+    #
+    podcast_utils.delete_file(metadata_file_path)
 
     logger.debug("Moving updated file: %s -> %s", src_path, tmp_audio_file)
     podcast_utils.delete_file(src_path)

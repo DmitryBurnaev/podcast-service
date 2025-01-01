@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import settings
 from common.enums import EpisodeStatus
-from modules.podcast.models import Episode
+from modules.podcast.models import Episode, Podcast
 from modules.podcast.utils import post_processing_process_hook
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
 from modules.providers.ffmpeg import (
@@ -269,27 +269,59 @@ Input #0, mp3, from '01.AudioTrack.mp3':
 
     @pytest.mark.asyncio
     @patch("subprocess.run")
+    @patch("modules.podcast.utils.delete_file")
     async def test_set_metadata__ffmpeg__ok(
         self,
+        mocked_delete_file: Mock,
         mocked_run: Mock,
         dbs: AsyncSession,
         episode: Episode,
+        podcast: Podcast,
     ):
-        mocked_run.return_value = CompletedProcess([], returncode=0, stdout=b"Success")
+        ffmpeg_stdout = """
+Input #0, mp3, from 'test-episode.mp3':
+  Metadata:
+    genre           : Podcast
+    album           : Example Podcast
+    title           : Episode with chapters
+  Duration: 03:13:48.46, start: 0.025056, bitrate: 128 kb/s
+  Chapters:
+    Chapter #0:0: start 0.000000, end 440.000000
+      Metadata:
+        title           : MyChapter1 - intro
+    Chapter #0:1: start 440.000000, end 4306.000000
+      Metadata:
+        title           : MyChapter2 - main part
+    Chapter #0:3: start 4306.000000, end 6195.000000
+      Metadata:
+        title           : MyChapter3 - final
+            """
 
+        mocked_run.return_value = CompletedProcess([], returncode=0, stdout=ffmpeg_stdout.encode())
+
+        await podcast.update(dbs, name="Example Podcast")
         await episode.update(
             dbs,
             title="Episode with chapters",
-            chapters=[{"title": "Chapter1", "start": 1, "end": 10}],
+            chapters=[
+                {"title": "MyChapter1 - intro", "start": 1, "end": 440},
+                {"title": "MyChapter2 - main part", "start": 440, "end": 4306},
+                {"title": "MyChapter3 - final", "start": 4306, "end": 6195},
+            ],
         )
+        await dbs.commit()
+        await dbs.refresh(podcast)
         await dbs.refresh(episode)
+        metadata_file_path = settings.TMP_META_PATH / f"episode_{episode.id}.txt"
+
         ffmpeg_set_metadata(
-            self.src_path,
+            src_path=Path(self.src_path),
+            podcast_name=podcast.name,
             episode_id=episode.id,
             episode_title=episode.title,
-            episode_chapters=episode.chapters,
+            episode_chapters=episode.list_chapters,
         )
-        metadata_file_path = settings.TMP_META_PATH / f"episode_{episode.id}.txt"
+
         self.assert_called_with(
             mocked_run,
             [
@@ -309,4 +341,30 @@ Input #0, mp3, from '01.AudioTrack.mp3':
             timeout=settings.FFMPEG_TIMEOUT,
         )
 
-        assert not os.path.exists(self.tmp_filename), f"File wasn't removed: {self.tmp_filename}"
+        generated_metadata = metadata_file_path.read_text(encoding="utf-8")
+        expected_metadata = """
+;FFMETADATA1
+genre=Podcast
+album=Example Podcast
+title=Episode with chapters
+
+[CHAPTER]
+TIMEBASE=1/1000
+START=1000
+END=440000
+title=MyChapter1 - intro
+[CHAPTER]
+TIMEBASE=1/1000
+START=440000
+END=4306000
+title=MyChapter2 - main part
+[CHAPTER]
+TIMEBASE=1/1000
+START=4306000
+END=6195000
+title=MyChapter3 - final
+    """.lstrip()
+        assert generated_metadata == expected_metadata
+
+        mocked_delete_file.assert_any_call(Path(self.src_path))
+        mocked_delete_file.assert_any_call(Path(metadata_file_path))
