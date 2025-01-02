@@ -368,3 +368,117 @@ title=MyChapter3 - final
 
         mocked_delete_file.assert_any_call(Path(self.src_path))
         mocked_delete_file.assert_any_call(Path(metadata_file_path))
+
+    @pytest.mark.asyncio
+    @patch("subprocess.run")
+    async def test_set_metadata__ffmpeg__not_set_data__fail(
+        self,
+        mocked_run: Mock,
+        dbs: AsyncSession,
+        episode: Episode,
+        podcast: Podcast,
+    ):
+        ffmpeg_stdout = """
+Input #0, mp3, from 'test-episode.mp3':
+  Metadata:
+    genre           : Podcast
+  Duration: 03:13:48.46, start: 0.025056, bitrate: 128 kb/s
+            """
+
+        mocked_run.return_value = CompletedProcess([], returncode=0, stdout=ffmpeg_stdout.encode())
+
+        await podcast.update(dbs, name="Example Podcast")
+        await episode.update(
+            dbs,
+            title="Episode with chapters",
+            chapters=[
+                {"title": "MyChapter1 - intro", "start": 1, "end": 440},
+            ],
+        )
+        await dbs.commit()
+        await dbs.refresh(podcast)
+        await dbs.refresh(episode)
+
+        with pytest.raises(RuntimeError) as err:
+            ffmpeg_set_metadata(
+                src_path=Path(self.src_path),
+                podcast_name=podcast.name,
+                episode_id=episode.id,
+                episode_title=episode.title,
+                episode_chapters=episode.list_chapters,
+            )
+
+        assert err.value.args[0] == f"Episode title '{episode.title}' not found in metadata"
+
+    @pytest.mark.asyncio
+    @patch("subprocess.run")
+    @patch("modules.podcast.utils.delete_file")
+    async def test_set_metadata__ffmpeg__no_episode_chapters__ok(
+        self,
+        mocked_delete_file: Mock,
+        mocked_run: Mock,
+        dbs: AsyncSession,
+        episode: Episode,
+        podcast: Podcast,
+    ):
+        ffmpeg_stdout = """
+Input #0, mp3, from 'test-episode.mp3':
+  Metadata:
+    genre           : Podcast
+    album           : Example Podcast
+    title           : Episode with chapters
+  Duration: 03:13:48.46, start: 0.025056, bitrate: 128 kb/s
+            """
+
+        mocked_run.return_value = CompletedProcess([], returncode=0, stdout=ffmpeg_stdout.encode())
+
+        await podcast.update(dbs, name="Example Podcast")
+        await episode.update(
+            dbs,
+            title="Episode with chapters",
+            chapters=[],
+        )
+        await dbs.commit()
+        await dbs.refresh(podcast)
+        await dbs.refresh(episode)
+        metadata_file_path = settings.TMP_META_PATH / f"episode_{episode.id}.txt"
+
+        ffmpeg_set_metadata(
+            src_path=Path(self.src_path),
+            podcast_name=podcast.name,
+            episode_id=episode.id,
+            episode_title=episode.title,
+            episode_chapters=episode.list_chapters,
+        )
+
+        self.assert_called_with(
+            mocked_run,
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                self.src_path,
+                "-i",
+                metadata_file_path.absolute(),
+                "-map_metadata",
+                "1",
+                "-codec",
+                "copy",
+                self.tmp_filename,
+            ],
+            check=True,
+            timeout=settings.FFMPEG_TIMEOUT,
+        )
+
+        generated_metadata = metadata_file_path.read_text(encoding="utf-8")
+        expected_metadata = """
+;FFMETADATA1
+genre=Podcast
+album=Example Podcast
+title=Episode with chapters
+
+    """.lstrip()
+        assert generated_metadata == expected_metadata
+
+        mocked_delete_file.assert_any_call(Path(self.src_path))
+        mocked_delete_file.assert_any_call(Path(metadata_file_path))
