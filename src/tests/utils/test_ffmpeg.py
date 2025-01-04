@@ -110,7 +110,7 @@ class TestFFMPEG(BaseTestCase):
 
         assert not os.path.exists(self.tmp_filename), f"File wasn't removed: {self.tmp_filename}"
         assert exc.value.details == (
-            "FFMPEG failed with errors: " "Command 'ffmpeg' returned non-zero exit status 1."
+            "FFMPEG failed with errors: Command 'ffmpeg' returned non-zero exit status 1."
         )
         self.assert_hooks_calls(
             mocked_process_hook,
@@ -371,47 +371,6 @@ title=MyChapter3 - final
 
     @pytest.mark.asyncio
     @patch("subprocess.run")
-    async def test_set_metadata__ffmpeg__not_set_data__fail(
-        self,
-        mocked_run: Mock,
-        dbs: AsyncSession,
-        episode: Episode,
-        podcast: Podcast,
-    ):
-        ffmpeg_stdout = """
-Input #0, mp3, from 'test-episode.mp3':
-  Metadata:
-    genre           : Podcast
-  Duration: 03:13:48.46, start: 0.025056, bitrate: 128 kb/s
-            """
-
-        mocked_run.return_value = CompletedProcess([], returncode=0, stdout=ffmpeg_stdout.encode())
-
-        await podcast.update(dbs, name="Example Podcast")
-        await episode.update(
-            dbs,
-            title="Episode with chapters",
-            chapters=[
-                {"title": "MyChapter1 - intro", "start": 1, "end": 440},
-            ],
-        )
-        await dbs.commit()
-        await dbs.refresh(podcast)
-        await dbs.refresh(episode)
-
-        with pytest.raises(RuntimeError) as err:
-            ffmpeg_set_metadata(
-                src_path=Path(self.src_path),
-                podcast_name=podcast.name,
-                episode_id=episode.id,
-                episode_title=episode.title,
-                episode_chapters=episode.list_chapters,
-            )
-
-        assert err.value.args[0] == f"Episode title '{episode.title}' not found in metadata"
-
-    @pytest.mark.asyncio
-    @patch("subprocess.run")
     @patch("modules.podcast.utils.delete_file")
     async def test_set_metadata__ffmpeg__no_episode_chapters__ok(
         self,
@@ -482,3 +441,70 @@ title=Episode with chapters
 
         mocked_delete_file.assert_any_call(Path(self.src_path))
         mocked_delete_file.assert_any_call(Path(metadata_file_path))
+
+    @pytest.mark.asyncio
+    @patch("subprocess.run")
+    async def test_set_metadata__ffmpeg__not_set_data__fail(
+        self,
+        mocked_run: Mock,
+        dbs: AsyncSession,
+        episode: Episode,
+        podcast: Podcast,
+    ):
+        ffmpeg_stdout = """
+Input #0, mp3, from 'test-episode.mp3':
+  Metadata:
+    genre           : Podcast
+  Duration: 03:13:48.46, start: 0.025056, bitrate: 128 kb/s
+            """
+
+        mocked_run.return_value = CompletedProcess([], returncode=0, stdout=ffmpeg_stdout.encode())
+
+        await podcast.update(dbs, name="Example Podcast")
+        await episode.update(
+            dbs,
+            title="Episode with chapters",
+            chapters=[
+                {"title": "MyChapter1 - intro", "start": 1, "end": 440},
+            ],
+        )
+        await dbs.commit()
+        await dbs.refresh(podcast)
+        await dbs.refresh(episode)
+
+        with pytest.raises(RuntimeError) as err:
+            ffmpeg_set_metadata(
+                src_path=Path(self.src_path),
+                podcast_name=podcast.name,
+                episode_id=episode.id,
+                episode_title=episode.title,
+                episode_chapters=episode.list_chapters,
+            )
+
+        assert err.value.args[0] == f"Episode title '{episode.title}' not found in metadata"
+
+    @pytest.mark.asyncio
+    @patch("subprocess.run")
+    async def test_set_metadata__ffmpeg__set_data_error__fail(
+        self,
+        mocked_run: Mock,
+        dbs: AsyncSession,
+        episode: Episode,
+        podcast: Podcast,
+    ):
+        mocked_run.side_effect = subprocess.CalledProcessError(
+            1, "ffmpeg", output=b"Unprocessable input"
+        )
+        with pytest.raises(FFMPegPreparationError) as exc:
+            ffmpeg_set_metadata(
+                src_path=Path(self.src_path),
+                podcast_name=podcast.name,
+                episode_id=episode.id,
+                episode_title=episode.title,
+                episode_chapters=episode.list_chapters,
+            )
+
+        assert exc.value.details == (
+            "FFMPEG failed with errors: Command 'ffmpeg' returned non-zero exit status 1.\n"
+            "Unprocessable input"
+        )
