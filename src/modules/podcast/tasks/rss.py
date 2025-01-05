@@ -81,12 +81,8 @@ class GenerateRSSTask(RQTask):
             published_at__ne=None,
         )
         context = {"episodes": episodes, "settings": settings}
-        if settings.RENDER_CHAPTERS:
-            logger.info("Podcast #%i: Adding chapters", podcast.id)
-            rss_path = settings.TEMPLATE_PATH / "rss" / "feed_template_render_chapters.xml"
-        else:
-            logger.info("Podcast #%i: Skip chapters", podcast.id)
-            rss_path = settings.TEMPLATE_PATH / "rss" / "feed_template.xml"
+        logger.info("Podcast #%i: Adding chapters", podcast.id)
+        rss_path = settings.TEMPLATE_PATH / "rss" / "feed_template.xml"
 
         with open(rss_path, encoding="utf-8") as f:
             template = Template(f.read(), trim_blocks=True)
