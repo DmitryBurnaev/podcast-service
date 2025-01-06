@@ -269,10 +269,12 @@ Input #0, mp3, from '01.AudioTrack.mp3':
 
     @pytest.mark.asyncio
     @patch("subprocess.run")
+    @patch("modules.podcast.utils.move_file")
     @patch("modules.podcast.utils.delete_file")
     async def test_set_metadata__ffmpeg__ok(
         self,
         mocked_delete_file: Mock,
+        mocked_move_file: Mock,
         mocked_run: Mock,
         dbs: AsyncSession,
         episode: Episode,
@@ -284,6 +286,7 @@ Input #0, mp3, from 'test-episode.mp3':
     genre           : Podcast
     album           : Example Podcast
     title           : Episode with chapters
+    artist          : Test Artist
   Duration: 03:13:48.46, start: 0.025056, bitrate: 128 kb/s
   Chapters:
     Chapter #0:0: start 0.000000, end 440.000000
@@ -303,6 +306,7 @@ Input #0, mp3, from 'test-episode.mp3':
         await episode.update(
             dbs,
             title="Episode with chapters",
+            author="Test Artist",
             chapters=[
                 {"title": "MyChapter1 - intro", "start": 1, "end": 440},
                 {"title": "MyChapter2 - main part", "start": 440, "end": 4306},
@@ -314,13 +318,7 @@ Input #0, mp3, from 'test-episode.mp3':
         await dbs.refresh(episode)
         metadata_file_path = settings.TMP_META_PATH / f"episode_{episode.id}.txt"
 
-        ffmpeg_set_metadata(
-            src_path=Path(self.src_path),
-            podcast_name=podcast.name,
-            episode_id=episode.id,
-            episode_title=episode.title,
-            episode_chapters=episode.list_chapters,
-        )
+        ffmpeg_set_metadata(src_path=Path(self.src_path), metadata=episode.generate_metadata())
 
         self.assert_called_with(
             mocked_run,
@@ -347,6 +345,7 @@ Input #0, mp3, from 'test-episode.mp3':
 genre=Podcast
 album=Example Podcast
 title=Episode with chapters
+artist=Test Artist
 
 [CHAPTER]
 TIMEBASE=1/1000
@@ -366,15 +365,17 @@ title=MyChapter3 - final
     """.lstrip()
         assert generated_metadata == expected_metadata
 
-        mocked_delete_file.assert_any_call(Path(self.src_path))
-        mocked_delete_file.assert_any_call(Path(metadata_file_path))
+        mocked_move_file.assert_any_call(Path(self.tmp_filename), Path(self.src_path))
+        mocked_delete_file.assert_called_with(metadata_file_path)
 
     @pytest.mark.asyncio
     @patch("subprocess.run")
+    @patch("modules.podcast.utils.move_file")
     @patch("modules.podcast.utils.delete_file")
     async def test_set_metadata__ffmpeg__no_episode_chapters__ok(
         self,
         mocked_delete_file: Mock,
+        mocked_move_file: Mock,
         mocked_run: Mock,
         dbs: AsyncSession,
         episode: Episode,
@@ -386,6 +387,7 @@ Input #0, mp3, from 'test-episode.mp3':
     genre           : Podcast
     album           : Example Podcast
     title           : Episode with chapters
+    artist          : 
   Duration: 03:13:48.46, start: 0.025056, bitrate: 128 kb/s
             """
 
@@ -402,13 +404,7 @@ Input #0, mp3, from 'test-episode.mp3':
         await dbs.refresh(episode)
         metadata_file_path = settings.TMP_META_PATH / f"episode_{episode.id}.txt"
 
-        ffmpeg_set_metadata(
-            src_path=Path(self.src_path),
-            podcast_name=podcast.name,
-            episode_id=episode.id,
-            episode_title=episode.title,
-            episode_chapters=episode.list_chapters,
-        )
+        ffmpeg_set_metadata(src_path=Path(self.src_path), metadata=episode.generate_metadata())
 
         self.assert_called_with(
             mocked_run,
@@ -435,12 +431,13 @@ Input #0, mp3, from 'test-episode.mp3':
 genre=Podcast
 album=Example Podcast
 title=Episode with chapters
+artist=
 
     """.lstrip()
         assert generated_metadata == expected_metadata
 
-        mocked_delete_file.assert_any_call(Path(self.src_path))
-        mocked_delete_file.assert_any_call(Path(metadata_file_path))
+        mocked_move_file.assert_any_call(Path(self.tmp_filename), Path(self.src_path))
+        mocked_delete_file.assert_called_with(metadata_file_path)
 
     @pytest.mark.asyncio
     @patch("subprocess.run")
@@ -475,10 +472,7 @@ Input #0, mp3, from 'test-episode.mp3':
         with pytest.raises(RuntimeError) as err:
             ffmpeg_set_metadata(
                 src_path=Path(self.src_path),
-                podcast_name=podcast.name,
-                episode_id=episode.id,
-                episode_title=episode.title,
-                episode_chapters=episode.list_chapters,
+                metadata=episode.generate_metadata(),
             )
 
         assert err.value.args[0] == f"Episode title '{episode.title}' not found in metadata"
@@ -498,10 +492,7 @@ Input #0, mp3, from 'test-episode.mp3':
         with pytest.raises(FFMPegPreparationError) as exc:
             ffmpeg_set_metadata(
                 src_path=Path(self.src_path),
-                podcast_name=podcast.name,
-                episode_id=episode.id,
-                episode_title=episode.title,
-                episode_chapters=episode.list_chapters,
+                metadata=episode.generate_metadata(),
             )
 
         assert exc.value.details == (

@@ -7,7 +7,7 @@ from common.utils import download_content
 from common.storage import StorageS3
 from common.exceptions import NotFoundError, MaxAttemptsReached
 from modules.media.models import File
-from modules.podcast.models import Episode, Podcast
+from modules.podcast.models import Episode
 from modules.podcast.tasks import RQTask
 from modules.podcast.tasks.base import TaskResultCode
 from modules.podcast.utils import get_file_size
@@ -110,8 +110,6 @@ class ApplyMetadataEpisodeTask(BaseEpisodePostProcessTask):
             logger.error("EpisodeMetaData %r: unable to find episode chapters (skipping)", episode)
             return TaskResultCode.SKIP
 
-        podcast: Podcast = await Podcast.async_get(self.db_session, id=episode.podcast_id)
-
         logger.info("Applying metadata for episode %s", episode_id)
         logger.debug("EpisodeMetaData: %r | got chapters: %s", episode, episode.list_chapters)
 
@@ -122,10 +120,7 @@ class ApplyMetadataEpisodeTask(BaseEpisodePostProcessTask):
         # apply prepared metadata to the downloaded file
         ffmpeg.ffmpeg_set_metadata(
             src_path=local_file_path,
-            podcast_name=podcast.name,
-            episode_id=episode_id,
-            episode_title=episode.title,
-            episode_chapters=episode.list_chapters,
+            metadata=episode.generate_metadata(),
         )
         logger.info("EpisodeMetaData: %r | applied metadata %s", episode, episode.list_chapters)
 
@@ -140,10 +135,7 @@ class ApplyMetadataEpisodeTask(BaseEpisodePostProcessTask):
 
     async def _download_episode(self, episode: Episode) -> Path:
         """Download episode from S3 with our client and returns path to tmp file with it"""
-        # TODO: remove debug instructions
         tmp_path = settings.TMP_AUDIO_PATH / f"tmp_episode_{episode.source_id}.mp3"
-        # tmp_path = Path(".misc") / "audio" / f"tmp_episode_{episode.source_id}.mp3"
-        # result_path = tmp_path
         result_path = self.storage.download_file(
             src_path=str(episode.audio.path),
             dst_path=str(tmp_path),

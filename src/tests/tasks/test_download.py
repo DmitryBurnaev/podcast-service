@@ -58,16 +58,13 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
         file_path = await self._source_file(dbs, episode)
         result = await DownloadEpisodeTask(db_session=dbs).run(episode.id)
-        episode = await Episode.async_get(dbs, id=episode.id)
+        episode: Episode = await Episode.async_get(dbs, id=episode.id)
 
         mocked_youtube.download.assert_called_with([episode.watch_url])
         mocked_ffmpeg.assert_called_with(src_path=file_path)
         mocked_ffmpeg_set_meta.assert_called_with(
             src_path=file_path,
-            podcast_name=podcast.name,
-            episode_id=episode.id,
-            episode_title=episode.title,
-            episode_chapters=episode.chapters or [],
+            metadata=episode.generate_metadata(),
         )
         self.assert_called_with(
             mocked_s3.upload_file,
@@ -114,10 +111,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_ffmpeg.assert_called_with(src_path=file_path)
         mocked_ffmpeg_set_meta.assert_called_with(
             src_path=file_path,
-            podcast_name=podcast.name,
-            episode_id=episode.id,
-            episode_title=episode.title,
-            episode_chapters=episode.chapters or [],
+            metadata=episode.generate_metadata(),
         )
 
         episode = await Episode.async_get(dbs, id=episode.id)
@@ -150,10 +144,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_ffmpeg.assert_called_with(src_path=file_path)
         mocked_ffmpeg_set_meta.assert_called_with(
             src_path=file_path,
-            podcast_name=podcast.name,
-            episode_id=episode.id,
-            episode_title=episode.title,
-            episode_chapters=episode.chapters or [],
+            metadata=episode.generate_metadata(),
         )
 
         episode = await Episode.async_get(dbs, id=episode.id)
@@ -272,10 +263,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_ffmpeg.assert_called_with(src_path=file_path)
         mocked_ffmpeg_set_meta.assert_called_with(
             src_path=file_path,
-            podcast_name=podcast.name,
-            episode_id=episode.id,
-            episode_title=episode.title,
-            episode_chapters=episode.chapters or [],
+            metadata=episode.generate_metadata(),
         )
         self.assert_called_with(
             mocked_s3.upload_file,
