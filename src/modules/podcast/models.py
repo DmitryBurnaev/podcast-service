@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from hashlib import md5
 from pathlib import Path
 from functools import cached_property
-from typing import AsyncContextManager
+from typing import AsyncContextManager, NamedTuple
 
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -107,6 +107,14 @@ class EpisodeChapter:
         mm, ss = divmod(result_delta.total_seconds(), 60)
         hh, mm = divmod(mm, 60)
         return f"{int(hh):02d}:{int(mm):02d}:{int(ss):02d}"  # 123sec -> '00:02:03'
+
+
+class EpisodeMetadata(NamedTuple):
+    podcast_name: str
+    episode_id: int
+    episode_title: str
+    episode_author: str
+    episode_chapters: list[EpisodeChapter]
 
 
 class Episode(ModelBase, ModelMixin):
@@ -224,6 +232,16 @@ class Episode(ModelBase, ModelMixin):
     @classmethod
     def generate_image_name(cls, source_id: str) -> str:
         return f"{source_id}_{uuid.uuid4().hex}.png"
+
+    def generate_metadata(self) -> EpisodeMetadata:
+        """Prepares common object for setting metadata to episode's audio file"""
+        return EpisodeMetadata(
+            episode_id=self.id,
+            episode_title=self.title,
+            episode_chapters=self.list_chapters,
+            episode_author=self.author,
+            podcast_name=self.podcast.name,
+        )
 
     async def delete(self, db_session: AsyncSession, db_flush: bool = True):
         """Removing files associated with requested episode"""

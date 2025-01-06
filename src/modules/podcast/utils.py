@@ -1,6 +1,7 @@
 import dataclasses
 import json
 import os
+import shutil
 import time
 import logging
 import typing
@@ -58,6 +59,17 @@ def delete_file(filepath: str | Path) -> None:
         logger.warning("Could not delete file %s: %r", filepath, exc)
     else:
         logger.info("File %s deleted", filepath)
+
+
+def move_file(old_filepath: str | Path, new_file_path: str | Path) -> None:
+    """Move local file"""
+
+    try:
+        shutil.move(old_filepath, new_file_path)
+    except IOError as exc:
+        logger.warning("Could not move file %s -> %s: %r", old_filepath, new_file_path, exc)
+    else:
+        logger.info("File %s moved", new_file_path)
 
 
 def get_file_size(file_path: str | Path) -> int:

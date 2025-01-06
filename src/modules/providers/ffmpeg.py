@@ -1,22 +1,23 @@
-import logging
 import os
 import re
-import shutil
 import uuid
+import logging
 import hashlib
 import tempfile
 import subprocess
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, TYPE_CHECKING
 from contextlib import suppress
 from multiprocessing import Process
 
 from core import settings
 from common.enums import EpisodeStatus
 from common.exceptions import UserCancellationError
-from modules.podcast.models import EpisodeChapter
 from modules.podcast import utils as podcast_utils
 from modules.providers.exceptions import FFMPegPreparationError, FFMPegParseError
+
+if TYPE_CHECKING:
+    from modules.podcast.models import EpisodeMetadata
 
 logger = logging.getLogger(__name__)
 AUDIO_META_REGEXP = re.compile(r"(?P<meta>Metadata.+)?(?P<duration>Duration:\s?[\d:]+)", re.DOTALL)
@@ -148,13 +149,7 @@ def execute_ffmpeg(command: list[str]) -> str:
     return completed_proc.stdout.decode()
 
 
-def ffmpeg_set_metadata(
-    src_path: Path,
-    podcast_name: str,
-    episode_id: int,
-    episode_title: str,
-    episode_chapters: list[EpisodeChapter],
-) -> None:
+def ffmpeg_set_metadata(src_path: Path, metadata: "EpisodeMetadata") -> None:
     """
     Generates text-like metadata and apply to the target audio, placed on src_path
 
@@ -164,7 +159,7 @@ def ffmpeg_set_metadata(
     # =====
     ;FFMETADATA1
     title=bike\\shed
-    artist=FFmpeg troll team
+    artist=FFmpegPrep
 
     [CHAPTER]
     TIMEBASE=1/1000
@@ -209,26 +204,31 @@ title={title}
 genre=Podcast
 album={podcast_name}
 title={episode_title}
+artist={episode_author}
 {chapters_rendered}
     """.lstrip()
+
     logger.info(
-        "Start setting metadata for the file %s | chapters: %i", src_path, len(episode_chapters)
+        "Start setting metadata for the file %s | chapters: %i",
+        src_path,
+        len(metadata.episode_chapters),
     )
     tmp_audio_file = settings.TMP_AUDIO_PATH / f"tmp_{src_path.name}"
     chapters_rendered = ""
-    for chapter in episode_chapters:
+    for chapter in metadata.episode_chapters:
         chapters_rendered += chapter_tpl.rstrip().format(
             start=chapter.start * 1000, end=chapter.end * 1000, title=chapter.title
         )
 
     result_metadata = metadata_tpl.format(
-        podcast_name=podcast_name,
-        episode_title=episode_title,
+        podcast_name=metadata.podcast_name,
+        episode_title=metadata.episode_title,
+        episode_author=metadata.episode_author or "",
         chapters_rendered=chapters_rendered,
     )
 
     logger.debug("Generated metadata for the file %s:\n%s", src_path, result_metadata)
-    metadata_file_path = settings.TMP_META_PATH / f"episode_{episode_id}.txt"
+    metadata_file_path = settings.TMP_META_PATH / f"episode_{metadata.episode_id}.txt"
     metadata_file_path.write_text(result_metadata)
     metadata_str = execute_ffmpeg(
         command=[
@@ -246,20 +246,14 @@ title={episode_title}
         ]
     )
     logger.debug("Generated metadata for the file %s:\n%s", src_path, metadata_str)
-    if episode_title not in metadata_str:
-        raise RuntimeError(f"Episode title '{episode_title}' not found in metadata")
+    if metadata.episode_title not in metadata_str:
+        raise RuntimeError(f"Episode title '{metadata.episode_title}' not found in metadata")
 
     logger.info("Finished setting metadata for the file %s", tmp_audio_file)
-
-    # TODO: remove debug instruction before
-    shutil.copy(tmp_audio_file, settings.PROJECT_ROOT_DIR / ".misc" / tmp_audio_file.name)
-    shutil.copy(metadata_file_path, settings.PROJECT_ROOT_DIR / ".misc" / metadata_file_path.name)
-    #
     podcast_utils.delete_file(metadata_file_path)
 
     logger.debug("Moving updated file: %s -> %s", src_path, tmp_audio_file)
-    podcast_utils.delete_file(src_path)
-    shutil.copy(tmp_audio_file, src_path)
+    podcast_utils.move_file(tmp_audio_file, src_path)
     logger.info("Metadata was set for the file %s", src_path)
 
 
