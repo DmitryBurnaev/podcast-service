@@ -45,6 +45,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
     async def test_downloading_ok(
         self,
         dbs: AsyncSession,
+        podcast: Podcast,
         episode: Episode,
         mocked_youtube: MockYoutubeDL,
         mocked_ffmpeg: Mock,
@@ -63,6 +64,8 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_ffmpeg.assert_called_with(src_path=file_path)
         mocked_ffmpeg_set_meta.assert_called_with(
             src_path=file_path,
+            podcast_name=podcast.name,
+            episode_id=episode.id,
             episode_title=episode.title,
             episode_chapters=episode.chapters or [],
         )
@@ -91,6 +94,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         self,
         dbs: AsyncSession,
         cookie: Cookie,
+        podcast: Podcast,
         episode: Episode,
         mocked_youtube: MockYoutubeDL,
         mocked_ffmpeg: Mock,
@@ -110,6 +114,8 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_ffmpeg.assert_called_with(src_path=file_path)
         mocked_ffmpeg_set_meta.assert_called_with(
             src_path=file_path,
+            podcast_name=podcast.name,
+            episode_id=episode.id,
             episode_title=episode.title,
             episode_chapters=episode.chapters or [],
         )
@@ -123,6 +129,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         self,
         dbs: AsyncSession,
         episode: Episode,
+        podcast: Podcast,
         mocked_youtube: MockYoutubeDL,
         mocked_ffmpeg: Mock,
         mocked_ffmpeg_set_meta: Mock,
@@ -143,6 +150,8 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_ffmpeg.assert_called_with(src_path=file_path)
         mocked_ffmpeg_set_meta.assert_called_with(
             src_path=file_path,
+            podcast_name=podcast.name,
+            episode_id=episode.id,
             episode_title=episode.title,
             episode_chapters=episode.chapters or [],
         )
@@ -155,6 +164,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
         self,
         dbs: AsyncSession,
         cookie: Cookie,
+        podcast: Podcast,
         episode: Episode,
         mocked_s3: MockS3Client,
         mocked_redis: MockRedisClient,
@@ -232,6 +242,7 @@ class TestDownloadEpisodeTask(BaseTestCase):
     async def test_file_bad_size__ignore(
         self,
         dbs: AsyncSession,
+        podcast: Podcast,
         episode_data: dict,
         mocked_s3: MockS3Client,
         mocked_redis: MockRedisClient,
@@ -261,6 +272,8 @@ class TestDownloadEpisodeTask(BaseTestCase):
         mocked_ffmpeg.assert_called_with(src_path=file_path)
         mocked_ffmpeg_set_meta.assert_called_with(
             src_path=file_path,
+            podcast_name=podcast.name,
+            episode_id=episode.id,
             episode_title=episode.title,
             episode_chapters=episode.chapters or [],
         )
@@ -387,8 +400,8 @@ class TestDownloadEpisodeTask(BaseTestCase):
 
 class TestDownloadEpisodeImageTask(BaseTestCase):
     @patch("modules.podcast.models.Episode.generate_image_name")
-    @patch("modules.podcast.tasks.download.get_file_size")
-    @patch("modules.podcast.tasks.download.download_content")
+    @patch("modules.podcast.tasks.process.get_file_size")
+    @patch("modules.podcast.tasks.process.download_content")
     async def test_image_ok(
         self,
         mocked_download_content: Mock,
@@ -430,7 +443,7 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
             filename=f"episode-image-name-{episode.source_id}.jpg",
         )
 
-    @patch("modules.podcast.tasks.download.download_content")
+    @patch("modules.podcast.tasks.process.download_content")
     async def test_image_not_found__use_default(
         self,
         mocked_download_content: Mock,
@@ -445,7 +458,7 @@ class TestDownloadEpisodeImageTask(BaseTestCase):
         assert episode.image.available is False
         assert episode.image_url == settings.DEFAULT_EPISODE_COVER
 
-    @patch("modules.podcast.tasks.download.download_content")
+    @patch("modules.podcast.tasks.process.download_content")
     async def test_skip_already_downloaded(
         self,
         mocked_download_content: Mock,

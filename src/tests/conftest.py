@@ -76,7 +76,7 @@ def event_loop() -> Generator[AbstractEventLoop, None, None]:
     loop.close()
 
 
-@pytest.fixture(autouse=True, scope="session")
+@pytest_asyncio.fixture(autouse=True, scope="session")
 async def client() -> PodcastTestClient:
     from core.app import get_app
 
@@ -228,7 +228,7 @@ def mocked_audio_metadata(monkeypatch) -> Mock:
     del mocked_function
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 def mocked_auth_send() -> AsyncMock:
     mocked_send_email = AsyncMock()
     patcher = patch("modules.auth.views.send_email", new=mocked_send_email)
