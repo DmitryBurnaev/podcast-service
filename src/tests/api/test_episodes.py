@@ -773,7 +773,7 @@ class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
     default_fail_response_status = ResponseStatus.INVALID_PARAMETERS
 
     @patch("modules.podcast.tasks.download.DownloadEpisodeTask.cancel_task")
-    @patch("modules.podcast.tasks.download.DownloadEpisodeImageTask.cancel_task")
+    @patch("modules.podcast.tasks.process.DownloadEpisodeImageTask.cancel_task")
     async def test_cancel_downloading__ok(
         self,
         mocked_cancel_download_episode_task: Mock,
@@ -795,7 +795,7 @@ class TestEpisodeCancelDownloadingAPIView(BaseTestAPIView):
         mocked_cancel_download_image_task.assert_called_with(episode_id=episode.id)
 
     @patch("modules.podcast.tasks.download.DownloadEpisodeTask.cancel_task")
-    @patch("modules.podcast.tasks.download.DownloadEpisodeImageTask.cancel_task")
+    @patch("modules.podcast.tasks.process.DownloadEpisodeImageTask.cancel_task")
     async def test_cancel_downloading__episode_not_in_progress__fail(
         self,
         mocked_cancel_download_episode_task: Mock,
