@@ -159,3 +159,4 @@ LOGGING = {
 
 PROXY_YOUTUBE = config("PROXY_YOUTUBE", cast=str, default="")
 RENDER_LINKS = config("RENDER_LINKS", cast=bool, default=True)
+EPISODE_CHAPTERS_TITLE_LENGTH = config("EPISODE_CHAPTERS_TITLE_LENGTH", default=65)

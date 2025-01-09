@@ -372,6 +372,89 @@ title=MyChapter3 - final
     @patch("subprocess.run")
     @patch("modules.podcast.utils.move_file")
     @patch("modules.podcast.utils.delete_file")
+    async def test_set_metadata__ffmpeg__chapters_title_too_long__ok(
+        self,
+        mocked_delete_file: Mock,
+        mocked_move_file: Mock,
+        mocked_run: Mock,
+        dbs: AsyncSession,
+        episode: Episode,
+        podcast: Podcast,
+    ):
+        ffmpeg_stdout = """
+Input #0, mp3, from 'test-episode.mp3':
+  Metadata:
+    genre           : Podcast
+    album           : Example Podcast
+    title           : Episode with chapters
+    artist          : Test Artist
+  Duration: 03:13:48.46, start: 0.025056, bitrate: 128 kb/s
+  Chapters:
+    Chapter #0:0: start 0.000000, end 440.000000
+      Metadata:
+        title           : MyChapter1 - intro too long ...
+            """
+
+        mocked_run.return_value = CompletedProcess([], returncode=0, stdout=ffmpeg_stdout.encode())
+
+        await podcast.update(dbs, name="Example Podcast")
+        await episode.update(
+            dbs,
+            title="Episode with chapters",
+            author="Test Artist",
+            chapters=[
+                {"title": "MyChapter1 - intro" * 100, "start": 1, "end": 440},
+            ],
+        )
+        await dbs.commit()
+        await dbs.refresh(podcast)
+        await dbs.refresh(episode)
+        metadata_file_path = settings.TMP_META_PATH / f"episode_{episode.id}.txt"
+
+        ffmpeg_set_metadata(src_path=Path(self.src_path), metadata=episode.generate_metadata())
+
+        self.assert_called_with(
+            mocked_run,
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                self.src_path,
+                "-i",
+                metadata_file_path.absolute(),
+                "-map_metadata",
+                "1",
+                "-codec",
+                "copy",
+                self.tmp_filename,
+            ],
+            check=True,
+            timeout=settings.FFMPEG_TIMEOUT,
+        )
+
+        generated_metadata = metadata_file_path.read_text(encoding="utf-8")
+        expected_metadata = """
+;FFMETADATA1
+genre=Podcast
+album=Example Podcast
+title=Episode with chapters
+artist=Test Artist
+
+[CHAPTER]
+TIMEBASE=1/1000
+START=1000
+END=440000
+title=MyChapter1 - intro too long ...
+    """.lstrip()
+        assert generated_metadata == expected_metadata
+
+        mocked_move_file.assert_any_call(Path(self.tmp_filename), Path(self.src_path))
+        mocked_delete_file.assert_called_with(metadata_file_path)
+
+    @pytest.mark.asyncio
+    @patch("subprocess.run")
+    @patch("modules.podcast.utils.move_file")
+    @patch("modules.podcast.utils.delete_file")
     async def test_set_metadata__ffmpeg__no_episode_chapters__ok(
         self,
         mocked_delete_file: Mock,
