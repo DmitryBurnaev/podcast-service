@@ -11,6 +11,7 @@ from contextlib import suppress
 from multiprocessing import Process
 
 from core import settings
+from common.utils import cut_string
 from common.enums import EpisodeStatus
 from common.exceptions import UserCancellationError
 from modules.podcast import utils as podcast_utils
@@ -217,7 +218,9 @@ artist={episode_author}
     chapters_rendered = ""
     for chapter in metadata.episode_chapters:
         chapters_rendered += chapter_tpl.rstrip().format(
-            start=chapter.start * 1000, end=chapter.end * 1000, title=chapter.title
+            start=chapter.start * 1000,
+            end=chapter.end * 1000,
+            title=cut_string(chapter.title, max_length=settings.EPISODE_CHAPTERS_TITLE_LENGTH),
         )
 
     result_metadata = metadata_tpl.format(

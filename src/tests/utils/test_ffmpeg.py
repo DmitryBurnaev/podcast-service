@@ -372,6 +372,7 @@ title=MyChapter3 - final
     @patch("subprocess.run")
     @patch("modules.podcast.utils.move_file")
     @patch("modules.podcast.utils.delete_file")
+    @patch("core.settings.EPISODE_CHAPTERS_TITLE_LENGTH", 30)
     async def test_set_metadata__ffmpeg__chapters_title_too_long__ok(
         self,
         mocked_delete_file: Mock,
@@ -381,6 +382,9 @@ title=MyChapter3 - final
         episode: Episode,
         podcast: Podcast,
     ):
+        """
+        Checks that chapter's title will be trimmed to 30 characters.
+        """
         ffmpeg_stdout = """
 Input #0, mp3, from 'test-episode.mp3':
   Metadata:
@@ -392,7 +396,11 @@ Input #0, mp3, from 'test-episode.mp3':
   Chapters:
     Chapter #0:0: start 0.000000, end 440.000000
       Metadata:
-        title           : MyChapter1 - intro too long ...
+        title           : MyChapter1 - long-long-long...
+    Chapter #0:1: start 440.000000, end 4306.000000
+      Metadata:
+        title           : MyChapter2 - first non trimmed
+        
             """
 
         mocked_run.return_value = CompletedProcess([], returncode=0, stdout=ffmpeg_stdout.encode())
@@ -403,7 +411,8 @@ Input #0, mp3, from 'test-episode.mp3':
             title="Episode with chapters",
             author="Test Artist",
             chapters=[
-                {"title": "MyChapter1 - intro" * 100, "start": 1, "end": 440},
+                {"title": "MyChapter1 - long-long-long-long-long-long", "start": 1, "end": 440},
+                {"title": "MyChapter2 - first non trimmed", "start": 440, "end": 4306},
             ],
         )
         await dbs.commit()
@@ -444,7 +453,12 @@ artist=Test Artist
 TIMEBASE=1/1000
 START=1000
 END=440000
-title=MyChapter1 - intro too long ...
+title=MyChapter1 - long-long-long...
+[CHAPTER]
+TIMEBASE=1/1000
+START=440000
+END=4306000
+title=MyChapter2 - first non trimmed
     """.lstrip()
         assert generated_metadata == expected_metadata
 
