@@ -1,8 +1,7 @@
 version: '3'
 services:
   web:
-    image:
-      ${REGISTRY_URL}/podcast-service:last
+    image: ${REGISTRY_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG}
     env_file:
       - .env
     environment:
@@ -13,8 +12,7 @@ services:
       - internal-subnet
 
   rq:
-    image:
-      ${REGISTRY_URL}/podcast-service:last
+    image: ${REGISTRY_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG}
     env_file:
       - .env
     environment:
@@ -28,8 +26,7 @@ services:
           cpus: '0.25'
 
   migrate_db:
-    image:
-      ${REGISTRY_URL}/podcast-service:last
+    image: ${REGISTRY_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG}
     env_file:
       - .env
     environment:

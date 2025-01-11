@@ -6,8 +6,8 @@ if [ "${DEPLOY_MODE}" != "CI" ]
     export $(cat .env | grep -v ^# | grep -v ^EMAIL | xargs)
 fi
 
-echo "=== pulling image ${REGISTRY_URL}/podcast-service:last ==="
-docker pull ${REGISTRY_URL}/podcast-service:last
+echo "=== pulling image ${REGISTRY_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG} ==="
+docker pull ${REGISTRY_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG}
 
 echo "=== restarting service ==="
 supervisorctl stop podcast-service:

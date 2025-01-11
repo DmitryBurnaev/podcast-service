@@ -3,6 +3,12 @@ on:
   push:
     branches:
       - master
+      - feature/268-improve-release-image
+
+env:
+  REGISTRY_PREFIX: ghcr.io/${{ github.repository_owner }}
+  IMAGE_NAME: podcast-service
+  IMAGE_TAG: latest
 
 jobs:
   test:
@@ -37,34 +43,67 @@ jobs:
       - name: Run tests
         run: docker compose up --exit-code-from test test
 
-  build-and-deploy:
+  build:
     needs: [test]
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+
     steps:
-      - uses: actions/checkout@master
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Docker login
-        run: |
-          echo ${{ secrets.GH_PACK_KEY }} | docker login https://docker.pkg.github.com -u ${{ github.repository_owner }} --password-stdin
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build image
-        run: docker build -t ${{ secrets.REGISTRY_URL }}/podcast-service:last -f Dockerfile .
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_PREFIX }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,event=branch,value=latest
 
-      - name: Push image to registry
-        run: docker push ${{ secrets.REGISTRY_URL }}/podcast-service:last
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Prepare SSH key
+  deploy:
+    needs: [build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare SSH file
         run: |
           mkdir ~/.ssh
           echo "${{ secrets.SSH_PKEY }}" > ~/.ssh/id_rsa
           chmod 400 ~/.ssh/id_rsa
 
-      - name: Copy project files
+      - name: Delivery Updates
         run: |
-          scp -o StrictHostKeyChecking=no ./.env.template ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/.env.template
-          scp -o StrictHostKeyChecking=no ./etc/docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
-          scp -o StrictHostKeyChecking=no ./etc/deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
-          scp -o StrictHostKeyChecking=no ./etc/migrate_db.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/migrate_db.sh
+          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./.env.template ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/.env.template
+          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./etc/docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
+          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./etc/deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
+          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./etc/migrate_db.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/migrate_db.sh
 
       - name: Deploy
         uses: appleboy/ssh-action@master
@@ -75,6 +114,8 @@ jobs:
           key: ${{ secrets.SSH_PKEY }}
           script: |
             export DEPLOY_MODE=CI
-            export REGISTRY_URL=${{ secrets.REGISTRY_URL }}
+            export REGISTRY_PREFIX=${{ secrets.REGISTRY_PREFIX }}
+            export IMAGE_NAME=${{ secrets.IMAGE_NAME }}
+            export IMAGE_TAG=${{ secrets.IMAGE_TAG }}
             cd ${{ secrets.PROD_PROJECT_ROOT }}
             sh deploy.sh
