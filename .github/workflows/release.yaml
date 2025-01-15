@@ -1,4 +1,4 @@
-name: Deploy Application
+name: Release
 on:
   push:
     branches:
@@ -6,6 +6,7 @@ on:
       - feature/268-improve-release-image
 
 env:
+  REGISTRY: ghcr.io
   REGISTRY_PREFIX: ghcr.io/${{ github.repository_owner }}
   IMAGE_NAME: podcast-service
   IMAGE_TAG: latest
