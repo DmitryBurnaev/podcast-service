@@ -101,16 +101,16 @@ jobs:
 
       - name: Delivery Updates
         run: |
-          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./.env.template ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/.env.template
-          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./etc/docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
-          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./etc/deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
-          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./etc/migrate_db.sh ${{ secrets.SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/migrate_db.sh
+          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./.env.template ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/.env.template
+          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./etc/docker-compose.yaml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/docker-compose.yaml
+          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./etc/deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/deploy.sh
+          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./etc/migrate_db.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROD_PROJECT_ROOT }}/migrate_db.sh
 
       - name: Deploy
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.PROD_SSH_HOST }}
-          port: ${{ secrets.PROD_SSH_PORT }}
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PKEY }}
           script: |
@@ -118,5 +118,5 @@ jobs:
             export REGISTRY_PREFIX=${{ secrets.REGISTRY_PREFIX }}
             export IMAGE_NAME=${{ secrets.IMAGE_NAME }}
             export IMAGE_TAG=${{ secrets.IMAGE_TAG }}
-            cd ${{ secrets.PROD_PROJECT_ROOT }}
+            cd ${{ secrets.PROJECT_ROOT }}
             sh deploy.sh
