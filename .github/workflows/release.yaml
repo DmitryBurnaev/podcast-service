@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - master
-      - feature/268-improve-release-image
 
 env:
   REGISTRY: ghcr.io
