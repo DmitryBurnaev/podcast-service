@@ -36,8 +36,17 @@ bump_version(){
   git checkout master
   echo "pulling master..."
   git pull
+  echo "checking branch ${new_branch} exists ..."
+  if [ `git branch --list $new_branch` ]
+  then
+     echo "Branch name ${new_branch} already exists. remove this one"
+     git branch -d ${new_branch}
+  fi
+
   git checkout -b "${new_branch}"
 
+  echo "activating env..."
+  pipenv shell
   local old_version=$(pip freeze | sed -n '/yt-dlp==/s///p')
   echo "detected old version ${old_version}"
 
@@ -68,7 +77,10 @@ bump_version(){
   echo "Changed pushed to GIT"
   echo "rolling back branch..."
   git checkout "${current_branch}"
-  echo "git checked-out..."
+  echo "...done"
+  echo "removing tmp branch ${new_branch}..."
+  git branch -d ${new_branch}
+  echo "...done"
 }
 
 
