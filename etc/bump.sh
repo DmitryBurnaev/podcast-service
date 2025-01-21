@@ -1,4 +1,4 @@
-# /bin/sh
+#!/bin/sh
 
 set -e
 
@@ -47,7 +47,7 @@ bump_version(){
 
   echo "activating env..."
   pipenv shell
-  local old_version=$(pip freeze | sed -n '/yt-dlp==/s///p')
+  local old_version=$(pip freeze | sed -n '/${package_name}==/s///p')
   echo "detected old version ${old_version}"
 
   # Create a backup of the Pipfile
