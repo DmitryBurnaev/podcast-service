@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 
 import git
@@ -40,5 +41,19 @@ def create_tmp_git_branch(branch_name: str) -> None:
     # git_dir
 
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--lib_name", required=True, type=str)
+    parser.add_argument("--old_version", required=True, type=str)
+    parser.add_argument("--new_version", required=True, type=str)
+    args = parser.parse_args()
+    lib_name = args.lib_name
+    old_version = args.old_version
+    new_version = args.new_version
+    replace_version_in_file(lib_name, old_version, new_version)
+    create_tmp_git_branch(args.lib_name)
+    return None
+
+
 if __name__ == "__main__":
-    create_tmp_git_branch(default_branch)
+    main()
