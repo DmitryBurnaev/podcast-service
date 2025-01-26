@@ -1,70 +1,98 @@
-import argparse
-from pathlib import Path
-
-import git
+import toml
+import subprocess
+from git import Repo, GitCommandError
 
 pipfile = "Pipfile"
 repo_dir = "."
 default_branch = "master"
 
 
-def find_version_in_file(lib_name: str) -> str | None:
-    """Detects library in current Pipfile and returns version"""
-    file_path = Path(pipfile)
-    contents = file_path.read_text()
-    for line in contents.splitlines():
-        if line.startswith(lib_name):
-            return line.split("=")[1].strip()
+def update_packages(packages: dict[str, str], repo: Repo, branch_name: str) -> None:
+    # Read Pipfile
+    with open("Pipfile", "r") as file:
+        pipfile_content = toml.load(file)
 
-    return None
+    updated_packages = []
 
+    for package_name, package_version in packages.items():
+        # Check if the package exists in Pipfile
+        if "packages" in pipfile_content and package_name in pipfile_content["packages"]:
+            # Install the specific version of the package
+            subprocess.run(["pipenv", "install", f"{package_name}{package_version}"], check=True)
+            updated_packages.append(f"{package_name} -> {package_version}")
+            print(f"Package {package_name} successfully updated to version {package_version}.")
+        else:
+            print(f"Package {package_name} not found in Pipfile.")
 
-def replace_version_in_file(lib_name: str, old_version: str, new_version: str) -> None:
-    file_path = Path(pipfile)
-    contents = file_path.read_text()
-    result_contents: list[str] = []
+    if not updated_packages:
+        print("No packages to update.")
+        return
 
-    for line in contents.splitlines():
-        if line.startswith(lib_name):
-            line = line.replace(old_version, new_version)
-        result_contents.append(line)
+    # Add changes to the index
+    repo.git.add("Pipfile")
+    repo.git.add("Pipfile.lock")  # Pipfile.lock is also updated when packages are updated
 
-    file_path.write_text("\n".join(result_contents))
-    return None
+    # Create a commit
+    bump_packages_msg = "\n- ".join(updated_packages)
+    commit_message = f"Bumped libraries: \n{bump_packages_msg}"
+    repo.index.commit(commit_message)
 
-
-def create_tmp_git_branch(branch_name: str) -> None:
-    repo = git.Repo.init(repo_dir)
-    past_branch = repo.create_head(branch_name, default_branch)
-    print(past_branch)
-    # git_dir.mkdir(exist_ok=True)
-    # git_dir
-
-
-def git_commit_and_push(branch_name: str) -> None:
-    repo = git.Repo.init(repo_dir)
-    past_branch = repo.create_head(branch_name, default_branch)
-    past_branch.checkout()
-    # TODO: make commit here
-    # past_branch.commit()
+    # Push changes to the remote repository
+    origin = repo.remote(name="origin")
+    origin.push(branch_name, set_upstream=True)
+    print(f"Changes pushed to branch {branch_name}.")
 
 
-def git_push(branch_name: str) -> None:
-    repo = git.Repo.init(repo_dir)
-    past_branch = repo.create_head(branch_name, default_branch)
-    past_branch.push()
+def delete_branch(repo, branch_name):
+    """Delete a branch locally and remotely if it exists."""
+    # Delete local branch
+    if branch_name in repo.heads:
+        print(f"Deleting local branch {branch_name}...")
+        repo.git.branch("-D", branch_name)  # Force delete the local branch
+
+    # Delete remote branch
+    origin = repo.remote(name="origin")
+    try:
+        print(f"Deleting remote branch {branch_name}...")
+        origin.push(refspec=f":{branch_name}")  # Push an empty refspec to delete the remote branch
+    except GitCommandError as e:
+        print(f"Remote branch {branch_name} does not exist or could not be deleted: {e}")
+
+
+def create_git_branch(packages: dict[str, str], repo: Repo) -> str:
+    updated_packages = "-".join(packages.keys())
+    branch_name = f"update-{'-'.join(updated_packages)}"
+    delete_branch(repo, branch_name)
+    new_branch = repo.create_head(branch_name)
+    new_branch.checkout()
+    return new_branch.name
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("libs", required=True, type=str, action="append")
-    args = parser.parse_args()
-    libs = args.libs
-    print(libs)
-    for lib in libs:
-        replace_version_in_file(lib, find_version_in_file(lib), default_branch)
+    # User input for packages
+    packages = {}
+    while True:
+        input_question = (
+            "Enter the package name and version (e.g. yt-dlp==2025.1.15) or press Enter to finish: "
+        )
+        package_name_version = input(input_question).strip()
+        if not package_name_version:
+            break
 
-    return None
+        package_name, package_version = package_name_version.split("==")
+        packages[package_name] = package_version
+
+    if not packages:
+        print("No packages specified for update.")
+        return
+
+    repo = Repo(".")
+    git_branch = create_git_branch(packages, repo)
+    update_packages(packages, repo, git_branch)
+
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":
