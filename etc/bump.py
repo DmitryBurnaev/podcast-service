@@ -2,7 +2,7 @@ from pathlib import Path
 
 import toml
 import subprocess
-from git import Repo, GitCommandError
+from git import Repo, GitCommandError, Head
 
 DEFAULT_BRANCH = "master"
 ROOT_DIR = Path(__file__).parent.parent
@@ -42,28 +42,29 @@ def update_packages(packages: dict[str, str], repo: Repo, branch_name: str) -> N
     repo.index.commit(commit_message)
 
     # Push changes to the remote repository
-    # origin = repo.remote(name="origin")
-    # origin.push(branch_name, set_upstream=True)
+    origin = repo.remote(name="origin")
+    origin.push(branch_name, set_upstream=True)
     print(f"Changes pushed to branch {branch_name}.")
 
 
-def delete_branch(repo, branch_name):
+def delete_branch(repo: Repo, branch_name: str, remove_remote: bool = True) -> None:
     """Delete a branch locally and remotely if it exists."""
     # Delete local branch
     if branch_name in repo.heads:
         print(f"  -> deleting local branch {branch_name}...")
         repo.git.branch("-D", branch_name)  # Force delete the local branch
 
-    # Delete remote branch
-    origin = repo.remote(name="origin")
-    try:
-        print(f"  -> deleting remote branch {branch_name}...")
-        origin.push(refspec=f":{branch_name}")  # Push an empty refspec to delete the remote branch
-    except GitCommandError as e:
-        print(f"  -> remote branch {branch_name} does not exist or could not be deleted: {e}")
+    if remove_remote:
+        # Delete remote branch
+        origin = repo.remote(name="origin")
+        try:
+            print(f"  -> deleting remote branch {branch_name}...")
+            origin.push(refspec=f":{branch_name}")  # Push an empty to delete the remote branch
+        except GitCommandError as e:
+            print(f"  -> remote branch {branch_name} does not exist or could not be deleted: {e}")
 
 
-def create_git_branch(packages: dict[str, str], repo: Repo) -> str:
+def create_git_branch(packages: dict[str, str], repo: Repo) -> Head:
     print("Creating git branch...")
     updated_packages = "-".join(packages.keys())
     branch_name = f"update-{updated_packages}"
@@ -72,8 +73,8 @@ def create_git_branch(packages: dict[str, str], repo: Repo) -> str:
     delete_branch(repo, branch_name)
     print(f" checkout to branch '{branch_name}'...")
     new_branch = repo.create_head(branch_name)
-    # new_branch.checkout()
-    return new_branch.name
+    new_branch.checkout()
+    return new_branch
 
 
 def main():
@@ -94,9 +95,17 @@ def main():
         print("No packages specified for update.")
         return
 
+    # catch current git state
     repo = Repo(REPO_DIR)
-    git_branch = create_git_branch(packages, repo)
-    update_packages(packages, repo, git_branch)
+    current_branch: Head = repo.active_branch
+
+    # update dependencies and push it to the new branch
+    new_branch: Head = create_git_branch(packages, repo)
+    update_packages(packages, repo, new_branch.name)
+
+    # restore previous state
+    current_branch.checkout()
+    delete_branch(repo, new_branch.name, remove_remote=False)
 
 
 if __name__ == "__main__":
