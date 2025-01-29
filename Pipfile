@@ -32,7 +32,6 @@ coverage = "~=7.6.7"
 black = "~=24.10.0"
 pylint = "~=3.3.1"
 GitPython = "~=3.1.44"
-toml = "~=0.10.2"
 
 [scripts]
 bump = {call = "etc.bump:main()"}
