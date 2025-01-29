@@ -1,6 +1,6 @@
+import tomllib
 from pathlib import Path
 
-import toml
 import subprocess
 from git import Repo, GitCommandError, Head
 
@@ -13,8 +13,8 @@ PIPFILE_LOC_PATH = REPO_DIR / "Pipfile.lock"
 
 def update_packages(packages: dict[str, str], repo: Repo, branch_name: str) -> None:
     # Read Pipfile
-    with open("Pipfile", "r") as file:
-        pipfile_content = toml.load(file)
+    with open(PIPFILE_PATH, "rb") as file:
+        pipfile_content = tomllib.load(file)
 
     updated_packages = []
 
