@@ -25,7 +25,7 @@ COPY .coveragerc .
 COPY .pylintrc .
 
 # build running version
-FROM python:3.13.0-slim-bookworm AS runtime
+FROM python:3.13-slim-bookworm AS runtime
 ARG DEV_DEPS
 WORKDIR /podcast
 
