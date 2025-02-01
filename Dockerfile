@@ -44,7 +44,7 @@ RUN apt-get update \
     python3-psycopg2 \
         grep  \
         procps \
-	&& pip install pipenv==2024.4.1 \
+	&& pip install pipenv==2024.4.0 \
 	&& if [ "${DEV_DEPS}" = "true" ]; then \
 	     echo "=== Install DEV dependencies ===" && \
 	     pipenv install --dev --system; \
