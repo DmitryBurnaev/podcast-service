@@ -23,7 +23,7 @@ boto3 = "==1.37.18"
 sentry-sdk = "==2.24.0"
 aiosmtplib = "==4.0.0"
 pycryptodome = "==3.22.0"
-yt-dlp = "==2025.03.26"
+yt-dlp = "==2025.03.27"
 
 [dev-packages]
 pytest = "~=8.3.3"
