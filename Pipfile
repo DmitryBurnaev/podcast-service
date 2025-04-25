@@ -5,7 +5,6 @@ name = "pypi"
 
 [packages]
 webargs-starlette = "==2.1.0"
-uvicorn = {version = "==0.32.1", extras = ["standard"]}
 asyncpg = "==0.30.0"
 psycopg2-binary = "==2.9.10" # for alembic only
 sqlalchemy = "==2.0.36"
@@ -24,6 +23,7 @@ sentry-sdk = "==2.24.0"
 aiosmtplib = "==4.0.0"
 pycryptodome = "==3.22.0"
 yt-dlp = "==2025.3.31"
+uvicorn = "==0.34.2"
 
 [dev-packages]
 pytest = "~=8.3.3"
