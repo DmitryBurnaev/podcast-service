@@ -2,7 +2,7 @@ import io
 import random
 import time
 import uuid
-from typing import Type
+from typing import Type, Any, Generator
 from unittest import mock
 from hashlib import blake2b
 from contextlib import asynccontextmanager
@@ -35,8 +35,7 @@ class PodcastTestClient(TestClient):
         self.headers.pop("Authorization", None)
 
 
-# TODO: use new type's annotation here
-def mock_target_class(mock_class: Type[BaseMock], monkeypatch) -> BaseMock:
+def mock_target_class(mock_class: Type[BaseMock], monkeypatch) -> Generator[BaseMock, Any, None]:
     """Allows to mock any classes (is used as fixture)
 
     # in conftest.py:
