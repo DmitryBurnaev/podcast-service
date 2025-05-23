@@ -79,6 +79,7 @@ class MockYoutubeDL(BaseMock):
 
         self.target_obj.params = {}
         self.target_obj._request_director = RequestDirector()
+        self.target_obj._close_hooks = []
 
     def assert_called_with(self, **kwargs):
         mock: Mock = self.target_class.__init__  # noqa
@@ -122,6 +123,8 @@ class MockYoutubeDL(BaseMock):
                     "playlist_index": 1,
                     "n_entries": 2,
                 }
+
+        raise NotImplementedError(f"Unknown source type: {source_type}")
 
 
 class MockRedisClient(BaseMock):

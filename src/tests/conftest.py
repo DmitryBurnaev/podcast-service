@@ -4,7 +4,7 @@ import logging
 import tempfile
 from asyncio import AbstractEventLoop
 from datetime import timedelta
-from typing import Any, Generator
+from typing import Any, Generator, AsyncGenerator
 from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
@@ -77,7 +77,7 @@ def event_loop() -> Generator[AbstractEventLoop, None, None]:
 
 
 @pytest_asyncio.fixture(autouse=True, scope="session")
-async def client() -> PodcastTestClient:
+async def client() -> AsyncGenerator[PodcastTestClient, Any]:
     from core.app import get_app
 
     with PodcastTestClient(get_app()) as client:
@@ -87,7 +87,7 @@ async def client() -> PodcastTestClient:
 
 
 @pytest_asyncio.fixture
-async def dbs() -> AsyncSession:
+async def dbs() -> AsyncGenerator[Any, Any]:
     async with make_db_session() as db_session:
         yield db_session
 
@@ -145,67 +145,67 @@ async def db_migration():
 
 
 @pytest.fixture
-def mocked_youtube(monkeypatch) -> MockYoutubeDL:
+def mocked_youtube(monkeypatch) -> Generator[Any, None, None]:
     yield from mock_target_class(MockYoutubeDL, monkeypatch)
 
 
 @pytest.fixture
-def mocked_redis(monkeypatch) -> MockRedisClient:
+def mocked_redis(monkeypatch) -> Generator[Any, None, None]:
     yield from mock_target_class(MockRedisClient, monkeypatch)
 
 
 @pytest.fixture
-def mocked_s3(monkeypatch) -> MockS3Client:
+def mocked_s3(monkeypatch) -> Generator[Any, None, None]:
     yield from mock_target_class(MockS3Client, monkeypatch)
 
 
 @pytest.fixture
-def mocked_episode_creator(monkeypatch) -> MockEpisodeCreator:
+def mocked_episode_creator(monkeypatch) -> Generator[Any, None, None]:
     yield from mock_target_class(MockEpisodeCreator, monkeypatch)
 
 
 @pytest.fixture(autouse=True)
-def mocked_rq_queue(monkeypatch) -> MockRQQueue:
+def mocked_rq_queue(monkeypatch) -> Generator[Any, None, None]:
     yield from mock_target_class(MockRQQueue, monkeypatch)
 
 
 @pytest.fixture
-def mocked_generate_rss_task(monkeypatch) -> MockGenerateRSS:
+def mocked_generate_rss_task(monkeypatch) -> Generator[Any, None, None]:
     yield from mock_target_class(MockGenerateRSS, monkeypatch)
 
 
 @pytest.fixture
-def mocked_arg_parser(monkeypatch) -> MockArgumentParser:
+def mocked_arg_parser(monkeypatch) -> Generator[Any, None, None]:
     yield from mock_target_class(MockArgumentParser, monkeypatch)
 
 
 @pytest.fixture
-def mocked_process(monkeypatch) -> MockProcess:
+def mocked_process(monkeypatch) -> Generator[Any, None, None]:
     yield from mock_target_class(MockProcess, monkeypatch)
 
 
 @pytest.fixture
-def mocked_auth_backend(monkeypatch) -> MockAuthBackend:
+def mocked_auth_backend(monkeypatch) -> Generator[Any, None, None]:
     yield from mock_target_class(MockAuthBackend, monkeypatch)
 
 
 @pytest.fixture
-def mocked_httpx_client(monkeypatch) -> MockHTTPXClient:
+def mocked_httpx_client(monkeypatch) -> Generator[Any, None, None]:
     yield from mock_target_class(MockHTTPXClient, monkeypatch)
 
 
 @pytest.fixture
-def mocked_smtp_sender(monkeypatch) -> MockSMTPSender:
+def mocked_smtp_sender(monkeypatch) -> Generator[Any, None, None]:
     yield from mock_target_class(MockSMTPSender, monkeypatch)
 
 
 @pytest.fixture
-def mocked_sens_data(monkeypatch) -> MockSensitiveData:
+def mocked_sens_data(monkeypatch) -> Generator[Any, None, None]:
     yield from mock_target_class(MockSensitiveData, monkeypatch)
 
 
 @pytest.fixture
-def mocked_ffmpeg(monkeypatch) -> Mock:
+def mocked_ffmpeg(monkeypatch) -> Generator[Mock, Any, None]:
     mocked_ffmpeg_function = Mock()
     monkeypatch.setattr(ffmpeg_utils, "ffmpeg_preparation", mocked_ffmpeg_function)
     yield mocked_ffmpeg_function
@@ -213,7 +213,7 @@ def mocked_ffmpeg(monkeypatch) -> Mock:
 
 
 @pytest.fixture
-def mocked_ffmpeg_set_meta(monkeypatch) -> Mock:
+def mocked_ffmpeg_set_meta(monkeypatch) -> Generator[Mock, Any, None]:
     mocked_ffmpeg_function = Mock()
     monkeypatch.setattr(ffmpeg_utils, "ffmpeg_set_metadata", mocked_ffmpeg_function)
     yield mocked_ffmpeg_function
@@ -221,7 +221,7 @@ def mocked_ffmpeg_set_meta(monkeypatch) -> Mock:
 
 
 @pytest.fixture
-def mocked_audio_metadata(monkeypatch) -> Mock:
+def mocked_audio_metadata(monkeypatch) -> Generator[Mock, Any, None]:
     mocked_function = Mock()
     monkeypatch.setattr(ffmpeg_utils, "audio_metadata", mocked_function)
     yield mocked_function
@@ -229,7 +229,7 @@ def mocked_audio_metadata(monkeypatch) -> Mock:
 
 
 @pytest_asyncio.fixture
-def mocked_auth_send() -> AsyncMock:
+def mocked_auth_send() -> Generator[AsyncMock, Any, None]:
     mocked_send_email = AsyncMock()
     patcher = patch("modules.auth.views.send_email", new=mocked_send_email)
     patcher.start()
@@ -384,7 +384,7 @@ def tmp_file():
         yield f
 
 
-def _mocked_source_info(monkeypatch, source_type) -> Mock:
+def _mocked_source_info(monkeypatch, source_type) -> Generator[Mock, Any, None]:
     mock = Mock()
     mock.return_value = SourceInfo(
         id="source-id",
@@ -397,15 +397,15 @@ def _mocked_source_info(monkeypatch, source_type) -> Mock:
 
 
 @pytest.fixture
-def mocked_source_info_youtube(monkeypatch) -> Mock:
+def mocked_source_info_youtube(monkeypatch) -> Generator[Any, None, None]:
     yield from _mocked_source_info(monkeypatch, source_type=SourceType.YOUTUBE)
 
 
 @pytest.fixture
-def mocked_source_info_yandex(monkeypatch) -> Mock:
+def mocked_source_info_yandex(monkeypatch) -> Generator[Any, None, None]:
     yield from _mocked_source_info(monkeypatch, source_type=SourceType.YANDEX)
 
 
 @pytest.fixture
-def mocked_source_info_upload(monkeypatch) -> Mock:
+def mocked_source_info_upload(monkeypatch) -> Generator[Any, None, None]:
     yield from _mocked_source_info(monkeypatch, source_type=SourceType.UPLOAD)
