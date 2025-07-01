@@ -23,7 +23,7 @@ sentry-sdk = "==2.24.0"
 aiosmtplib = "==4.0.0"
 pycryptodome = "==3.22.0"
 uvicorn = "==0.34.2"
-yt-dlp = "==2025.06.25"
+yt-dlp = "==2025.6.30"
 
 [dev-packages]
 pytest = "~=8.3.3"
