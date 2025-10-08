@@ -1,6 +1,9 @@
 install:
 	pipenv install
 
+deps:
+	pipenv update
+
 run_web:
 	cd src && pipenv run uvicorn asgi:app --host dev.podcast --port 8001 --reload --reload-dir .
 
@@ -8,7 +11,7 @@ run_rq:
 	cd src && pipenv run python -m worker youtube_downloads
 
 upgrade:
-	. ./.env && echo "Upgrade migrations for: $$DB_NAME" && \
+	. ./.env && echo "Upgrade migrations for: $$DB_NAME
 	PIPENV_DONT_LOAD_ENV=1 DATABASE_NAME=$$DB_NAME \
 	pipenv run alembic upgrade head
 
