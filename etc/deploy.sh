@@ -6,8 +6,11 @@ if [ "${DEPLOY_MODE}" != "CI" ]
     export $(cat .env | grep -v ^# | grep -v ^EMAIL | xargs)
 fi
 
-echo "=== pulling image ${REGISTRY_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG} ==="
-docker pull ${REGISTRY_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG}
+echo "=== reading $(pwd)/.version file ==="
+export $(cat .version | grep -v ^# | xargs)
+
+echo "=== pulling image '${DOCKER_IMAGE}' ==="
+docker pull ${DOCKER_IMAGE}
 
 echo "=== restarting service ==="
 supervisorctl stop podcast-service:
@@ -19,3 +22,8 @@ echo y | docker image prune -a
 
 echo "=== check status ==="
 supervisorctl status podcast-service:
+
+echo "=== show containers ==="
+sleep 15
+docker ps --format "table {{.ID}}\t{{.Image}}\t{{.Names}}\t{{.Status}}\t|" | grep podcast
+echo "==="

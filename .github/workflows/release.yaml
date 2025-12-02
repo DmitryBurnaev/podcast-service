@@ -9,10 +9,50 @@ env:
   REGISTRY_PREFIX: ghcr.io/${{ github.repository_owner }}
   IMAGE_NAME: podcast-service
   IMAGE_TAG: latest
+  DOCKER_IMAGE_NAME: ${{ github.repository }}
+  # DEBUG_DOCKER_IMAGE_TAG: 0.1.5-debug
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.names.outputs.image_tag }}
+      image_name_base: ${{ steps.names.outputs.image_name_base }}
+      image_name_full: ${{ steps.names.outputs.image_name_full }}
+      image_name_latest: ${{ steps.names.outputs.image_name_latest }}
+
+    steps:
+      - name: Prepare names
+        id: names
+        run: |
+          REPOSITORY_NAME=$(basename "${{ github.repository }}")
+          IMAGE_NAME_LOWERCASED=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            IMAGE_TAG="${{ github.ref_name }}"
+          else
+            IMAGE_TAG="${{ env.DEBUG_DOCKER_IMAGE_TAG }}"
+          fi
+          # Remove leading 'v' from tag if present (e.g., v1.2.3 -> 1.2.3)
+          if [[ "${IMAGE_TAG}" == v* ]]; then
+            IMAGE_TAG="${IMAGE_TAG#v}"
+          fi
+          IMAGE_NAME_BASE="${{ env.REGISTRY }}/${IMAGE_NAME_LOWERCASED}"
+          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "image_name_base=${IMAGE_NAME_BASE}" >> $GITHUB_OUTPUT
+          echo "image_name_full=${IMAGE_NAME_BASE}:${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "image_name_latest=${IMAGE_NAME_BASE}:latest" >> $GITHUB_OUTPUT
+          echo "==="
+          echo "${IMAGE_NAME_BASE}"
+          echo "${IMAGE_NAME_BASE}:${IMAGE_TAG}"
+          echo "==="
+          echo "gh-output:"
+          echo $GITHUB_OUTPUT
+          cat $GITHUB_OUTPUT
+          echo "==="
+
   test:
     runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
     services:
       postgres:
         image: postgres:16-alpine
@@ -23,7 +63,6 @@ jobs:
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-
     steps:
       - uses: actions/checkout@v1
       - name: Prepare .env file
@@ -44,7 +83,8 @@ jobs:
         run: docker compose up --exit-code-from test test
 
   build:
-    needs: [test]
+    needs: [prepare]
+#    needs: [prepare, test]
     runs-on: ubuntu-latest
 
     permissions:
@@ -52,9 +92,6 @@ jobs:
       packages: write
       attestations: write
       id-token: write
-
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
 
     steps:
       - name: Checkout repository
@@ -67,22 +104,112 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
+      - name: Extract metadata for docker image
+        id: docker-image-meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY_PREFIX }}/${{ env.IMAGE_NAME }}
+          images: ${{ needs.prepare.outputs.image_name_base }}
           tags: |
-            type=raw,event=branch,value=latest
+            type=raw,value=latest
+            type=raw,value=${{ needs.prepare.outputs.image_tag }}
+
+      - name: Debug metadata
+        run: |
+          echo "Image tag: ${{ needs.prepare.outputs.image_tag }}"
+          echo "Image name base: ${{ needs.prepare.outputs.image_name_base }}"
+          echo "Image name full: ${{ needs.prepare.outputs.image_name_full }}"
+          echo "Image name latest: ${{ needs.prepare.outputs.image_name_latest }}"
+          echo "Ref type: ${{ github.ref_type }}"
+          echo "Ref name: ${{ github.ref_name }}"
+          echo "Generated tags:"
+          echo "${{ steps.docker-image-meta.outputs.tags }}"
+          echo "Generated labels:"
+          echo "${{ steps.docker-image-meta.outputs.labels }}"
 
       - name: Build and push Docker image
         id: push
         uses: docker/build-push-action@v6
         with:
           context: .
+          target: service
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.docker-image-meta.outputs.tags }}
+          labels: ${{ steps.docker-image-meta.outputs.labels }}
+
+  verify:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify docker images
+        run: |
+          DOCKER_IMAGE="${{ needs.prepare.outputs.image_name_full }}"
+          echo "Checking if image exists: ${DOCKER_IMAGE}"
+          docker manifest inspect "${DOCKER_IMAGE}" || exit 1
+          echo "✓ Image ${DOCKER_IMAGE} successfully verified in registry"
+
+          DOCKER_IMAGE_LATEST="${{ needs.prepare.outputs.image_name_latest }}"
+          echo "Checking if image exists: ${DOCKER_IMAGE_LATEST}"
+          docker manifest inspect "${DOCKER_IMAGE_LATEST}" || exit 1
+          echo "✓ Image ${DOCKER_IMAGE_LATEST} successfully verified in registry"
+
+  create-release:
+    needs: [prepare, build, verify]
+    runs-on: ubuntu-latest
+    # Only create release when pushing a tag
+    if: github.ref_type == 'tag'
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare release metadata
+        id: release-meta
+        run: |
+          DOCKER_IMAGE="${{ needs.prepare.outputs.image_name_full }}"
+          DOCKER_IMAGE_LATEST="${{ needs.prepare.outputs.image_name_latest }}"
+          DOCKER_IMAGE_TAG="${{ needs.prepare.outputs.image_tag }}"
+
+          # Create metadata file
+          cat > release-metadata.json << EOF
+          {
+            "version": "${DOCKER_IMAGE_TAG}",
+            "docker_image": "${DOCKER_IMAGE}",
+            "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+
+          # Prepare release body
+          cat > release-body.md << EOF
+          ## Released Image Version ${DOCKER_IMAGE_TAG}
+
+          **Image Versioned:** \`${DOCKER_IMAGE}\`
+          **Image Latest:** \`${DOCKER_IMAGE_LATEST}\`
+          **Pull command:**
+          \`\`\`bash
+          docker pull ${DOCKER_IMAGE}
+          \`\`\`
+          EOF
+
+          echo "metadata_file=release-metadata.json" >> $GITHUB_OUTPUT
+          echo "body_file=release-body.md" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.image_tag }}
+          name: ${{ needs.prepare.outputs.image_tag }}
+          body_path: ${{ steps.release-meta.outputs.body_file }}
+          files: ${{ steps.release-meta.outputs.metadata_file }}
+          draft: false
+          append_body: true
+          prerelease: ${{ contains(github.ref_name, '-') || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          make_latest: ${{ !contains(github.ref_name, '-') && !contains(github.ref_name, 'alpha') && !contains(github.ref_name, 'beta') && !contains(github.ref_name, 'rc') }}
 
   deploy:
     needs: [build]
@@ -107,15 +234,19 @@ jobs:
 
       - name: Deploy
         uses: appleboy/ssh-action@master
+        env:
+          DEPLOY_MODE: CI
+          CI_DOCKER_IMAGE_NAME: ${{ needs.prepare.outputs.image_name_full }}
+          CI_DOCKER_IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
         with:
           host: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PKEY }}
+          envs: DEPLOY_MODE,CI_DOCKER_IMAGE_NAME,CI_DOCKER_IMAGE_TAG
           script: |
-            export DEPLOY_MODE=CI
-            export REGISTRY_PREFIX=${{ secrets.REGISTRY_PREFIX }}
-            export IMAGE_NAME=${{ secrets.IMAGE_NAME }}
-            export IMAGE_TAG=${{ secrets.IMAGE_TAG }}
-            cd ${{ secrets.PROJECT_ROOT }}
+            echo "Deploying ${CI_DOCKER_IMAGE_TAG} ('${CI_DOCKER_IMAGE_NAME}')..."
+            cd ${{ secrets.PROD_PROJECT_ROOT }}
+            echo "Providing current version to file '.version' ... "
+            echo "DOCKER_IMAGE=${CI_DOCKER_IMAGE_NAME}" > .version
             sh deploy.sh
