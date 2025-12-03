@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - feature/286-ci-cd-releases
 
 env:
   REGISTRY: ghcr.io
@@ -10,7 +11,7 @@ env:
   IMAGE_NAME: podcast-service
   IMAGE_TAG: latest
   DOCKER_IMAGE_NAME: ${{ github.repository }}
-  # DEBUG_DOCKER_IMAGE_TAG: 0.1.5-debug
+  DEBUG_DOCKER_IMAGE_TAG: 0.0.1-debug
 
 jobs:
   prepare:
