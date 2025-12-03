@@ -11,3 +11,4 @@
 *.sarif
 *.http
 .DS_Store
+.zed
