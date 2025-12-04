@@ -132,7 +132,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          target: service
           push: true
           tags: ${{ steps.docker-image-meta.outputs.tags }}
           labels: ${{ steps.docker-image-meta.outputs.labels }}
@@ -213,7 +212,7 @@ jobs:
           make_latest: ${{ !contains(github.ref_name, '-') && !contains(github.ref_name, 'alpha') && !contains(github.ref_name, 'beta') && !contains(github.ref_name, 'rc') }}
 
   deploy:
-    needs: [build]
+    needs: [build, prepare]
     runs-on: ubuntu-latest
 
     steps:
