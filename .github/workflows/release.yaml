@@ -246,7 +246,7 @@ jobs:
           envs: DEPLOY_MODE,CI_DOCKER_IMAGE_NAME,CI_DOCKER_IMAGE_TAG
           script: |
             echo "Deploying ${CI_DOCKER_IMAGE_TAG} ('${CI_DOCKER_IMAGE_NAME}')..."
-            cd ${{ secrets.PROD_PROJECT_ROOT }}
+            cd ${{ secrets.PROJECT_ROOT }}
             echo "Providing current version to file '.version' ... "
             echo "DOCKER_IMAGE=${CI_DOCKER_IMAGE_NAME}" > .version
             ls -lah
