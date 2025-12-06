@@ -1,7 +1,7 @@
 version: '3'
 services:
   web:
-    image: ${REGISTRY_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG}
+    image: ${DOCKER_IMAGE}
     env_file:
       - .env
     environment:
@@ -12,7 +12,7 @@ services:
       - internal-subnet
 
   rq:
-    image: ${REGISTRY_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG}
+    image: ${DOCKER_IMAGE}
     env_file:
       - .env
     environment:
@@ -20,13 +20,13 @@ services:
     networks:
       - internal-subnet
     deploy:
-      replicas: 4
+      replicas: 2
       resources:
         limits:
-          cpus: '0.25'
+          cpus: '0.5'
 
   migrate_db:
-    image: ${REGISTRY_PREFIX}/${IMAGE_NAME}:${IMAGE_TAG}
+    image: ${DOCKER_IMAGE}
     env_file:
       - .env
     environment:
