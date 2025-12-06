@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e
+
+export WORKING_DIR=/var/www/podcast-service
+
+echo "=== Move to app dir ==="
+cd ${WORKING_DIR}
+
+echo "=== Reading $(pwd)/.env file ==="
+export $(cat .env | grep -v ^# | xargs)
+
+echo "=== Reading $(pwd)/.version file ==="
+export $(cat .version | grep -v ^# | xargs)
+
+echo "=== Starting podcast service ==="
+echo "Detected version: '${DOCKER_IMAGE}'"
+docker compose up
