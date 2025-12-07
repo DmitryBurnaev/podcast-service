@@ -232,6 +232,8 @@ jobs:
           scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./etc/bin/deploy ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_ROOT }}/bin/deploy
           scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./etc/bin/migrate_db ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_ROOT }}/bin/migrate_db
           scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./etc/bin/start ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_ROOT }}/bin/start
+          sleep 30
+
       - name: Deploy
         uses: appleboy/ssh-action@v1.2.4
         env:
@@ -243,6 +245,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PKEY }}
+          timeout: 120s
           envs: DEPLOY_MODE,CI_DOCKER_IMAGE_NAME,CI_DOCKER_IMAGE_TAG
           script: |
             echo "Deploying ${CI_DOCKER_IMAGE_TAG} ('${CI_DOCKER_IMAGE_NAME}')..."
