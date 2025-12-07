@@ -1,7 +1,6 @@
 services:
   web:
-    image:
-      podcast-service
+    image: ${DOCKER_IMAGE:-podcast-service}
     build:
       context: .
     env_file:
@@ -12,8 +11,7 @@ services:
       - 127.0.0.1:${APP_PORT}:8000
 
   rq:
-    image:
-      podcast-service
+    image: ${DOCKER_IMAGE:-podcast-service}
     build:
       context: .
     env_file:
@@ -22,8 +20,7 @@ services:
       - APP_SERVICE=rq
 
   test:
-    image:
-      podcast-service:dev
+    image: ${DOCKER_IMAGE:-"podcast-service:dev"}
     build:
       context: .
       args:
