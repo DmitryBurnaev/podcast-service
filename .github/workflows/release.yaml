@@ -233,7 +233,7 @@ jobs:
           scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./etc/bin/migrate_db ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_ROOT }}/bin/migrate_db
           scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} ./etc/bin/start ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROJECT_ROOT }}/bin/start
       - name: Deploy
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.2.4
         env:
           DEPLOY_MODE: CI
           CI_DOCKER_IMAGE_NAME: ${{ needs.prepare.outputs.image_name_full }}
