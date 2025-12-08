@@ -182,3 +182,7 @@ class CookieResponseSchema(Schema):
 
 class WSProgressRequestSchema(WSRequestAuthSchema):
     episode_id = fields.Int(data_key="episodeID")
+
+
+class HealthCheckResponseSchema(Schema):
+    status = fields.Str()

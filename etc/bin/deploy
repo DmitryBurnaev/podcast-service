@@ -24,6 +24,10 @@ echo "=== check status ==="
 supervisorctl status podcast-service:
 
 echo "=== show containers ==="
-sleep 15
+sleep 30
 docker ps --format "table {{.ID}}\t{{.Image}}\t{{.Names}}\t{{.Status}}\t|" | grep podcast
+echo "==="
+
+echo "=== health check ==="
+curl http://localhost:${APP_PORT}/health/ --timeout 10
 echo "==="
