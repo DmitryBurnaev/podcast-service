@@ -252,4 +252,4 @@ jobs:
             cd ${{ secrets.PROJECT_ROOT }}
             echo "Providing current version to file '.version' ... "
             echo "DOCKER_IMAGE=${CI_DOCKER_IMAGE_NAME}" > .version
-            sh deploy.sh
+            bash bin/deploy

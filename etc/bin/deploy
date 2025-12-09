@@ -1,10 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-if [ "${DEPLOY_MODE}" != "CI" ]
-  then
-    echo "=== reading $(pwd)/.env file ==="
-    export $(cat .env | grep -v ^# | grep -v ^EMAIL | xargs)
-fi
+set -e
 
 echo "=== reading $(pwd)/.version file ==="
 export $(cat .version | grep -v ^# | xargs)
@@ -29,5 +25,74 @@ docker ps --format "table {{.ID}}\t{{.Image}}\t{{.Names}}\t{{.Status}}\t|" | gre
 echo "==="
 
 echo "=== health check ==="
-curl http://localhost:${APP_PORT}/health/ --timeout 10
-echo "==="
+
+# Функция для проверки здоровья
+health_check() {
+    local url="http://localhost:${APP_PORT}/health/"
+    local timeout=10
+    local max_retries=5
+    local retry_delay=5
+
+    for ((i=1; i<=max_retries; i++)); do
+        echo "Attempt $i/$max_retries: Checking health at $url"
+
+        # Пытаемся выполнить запрос и собираем полную информацию
+        if response=$(curl -s \
+                          -w "\nHTTP_STATUS:%{http_code}\nTIME_TOTAL:%{time_total}\n" \
+                          --max-time "$timeout" \
+                          "$url" 2>&1); then
+            # Извлекаем HTTP статус
+            http_status=$(echo "$response" | grep "HTTP_STATUS:" | cut -d':' -f2)
+            response_time=$(echo "$response" | grep "TIME_TOTAL:" | cut -d':' -f2)
+
+            # Извлекаем тело ответа (все что до HTTP_STATUS)
+            response_body=$(echo "$response" | sed '/HTTP_STATUS:/Q' | sed '$d')
+
+            echo "Response:"
+            echo "  Status: $http_status"
+            echo "  Response time: ${response_time}s"
+            echo "  Body: $response_body"
+            echo "---"
+
+            if [ "$http_status" = "200" ]; then
+                echo "✓ Health check passed!"
+                return 0
+            else
+                echo "✗ Health check failed with status: $http_status"
+                if [ $i -lt $max_retries ]; then
+                    echo "Retrying in ${retry_delay} seconds..."
+                    sleep $retry_delay
+                fi
+            fi
+        else
+            curl_exit_code=$?
+            echo "✗ Connection failed with exit code: $curl_exit_code"
+            echo "Error output: $response"
+
+            if [ $i -lt $max_retries ]; then
+                echo "Retrying in ${retry_delay} seconds..."
+                sleep $retry_delay
+            fi
+        fi
+    done
+
+    echo "❌ Health check failed after $max_retries attempts"
+    return 1
+}
+
+# Вызываем функцию проверки здоровья
+if ! health_check; then
+    echo "=== Additional diagnostics ==="
+    echo "Checking supervisor status:"
+    supervisorctl status podcast-service:
+
+    echo "Checking container logs:"
+    docker-compose logs --tail=20
+
+    echo "Checking port listening:"
+    netstat -tlnp | grep ":$APP_PORT" || echo "Port $APP_PORT is not listening"
+
+    exit 1
+fi
+
+echo "=== Deployment completed successfully ==="
