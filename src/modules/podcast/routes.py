@@ -21,7 +21,8 @@ routes = [
     Route("/cookies/", views.CookieListCreateAPIView),
     Route("/cookies/{cookie_id:int}/", views.CookieRUDAPIView),
     # system
-    Route("/health/", views.HealthCheckAPIView)
+    Route("/health/", views.HealthCheckAPIView),
+    Route("/system/", views.SystemInfoAPIView),
 ]
 
 ws_routes = [
