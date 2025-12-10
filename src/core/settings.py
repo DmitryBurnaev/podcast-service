@@ -16,6 +16,7 @@ config = Config(env_file=(env_file_path if env_file_path.is_file() else None))
 APP_HOST = config("APP_HOST", default="0.0.0.0")
 APP_PORT = config("APP_PORT", default="8000")
 APP_DEBUG = config("APP_DEBUG", cast=bool, default=False)
+APP_VERSION = config("APP_VERSION", default="latest")
 SECRET_KEY = config("SECRET_KEY", default="podcast-project-secret")
 
 TEST_MODE = "test" in sys.argv[0]
