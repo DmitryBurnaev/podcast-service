@@ -1,22 +1,24 @@
 version: '3'
 services:
   web:
-    image: ${DOCKER_IMAGE}
+    image: ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG:-latest}
     env_file:
       - .env
     environment:
       - APP_SERVICE=web
+      - APP_VERSION=${DOCKER_IMAGE_TAG:-latest}
     ports:
       - 127.0.0.1:${APP_PORT}:8000
     networks:
       - internal-subnet
 
   rq:
-    image: ${DOCKER_IMAGE}
+    image: ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG:-latest}
     env_file:
       - .env
     environment:
       - APP_SERVICE=rq
+      - APP_VERSION=${DOCKER_IMAGE_TAG:-latest}
     networks:
       - internal-subnet
     deploy:
@@ -24,15 +26,6 @@ services:
       resources:
         limits:
           cpus: '0.5'
-
-  migrate_db:
-    image: ${DOCKER_IMAGE}
-    env_file:
-      - .env
-    environment:
-      - APP_SERVICE=migrate_db
-    networks:
-      - internal-subnet
 
 networks:
   internal-subnet:

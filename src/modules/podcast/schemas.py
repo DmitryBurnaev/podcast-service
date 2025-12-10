@@ -186,3 +186,7 @@ class WSProgressRequestSchema(WSRequestAuthSchema):
 
 class HealthCheckResponseSchema(Schema):
     status = fields.Str()
+
+
+class SystemInfoResponseSchema(Schema):
+    version = fields.Str()
