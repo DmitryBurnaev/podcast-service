@@ -11,7 +11,7 @@ run_rq:
 	cd src && pipenv run python -m worker youtube_downloads
 
 upgrade:
-	. ./.env && echo "Upgrade migrations for: $$DB_NAME
+	. ./.env && echo "Upgrade migrations for: $$DB_NAME" && \
 	PIPENV_DONT_LOAD_ENV=1 DATABASE_NAME=$$DB_NAME \
 	pipenv run alembic upgrade head
 
@@ -49,11 +49,11 @@ test:
 	PYTHONPATH=./src pipenv run coverage run -m pytest && \
 	PYTHONPATH=./src pipenv run coverage report
 
-docker-build:
+build:
 	docker build . -t podcast-service
 
-docker-test:
-	docker compose up test --build
+test-in-docker:
+	docker compose up --profile test --build
 
-docker-run:
-	docker compose up web rq --build
+run-in-docker:
+	docker compose up --profile service --build
