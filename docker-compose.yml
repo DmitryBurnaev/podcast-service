@@ -1,0 +1,55 @@
+services:
+  web:
+    image: ${DOCKER_IMAGE_NAME:-podcast-service}:${DOCKER_IMAGE_TAG:-latest}
+    build:
+      context: .
+    profiles:
+      - service
+    env_file:
+      - .env
+    environment:
+      - APP_SERVICE=web
+      - APP_VERSION=${DOCKER_IMAGE_TAG:-latest}
+    ports:
+      - 127.0.0.1:${APP_PORT}:8000
+    networks:
+      - internal-subnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  rq:
+    image: ${DOCKER_IMAGE_NAME:-podcast-service}:${DOCKER_IMAGE_TAG:-latest}
+    build:
+      context: .
+    profiles:
+      - service
+    env_file:
+      - .env
+    environment:
+      - APP_SERVICE=rq
+      - APP_VERSION=${DOCKER_IMAGE_TAG:-latest}
+    networks:
+      - internal-subnet
+    depends_on:
+      - web
+
+  test:
+    image: ${DOCKER_IMAGE_NAME:-podcast-service}:test
+    profiles:
+      - test
+    build:
+      context: .
+      args:
+        DEV_DEPS: "true"
+    env_file:
+      - .env
+    environment:
+      - APP_SERVICE=test
+
+networks:
+  internal-subnet:
+    external: true
