@@ -1,5 +1,5 @@
 # download and extract ffmpeg
-FROM alpine:3.20 AS download-ffmpeg
+FROM alpine:3.23 AS download-ffmpeg
 WORKDIR /ffmpeg
 ARG FFMPEG_VERSION=6.1
 
@@ -11,7 +11,7 @@ RUN apk add wget unzip \
     && rm -rf /var/cache/apk/*
 
 # copy source code
-FROM alpine:3.20 AS code-layer
+FROM alpine:3.23 AS code-layer
 WORKDIR /podcast
 
 COPY src ./src
