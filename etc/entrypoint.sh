@@ -18,10 +18,6 @@ elif [ "${APP_SERVICE}" = "test" ]
     PYTHONPATH=$(pwd)/src coverage run -m pytest && \
     coverage report
 
-elif [ "${APP_SERVICE}" = "migrate_db" ]
-  then
-    cd /podcast && alembic upgrade head
-
 else
   echo "APP_SERVICE environment variable is unexpected or was not provided (APP_SERVICE='${APP_SERVICE}')" >&2
   kill -s SIGINT 1
