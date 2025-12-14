@@ -5,8 +5,8 @@ set -e
 echo "=== reading $(pwd)/.version file ==="
 export $(cat .version | grep -v ^# | xargs)
 
-echo "=== pulling image '${DOCKER_IMAGE}' ==="
-docker pull ${DOCKER_IMAGE}
+echo "=== pulling image '${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}' ==="
+docker pull ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}
 
 echo "=== restarting service ==="
 supervisorctl stop podcast-service:
@@ -55,10 +55,10 @@ health_check() {
             echo "---"
 
             if [ "$http_status" = "200" ]; then
-                echo "✓ Health check passed!"
+                echo "✅ Health check passed!"
                 return 0
             else
-                echo "✗ Health check failed with status: $http_status"
+                echo "❌ Health check failed with status: $http_status"
                 if [ $i -lt $max_retries ]; then
                     echo "Retrying in ${retry_delay} seconds..."
                     sleep $retry_delay
@@ -66,7 +66,7 @@ health_check() {
             fi
         else
             curl_exit_code=$?
-            echo "✗ Connection failed with exit code: $curl_exit_code"
+            echo "❌ Connection failed with exit code: $curl_exit_code"
             echo "Error output: $response"
 
             if [ $i -lt $max_retries ]; then
