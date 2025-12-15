@@ -238,7 +238,7 @@ jobs:
         uses: appleboy/ssh-action@v1.2.4
         env:
           DEPLOY_MODE: CI
-          CI_DOCKER_IMAGE_NAME: ${{ needs.prepare.outputs.image_name_full }}
+          CI_DOCKER_IMAGE_NAME: ${{ needs.prepare.outputs.image_name_base }}
           CI_DOCKER_IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
         with:
           host: ${{ secrets.SSH_HOST }}
