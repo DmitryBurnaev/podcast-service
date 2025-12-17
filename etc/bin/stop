@@ -1,5 +1,11 @@
 #!/bin/bash
 set -e
 
+export WORKING_DIR=/var/www/podcast-service
+
+echo "=== Move to app dir ==="
+cd ${WORKING_DIR}
+
 echo "=== Stopping podcast service ==="
-docker compose down
+echo "Stopping service: '$1'..."
+docker compose down $1
