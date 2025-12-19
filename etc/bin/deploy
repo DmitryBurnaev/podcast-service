@@ -28,7 +28,7 @@ echo "=== health check ==="
 
 # Функция для проверки здоровья
 health_check() {
-    local url="http://localhost:${APP_PORT}/health/"
+    local url="http://localhost:${APP_PORT}/health_check/"
     local timeout=10
     local max_retries=5
     local retry_delay=5
