@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 echo "=== reading $(pwd)/.version file ==="
 export $(cat .version | grep -v ^# | xargs)
 
@@ -10,7 +8,16 @@ docker pull ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}
 
 echo "=== restarting service ==="
 supervisorctl stop podcast-service:
-docker-compose down
+# if there are some containers stay in up-state
+names=$(docker ps --format "{{.Names}}" | grep podcast-)
+if [ -n "$names" ]; then
+    echo "stopping containers..."
+    echo "$names" | xargs docker stop
+    echo "containers stopped"
+else
+    echo "no containers to stop"
+fi
+echo "starting supervisorctl..."
 supervisorctl start podcast-service:
 
 echo "=== clearing ==="
@@ -20,15 +27,16 @@ echo "=== check status ==="
 supervisorctl status podcast-service:
 
 echo "=== show containers ==="
-sleep 30
-docker ps --format "table {{.ID}}\t{{.Image}}\t{{.Names}}\t{{.Status}}\t|" | grep podcast
+echo "sleeping for a while..."
+sleep 10
+docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t| {{.Ports}}\t|" | grep podcast
 echo "==="
 
 echo "=== health check ==="
+app_port = 9001
 
-# Функция для проверки здоровья
 health_check() {
-    local url="http://localhost:${APP_PORT}/health_check/"
+    local url="http://localhost:${app_port}/health_check/"
     local timeout=10
     local max_retries=5
     local retry_delay=5
