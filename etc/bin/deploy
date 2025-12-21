@@ -30,7 +30,6 @@ echo "=== show containers ==="
 echo "sleeping for a while..."
 sleep 10
 docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t| {{.Ports}}" | grep podcast
-echo "==="
 
 echo "=== health check ==="
 
@@ -44,16 +43,13 @@ health_check() {
     for ((i=1; i<=max_retries; i++)); do
         echo "Attempt $i/$max_retries: Checking health at $url"
 
-        # Пытаемся выполнить запрос и собираем полную информацию
         if response=$(curl -s \
                           -w "\nHTTP_STATUS:%{http_code}\nTIME_TOTAL:%{time_total}\n" \
                           --max-time "$timeout" \
                           "$url" 2>&1); then
-            # Извлекаем HTTP статус
+
             http_status=$(echo "$response" | grep "HTTP_STATUS:" | cut -d':' -f2)
             response_time=$(echo "$response" | grep "TIME_TOTAL:" | cut -d':' -f2)
-
-            # Извлекаем тело ответа (все что до HTTP_STATUS)
             response_body=$(echo "$response" | sed '/HTTP_STATUS:/Q' | sed '$d')
 
             echo "Response:"
@@ -99,4 +95,4 @@ if ! health_check; then
     exit 1
 fi
 
-echo "=== Deployment completed successfully ==="
+echo "=== ✅ Deployment completed successfully ==="
