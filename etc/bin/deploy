@@ -29,13 +29,13 @@ supervisorctl status podcast-service:
 echo "=== show containers ==="
 echo "sleeping for a while..."
 sleep 10
-docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t| {{.Ports}}\t|" | grep podcast
+docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t| {{.Ports}}" | grep podcast
 echo "==="
 
 echo "=== health check ==="
-app_port = 9001
 
 health_check() {
+    local app_port = 9001
     local url="http://localhost:${app_port}/health_check/"
     local timeout=10
     local max_retries=5
@@ -88,17 +88,13 @@ health_check() {
     return 1
 }
 
-# Вызываем функцию проверки здоровья
 if ! health_check; then
     echo "=== Additional diagnostics ==="
     echo "Checking supervisor status:"
     supervisorctl status podcast-service:
 
-    echo "Checking container logs:"
-    docker-compose logs --tail=20
-
-    echo "Checking port listening:"
-    netstat -tlnp | grep ":$APP_PORT" || echo "Port $APP_PORT is not listening"
+    echo "Checking containers:"
+    docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t| {{.Ports}}" | grep podcast
 
     exit 1
 fi
