@@ -35,7 +35,7 @@ echo "==="
 echo "=== health check ==="
 
 health_check() {
-    local app_port = 9001
+    local app_port="9001"
     local url="http://localhost:${app_port}/health_check/"
     local timeout=10
     local max_retries=5
