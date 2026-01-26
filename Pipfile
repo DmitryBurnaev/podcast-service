@@ -10,7 +10,7 @@ psycopg2-binary = "==2.9.11" # for alembic only
 sqlalchemy = "==2.0.45"
 PyJWT = "==2.10.1"
 jinja2 = "==3.1.6"
-python-multipart = "==0.0.20"
+python-multipart = "==0.0.22"
 httpx = "==0.28.1"
 aiosmtplib = "==5.0.0"
 pycryptodome = "==3.23.0"
