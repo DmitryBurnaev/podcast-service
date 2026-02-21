@@ -14,6 +14,7 @@ httpx = "==0.28.1"
 aiosmtplib = "==5.0.0"
 pycryptodome = "==3.23.0"
 uvicorn = "==0.38.0"
+websockets = "==16.0"  # required for uvicorn WebSocket support (ASGI)
 greenlet = "==3.3.0"
 python-dotenv = "==1.2.1"
 starlette = "==0.50.0"

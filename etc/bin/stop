@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-export WORKING_DIR=/var/www/podcast-service
+export WORKING_DIR=/opt/podcasts/podcast-service
 
 echo "=== Move to app dir ==="
 cd ${WORKING_DIR}
