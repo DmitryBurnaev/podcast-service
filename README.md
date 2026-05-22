@@ -79,9 +79,17 @@ cd "<PATH_TO_PROJECT>" && make migrate
 
 ### Run Project
 
++ **Docker Compose** uses an external network named `storage` (see [`docker-compose.yml`](docker-compose.yml)). Create it once before `make run-in-docker`, `make test-in-docker`, or `docker compose up`:
+
+```shell script
+docker network create storage
+```
+
+If the network already exists, Docker prints an error and you can ignore it.
+
 + Run via docker-containers (like in production mode)
 ```shell script
-cd "<PATH_TO_PROJECT>" && docker-compose up --build
+cd "<PATH_TO_PROJECT>" && make run-in-docker
 ```
 
 + Run in develop-mode

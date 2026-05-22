@@ -53,7 +53,7 @@ build:
 	docker build . -t podcast-service
 
 test-in-docker:
-	docker compose up --profile test --build
+	COMPOSE_PROFILES=test docker compose up --build
 
 run-in-docker:
-	docker compose up --profile service --build
+	COMPOSE_PROFILES=service docker compose up --build
