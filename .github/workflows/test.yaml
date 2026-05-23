@@ -29,6 +29,7 @@ jobs:
           DB_PORT: ${{ secrets.DB_PORT }}
         run: |
           cp .env.template .env
+          echo "SECRET_KEY=$(openssl rand -hex 32)" >> .env
           env >> .env
 
       - name: Build image
