@@ -8,6 +8,7 @@ This project provides a backend (API service) and is positioned as an updated ve
 ## Content
 + [Project Description](#project-description)
 + [Install Project](#install-project)
++ [Secret key](#secret-key)
 + [Run Project](#run-project)
 + [Useful Commands](#useful-commands)
 + [Env Variables](#environment-variables)
@@ -56,6 +57,7 @@ Technically project contains from 3 parts:
 cd "<PATH_TO_PROJECT>"
 cp .env.template .env
 # update variables to actual (redis, postgres, etc.)
+# See Secret key below: SECRET_KEY must be non-empty before run or tests.
 ```
 
 #### Prepare extra resources (postgres | redis)
@@ -75,6 +77,29 @@ PGPASSWORD=${DATABASE_PASSWORD} psql -U${DATABASE_USER} -h${DATABASE_HOST} -p${D
 ```shell script
 cd "<PATH_TO_PROJECT>" && make migrate
 ```
+
+### Secret key
+
+`SECRET_KEY` in `.env` **must not be empty** — it backs JWT and other signing paths. If it is unset, bringing up the stack or hitting tests tends to fail in non-obvious ways.
+
+Locally, after copying `.env.template`, set it to a random value, for example:
+
+```shell script
+openssl rand -hex 32   # paste the output into SECRET_KEY=… in `.env`
+```
+
+For **Docker Compose** test runs (`make test-in-docker` /
+`COMPOSE_PROFILES=test docker compose up --build`), the same root `.env` is loaded
+(`env_file` in [`docker-compose.yml`](docker-compose.yml)), so configure `SECRET_KEY` there too.
+
+GitHub Actions **PR and release** workflows that run tests recreate `.env` from `.env.template`
+and append database settings from secrets, then add a random key, for example:
+
+```bash
+echo "SECRET_KEY=$(openssl rand -hex 32)" >> .env
+```
+
+You usually only need repo secrets for Postgres (`DB_*`), not `SECRET_KEY`.
 
 
 ### Run Project
@@ -114,10 +139,23 @@ make migrations    # show applied migrations
 
 ```
 
-+ Run tests
++ Run tests (local **pytest** — needs project-root `.env` with a non-empty `SECRET_KEY`, see
+  [Secret key](#secret-key)):
 ```shell script
-cd "<PATH_TO_PROJECT>"/src && pytest 
+cd "<PATH_TO_PROJECT>"/src && pytest
 ```
+
++ Run tests (**Docker Compose**, same image profile as CI; create the `storage` network first if
+  you have not already, see [Run Project](#run-project)):
+```shell script
+cd "<PATH_TO_PROJECT>" && COMPOSE_PROFILES=test docker compose up --build \
+  --exit-code-from test test
+```
+
+**Note — `SECRET_KEY` and tests:** tests need a `SECRET_KEY` for JWT-related code paths.
+In CI/CD it is generated automatically (see the `openssl` one-liner in
+[Secret key](#secret-key)). For local runs, either put `SECRET_KEY=your-test-secret-key` in
+`.env` or reuse the same OpenSSL pattern after `cp .env.template .env`.
 
 + Apply formatting (`black`) and lint code (`pylint`)
 ```shell script
@@ -133,7 +171,7 @@ make lint
 | APP_HOST              | App default host running (used by docker compose) |                        127.0.0.1 |
 | APP_PORT              | App default port running (used by docker compose) |                             9000 |
 | APP_SERVICE           |  Run service (web/celery/test) via entrypoint.sh  |                              web |
-| SECRET_KEY            |           Django secret key (security)            |             _abc3412j345j1f2d3f_ |
+| SECRET_KEY            |    App/JWT signing secret (must not be empty)     | output of `openssl rand -hex 32` |
 | SITE_URL              |   URL address to the UI-part of the podcast APP   |         https://podcast.site.com |
 | SERVICE_URL           |   URL address to the BE-part of the podcast APP   | https://podcast-service.site.com |
 | DB_HOST               |             PostgreSQL database host              |                        127.0.0.1 |
