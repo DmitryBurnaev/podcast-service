@@ -17,7 +17,7 @@ uvicorn = "==0.41.0"
 websockets = "==16.0"  # required for uvicorn WebSocket support (ASGI)
 greenlet = "==3.3.2"
 python-dotenv = "==1.2.2"
-starlette = "==0.52.1"
+starlette = "==1.0.1"
 rq = "==2.7.0"
 alembic = "==1.18.4"
 redis = "==7.2.1"
