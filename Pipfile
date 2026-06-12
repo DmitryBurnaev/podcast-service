@@ -23,8 +23,8 @@ alembic = "==1.18.4"
 redis = "==7.2.1"
 boto3 = "==1.42.59"
 sentry-sdk = "==2.53.0"
-yt-dlp = "==2026.03.17"
 pyjwt = "==2.13.0"
+yt-dlp = "==2026.06.09"
 
 [dev-packages]
 pytest = "~=8.3.3"
