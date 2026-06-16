@@ -9,7 +9,7 @@ asyncpg = "==0.31.0"
 psycopg2-binary = "==2.9.11" # for alembic only
 sqlalchemy = "==2.0.47"
 jinja2 = "==3.1.6"
-python-multipart = "==0.0.27"
+python-multipart = "==0.0.31"
 httpx = "==0.28.1"
 aiosmtplib = "==5.1.0"
 pycryptodome = "==3.23.0"
