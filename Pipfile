@@ -32,7 +32,7 @@ pytest-asyncio = "~=0.24.0"
 coverage = "~=7.6.7"
 black = "~=26.3.1"
 pylint = "~=3.3.1"
-GitPython = "~=3.1.44"
+GitPython = "~=3.1.47"
 
 [scripts]
 bump = {call = "etc.bump:main()"}
