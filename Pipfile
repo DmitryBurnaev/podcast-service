@@ -23,7 +23,7 @@ alembic = "==1.18.4"
 redis = "==7.2.1"
 boto3 = "==1.43.66"
 sentry-sdk = "==2.53.0"
-pyjwt = "==2.13.0"
+pyjwt = "==2.15.0"
 yt-dlp = "==2026.08.19"
 
 [dev-packages]
