@@ -24,7 +24,7 @@ redis = "==7.2.1"
 boto3 = "==1.43.66"
 sentry-sdk = "==2.53.0"
 pyjwt = "==2.15.1"
-yt-dlp = "==2026.10.21"
+yt-dlp = "==2026.10.26"
 
 [dev-packages]
 pytest = "~=8.3.3"
